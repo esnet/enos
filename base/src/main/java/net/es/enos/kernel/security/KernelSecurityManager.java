@@ -1,4 +1,6 @@
 package net.es.enos.kernel.security;
+import net.es.enos.kernel.exec.KernelThread;
+
 import java.io.FileDescriptor;
 import java.io.FilePermission;
 import java.lang.SecurityManager;
@@ -14,9 +16,15 @@ public class KernelSecurityManager extends SecurityManager {
     }
 
     public void checkAccess(Thread t) throws SecurityException {
-        // System.out.println("checkAccess(Thread t = " + t.getName());
+        System.out.println("checkAccess(Thread t = " + t.getName());
+        // Authorized all non ENOS user threads.
+        if ( ! KernelThread.isENOSThread(t)) {
+            return;
+        }
+        // This is an ENOS thread. Verify authorization
+
         //
-        // throw new SecurityException();
+        throw new SecurityException();
     }
 
     @Override

@@ -17,7 +17,7 @@ public class KernelThread extends Thread {
     private InteractiveConsole console = null;
     private InputStream in;
     private OutputStream out;
-
+    private static final String ENOS_THREAD="ENOS Thread id=";
 
 
     private KernelThread () {
@@ -31,13 +31,21 @@ public class KernelThread extends Thread {
     }
     private void init() {
         // Set first what will be protected.
-        this.setName(UUID.randomUUID().toString());
+        this.setName(ENOS_THREAD + UUID.randomUUID().toString());
 
         // Set SecurityManager
         this.securityManager = new KernelSecurityManager(System.getSecurityManager());
         System.setSecurityManager(this.securityManager);
 
 
+    }
+
+    public static boolean isENOSThread (Thread thread) {
+        return (thread!=null &&  thread.getName().startsWith(ENOS_THREAD));
+    }
+
+    public static boolean isENOSThread() {
+        return Thread.currentThread().getName().startsWith(ENOS_THREAD);
     }
 
 }

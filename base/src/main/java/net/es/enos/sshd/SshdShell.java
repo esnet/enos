@@ -45,7 +45,4 @@ public class SshdShell extends Shell implements Command {
         super.start();
     }
 
-    public void destroy() {
-        Thread.dumpStack();
-    }
 }
