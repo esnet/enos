@@ -1,7 +1,7 @@
 package net.es.enos.python;
 
 import net.es.enos.shell.ShellInputStream;
-import net.net.es.enos.shell.annotations.ShellCommand;
+import net.es.enos.shell.annotations.ShellCommand;
 
 
 import java.io.ByteArrayInputStream;
@@ -13,7 +13,7 @@ import java.util.Arrays;
 
 import org.python.util.InteractiveInterpreter;
 import org.python.util.InteractiveConsole;
-import org.python.util.JLineConsole;
+// import org.python.util.JLineConsole;
 
 import javax.print.DocFlavor;
 
@@ -29,23 +29,13 @@ public class PythonShell {
     public static void startPython (String[] args, InputStream in, OutputStream out, OutputStream err) {
         System.out.println ("Starting Python");
 
-        /****
-        InteractiveInterpreter interpreter = new InteractiveInterpreter();
-
-        // InteractiveConsole interpreter = new InteractiveConsole();
-        // interpreter.setIn(new ShellInputStream(System.in, null));
-        // interpreter.setIn(in);
-        interpreter.setOut(out);
-        interpreter.setErr(out);
-        interpreter.exec(line);
-        /****/
-
-        InteractiveConsole console = new InteractiveConsole();
-
-        console.setIn(in);
-        console.setOut(out);
-        console.setErr(err);
         try {
+            InteractiveConsole console = new InteractiveConsole();
+
+            console.setIn(in);
+
+            console.setOut(out);
+            console.setErr(err);
             console.interact();
         } catch (Exception e) {
             e.printStackTrace();

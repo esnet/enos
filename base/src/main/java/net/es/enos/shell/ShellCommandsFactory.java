@@ -1,6 +1,6 @@
 package net.es.enos.shell;
 
-import net.net.es.enos.shell.annotations.ShellCommand;
+import net.es.enos.shell.annotations.ShellCommand;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;

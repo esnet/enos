@@ -1,5 +1,6 @@
 package net.es.enos.shell;
 
+import java.io.OutputStreamWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -8,12 +9,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+
+import jline.UnixTerminal;
 import jline.console.completer.StringsCompleter;
 import net.es.enos.kernel.exec.KernelThread;
 
 
 import jline.console.ConsoleReader;
-import net.net.es.enos.shell.annotations.ShellCommand;
+import net.es.enos.shell.annotations.ShellCommand;
 
 public class Shell extends KernelThread {
 
@@ -62,9 +65,8 @@ public class Shell extends KernelThread {
         this.out = new ShellOutputStream(out);
 
         try {
-            this.consoleReader = new ConsoleReader(this.in,
-                                                   this.out);
-        } catch (IOException e) {
+                this.consoleReader = new ConsoleReader(this.in, this.out, new UnixTerminal());
+        } catch (Exception e) {
             e.printStackTrace();
         }
         this.in = new ShellInputStream(this.in, this.consoleReader);

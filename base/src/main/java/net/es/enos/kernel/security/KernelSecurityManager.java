@@ -30,9 +30,13 @@ public class KernelSecurityManager extends SecurityManager {
 
     public void checkWrite(String file) throws SecurityException {
         System.out.println("checkWrite " + file);
-        if ("spring-shell.log".equals(file)) {
+        if (Authorized.isAuthorized(new FilePermission(file,"write"))) {
+            // Authorized.
+            System.out.println("Accept");
             return;
         }
+        // Not authorized
+        System.out.println("Reject");
         throw new SecurityException();
     }
     public void checkWrite(FileDescriptor file) throws SecurityException {

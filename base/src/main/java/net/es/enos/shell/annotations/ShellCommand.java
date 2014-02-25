@@ -1,4 +1,4 @@
-package net.net.es.enos.shell.annotations;
+package net.es.enos.shell.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
