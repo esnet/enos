@@ -1,5 +1,6 @@
 package net.es.enos.boot;
 
+import net.es.enos.kernel.security.KernelSecurityManager;
 import net.es.enos.python.PythonShell;
 import net.es.enos.shell.ShellCommandsFactory;
 import net.es.enos.sshd.SShd;
@@ -16,6 +17,7 @@ public class BootStrap {
     private String[] args = null;
     private SShd sshd = null;
 
+    private static final KernelSecurityManager securityManager = new KernelSecurityManager();
 
     public Shell getShell() {
         return shell;
@@ -29,6 +31,10 @@ public class BootStrap {
 
     public String[] getArgs() {
         return args;
+    }
+
+    public static KernelSecurityManager getSecurityManager() {
+        return securityManager;
     }
 
     public static void main(String[] args) {

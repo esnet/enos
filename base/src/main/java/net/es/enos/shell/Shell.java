@@ -1,10 +1,7 @@
 package net.es.enos.shell;
 
-import java.io.OutputStreamWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Type;
-import java.util.HashMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -18,12 +15,14 @@ import net.es.enos.kernel.exec.KernelThread;
 import jline.console.ConsoleReader;
 import net.es.enos.shell.annotations.ShellCommand;
 
-public class Shell extends KernelThread {
+public class Shell implements Runnable {
 
     private InputStream in = null;
     private OutputStream out = null;
     private ConsoleReader consoleReader = null;
     private StringsCompleter stringsCompleter = null;
+    private KernelThread kernelThread = null;
+    private String prompt = "\nenos";
 
     public OutputStream getOut() {
         return out;
@@ -42,10 +41,8 @@ public class Shell extends KernelThread {
     }
 
     public Shell(InputStream in, OutputStream out) throws IOException {
-        super(in,out);
         this.in = in;
         this.out = out;
-
     }
 
     private void print(String line) {
@@ -57,10 +54,21 @@ public class Shell extends KernelThread {
         }
     }
 
+    public String getPrompt() {
+        return prompt;
+    }
+
+    public void setPrompt(String prompt) {
+        this.prompt = "\n" + prompt;
+    }
+
     public void run() {
+
+        this.kernelThread = KernelThread.getCurrentKernelThread();
 
         System.out.println ("Shell Starting");
 
+        this.setPrompt(kernelThread.getUser().getName() + "@enos> ");
 
         this.out = new ShellOutputStream(out);
 
@@ -76,7 +84,7 @@ public class Shell extends KernelThread {
 
         while (true) {
             try {
-                String line = this.consoleReader.readLine("\nenos> ");
+                String line = this.consoleReader.readLine(this.prompt);
                 if (line == null) {
                     continue;
                 }
@@ -102,10 +110,18 @@ public class Shell extends KernelThread {
                 } catch (InvocationTargetException e) {
                    this.print( e.toString());
                    continue;
+                } catch (Exception e) {
+                    // This is a catch all. Make sure that the thread recovers in a correct state
+                    this.print( e.toString());
+                    this.fixThread();
                 }
             } catch (IOException e) {;
                 break;
             }
         }
+    }
+
+    private void fixThread() {
+
     }
 }

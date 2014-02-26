@@ -1,5 +1,6 @@
 package net.es.enos.python;
 
+import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.shell.ShellInputStream;
 import net.es.enos.shell.annotations.ShellCommand;
 
@@ -32,10 +33,10 @@ public class PythonShell {
         try {
             InteractiveConsole console = new InteractiveConsole();
 
-            console.setIn(in);
-
             console.setOut(out);
             console.setErr(err);
+            console.setIn(in);
+            // Start the interactive session
             console.interact();
         } catch (Exception e) {
             e.printStackTrace();
