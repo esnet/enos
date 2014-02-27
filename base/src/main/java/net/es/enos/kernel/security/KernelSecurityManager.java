@@ -27,7 +27,7 @@ public class KernelSecurityManager extends SecurityManager {
         // Threads that are not part of ENOS ThreadGroup are authorized
         Thread currentThread = Thread.currentThread();
         if ((currentThread.getThreadGroup() == null) ||
-            (this.enosRootThreadGroup.equals(currentThread.getThreadGroup())) ||
+            (KernelThread.getCurrentKernelThread().isPrivileged()) ||
             ( !this.enosRootThreadGroup.parentOf(currentThread.getThreadGroup()))) {
             return;
         }
@@ -49,7 +49,7 @@ public class KernelSecurityManager extends SecurityManager {
 
         Thread currentThread = Thread.currentThread();
         if ((currentThread.getThreadGroup() == null) ||
-           (this.enosRootThreadGroup.equals(currentThread.getThreadGroup())) ||
+           (KernelThread.getCurrentKernelThread().isPrivileged()) ||
            ( !this.enosRootThreadGroup.parentOf(currentThread.getThreadGroup()))) {
             // Not an ENOS Thread.
             return;
@@ -58,7 +58,6 @@ public class KernelSecurityManager extends SecurityManager {
             // Authorize all non ENOS classes
             return;
         }
-        System.out.println("checkPackageAccess " + p);
         throw new SecurityException("Thread " + Thread.currentThread().getName() + " attempted to access a non authorized ENOS class");
     }
 
@@ -67,20 +66,20 @@ public class KernelSecurityManager extends SecurityManager {
     }
 
     public void checkWrite(String file) throws SecurityException {
-        System.out.println("checkWrite " + file);
+        // System.out.println("checkWrite " + file);
 
         if (KernelThread.getCurrentKernelThread().isPrivileged()) {
-            System.out.println("Privileged thread: Accept");
+            // System.out.println("Privileged thread: Accept");
             return;
         }
 
         if (Authorized.isAuthorized(new FilePermission(file,"write"))) {
             // Authorized.
-            System.out.println("Accept");
+            // System.out.println("Accept");
             return;
         }
         // Not authorized
-        System.out.println("Reject");
+        // System.out.println("Reject");
         throw new SecurityException();
     }
     public void checkWrite(FileDescriptor file) throws SecurityException {

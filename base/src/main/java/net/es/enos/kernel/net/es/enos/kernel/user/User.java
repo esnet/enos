@@ -1,8 +1,12 @@
 package net.es.enos.kernel.net.es.enos.kernel.user;
 
 import net.es.enos.boot.BootStrap;
+import net.es.enos.kernel.storage.LocalStorage;
+import net.es.enos.kernel.storage.Storage;
 
 import java.lang.ref.WeakReference;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -15,10 +19,12 @@ public final class User {
 
     private static HashMap<String,WeakReference<User>> users = new HashMap<String, WeakReference<User>>();
     private static HashMap<String,WeakReference<User>> usersByGroup = new HashMap<String, WeakReference<User>>();
+    private static final Path storageRootPath = Paths.get("/tmp/enos/home");
 
     private String name;
     private UUID id;
     private ThreadGroup threadGroup;
+    private Storage storage;
 
 
     public ThreadGroup getThreadGroup() {
@@ -28,6 +34,8 @@ public final class User {
     public User (String name) {
         this.name = name;
         this.id = UUID.randomUUID();
+        // Create storage
+        this.storage = new LocalStorage(Paths.get(User.storageRootPath.toString(),this.name));
         User.users.put(this.name, new WeakReference<User>(this));
         // Create the user ThreadGroup
         this.threadGroup = new ThreadGroup(BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup(),

@@ -5,6 +5,8 @@ import java.lang.reflect.Method;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 
 import jline.UnixTerminal;
@@ -23,6 +25,13 @@ public class Shell implements Runnable {
     private StringsCompleter stringsCompleter = null;
     private KernelThread kernelThread = null;
     private String prompt = "\nenos";
+
+    public static String banner = " _       __     __                             __           _______   ______  _____\n" +
+            "| |     / /__  / /________  ____ ___  ___     / /_____     / ____/ | / / __ \\/ ___/\n" +
+            "| | /| / / _ \\/ / ___/ __ \\/ __ `__ \\/ _ \\   / __/ __ \\   / __/ /  |/ / / / /\\__ \\ \n" +
+            "| |/ |/ /  __/ / /__/ /_/ / / / / / /  __/  / /_/ /_/ /  / /___/ /|  / /_/ /___/ / \n" +
+            "|__/|__/\\___/_/\\___/\\____/_/ /_/ /_/\\___/   \\__/\\____/  /_____/_/ |_/\\____//____/  \n" +
+            "                                                                                                                                                                                                               ";
 
     public OutputStream getOut() {
         return out;
@@ -71,7 +80,13 @@ public class Shell implements Runnable {
         this.setPrompt(kernelThread.getUser().getName() + "@enos> ");
 
         this.out = new ShellOutputStream(out);
-
+        try {
+            this.out.write(Shell.banner.getBytes());
+            this.out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        ;
         try {
                 this.consoleReader = new ConsoleReader(this.in, this.out, new UnixTerminal());
         } catch (Exception e) {
