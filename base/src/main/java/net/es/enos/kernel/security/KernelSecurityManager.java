@@ -1,5 +1,6 @@
 package net.es.enos.kernel.security;
 import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.kernel.net.es.enos.kernel.user.User;
 
 import java.io.FileDescriptor;
 import java.io.FilePermission;
@@ -22,8 +23,19 @@ public class KernelSecurityManager extends SecurityManager {
     }
 
     public void checkAccess(Thread t) throws SecurityException {
-        // System.out.println("checkAccess(Thread current= " + Thread.currentThread().getName() + " t = " + t.getName());
-        // Authorized all non ENOS user threads. Perhaps too much but needed for nio
+        System.out.println("checkAccess(Thread current= " + Thread.currentThread().getName() + " t = " + t.getName());
+        // Threads that are not part of ENOS ThreadGroup are authorized
+        Thread currentThread = Thread.currentThread();
+        if ((currentThread.getThreadGroup() == null) ||
+            (this.enosRootThreadGroup.parentOf(currentThread.getThreadGroup()))) {
+            return;
+        }
+        if (Thread.currentThread().getThreadGroup().parentOf(t.getThreadGroup())) {
+            // A thread can do whatever it wants on thread of the same user
+            return;
+        }
+        throw new SecurityException("Illegal Thread access from " + Thread.currentThread().getName() + " onto " +
+                                     t.getName());
     }
 
     @Override
@@ -59,7 +71,8 @@ public class KernelSecurityManager extends SecurityManager {
 
     @Override
     public ThreadGroup getThreadGroup() {
-        return this.enosRootThreadGroup;
+        // return this.enosRootThreadGroup;
+        return null;
     }
 
     public ThreadGroup getEnosRootThreadGroup() {

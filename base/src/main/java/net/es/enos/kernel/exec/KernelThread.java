@@ -29,7 +29,7 @@ public class  KernelThread {
         this.init();
 
         if ((this.thread.getThreadGroup() == null)
-           || this.thread.getThreadGroup().equals(BootStrap.getSecurityManager().getEnosRootThreadGroup())) {
+           || this.thread.getThreadGroup().equals(BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup())) {
             // Threads in the root ThreadGroup run as privileged
             this.privileged = true;
         } else {
@@ -41,6 +41,11 @@ public class  KernelThread {
         synchronized (KernelThread.kernelThreads) {
             KernelThread.kernelThreads.put(this.thread, this);
         }
+
+    }
+
+    public Thread getThread() {
+        return this.thread;
     }
 
     public synchronized boolean isPrivileged() {
@@ -98,6 +103,7 @@ public class  KernelThread {
     public synchronized void setUser(User user) throws SecurityException {
 
         if (this.user == null) {
+            System.out.println("SET USER= " + user.getName() + " tid= " + this.thread.getName());
             this.user = user;
             this.privileged = false;
         } else {

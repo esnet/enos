@@ -56,14 +56,16 @@ public class SshdShell extends Shell implements Command, SessionAware {
             throw new RuntimeException("Trying to start an SSH session without users");
         }
 
-        // Create a new Thread.
-        this.thread = new Thread(this);
-
         User user = User.getUser(tokenId.username);
         if (user == null) {
             // First thread from this user
             user = new User(tokenId.username);
         }
+
+        // Create a new Thread.
+        this.thread = new Thread(user.getThreadGroup(),
+                                 this,
+                                 "ENOS Shell User= " + user.getName() );
         KernelThread.getKernelThread(this.thread).setUser(user);
         this.thread.start();
     }

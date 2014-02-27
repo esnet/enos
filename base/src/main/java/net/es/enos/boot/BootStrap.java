@@ -12,10 +12,11 @@ import java.io.IOException;
 /**
  * Created by lomax on 2/20/14.
  */
-public class BootStrap {
+public class BootStrap implements Runnable {
     private static BootStrap bootStrap = null;
     private String[] args = null;
     private SShd sshd = null;
+    private static Thread thread;
 
     private static final KernelSecurityManager securityManager = new KernelSecurityManager();
 
@@ -33,16 +34,21 @@ public class BootStrap {
         return args;
     }
 
-    public static KernelSecurityManager getSecurityManager() {
+    public KernelSecurityManager getSecurityManager() {
         return securityManager;
     }
 
+    public void init() {
+        BootStrap.thread = new Thread(BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup(),
+                                      this,
+                                      "ENOS Bootstrap");
+        BootStrap.thread.start();
+
+    }
     public static void main(String[] args) {
-        BootStrap myBbootStrap= new BootStrap(args);
-        myBbootStrap.startServices();
-
-        myBbootStrap.postInitialization();
-
+        BootStrap.bootStrap = new BootStrap(args);
+        BootStrap.bootStrap.init();
+        BootStrap.bootStrap.postInitialization();
         System.out.println("Bootstrap thread exits");
     }
 
@@ -83,5 +89,11 @@ public class BootStrap {
                 e.printStackTrace();
             }
         }
+    }
+
+    @Override
+    public void run() {
+        System.out.println("Starting services");
+        this.startServices();
     }
 }

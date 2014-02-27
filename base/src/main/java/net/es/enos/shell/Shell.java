@@ -78,7 +78,7 @@ public class Shell implements Runnable {
             e.printStackTrace();
         }
         this.in = new ShellInputStream(this.in, this.consoleReader);
-        consoleReader.addCompleter(this.stringsCompleter);
+        // consoleReader.addCompleter(this.stringsCompleter);
 
         Method method = null;
 
