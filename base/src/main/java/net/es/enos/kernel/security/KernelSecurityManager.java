@@ -23,15 +23,21 @@ public class KernelSecurityManager extends SecurityManager {
     }
 
     public void checkAccess(Thread t) throws SecurityException {
-        System.out.println("checkAccess(Thread current= " + Thread.currentThread().getName() + " t = " + t.getName());
+        // System.out.println("checkAccess(Thread current= " + Thread.currentThread().getName() + " t = " + t.getName());
         // Threads that are not part of ENOS ThreadGroup are authorized
         Thread currentThread = Thread.currentThread();
         if ((currentThread.getThreadGroup() == null) ||
-            (this.enosRootThreadGroup.parentOf(currentThread.getThreadGroup()))) {
+            (this.enosRootThreadGroup.equals(currentThread.getThreadGroup())) ||
+            ( !this.enosRootThreadGroup.parentOf(currentThread.getThreadGroup()))) {
             return;
         }
         if (Thread.currentThread().getThreadGroup().parentOf(t.getThreadGroup())) {
             // A thread can do whatever it wants on thread of the same user
+            return;
+        }
+        if ( ! this.enosRootThreadGroup.parentOf(t.getThreadGroup())) {
+            // This is a non ENOS Thread. Allow since the only non ENOS thread that can be referenced to are
+            // from java library classes. This is safe.
             return;
         }
         throw new SecurityException("Illegal Thread access from " + Thread.currentThread().getName() + " onto " +
@@ -40,7 +46,20 @@ public class KernelSecurityManager extends SecurityManager {
 
     @Override
     public void checkPackageAccess(String p) throws SecurityException {
-        // System.out.println("checkPackageAccess " + p);
+
+        Thread currentThread = Thread.currentThread();
+        if ((currentThread.getThreadGroup() == null) ||
+           (this.enosRootThreadGroup.equals(currentThread.getThreadGroup())) ||
+           ( !this.enosRootThreadGroup.parentOf(currentThread.getThreadGroup()))) {
+            // Not an ENOS Thread.
+            return;
+        }
+        if (! p.startsWith("net.es")) {
+            // Authorize all non ENOS classes
+            return;
+        }
+        System.out.println("checkPackageAccess " + p);
+        throw new SecurityException("Thread " + Thread.currentThread().getName() + " attempted to access a non authorized ENOS class");
     }
 
     public void checkPermission(Permission perm) throws SecurityException {

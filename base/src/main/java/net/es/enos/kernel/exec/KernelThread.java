@@ -103,7 +103,6 @@ public class  KernelThread {
     public synchronized void setUser(User user) throws SecurityException {
 
         if (this.user == null) {
-            System.out.println("SET USER= " + user.getName() + " tid= " + this.thread.getName());
             this.user = user;
             this.privileged = false;
         } else {
