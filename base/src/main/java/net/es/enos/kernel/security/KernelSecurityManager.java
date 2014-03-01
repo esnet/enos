@@ -5,6 +5,8 @@ import net.es.enos.kernel.net.es.enos.kernel.user.User;
 import java.io.FileDescriptor;
 import java.io.FilePermission;
 import java.lang.SecurityManager;
+import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Paths;
 import java.security.Permission;
 
 /**
@@ -46,19 +48,25 @@ public class KernelSecurityManager extends SecurityManager {
 
     @Override
     public void checkPackageAccess(String p) throws SecurityException {
-
-        Thread currentThread = Thread.currentThread();
-        if ((currentThread.getThreadGroup() == null) ||
-           (KernelThread.getCurrentKernelThread().isPrivileged()) ||
-           ( !this.enosRootThreadGroup.parentOf(currentThread.getThreadGroup()))) {
-            // Not an ENOS Thread.
-            return;
-        }
+        // System.out.println("package= " + p);
         if (! p.startsWith("net.es")) {
             // Authorize all non ENOS classes
+            // System.out.println("non ENOS: Accept");
             return;
         }
-        throw new SecurityException("Thread " + Thread.currentThread().getName() + " attempted to access a non authorized ENOS class");
+
+        // net.es.enos.kernel.security is always allowed
+        if ("net.es.enos.kernel.security".equals(p) || ("net.es.enos.kernel.exec".equals(p))) {
+            return;
+        }
+
+        if (KernelThread.getCurrentKernelThread().isPrivileged()) {
+            return;
+        }
+
+
+        // System.out.println("Reject");
+        throw new SecurityException("Thread " + Thread.currentThread().getName() + " attempted to access a non authorized ENOS class: " + p);
     }
 
     public void checkPermission(Permission perm) throws SecurityException {
@@ -78,6 +86,10 @@ public class KernelSecurityManager extends SecurityManager {
             // System.out.println("Accept");
             return;
         }
+        User user = User.getUser(Thread.currentThread().getThreadGroup());
+        if (user != null) {
+            user.getStorage().checkWrite(Paths.get(file));
+        }
         // Not authorized
         // System.out.println("Reject");
         throw new SecurityException();
@@ -87,6 +99,39 @@ public class KernelSecurityManager extends SecurityManager {
         // throw new SecurityException();
     }
 
+    @Override
+    public void checkRead(String file) {
+        if (true) return;
+
+        System.out.println("checkRead " + file);
+        if (Thread.currentThread().getStackTrace().length > 2000) {
+            System.out.println(file);
+        }
+
+        java.lang.reflect.Method method = this.getClass().getEnclosingMethod();
+        try {
+            KernelThread.doSysCall(this.getClass().getEnclosingMethod(),file);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void doCheckRead(String file) {
+
+
+        if (Authorized.isAuthorized(new FilePermission(file,"read"))) {
+            // Authorized.
+            System.out.println("Accept");
+            return;
+        }
+        User user = User.getUser(Thread.currentThread().getThreadGroup());
+        if (user != null) {
+            user.getStorage().checkRead(Paths.get(file));
+        }
+        // Not authorized
+        // System.out.println("Reject");
+        throw new SecurityException();
+    }
     @Override
     public ThreadGroup getThreadGroup() {
         // return this.enosRootThreadGroup;

@@ -1,6 +1,5 @@
 #!/bin/sh
 
-ENOS_HOME=`pwd`/..
 PYTHON_CACHEDIR=/tmp/cachedir
 JAVA=java
 

@@ -26,7 +26,8 @@ public class Shell implements Runnable {
     private KernelThread kernelThread = null;
     private String prompt = "\nenos";
 
-    public static String banner = " _       __     __                             __           _______   ______  _____\n" +
+    public static String banner =
+            " _       __     __                             __           _______   ______  _____\n" +
             "| |     / /__  / /________  ____ ___  ___     / /_____     / ____/ | / / __ \\/ ___/\n" +
             "| | /| / / _ \\/ / ___/ __ \\/ __ `__ \\/ _ \\   / __/ __ \\   / __/ /  |/ / / / /\\__ \\ \n" +
             "| |/ |/ /  __/ / /__/ /_/ / / / / / /  __/  / /_/ /_/ /  / /___/ /|  / /_/ /___/ / \n" +

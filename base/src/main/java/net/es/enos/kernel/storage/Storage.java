@@ -9,5 +9,6 @@ public interface Storage {
 
     public void checkWrite(Path path) throws SecurityException;
     public void checkRead(Path path) throws SecurityException ;
+    public Path getRootPath();
 
 }

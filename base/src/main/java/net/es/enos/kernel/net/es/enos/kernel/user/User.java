@@ -67,4 +67,11 @@ public final class User {
         }
     }
 
+    public Path getHomePath() {
+        return this.storage.getRootPath();
+    }
+
+    public Storage getStorage() {
+        return this.storage;
+    }
 }

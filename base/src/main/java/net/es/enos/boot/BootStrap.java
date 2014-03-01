@@ -1,5 +1,7 @@
 package net.es.enos.boot;
 
+import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.kernel.security.AllowedSysCalls;
 import net.es.enos.kernel.security.KernelSecurityManager;
 import net.es.enos.python.PythonShell;
 import net.es.enos.shell.ShellCommandsFactory;
@@ -46,6 +48,7 @@ public class BootStrap implements Runnable {
 
     }
     public static void main(String[] args) {
+        System.out.println ("Starting ENOS");
         BootStrap.bootStrap = new BootStrap(args);
         BootStrap.bootStrap.init();
         BootStrap.bootStrap.postInitialization();
@@ -71,6 +74,9 @@ public class BootStrap implements Runnable {
         }
         // Add Shell Modules
         addShellModules();
+
+        // Initialize SystemCalls
+        KernelThread.initSysCalls(AllowedSysCalls.getAllowedClasses());
     }
 
     private void addShellModules() {

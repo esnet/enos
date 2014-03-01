@@ -32,4 +32,9 @@ public final class LocalStorage implements Storage {
         throw new SecurityException("Illegal access to " + path.getFileName());
     }
 
+    @Override
+    public Path getRootPath() {
+        return this.location;
+    }
+
 }

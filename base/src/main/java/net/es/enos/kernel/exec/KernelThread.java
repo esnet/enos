@@ -7,17 +7,21 @@ package net.es.enos.kernel.exec;
 
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.net.es.enos.kernel.user.User;
-import net.es.enos.kernel.security.KernelSecurityManager;
-import org.python.util.InteractiveConsole;
+import net.es.enos.kernel.security.AllowedSysCalls;
 
-import java.io.*;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.HashMap;
-import java.util.UUID;
+import java.util.LinkedList;
+import java.util.List;
 
-public class  KernelThread {
+
+public final class  KernelThread {
 
     private final static HashMap<Thread,KernelThread> kernelThreads = new HashMap<Thread, KernelThread>();
-    private static boolean rootThreadInitialized = false;
+    private static LinkedList<Class> systemClasses = new LinkedList<Class>();
+
+    private static boolean sysCallsInitialized = false;
 
     private Thread thread = null;
 
@@ -28,7 +32,10 @@ public class  KernelThread {
         this.thread = thread;
         this.init();
 
-        if ((this.thread.getThreadGroup() == null)
+        if ((this.thread == null)
+           || (BootStrap.getBootStrap() == null)
+           || (BootStrap.getBootStrap().getSecurityManager() == null)
+           || (this.thread.getThreadGroup() == null)
            || this.thread.getThreadGroup().equals(BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup())) {
             // Threads in the root ThreadGroup run as privileged
             this.privileged = true;
@@ -41,7 +48,6 @@ public class  KernelThread {
         synchronized (KernelThread.kernelThreads) {
             KernelThread.kernelThreads.put(this.thread, this);
         }
-
     }
 
     public Thread getThread() {
@@ -49,7 +55,25 @@ public class  KernelThread {
     }
 
     public synchronized boolean isPrivileged() {
-        return this.privileged;
+
+        ThreadGroup enosRootThreadGroup = null;
+        // BootStrap may be null when running within an IDE: the SecurityManager is changed by ENOS.
+        if ((BootStrap.getBootStrap() == null) || (BootStrap.getBootStrap().getSecurityManager() == null)) {
+            // Still bootstrapping
+            return true;
+        }
+
+        enosRootThreadGroup = BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup();
+
+        if (true) {
+            if (this.getThread().getThreadGroup() == null) System.out.println("No ThreadGroup");
+                    else if (!enosRootThreadGroup.parentOf(this.getThread().getThreadGroup())) System.out.println("ThreadGroup= " + this.getThread().getThreadGroup().getName());
+                    else System.out.println("Is privileged: " + this.privileged);
+        }
+        return  enosRootThreadGroup == null ||    // Not created yet, this is still bootstapping
+                this.getThread().getThreadGroup() == null ||  // This thread has no group: not an ENOS thread
+                !enosRootThreadGroup.parentOf(this.getThread().getThreadGroup()) || // This thread has a group, but not an ENOS group
+                this.privileged; // This is an ENOS thread.
     }
 
     public static KernelThread getKernelThread (Thread t) {
@@ -75,24 +99,26 @@ public class  KernelThread {
         }
     }
 
-    public synchronized void setPrivileged (boolean priv) throws SecurityException {
+    public synchronized void setPrivileged (KernelThread kernelThread, boolean priv) throws SecurityException {
         if (this.isPrivileged()) {
-            this.privileged = priv;
+            kernelThread.privileged = priv;
         } else {
             throw new SecurityException("Unprivileged thread attempts to change its privileged");
         }
     }
 
-    // Can be invoke only once. Makes sure that the first ENOS thread is privileged so it can create user threads.
-    public static void setRootThread (Thread t) throws SecurityException {
-        KernelThread kernelThread = KernelThread.getKernelThread(t);
+    // Can be invoked only once. Makes sure that the first ENOS thread is privileged so it can create user threads.
+    public static void initSysCalls (List<Class> classes) throws SecurityException {
 
-        synchronized (KernelThread.kernelThreads) {
-            if (KernelThread.rootThreadInitialized) {
+        synchronized (KernelThread.systemClasses) {
+            if (KernelThread.sysCallsInitialized) {
                 // Already initialized
-                throw new SecurityException("Attempt to re-create the root thread");
+                throw new SecurityException("Attempt to re-initialize System Calls");
             }
-            kernelThread.privileged = true;
+            for (Class c : systemClasses) {
+                KernelThread.systemClasses.add(c);
+            }
+            KernelThread.sysCallsInitialized = true;
        }
     }
 
@@ -107,6 +133,35 @@ public class  KernelThread {
             this.privileged = false;
         } else {
             throw new SecurityException("Attempt to change the user");
+        }
+    }
+
+    public static void doSysCall (Method methodToCall, Object... args) throws Exception {
+
+        KernelThread kernelThread = KernelThread.getCurrentKernelThread();
+        StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+        // The third element is the class/method that is invoking doSysCall
+        StackTraceElement elem = stackTraceElements[2];
+        Exception exception = null;
+        if (kernelThread.isPrivileged() ||
+            AllowedSysCalls.isAllowed(elem.getClass())) {
+            // Allowed. Set privilege and execute the method
+            try {
+                synchronized (kernelThread) {
+                    kernelThread.privileged = true;
+                }
+                // Call the system call
+                methodToCall.invoke(args);
+
+            } catch (Exception e) {
+                // Catch all
+                exception = e;
+            } finally {
+                kernelThread.privileged = false;
+                if (exception != null) {
+                    throw exception;
+                }
+            }
         }
     }
 }
