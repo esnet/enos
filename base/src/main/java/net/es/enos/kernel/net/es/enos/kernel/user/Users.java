@@ -7,29 +7,35 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.sshd;
+package net.es.enos.kernel.net.es.enos.kernel.user;
+
+import net.es.enos.common.PropertyKeys;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
- * Created by lomax on 2/10/14.
+ * Manages Users.
+ * This class implements the user management. It is responsible for providing the hooks to AA(A),
+ * persistent user information/state/permission. While implementation of those services may vary
+ * upon deployments, the Users class is not intended to be extended. It is a singleton.
  */
+public final class Users {
 
+    private final static Users users = new Users();
 
+    private Path enosRootPath;
 
-import org.apache.sshd.common.Factory;
-import org.apache.sshd.server.Command;
-
-import java.io.IOException;
-
-
-public class ShellFactory implements Factory<Command> {
-
-    public Command create() {
-
-        try {
-            return new SshdShell();
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
+    public Users() {
+        String enosRootDir = System.getProperty(PropertyKeys.ENOS_ROOTDIR);
+        if (enosRootDir != null) {
+            throw new RuntimeException("ENOS Root directory system property " + PropertyKeys.ENOS_ROOTDIR
+                                       + " is not defined");
         }
+        this.enosRootPath = Paths.get(enosRootDir).normalize();
+    }
+
+    public static Users getUsers() {
+        return users;
     }
 }
