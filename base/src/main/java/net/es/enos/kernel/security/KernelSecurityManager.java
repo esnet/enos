@@ -59,6 +59,11 @@ public class KernelSecurityManager extends SecurityManager {
 
     @Override
     public void checkPackageAccess(String p) throws SecurityException {
+
+        // TODO: lomax@es.net the restriction on es.net classes sound like a neat idea, but might not be
+        // neither realistic nor usefull. To revisit.
+
+        /*****
         // System.out.println("package= " + p);
         if (! p.startsWith("net.es")) {
             // Authorize all non ENOS classes
@@ -78,6 +83,7 @@ public class KernelSecurityManager extends SecurityManager {
 
         // System.out.println("Reject");
         throw new SecurityException("Thread " + Thread.currentThread().getName() + " attempted to access a non authorized ENOS class: " + p);
+        **/
     }
 
     @Override
@@ -159,5 +165,6 @@ public class KernelSecurityManager extends SecurityManager {
     public ThreadGroup getEnosRootThreadGroup() {
         return this.enosRootThreadGroup;
     }
+
 
 }

@@ -9,33 +9,214 @@
 
 package net.es.enos.kernel.net.es.enos.kernel.user;
 
+import net.es.enos.common.DefaultValues;
 import net.es.enos.common.PropertyKeys;
+import net.es.enos.common.UserAlreadyExistException;
+import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.kernel.exec.annotations.SysCall;
 
+import java.io.*;
+import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 
 /**
  * Manages Users.
  * This class implements the user management. It is responsible for providing the hooks to AA(A),
  * persistent user information/state/permission. While implementation of those services may vary
  * upon deployments, the Users class is not intended to be extended. It is a singleton.
+ *
+ * TODO: this class is currently implemented very poorly. It is just intended so other part of ENOS can be worked on.
+ * IMPORTANT: this class is not intended for production.
  */
 public final class Users {
 
     private final static Users users = new Users();
 
+    private final static int PROFILE_SIZE = 3;
+    private final static int USER_NAME = 0;
+    private final static int PASSWORD = 1;
+    private final static int PRIVILEGE = 2;
+
+    private final static String ADMIN_USERNAME = "admin";
+    private final static String ADMIN_PASSWORD = "enos";
+    private final static String ROOT = "root";
+    private final static String USER = "user";
+    private Path passwordFilePath;
     private Path enosRootPath;
+    private HashMap<String,String[]> passwords = new HashMap<String, String[]>();
 
     public Users() {
+        System.out.println("In Users contructor");
         String enosRootDir = System.getProperty(PropertyKeys.ENOS_ROOTDIR);
-        if (enosRootDir != null) {
-            throw new RuntimeException("ENOS Root directory system property " + PropertyKeys.ENOS_ROOTDIR
-                                       + " is not defined");
+        if (enosRootDir == null) {
+            // Assume default.
+            enosRootDir = DefaultValues.ENOS_DEFAULT_ROOTDIR;
         }
         this.enosRootPath = Paths.get(enosRootDir).normalize();
+        this.passwordFilePath = Paths.get(this.enosRootPath.toString() +"/etc/enos.users");
+
+        // Read user file or create it if necessary
+        try {
+            this.readUserFile();
+            System.out.println("#### Creating user");
+            this.createUser("guest","nope","user");
+            System.out.println("#### DONE ");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public static Users getUsers() {
         return users;
     }
+
+    public boolean authUser (String user, String password) throws IOException {
+        // Read file.
+        this.readUserFile();
+
+        if (this.passwords.isEmpty()) {
+            // No user has been created. Will accept "admin","enos".
+            // TODO: default admin user should be configured in a safer way.
+            if (Users.ADMIN_USERNAME.equals(user) && Users.ADMIN_PASSWORD.equals(password)) {
+                // Create the initial configuration file
+               try {
+                    this.do_createUser(Users.ADMIN_USERNAME, Users.ADMIN_PASSWORD, Users.ROOT);
+                } catch (UserAlreadyExistException e) {
+                    // Since this code is executed only when the configuration file is empty, this should never happen.
+                    e.printStackTrace();
+                }
+                // Accept
+                return true;
+            }
+        }
+
+
+        if (!Users.getUsers().passwords.containsKey(user)) {
+            System.out.println(user + " is unknown");
+            return false;
+        }
+        String[] userProfile = Users.getUsers().passwords.get(user);
+        if (userProfile[Users.PASSWORD].equals(password)) {
+            System.out.println(user + " has entered correct password");
+            return true;
+        } else {
+            System.out.println(user + " has entered incorrect password ");
+            return false;
+        }
+    }
+
+
+
+    public boolean setPassword (User user, String oldPassword, String newPassword) {
+        return false;
+    }
+
+    public boolean createUser  (String username, String password, String privilege) {
+        System.out.println("createUser " + username);
+        Method method = null;
+        try {
+            method = KernelThread.getSysCallMethod(this.getClass(), "do_createUser");
+
+            KernelThread.doSysCall(method,
+                                   username,
+                                   password,
+                                   privilege);
+        } catch (UserAlreadyExistException e) {
+            return false;
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+            return false;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+        System.out.println("createUser returns true");
+        return true;
+    }
+
+    @SysCall(
+            name="do_createUser"
+    )
+    public void do_createUser (String username, String password, String privilege) throws UserAlreadyExistException, IOException {
+        System.out.println("do_createUser");
+        // Checks if the user already exists
+        if (this.passwords.containsKey(username)) {
+            throw new UserAlreadyExistException(username);
+        }
+        String[] userProfile = new String[] {
+            username,
+            password,
+            privilege
+        };
+        this.passwords.put(username,userProfile);
+        this.writeUserFile();
+    }
+
+    public boolean isPrivileged (String username) {
+        if (this.passwords.isEmpty()  && Users.ADMIN_USERNAME.equals(username)) {
+            // Initial configuration. Add admin user and create configuration file.
+            return true;
+        }
+        String[] userProfile = this.passwords.get(username);
+        if (userProfile == null) {
+            // Not a user
+            return false;
+        }
+        if (Users.ROOT.equals(userProfile[Users.PRIVILEGE])) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private synchronized void readUserFile() throws IOException {
+        File passwordFile = new File(this.passwordFilePath.toString());
+        passwordFile.getParentFile().mkdirs();
+        if (!passwordFile.exists()) {
+            // File does not exist yet, create it.
+            if (!passwordFile.createNewFile()) {
+                // File could not be created, return a RuntimeError
+                throw new RuntimeException("Cannot create " + this.passwordFilePath.toString());
+            }
+        }
+        BufferedReader reader = reader = new BufferedReader(new FileReader(passwordFile));
+        String line = null;
+
+        // Reset the cache
+        this.passwords.clear();
+
+        while ((line = reader.readLine()) != null) {
+            String [] elements = line.split(":");
+            if (elements.length < 2) {
+                // Incorrect format. Ignore
+                continue;
+            }
+            this.passwords.put(elements[0], elements);
+        }
+    }
+
+
+    private synchronized void writeUserFile() throws IOException {
+        File passwordFile = new File(this.passwordFilePath.toString());
+        BufferedWriter writer = new BufferedWriter(new FileWriter(passwordFile));
+
+        // Format the line
+
+        for (String elements[] : this.passwords.values() ) {
+            String line="";
+            for (String element : elements) {
+                line += element + ":";
+            }
+            // Strips last ":"
+            line = line.substring(0,line.length() - 1);
+            writer.write(line);
+            writer.newLine();
+        }
+        writer.flush();
+        writer.close();
+    }
+
 }

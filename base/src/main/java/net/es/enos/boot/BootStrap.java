@@ -10,6 +10,7 @@
 package net.es.enos.boot;
 
 import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.kernel.net.es.enos.kernel.user.Users;
 import net.es.enos.kernel.security.AllowedSysCalls;
 import net.es.enos.kernel.security.KernelSecurityManager;
 import net.es.enos.python.PythonShell;
@@ -19,6 +20,8 @@ import net.es.enos.shell.Shell;
 import net.es.enos.sshd.ShellFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 
 /**
  * Created by lomax on 2/20/14.
@@ -58,6 +61,7 @@ public class BootStrap implements Runnable {
     }
     public static void main(String[] args) {
         System.out.println ("Starting ENOS");
+
         BootStrap.bootStrap = new BootStrap(args);
         BootStrap.bootStrap.init();
         BootStrap.bootStrap.postInitialization();
@@ -69,12 +73,12 @@ public class BootStrap implements Runnable {
     }
 
 
-
     public static BootStrap getBootStrap() {
         return BootStrap.bootStrap;
     }
 
     public void startServices() {
+
         this.sshd = SShd.getSshd();
         try {
             this.sshd.start();
@@ -110,5 +114,9 @@ public class BootStrap implements Runnable {
     public void run() {
         System.out.println("Starting services");
         this.startServices();
+    }
+
+    public boolean test (String tt) {
+       return false;
     }
 }

@@ -14,6 +14,7 @@ import java.lang.reflect.Method;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -123,10 +124,11 @@ public class Shell implements Runnable {
                 }
                 try {
                     ShellCommand command = method.getAnnotation(ShellCommand.class);
+
                     if (command.forwardLines()) {
                         method.invoke(null, args, this.in, this.out, this.out);
                     } else {
-                        // Assume static method
+                        // Assume static method    TODO: lomax@es.net to be revisited
                         method.invoke(null, args, this.in, this.out, this.out);
                     }
                 } catch (IllegalAccessException e) {

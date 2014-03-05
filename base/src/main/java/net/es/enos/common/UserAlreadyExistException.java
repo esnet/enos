@@ -7,36 +7,13 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.shell;
-
-import net.es.enos.shell.annotations.ShellCommand;
-
-import java.lang.reflect.Method;
-import java.lang.reflect.Type;
-import java.util.HashMap;
+package net.es.enos.common;
 
 /**
- * Created by lomax on 2/21/14.
+ * Created by lomax on 3/3/14.
  */
-public class ShellCommandsFactory {
-
-    private static HashMap<String, Method> shellCommands = new HashMap<String, Method>();
-
-    public static void registerShellModule (Class shellModule) {
-        Method[] methods = shellModule.getMethods();
-
-        for (Method method : methods) {
-
-            ShellCommand command = method.getAnnotation(ShellCommand.class);
-            if (command != null) {
-                // This method is command.
-                System.out.println("Adding " + command.name());
-                ShellCommandsFactory.shellCommands.put(command.name(),method);
-            }
-        }
-    }
-
-    public static Method getCommandMethod (String command) {
-        return ShellCommandsFactory.shellCommands.get(command);
+public class UserAlreadyExistException extends ENOSException {
+    public UserAlreadyExistException(String user) {
+        super (user);
     }
 }

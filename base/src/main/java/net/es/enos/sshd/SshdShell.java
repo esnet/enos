@@ -65,6 +65,10 @@ public class SshdShell extends Shell implements Command, SessionAware {
             throw new RuntimeException("Trying to start an SSH session without users");
         }
 
+        if (!tokenId.accepted) {
+            // Not authenticated
+            return;
+        }
         User user = User.getUser(tokenId.username);
         if (user == null) {
             // First thread from this user

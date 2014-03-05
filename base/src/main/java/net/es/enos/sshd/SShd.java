@@ -14,6 +14,7 @@ package net.es.enos.sshd;
  */
 
 import net.es.enos.kernel.net.es.enos.kernel.user.User;
+import net.es.enos.kernel.net.es.enos.kernel.user.Users;
 import org.apache.sshd.SshServer;
 import org.apache.sshd.common.Session;
 import org.apache.sshd.server.PasswordAuthenticator;
@@ -38,8 +39,12 @@ public class SShd {
 
     static public class TokenId {
         public String username;
-        public TokenId (String username) {
+        public boolean privileged = false;
+        public boolean accepted = false;
+        public TokenId (String username, boolean accepted, boolean privileged) {
             this.username = username;
+            this.accepted = accepted;
+            this.privileged = false;
         }
     }
 
@@ -48,11 +53,21 @@ public class SShd {
         this.sshServer.setPort(8000);
 
         PasswordAuthenticator auth = new PasswordAuthenticator() {
-            public boolean authenticate(String username, String string1, ServerSession ss) {
-                System.out.println ("Auth " + username + ":" + string1);
-                TokenId tokenId = new TokenId(username);
-                ss.setAttribute(TOKEN_ID, tokenId);
-                return true;
+            public boolean authenticate(String username, String password, ServerSession ss) {
+                try {
+                    if (Users.getUsers().authUser(username, password)) {
+                        TokenId tokenId = new TokenId(username,
+                                                      true,
+                                                      Users.getUsers().isPrivileged(username));
+                        ss.setAttribute(TOKEN_ID, tokenId);
+                        return true;
+                    } else {
+                        return false;
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return false;
+                }
             }
         };
 

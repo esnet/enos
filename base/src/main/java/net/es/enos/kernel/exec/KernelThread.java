@@ -15,11 +15,14 @@ package net.es.enos.kernel.exec;
 
 
 import net.es.enos.boot.BootStrap;
+import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.net.es.enos.kernel.user.User;
+import net.es.enos.kernel.net.es.enos.kernel.user.Users;
 import net.es.enos.kernel.security.AllowedSysCalls;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -192,7 +195,7 @@ public final class  KernelThread {
 
         if (this.user == null) {
             this.user = user;
-            this.privileged = false;
+            this.privileged = user.isPrivileged();
         } else {
             throw new SecurityException("Attempt to change the user");
         }
@@ -232,7 +235,19 @@ public final class  KernelThread {
                     kernelThread.privileged = true;
                 }
                 // Call the system call
+
+                System.out.print("doSysCall is invoking " + methodToCall.getName() + "(");
+                for ( Type type  : methodToCall.getParameterTypes()) {
+                    System.out.print(type.getClass().getName() + ",");
+                }
+                System.out.print(") with ");
+                for ( Object arg :args) {
+                    System.out.print(arg.getClass().getName() + ",");
+                }
+                System.out.println(".") ;
+
                 methodToCall.invoke(args);
+
 
             } catch (Exception e) {
                 // Catch all
@@ -244,6 +259,25 @@ public final class  KernelThread {
                 }
             }
         }
+    }
+
+    public static Method getSysCallMethod (Class targetClass, String name) {
+        Method[] methods = targetClass.getDeclaredMethods();
+        for (Method method : methods) {
+            System.out.print(">>> " + method.getName() + "(");
+            for ( Type type  : method.getParameterTypes()) {
+                System.out.print(type.getClass().getName() + ",");
+            }
+            System.out.println(")");
+            SysCall syscall = method.getAnnotation(SysCall.class);
+            if (syscall != null) {
+               if (syscall.name().equals(name)) {
+
+                   return method;
+               }
+            }
+        }
+        return null;
     }
 }
 

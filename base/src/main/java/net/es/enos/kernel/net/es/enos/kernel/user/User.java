@@ -34,9 +34,7 @@ public final class User {
     private UUID id;
     private ThreadGroup threadGroup;
     private Storage storage;
-
-
-
+    private boolean privileged = false;
 
     public ThreadGroup getThreadGroup() {
         return threadGroup;
@@ -44,10 +42,12 @@ public final class User {
 
     public User (String name) {
         this.name = name;
+
         this.id = UUID.randomUUID();
         // Create storage
         this.storage = new LocalStorage(Paths.get(User.storageRootPath.toString(),this.name));
         User.users.put(this.name, new WeakReference<User>(this));
+        this.privileged = Users.getUsers().isPrivileged(name);
         // Create the user ThreadGroup
         this.threadGroup = new ThreadGroup(BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup(),
                                            "ENOS User " + name + " ThreadGroup");
@@ -76,6 +76,10 @@ public final class User {
             }
             return null;
         }
+    }
+
+    public boolean isPrivileged() {
+        return this.privileged;
     }
 
     public Path getHomePath() {
