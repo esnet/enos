@@ -115,6 +115,12 @@ public class Shell implements Runnable {
                 }
 
                 String[] args = line.split(" ");
+
+                // The shell has one built-in command handler, this is it.
+                if (args[0].equals("exit")) {
+                    break;
+                }
+
                 method = ShellCommandsFactory.getCommandMethod(args[0]);
                 if (method == null) {
                     // Non existing command
@@ -144,9 +150,14 @@ public class Shell implements Runnable {
                 break;
             }
         }
+        this.destroy();
     }
 
     private void fixThread() {
 
+    }
+
+    // Whatever cleanup is needed after the shell is done.  Subclasses should override if needed.
+    public void destroy() {
     }
 }
