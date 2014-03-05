@@ -4,7 +4,15 @@
 # the ENOS files will be located.
 #
 JAVA=java
-SYSTEM_PROPS="-Denos.rootdir=$ENOS_ROOTDIR"
-SYSTEM_PROPOS=$SYSTEM_PROPS +  "/jyphon-cachedir"
+if [ "x$ENOS_ROOTDIR" = "x" ]; then
+    export ENOS_ROOTDIR=$PWD
+    echo "Setting ENOS_ROOTDIR to $ENOS_ROOTDIR"
+fi
+if [ "x$ENOS_HOME" = "x" ]; then
+    export ENOS_HOME=$PWD
+    echo "Setting ENOS_HOME to $ENOS_HOME"
+fi
+
+SYSTEM_PROPS="-Denos.rootdir=${ENOS_ROOTDIR}/jyphon-cachedir"
 
 $JAVA $SYSTEM_PROPS -jar $ENOS_HOME/target/enos-1.0-SNAPSHOT.one-jar.jar

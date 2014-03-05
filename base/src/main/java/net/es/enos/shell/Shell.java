@@ -97,7 +97,7 @@ public class Shell implements Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        ;
+
         try {
                 this.consoleReader = new ConsoleReader(this.in, this.out, new UnixTerminal());
         } catch (Exception e) {
@@ -115,7 +115,16 @@ public class Shell implements Runnable {
                     continue;
                 }
 
-                String[] args = line.split(" ");
+                String[] args = line.trim().split("\\s+");
+                if (args.length == 0 || (args.length == 1 && args[0].isEmpty())) {
+                    continue;
+                }
+
+                // The shell has one built-in command handler, this is it.
+                if (args[0].equals("exit")) {
+                    break;
+                }
+
                 method = ShellCommandsFactory.getCommandMethod(args[0]);
                 if (method == null) {
                     // Non existing command
@@ -142,13 +151,18 @@ public class Shell implements Runnable {
                     this.print( e.toString());
                     this.fixThread();
                 }
-            } catch (IOException e) {;
+            } catch (IOException e) {
                 break;
             }
         }
+        this.destroy();
     }
 
     private void fixThread() {
 
+    }
+
+    // Whatever cleanup is needed after the shell is done.  Subclasses should override if needed.
+    public void destroy() {
     }
 }
