@@ -9,12 +9,11 @@
 
 package net.es.enos.kernel.security;
 import net.es.enos.kernel.exec.KernelThread;
-import net.es.enos.kernel.net.es.enos.kernel.user.User;
+import net.es.enos.kernel.users.User;
 
 import java.io.FileDescriptor;
 import java.io.FilePermission;
 import java.lang.SecurityManager;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Paths;
 import java.security.Permission;
 

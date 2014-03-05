@@ -13,8 +13,7 @@ package net.es.enos.sshd;
  * Created by lomax on 2/9/14.
  */
 
-import net.es.enos.kernel.net.es.enos.kernel.user.User;
-import net.es.enos.kernel.net.es.enos.kernel.user.Users;
+import net.es.enos.kernel.users.Users;
 import org.apache.sshd.SshServer;
 import org.apache.sshd.common.Session;
 import org.apache.sshd.server.PasswordAuthenticator;

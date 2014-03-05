@@ -10,9 +10,8 @@
 package net.es.enos.sshd;
 
 import net.es.enos.kernel.exec.KernelThread;
-import net.es.enos.kernel.net.es.enos.kernel.user.User;
+import net.es.enos.kernel.users.User;
 import net.es.enos.shell.Shell;
-import org.apache.sshd.common.Session;
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.Environment;
 import org.apache.sshd.server.ExitCallback;
