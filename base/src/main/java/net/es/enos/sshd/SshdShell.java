@@ -84,7 +84,7 @@ public class SshdShell extends Shell implements Command, SessionAware {
 
     @Override
     public void destroy() {
-    this.callback.onExit(0);
+        this.callback.onExit(0);
     }
 
     @Override
