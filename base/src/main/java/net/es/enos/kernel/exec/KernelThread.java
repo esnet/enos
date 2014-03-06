@@ -112,15 +112,17 @@ public final class  KernelThread {
 
         enosRootThreadGroup = BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup();
 
-        if (true) {
-            if (this.getThread().getThreadGroup() == null) System.out.println("No ThreadGroup");
-                    else if (!enosRootThreadGroup.parentOf(this.getThread().getThreadGroup())) System.out.println("ThreadGroup= " + this.getThread().getThreadGroup().getName());
-                    else System.out.println("Is privileged: " + this.privileged);
+        if (this.getThread().getThreadGroup() == null) {
+                        // Not created yet, this is still bootstapping
+                        return true;
+        } else if (!enosRootThreadGroup.parentOf(this.getThread().getThreadGroup())) {
+                    // This thread has no group: not an ENOS thread
+                    return true;
+
+        } else {
+            // This is an ENOS thread.
+            return this.privileged;
         }
-        return  enosRootThreadGroup == null ||    // Not created yet, this is still bootstapping
-                this.getThread().getThreadGroup() == null ||  // This thread has no group: not an ENOS thread
-                !enosRootThreadGroup.parentOf(this.getThread().getThreadGroup()) || // This thread has a group, but not an ENOS group
-                this.privileged; // This is an ENOS thread.
     }
 
     /**
@@ -218,7 +220,7 @@ public final class  KernelThread {
      * @throws Exception Throws any exception that methodToCall may have thrown, or SecurityException when
      * the invoker class is not authorized to perform a system call.
      */
-    public static void doSysCall (Method methodToCall, Object... args) throws Exception {
+    public static void doSysCall (Object obj, Method methodToCall, Object... args) throws Exception {
 
         KernelThread kernelThread = KernelThread.getCurrentKernelThread();
         StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
@@ -234,17 +236,8 @@ public final class  KernelThread {
                 }
                 // Call the system call
 
-                System.out.print("doSysCall is invoking " + methodToCall.getName() + "(");
-                for ( Type type  : methodToCall.getParameterTypes()) {
-                    System.out.print(type.getClass().getName() + ",");
-                }
-                System.out.print(") with ");
-                for ( Object arg :args) {
-                    System.out.print(arg.getClass().getName() + ",");
-                }
-                System.out.println(".") ;
-
-                methodToCall.invoke(args);
+                System.out.println("doSysCall is invoking " + methodToCall.getName());
+                methodToCall.invoke(obj, args);
 
 
             } catch (Exception e) {
@@ -262,11 +255,7 @@ public final class  KernelThread {
     public static Method getSysCallMethod (Class targetClass, String name) {
         Method[] methods = targetClass.getDeclaredMethods();
         for (Method method : methods) {
-            System.out.print(">>> " + method.getName() + "(");
-            for ( Type type  : method.getParameterTypes()) {
-                System.out.print(type.getClass().getName() + ",");
-            }
-            System.out.println(")");
+
             SysCall syscall = method.getAnnotation(SysCall.class);
             if (syscall != null) {
                if (syscall.name().equals(name)) {

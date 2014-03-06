@@ -128,7 +128,7 @@ public class KernelSecurityManager extends SecurityManager {
 
         java.lang.reflect.Method method = this.getClass().getEnclosingMethod();
         try {
-            KernelThread.doSysCall(this.getClass().getEnclosingMethod(),file);
+            KernelThread.doSysCall(this,this.getClass().getEnclosingMethod(),file);
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -25,6 +25,7 @@ import net.es.enos.kernel.exec.KernelThread;
 
 
 import jline.console.ConsoleReader;
+import net.es.enos.kernel.users.Users;
 import net.es.enos.shell.annotations.ShellCommand;
 
 public class Shell implements Runnable {

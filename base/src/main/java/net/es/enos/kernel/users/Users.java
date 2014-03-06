@@ -59,10 +59,7 @@ public final class Users {
 
         // Read user file or create it if necessary
         try {
-            this.readUserFile();
-            System.out.println("#### Creating user");
-            this.createUser("guest","nope","user");
-            System.out.println("#### DONE ");
+            this.readUserFile();;
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -119,7 +116,8 @@ public final class Users {
         try {
             method = KernelThread.getSysCallMethod(this.getClass(), "do_createUser");
 
-            KernelThread.doSysCall(method,
+            KernelThread.doSysCall(this,
+                                   method,
                                    username,
                                    password,
                                    privilege);

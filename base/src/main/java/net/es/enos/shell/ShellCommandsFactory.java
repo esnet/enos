@@ -30,7 +30,7 @@ public class ShellCommandsFactory {
             ShellCommand command = method.getAnnotation(ShellCommand.class);
             if (command != null) {
                 // This method is command.
-                System.out.println("Adding " + command.name());
+                System.out.println("Adding Shell module " + command.name());
                 ShellCommandsFactory.shellCommands.put(command.name(),method);
             }
         }
