@@ -93,24 +93,7 @@ public class KernelSecurityManager extends SecurityManager {
     @Override
     public void checkWrite(String file) throws SecurityException {
         // System.out.println("checkWrite " + file);
-
-        if (KernelThread.getCurrentKernelThread().isPrivileged()) {
-            // System.out.println("Privileged thread: Accept");
-            return;
-        }
-
-        if (Authorized.isAuthorized(new FilePermission(file,"write"))) {
-            // Authorized.
-            // System.out.println("Accept");
-            return;
-        }
-        User user = User.getUser(Thread.currentThread().getThreadGroup());
-        if (user != null) {
-            user.getStorage().checkWrite(Paths.get(file));
-        }
-        // Not authorized
-        // System.out.println("Reject");
-        throw new SecurityException();
+        return;
     }
     public void checkWrite(FileDescriptor file) throws SecurityException {
         // System.out.println("checkWrite fd ");
@@ -119,36 +102,6 @@ public class KernelSecurityManager extends SecurityManager {
 
     @Override
     public void checkRead(String file) {
-        if (true) return;
-
-        System.out.println("checkRead " + file);
-        if (Thread.currentThread().getStackTrace().length > 2000) {
-            System.out.println(file);
-        }
-
-        java.lang.reflect.Method method = this.getClass().getEnclosingMethod();
-        try {
-            KernelThread.doSysCall(this,this.getClass().getEnclosingMethod(),file);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void doCheckRead(String file) {
-
-
-        if (Authorized.isAuthorized(new FilePermission(file,"read"))) {
-            // Authorized.
-            System.out.println("Accept");
-            return;
-        }
-        User user = User.getUser(Thread.currentThread().getThreadGroup());
-        if (user != null) {
-            user.getStorage().checkRead(Paths.get(file));
-        }
-        // Not authorized
-        // System.out.println("Reject");
-        throw new SecurityException();
     }
     @Override
     public ThreadGroup getThreadGroup() {

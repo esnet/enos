@@ -34,6 +34,9 @@ public final class Users {
 
     private final static Users users = new Users();
 
+    /* Users directory */
+    public final static String USERS_DIR="users";
+
     private final static int PROFILE_SIZE = 3;
     private final static int USER_NAME = 0;
     private final static int PASSWORD = 1;
@@ -48,7 +51,6 @@ public final class Users {
     private HashMap<String,String[]> passwords = new HashMap<String, String[]>();
 
     public Users() {
-        System.out.println("In Users contructor");
         String enosRootDir = System.getProperty(PropertyKeys.ENOS_ROOTDIR);
         if (enosRootDir == null) {
             // Assume default.
@@ -63,6 +65,8 @@ public final class Users {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        // Create user home directory if necessary.
+
     }
 
     public static Users getUsers() {

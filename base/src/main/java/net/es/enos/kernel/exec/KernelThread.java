@@ -223,13 +223,15 @@ public final class  KernelThread {
     public static void doSysCall (Object obj, Method methodToCall, Object... args) throws Exception {
 
         KernelThread kernelThread = KernelThread.getCurrentKernelThread();
+
         StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
         // The third element is the class/method that is invoking doSysCall
         StackTraceElement elem = stackTraceElements[2];
         Exception exception = null;
-        if (kernelThread.isPrivileged() ||
-            AllowedSysCalls.isAllowed(elem.getClass())) {
+        if (AllowedSysCalls.isAllowed(elem.getClass())) {
             // Allowed. Set privilege and execute the method
+            boolean wasPrivileged = kernelThread.privileged;
+
             try {
                 synchronized (kernelThread) {
                     kernelThread.privileged = true;
@@ -239,11 +241,11 @@ public final class  KernelThread {
                 System.out.println("doSysCall is invoking " + methodToCall.getName());
                 methodToCall.invoke(obj, args);
 
-
             } catch (Exception e) {
                 // Catch all
                 exception = e;
             } finally {
+                // Reverse privilege
                 kernelThread.privileged = false;
                 if (exception != null) {
                     throw exception;

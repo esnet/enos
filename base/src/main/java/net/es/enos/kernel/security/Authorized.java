@@ -29,16 +29,13 @@ public final class Authorized {
         }
         filePermissions = new LinkedList<FilePermission>();
 
-        /********************************************************************************
-         * Application LocalStorage (net.es.enos.kernel.storage.LocalStorage)
-         ********************************************************************************/
-        String storagedir = System.getProperty(PropertyKeys.ENOS_ROOTDIR);
-        if (storagedir == null) {
+        String rootdir = System.getProperty(PropertyKeys.ENOS_ROOTDIR);
+        if (rootdir == null) {
             // This happens when running within an IDE (not running script/start-enos.sh
-            storagedir= DefaultValues.ENOS_DEFAULT_ROOTDIR;
+            rootdir= DefaultValues.ENOS_DEFAULT_ROOTDIR;
         }
-        filePermissions.add(new FilePermission(Paths.get(storagedir).normalize().toString() + "/-",
-                    "read,write"));
+        filePermissions.add(new FilePermission(Paths.get(rootdir).normalize().toString() + "/-",
+                            "read,write"));
 
     }
 

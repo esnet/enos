@@ -10,8 +10,6 @@
 package net.es.enos.kernel.users;
 
 import net.es.enos.boot.BootStrap;
-import net.es.enos.kernel.storage.LocalStorage;
-import net.es.enos.kernel.storage.Storage;
 
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
@@ -33,7 +31,7 @@ public final class User {
     private String name;
     private UUID id;
     private ThreadGroup threadGroup;
-    private Storage storage;
+    private Path homePath;
     private boolean privileged = false;
 
     public ThreadGroup getThreadGroup() {
@@ -45,7 +43,10 @@ public final class User {
 
         this.id = UUID.randomUUID();
         // Create storage
-        this.storage = new LocalStorage(Paths.get(User.storageRootPath.toString(),this.name));
+        this.homePath = Paths.get(User.storageRootPath.toString(),
+                                                  Users.USERS_DIR,
+                                                  this.name).normalize();
+        System.out.println("User home dir is " + this.homePath.toString());
         User.users.put(this.name, new WeakReference<User>(this));
         this.privileged = Users.getUsers().isPrivileged(name);
         // Create the user ThreadGroup
@@ -83,10 +84,7 @@ public final class User {
     }
 
     public Path getHomePath() {
-        return this.storage.getRootPath();
+        return this.homePath;
     }
 
-    public Storage getStorage() {
-        return this.storage;
-    }
 }
