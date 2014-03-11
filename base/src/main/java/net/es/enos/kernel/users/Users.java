@@ -114,9 +114,76 @@ public final class Users {
     }
 
 
+    /**
+     * Userland part of password changing
+     * @param username the name of the user whose password will be changed
+     * @param oldPassword the old password, used for verification
+     * @param newPassword the new password
+     * @return true if successful
+     */
+    public boolean setPassword (String username, String oldPassword, String newPassword) {
+        System.out.println("setPassword " + username);
+        Method method = null;
+        try {
+            method = KernelThread.getSysCallMethod(this.getClass(), "do_setPassword");
+            KernelThread.doSysCall(this, method, username, oldPassword, newPassword);
+        } catch (UserAlreadyExistException e) {
+            return false;
+        }
+        catch (NoSuchMethodException e) {
+            e.printStackTrace();
+            return false;
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
 
-    public boolean setPassword (User user, String oldPassword, String newPassword) {
-        return false;
+    /**
+     * Kernel part of password changing.
+     * Any user is allowed to change her own password, but needs to specify their old
+     * password.  Privileged ("root") users can change any user's password without
+     * specifying an old password.
+     * @param username the name of the user whose password will be changed
+     * @param oldPassword the old password, used for verification
+     * @param newPassword the new password
+     * @throws UserAlreadyExistException
+     * @throws IOException
+     */
+    @SysCall(
+            name="do_setPassword"
+    )
+    public void do_setPassword(String username, String oldPassword, String newPassword) throws
+    UserAlreadyExistException, IOException {
+        System.out.println("doSetPassword");
+
+        // Get the profile for the user in question
+        String[] userProfile = this.passwords.get(username);
+        if (userProfile == null) {
+            throw new UserAlreadyExistException(username); // XXX user not found
+        }
+
+        // Users can always change their own passwords.  root-privileged users can change
+        // anyone's passwords.  Other combinations fail.
+        if (!KernelThread.getCurrentKernelThread().getUser().getName().equals(username) &&
+                !KernelThread.getCurrentKernelThread().getUser().isPrivileged()) {
+            throw new UserAlreadyExistException(username); // XXX permission fail
+        }
+
+        // Local password verification.  If the user has root privileges we can skip this.
+        if (! userProfile[Users.PASSWORD].equals(crypt(oldPassword, userProfile[Users.PASSWORD])) &&
+                !KernelThread.getCurrentKernelThread().getUser().isPrivileged()) {
+            throw new UserAlreadyExistException(username); // XXX password mismatch
+        }
+
+        // XXX password policy hook here?
+
+        // Write new hashed password
+        userProfile[Users.PASSWORD] = crypt(newPassword);
+        this.passwords.put(username, userProfile);
+        this.writeUserFile();
     }
 
     public boolean createUser  (String username, String password, String privilege) {
@@ -148,6 +215,9 @@ public final class Users {
     )
     public void do_createUser (String username, String password, String privilege) throws UserAlreadyExistException, IOException {
         System.out.println("do_createUser");
+
+        // TODO:  Syntax checks on username
+
         // Checks if the user already exists
         if (this.passwords.containsKey(username)) {
             throw new UserAlreadyExistException(username);
