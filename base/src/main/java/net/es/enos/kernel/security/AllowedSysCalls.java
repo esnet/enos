@@ -29,6 +29,7 @@ public final class AllowedSysCalls {
     static {
         allowedSysCallClasses.add(net.es.enos.kernel.exec.KernelThread.class);
         allowedSysCallClasses.add(net.es.enos.kernel.security.FileACL.class);
+        allowedSysCallClasses.add(net.es.enos.kernel.users.Users.class);
     }
 
     public static List<Class> getAllowedClasses() {
