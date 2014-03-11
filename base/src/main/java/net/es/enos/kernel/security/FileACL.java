@@ -12,8 +12,10 @@ package net.es.enos.kernel.security;
 import net.es.enos.common.DefaultValues;
 import net.es.enos.common.PropertyKeys;
 import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.kernel.exec.annotations.SysCall;
 
 import java.io.*;
+import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
@@ -25,11 +27,12 @@ import java.util.Properties;
 
 public final class FileACL extends Properties {
 
-    public static final String PREFIX = ".acl."; // prefix of the acl file
+    public static final String ACLDIR = ".acl"; // prefix of the acl file
     public static final String CAN_READ = "read";
     public static final String CAN_WRITE = "write";
 
-    private Path path;
+    private Path aclPath;
+    private Path filePath;
     private static Path rootPath;
 
     static {
@@ -44,16 +47,61 @@ public final class FileACL extends Properties {
     public FileACL (Path file) throws IOException {
         super ();
 
-        this.path = Paths.get(file.normalize().getParent().toString(),
-                              FileACL.PREFIX,
-                              file.getFileName().toString());
-        System.out.println("FILE ACL= " + this.path.toString());
+        // System.out.println("FileACLL= " + (file != null ? file : "null"));
+
+        if (file == null) {
+            // root of the file system, no parent
+            return;
+        }
+        this.filePath = file;
+        if (this.filePath.equals(FileACL.rootPath)) {
+            // This is ENOS root.
+            return;
+        }
+        this.aclPath = Paths.get(file.normalize().getParent().toString(),
+                                 FileACL.ACLDIR,
+                                 file.getFileName().toString());
+
         this.loadACL();
     }
 
-    private void loadACL() throws IOException {
-        File aclFile = new File(this.path.toString());
+
+    /**
+     * Loads the ACL rules from the ACL file. This will require privilege access and be
+     * implemented by a SysCall, do_loadACL.
+     * @throws IOException
+     */
+    public void loadACL() throws IOException {
+
+        Method method;
+        try {
+            method = KernelThread.getSysCallMethod(this.getClass(), "do_loadACL");
+
+            KernelThread.doSysCall(this, method);
+
+        } catch (Exception e) {
+            // Nothing particular to do.
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * SysCall implementing the privileged access to the ACL file. If the file does not exist, do_loacACL will
+     * attempt to retrieve ACL from parent directories until reaching ENOS root.
+     * @throws IOException
+     */
+    @SysCall(
+            name="do_loadACL"
+    )
+    public void do_loadACL () throws IOException {
+        // System.out.println("do_loadACL");
+
+        File aclFile = new File(this.aclPath.toString());
         if (!aclFile.exists()) {
+            if (!this.filePath.startsWith(FileACL.rootPath.toString())) {
+                // The file is not part of the ENOS file system. Cannot inherit permission from parent
+                return;
+            }
             // It is ok for a file to not have an ACL file: it then inherits its parents.
             this.inheritParent();
             return;
@@ -61,33 +109,57 @@ public final class FileACL extends Properties {
         this.load(new FileInputStream(aclFile));
     }
 
+    /**
+     * Loads the parent ACL.
+     * @throws IOException
+     */
     private void inheritParent() throws IOException {
+        if ( !this.filePath.startsWith(FileACL.rootPath.toString())){
+            // Not ENOS file system
+            return;
+        }
         FileACL parentACL = this.getParentFileACL();
         if (parentACL != null) {
             this.putAll(parentACL);
         }
     }
 
+    /**
+     * Attemmpts to read the parent ACL.
+     * @return
+     * @throws IOException
+     */
     private FileACL getParentFileACL() throws IOException {
-        if (this.path.getParent().equals(FileACL.rootPath)) {
+
+        if (this.filePath.getParent().equals(FileACL.rootPath)) {
             // The parent is the ENOS root directory. Cannot inherit. No ACL
             return null;
         }
-        FileACL parentACL = new FileACL(this.path.getParent());
+        FileACL parentACL;
+        parentACL = new FileACL(this.filePath.getParent());
         return parentACL;
     }
 
+    /**
+     * Stores the ACL into ACL file.
+     * @throws IOException
+     */
     public void store() throws IOException {
         // By default inherit parent's ACL
         this.inheritParent();
         // Create the file and save it
-        this.store(new FileOutputStream(this.path.toString()),"ENOS File ACL");
+        this.store(new FileOutputStream(this.aclPath.toString()),"ENOS File ACL");
     }
 
+    /**
+     * Checks if the ACL allows the user of the current thread to read the file.
+     * @return true if the thread can read the file, false otherwise.
+     */
     public boolean canRead() {
+        // System.out.println("FileACL.canRead " + this.filePath.toString());
         String[] users = this.getCanRead();
         for (String user : users) {
-            if (user.equals(KernelThread.getCurrentKernelThread().getUser().getName())) {
+            if (user.equals("*") || user.equals(KernelThread.getCurrentKernelThread().getUser().getName())) {
                 return true;
             }
         }

@@ -52,6 +52,7 @@ public class BootStrap implements Runnable {
         BootStrap.thread = new Thread(BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup(),
                                       this,
                                       "ENOS Bootstrap");
+
         BootStrap.thread.start();
 
     }

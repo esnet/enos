@@ -15,6 +15,7 @@ package net.es.enos.kernel.exec;
 
 
 import net.es.enos.boot.BootStrap;
+import net.es.enos.common.ENOSException;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.users.User;
 import net.es.enos.kernel.security.AllowedSysCalls;
@@ -102,27 +103,7 @@ public final class  KernelThread {
      * @return the privilege status of the KernelThread.
      */
     public synchronized boolean isPrivileged() {
-
-        ThreadGroup enosRootThreadGroup = null;
-        // BootStrap may be null when running within an IDE: the SecurityManager is changed by ENOS.
-        if ((BootStrap.getBootStrap() == null) || (BootStrap.getBootStrap().getSecurityManager() == null)) {
-            // Still bootstrapping
-            return true;
-        }
-
-        enosRootThreadGroup = BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup();
-
-        if (this.getThread().getThreadGroup() == null) {
-                        // Not created yet, this is still bootstapping
-                        return true;
-        } else if (!enosRootThreadGroup.parentOf(this.getThread().getThreadGroup())) {
-                    // This thread has no group: not an ENOS thread
-                    return true;
-
-        } else {
-            // This is an ENOS thread.
-            return this.privileged;
-        }
+        return this.privileged;
     }
 
     /**
@@ -222,13 +203,15 @@ public final class  KernelThread {
      */
     public static void doSysCall (Object obj, Method methodToCall, Object... args) throws Exception {
 
+        System.out.println("doSysCall");
         KernelThread kernelThread = KernelThread.getCurrentKernelThread();
 
         StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
         // The third element is the class/method that is invoking doSysCall
         StackTraceElement elem = stackTraceElements[2];
         Exception exception = null;
-        if (AllowedSysCalls.isAllowed(elem.getClass())) {
+        Class c = Class.forName(elem.getClassName());
+        if (AllowedSysCalls.isAllowed(c)) {
             // Allowed. Set privilege and execute the method
             boolean wasPrivileged = kernelThread.privileged;
 
@@ -251,6 +234,10 @@ public final class  KernelThread {
                     throw exception;
                 }
             }
+        } else {
+            // Not allowed
+            throw new ENOSException(obj.getClass().getCanonicalName() + "'s method " + methodToCall.getName() +
+                " is not allowed to be a privileged call.");
         }
     }
 

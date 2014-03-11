@@ -8,12 +8,19 @@
  */
 
 package net.es.enos.kernel.security;
+import net.es.enos.boot.BootStrap;
+import net.es.enos.common.DefaultValues;
+import net.es.enos.common.ENOSException;
+import net.es.enos.common.PropertyKeys;
 import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.users.User;
 
 import java.io.FileDescriptor;
 import java.io.FilePermission;
+import java.io.IOException;
 import java.lang.SecurityManager;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Permission;
 
@@ -23,9 +30,17 @@ import java.security.Permission;
  */
 public class KernelSecurityManager extends SecurityManager {
     private ThreadGroup enosRootThreadGroup = new ThreadGroup("ENOS Root ThreadGroup");
+    private Path rootPath;
 
     public KernelSecurityManager() {
+        this.preloadClasses();
         System.setSecurityManager(this);
+        String rootdir = System.getProperty(PropertyKeys.ENOS_ROOTDIR);
+        if (rootdir == null) {
+            // This happens when running within an IDE (not running script/start-enos.sh
+            rootdir= DefaultValues.ENOS_DEFAULT_ROOTDIR;
+        }
+        this.rootPath = Paths.get(rootdir).normalize();
     }
 
     @Override
@@ -38,6 +53,11 @@ public class KernelSecurityManager extends SecurityManager {
         // System.out.println("checkAccess(Thread current= " + Thread.currentThread().getName() + " t = " + t.getName());
         // Threads that are not part of ENOS ThreadGroup are authorized
         Thread currentThread = Thread.currentThread();
+        // System.out.println("checkAccess " + currentThread.getThreadGroup().getName());
+        if (this.isPrivileged()) {
+            return;
+        }
+
         if ((currentThread.getThreadGroup() == null) ||
             (KernelThread.getCurrentKernelThread().isPrivileged()) ||
             ( !this.enosRootThreadGroup.parentOf(currentThread.getThreadGroup()))) {
@@ -102,7 +122,32 @@ public class KernelSecurityManager extends SecurityManager {
 
     @Override
     public void checkRead(String file) {
+        // System.out.println("checkRead " + file );
+
+        if (this.rootPath == null || !file.startsWith(this.rootPath.toFile().getAbsolutePath())) {
+            // If the file is not within ENOS root dir, allow and rely on system permissions for read.
+            // TODO: this should be sufficient but perhaps needs to be revisited
+            return;
+        }
+        if (this.isPrivileged()) {
+            // System.out.println("checkRead is privileged " + file );
+            return;
+        }
+        try {
+            FileACL acl = new FileACL(Paths.get(file));
+            if (acl.canRead()) {
+                // System.out.println("checkRead can read");
+                return;
+            }
+        } catch (IOException e) {
+            // System.out.println("checkRead IOEXception");
+            throw new SecurityException("IOException when retrieving ACL of " + file + ": " + e);
+        }
+        // System.out.println("checkRead cannot read " + this.isPrivileged() + " " + file);
+        throw new SecurityException("Not authorized to read file " + file);
     }
+
+
     @Override
     public ThreadGroup getThreadGroup() {
         // return this.enosRootThreadGroup;
@@ -118,5 +163,38 @@ public class KernelSecurityManager extends SecurityManager {
         return this.enosRootThreadGroup;
     }
 
+    private boolean isPrivileged() {
 
+        Thread t = Thread.currentThread();
+        ThreadGroup enosRootThreadGroup = null;
+        // BootStrap may be null when running within an IDE: the SecurityManager is changed by ENOS.
+        if ((BootStrap.getBootStrap() == null) || (BootStrap.getBootStrap().getSecurityManager() == null)) {
+            // Still bootstrapping
+            return true;
+        }
+
+        enosRootThreadGroup = BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup();
+
+        if (t.getThreadGroup() == null) {
+            // Not created yet, this is still bootstraping
+            return true;
+        } else if (!enosRootThreadGroup.parentOf(t.getThreadGroup())) {
+            // This thread has no group: not an ENOS thread
+            return true;
+
+        } else {
+            // This is an ENOS thread.
+            return KernelThread.getCurrentKernelThread().isPrivileged();
+        }
+    }
+
+    /**
+     * Classes that the KernelSecurityManager need to be preloaded so there is not a cyclic dependency
+     */
+    private void preloadClasses () {
+        Class c = KernelThread.class;
+        c = SysCall.class;
+        c = ENOSException.class;
+        c = net.es.enos.common.DefaultValues.class;
+    }
 }

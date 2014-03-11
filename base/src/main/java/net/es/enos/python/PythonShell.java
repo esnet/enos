@@ -37,7 +37,7 @@ public class PythonShell {
             forwardLines=false
     )
     public static void startPython (String[] args, InputStream in, OutputStream out, OutputStream err) {
-        System.out.println ("Starting Python");
+        // System.out.println ("Starting Python");
 
         try {
             InteractiveConsole console = new InteractiveConsole();
@@ -48,11 +48,11 @@ public class PythonShell {
             // Start the interactive session
             console.interact();
         } catch (Exception e) {
-            e.printStackTrace();
-            Thread.dumpStack();
+            // Nothing has to be done. This happens when the jython shell exits, obviously not too gracefully.
+            // e.printStackTrace();
         }
 
-        System.out.println ("Exits Python");
+        // System.out.println ("Exits Python");
     }
 
     @ShellCommand(

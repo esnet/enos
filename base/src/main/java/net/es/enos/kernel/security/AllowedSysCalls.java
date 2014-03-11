@@ -26,8 +26,9 @@ import java.util.List;
 public final class AllowedSysCalls {
     static private List<Class> allowedSysCallClasses = new LinkedList<Class>();
 
-    {
-        allowedSysCallClasses.add(KernelThread.class);
+    static {
+        allowedSysCallClasses.add(net.es.enos.kernel.exec.KernelThread.class);
+        allowedSysCallClasses.add(net.es.enos.kernel.security.FileACL.class);
     }
 
     public static List<Class> getAllowedClasses() {
