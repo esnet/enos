@@ -39,18 +39,109 @@ public final class Users {
     /* Users directory */
     public final static String USERS_DIR="users";
 
-    private final static int PROFILE_SIZE = 3;
-    private final static int USER_NAME = 0;
-    private final static int PASSWORD = 1;
-    private final static int PRIVILEGE = 2;
+    class Profile {
 
+        private String username;
+        private String password;
+        private String privilege;
+        private String fullname;
+        private String email;
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public String getPrivilege() {
+            return privilege;
+        }
+
+        public void setPrivilege(String privilege) {
+            this.privilege = privilege;
+        }
+
+        public String getFullname() {
+            return fullname;
+        }
+
+        public void setFullname(String fullname) {
+            this.fullname = fullname;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+
+        private final static int PROFILE_SIZE = 5;
+        private final static int USER_NAME = 0;
+        private final static int PASSWORD = 1;
+        private final static int PRIVILEGE = 2;
+        private final static int FULLNAME = 3;
+        private final static int EMAIL = 4;
+
+        /**
+         * Default constructor
+         */
+        Profile() {
+        }
+
+        /**
+         * Construct a new Profile object from a textual representation
+         * @param line line from password file
+         * @return Profile object, empty if an error occurred.
+         */
+        Profile (String line) {
+            String [] elements = line.split(":", -1); // allow trailing empty strings
+            if (elements.length < PROFILE_SIZE) {
+                // Incorrect format.
+                System.out.println("Ignoring malformed password line.");
+                return;
+            }
+            username = elements[USER_NAME];
+            password = elements[PASSWORD];
+            privilege = elements[PRIVILEGE];
+            fullname = elements[FULLNAME];
+            email = elements[EMAIL];
+        }
+
+        String toLine() {
+            String line = "";
+            line += username + ":";
+            line += password + ":";
+            line += privilege + ":";
+            line += fullname + ":";
+            line += email + ":";
+            return line;
+        }
+
+    }
+
+    // Default admin username and password
     private final static String ADMIN_USERNAME = "admin";
     private final static String ADMIN_PASSWORD = "enos";
+
+    // Privilege types
     private final static String ROOT = "root";
     private final static String USER = "user";
+
     private Path passwordFilePath;
     private Path enosRootPath;
-    private HashMap<String,String[]> passwords = new HashMap<String, String[]>();
+    private HashMap<String,Profile> passwords = new HashMap<String, Profile>();
 
     public Users() {
         String enosRootDir = System.getProperty(PropertyKeys.ENOS_ROOTDIR);
@@ -63,7 +154,7 @@ public final class Users {
 
         // Read user file or create it if necessary
         try {
-            this.readUserFile();;
+            this.readUserFile();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -84,7 +175,8 @@ public final class Users {
             // TODO: default admin user should be configured in a safer way.
             if (Users.ADMIN_USERNAME.equals(user) && Users.ADMIN_PASSWORD.equals(password)) {
                 // Create the initial configuration file
-               try {
+                try {
+                    System.out.println("Creating default admin user");
                     this.do_createUser(Users.ADMIN_USERNAME, Users.ADMIN_PASSWORD, Users.ROOT);
                 } catch (UserAlreadyExistException e) {
                     // Since this code is executed only when the configuration file is empty, this should never happen.
@@ -100,11 +192,11 @@ public final class Users {
             System.out.println(user + " is unknown");
             return false;
         }
-        String[] userProfile = Users.getUsers().passwords.get(user);
+        Profile userProfile = Users.getUsers().passwords.get(user);
 
         // Local password verification here.  Check an encrypted version of the user's password
         // against what was stored in password file, a la UNIX password authentication.
-        if (userProfile[Users.PASSWORD].equals(crypt(password, userProfile[Users.PASSWORD]))) {
+        if (userProfile.getPassword().equals(crypt(password, userProfile.getPassword()))) {
             System.out.println(user + " has entered correct password");
             return true;
         } else {
@@ -160,7 +252,7 @@ public final class Users {
         System.out.println("doSetPassword");
 
         // Get the profile for the user in question
-        String[] userProfile = this.passwords.get(username);
+        Profile userProfile = this.passwords.get(username);
         if (userProfile == null) {
             throw new UserAlreadyExistException(username); // XXX user not found
         }
@@ -173,7 +265,7 @@ public final class Users {
         }
 
         // Local password verification.  If the user has root privileges we can skip this.
-        if (! userProfile[Users.PASSWORD].equals(crypt(oldPassword, userProfile[Users.PASSWORD])) &&
+        if (! userProfile.getPassword().equals(crypt(oldPassword, userProfile.getPassword())) &&
                 !KernelThread.getCurrentKernelThread().getUser().isPrivileged()) {
             throw new UserAlreadyExistException(username); // XXX password mismatch
         }
@@ -181,7 +273,7 @@ public final class Users {
         // XXX password policy hook here?
 
         // Write new hashed password
-        userProfile[Users.PASSWORD] = crypt(newPassword);
+        userProfile.setPassword(crypt(newPassword));
         this.passwords.put(username, userProfile);
         this.writeUserFile();
     }
@@ -223,12 +315,13 @@ public final class Users {
             throw new UserAlreadyExistException(username);
         }
         // Construct the userProfile.
-        // XXX This is just an array of strings.  I wonder if something with more structure is called for.
-        String[] userProfile = new String[] {
-            username,
-            crypt(password), // Let the Crypt library pick a suitable algorithm and a random salt
-            privilege
-        };
+        Profile userProfile;
+        userProfile = new Profile();
+        userProfile.setUsername(username);
+        userProfile.setPassword(crypt(password)); // Let the Crypt library pick a suitable algorithm and a random salt
+        userProfile.setPrivilege(privilege);
+        userProfile.setFullname(""); // TODO:  Figure out a good way to populate these non-essential fields
+        userProfile.setEmail("");
         this.passwords.put(username,userProfile);
         this.writeUserFile();
     }
@@ -238,12 +331,12 @@ public final class Users {
             // Initial configuration. Add admin user and create configuration file.
             return true;
         }
-        String[] userProfile = this.passwords.get(username);
+        Profile userProfile = this.passwords.get(username);
         if (userProfile == null) {
             // Not a user
             return false;
         }
-        if (Users.ROOT.equals(userProfile[Users.PRIVILEGE])) {
+        if (Users.ROOT.equals(userProfile.getPrivilege())) {
             return true;
         } else {
             return false;
@@ -267,12 +360,13 @@ public final class Users {
         this.passwords.clear();
 
         while ((line = reader.readLine()) != null) {
-            String [] elements = line.split(":");
-            if (elements.length < 2) {
+            Profile p;
+            p = new Profile(line);
+            if (p.getUsername() == null) {
                 // Incorrect format. Ignore
                 continue;
             }
-            this.passwords.put(elements[0], elements);
+            this.passwords.put(p.getUsername(), p);
         }
     }
 
@@ -283,13 +377,8 @@ public final class Users {
 
         // Format the line
 
-        for (String elements[] : this.passwords.values() ) {
-            String line="";
-            for (String element : elements) {
-                line += element + ":";
-            }
-            // Strips last ":"
-            line = line.substring(0,line.length() - 1);
+        for (Profile p : this.passwords.values() ) {
+            String line = p.toLine();
             writer.write(line);
             writer.newLine();
         }
