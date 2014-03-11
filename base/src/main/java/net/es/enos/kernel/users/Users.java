@@ -21,6 +21,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 
+import static org.apache.commons.codec.digest.Crypt.crypt;
+
 /**
  * Manages Users.
  * This class implements the user management. It is responsible for providing the hooks to AA(A),
@@ -99,7 +101,10 @@ public final class Users {
             return false;
         }
         String[] userProfile = Users.getUsers().passwords.get(user);
-        if (userProfile[Users.PASSWORD].equals(password)) {
+
+        // Local password verification here.  Check an encrypted version of the user's password
+        // against what was stored in password file, a la UNIX password authentication.
+        if (userProfile[Users.PASSWORD].equals(crypt(password, userProfile[Users.PASSWORD]))) {
             System.out.println(user + " has entered correct password");
             return true;
         } else {
@@ -147,9 +152,11 @@ public final class Users {
         if (this.passwords.containsKey(username)) {
             throw new UserAlreadyExistException(username);
         }
+        // Construct the userProfile.
+        // XXX This is just an array of strings.  I wonder if something with more structure is called for.
         String[] userProfile = new String[] {
             username,
-            password,
+            crypt(password), // Let the Crypt library pick a suitable algorithm and a random salt
             privilege
         };
         this.passwords.put(username,userProfile);
