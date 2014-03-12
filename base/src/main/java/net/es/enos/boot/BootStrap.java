@@ -16,6 +16,7 @@ import net.es.enos.python.PythonShell;
 import net.es.enos.shell.ShellCommandsFactory;
 import net.es.enos.sshd.SShd;
 import net.es.enos.shell.Shell;
+import net.es.enos.kernel.users.UserShellCommands;
 
 import java.io.IOException;
 
@@ -91,6 +92,7 @@ public class BootStrap implements Runnable {
 
     private void addShellModules() {
         ShellCommandsFactory.registerShellModule(PythonShell.class);
+        ShellCommandsFactory.registerShellModule(UserShellCommands.class);
     }
     public void stop() {
         synchronized (this) {
