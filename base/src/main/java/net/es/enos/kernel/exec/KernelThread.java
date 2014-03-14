@@ -203,7 +203,7 @@ public final class  KernelThread {
      */
     public static void doSysCall (Object obj, Method methodToCall, Object... args) throws Exception {
 
-        // System.out.println("doSysCall");
+        System.out.println("doSysCall");
         KernelThread kernelThread = KernelThread.getCurrentKernelThread();
 
         StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
@@ -220,6 +220,8 @@ public final class  KernelThread {
                     kernelThread.privileged = true;
                 }
                 // Call the system call
+
+                System.out.println("doSysCall is invoking " + methodToCall.getName());
                 methodToCall.invoke(obj, args);
 
             } catch (Exception e) {
@@ -227,7 +229,7 @@ public final class  KernelThread {
                 exception = e;
             } finally {
                 // Reverse privilege
-                kernelThread.privileged = wasPrivileged;
+                kernelThread.privileged = false;
                 if (exception != null) {
                     throw exception;
                 }

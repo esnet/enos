@@ -9,7 +9,6 @@
 
 package net.es.enos.kernel.security;
 
-import com.sun.deploy.util.ArrayUtil;
 import net.es.enos.common.DefaultValues;
 import net.es.enos.common.PropertyKeys;
 import net.es.enos.kernel.exec.KernelThread;
@@ -149,9 +148,6 @@ public final class FileACL extends Properties {
         // By default inherit parent's ACL
         this.inheritParent();
         // Create the file and save it
-        System.out.println("Creating " + this.aclPath.toString());
-        this.aclPath.getParent().toFile().mkdirs();
-        this.aclPath.toFile().createNewFile();
         this.store(new FileOutputStream(this.aclPath.toString()),"ENOS File ACL");
     }
 
@@ -160,19 +156,10 @@ public final class FileACL extends Properties {
      * @return true if the thread can read the file, false otherwise.
      */
     public boolean canRead() {
-        return this.canRead(KernelThread.getCurrentKernelThread().getUser().getName());
-    }
-
-    /**
-     * Checks if the ACL allows the user of the current thread to read the file.
-     * @param username
-     * @return
-     */
-    public boolean canRead(String username) {
         // System.out.println("FileACL.canRead " + this.filePath.toString());
         String[] users = this.getCanRead();
         for (String user : users) {
-            if (user.equals("*") || user.equals(username)) {
+            if (user.equals("*") || user.equals(KernelThread.getCurrentKernelThread().getUser().getName())) {
                 return true;
             }
         }
@@ -182,13 +169,12 @@ public final class FileACL extends Properties {
     public boolean canWrite() {
         String[] users = this.getCanWrite();
         for (String user : users) {
-            if (user.equals("*") || user.equals(KernelThread.getCurrentKernelThread().getUser().getName())) {
+            if (user.equals(KernelThread.getCurrentKernelThread().getUser().getName())) {
                 return true;
             }
         }
         return false;
     }
-
     public String[] getCanRead() {
         String users = this.getProperty(FileACL.CAN_READ);
         if (users == null) {
@@ -205,42 +191,49 @@ public final class FileACL extends Properties {
         return users.split(",");
     }
 
-    private static boolean containsUser(String[] userSet, String username) {
-        for (String u : userSet) {
-            if (u.equals(username)) {
-                return true;
+    public static boolean canRead (String file) {
+        try {
+            FileACL fileACL = new FileACL(Paths.get(file));
+            return fileACL.canRead();
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    public static boolean canWrite (String file) {
+        try {
+            FileACL fileACL = new FileACL(Paths.get(file));
+            return fileACL.canWrite();
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    public static boolean canParentRead (String file) {
+        try {
+            FileACL fileACL = new FileACL(Paths.get(file));
+            FileACL parentACL = fileACL.getParentFileACL();
+            if (parentACL == null) {
+                return false;
             }
+            return parentACL.canRead();
+        } catch (IOException e) {
+            return false;
         }
-        return false;
+
     }
 
-    private static String[] addUser(String[] users, String username) {
-        String[] newUsers = new String[users.length + 1];
-        int index = 0;
-        for (String user : users) {
-            newUsers[index] = user;
-            ++index;
+    public static boolean canParentWrite (String file) {
+        try {
+            FileACL fileACL = new FileACL(Paths.get(file));
+            FileACL parentACL = fileACL.getParentFileACL();
+            if (parentACL == null) {
+                return false;
+            }
+            return parentACL.canWrite();
+        } catch (IOException e) {
+            return false;
         }
-        newUsers[index] = username;
-        return newUsers;
-    }
-
-    private static String makeString(String [] strings) {
-        String result = "";
-        for (String u : strings) {
-            result += u + ",";
-        }
-        return result.substring(0,result.length() - 1);
-    }
-
-    public synchronized void allowUserRead(String username) {
-        if (this.canRead(username)) {
-            // is already allowed
-            return;
-        }
-        // Add user to the list
-        this.setProperty(FileACL.CAN_READ,
-                         FileACL.makeString(FileACL.addUser(this.getCanRead(),username)));
 
     }
 
