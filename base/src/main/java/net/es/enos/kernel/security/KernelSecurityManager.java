@@ -110,11 +110,41 @@ public class KernelSecurityManager extends SecurityManager {
         // System.out.println ("checkPermission " + perm.getName() + ":" + perm.getActions() + perm.getClass().getName());
     }
 
+
     @Override
     public void checkWrite(String file) throws SecurityException {
-        // System.out.println("checkWrite " + file);
-        return;
+        // System.out.println("checkWrite " + file );
+
+        try {
+            if (this.rootPath == null ||
+                    (!file.startsWith(this.rootPath.toFile().toString()) &&
+                            !file.startsWith(this.rootPath.toFile().getCanonicalPath()))) {
+                // If the file is not within ENOS root dir, reject.
+                // TODO: this should be sufficient but perhaps needs to be revisited
+                System.out.println("Cannot write file " + file);
+                throw new SecurityException("Cannot write file " + file);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (this.isPrivileged()) {
+            // System.out.println("checkWrite is privileged " + file );
+            return;
+        }
+        try {
+            FileACL acl = new FileACL(Paths.get(file));
+            if (acl.canWrite()) {
+                // System.out.println("checkWrite can read");
+                return;
+            }
+        } catch (IOException e) {
+            // System.out.println("checkWrite IOEXception");
+            throw new SecurityException("IOException when retrieving ACL of " + file + ": " + e);
+        }
+        // System.out.println("checkRead cannot read " + this.isPrivileged() + " " + file);
+        throw new SecurityException("Not authorized to write file " + file);
     }
+
     public void checkWrite(FileDescriptor file) throws SecurityException {
         // System.out.println("checkWrite fd ");
         // throw new SecurityException();

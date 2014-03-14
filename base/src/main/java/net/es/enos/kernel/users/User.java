@@ -15,7 +15,6 @@ import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
-import java.util.UUID;
 
 /**
  * Created by lomax on 2/25/14.
@@ -26,10 +25,8 @@ public final class User {
 
     private static HashMap<String,WeakReference<User>> users = new HashMap<String, WeakReference<User>>();
     private static HashMap<String,WeakReference<User>> usersByGroup = new HashMap<String, WeakReference<User>>();
-    private static final Path storageRootPath = Paths.get("/tmp/enos/home");
 
     private String name;
-    private UUID id;
     private ThreadGroup threadGroup;
     private Path homePath;
     private boolean privileged = false;
@@ -41,17 +38,15 @@ public final class User {
     public User (String name) {
         this.name = name;
 
-        this.id = UUID.randomUUID();
-        // Create storage
-        this.homePath = Paths.get(User.storageRootPath.toString(),
-                                                  Users.USERS_DIR,
-                                                  this.name).normalize();
-        System.out.println("User home dir is " + this.homePath.toString());
+        // Set home directory.
+        this.homePath = Paths.get(Users.getUsers().getHomePath().toString(),this.name).normalize();
+        // TODO: lomax@es.net this creates a very little memory leak. Will need to have a background
+        // thread to clean that up.
         User.users.put(this.name, new WeakReference<User>(this));
         this.privileged = Users.getUsers().isPrivileged(name);
         // Create the user ThreadGroup
         this.threadGroup = new ThreadGroup(BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup(),
-                                           "ENOS User " + name + " ThreadGroup");
+                "ENOS User " + name + " ThreadGroup");
         User.usersByGroup.put(this.threadGroup.getName(), new WeakReference<User>(this));
     }
 

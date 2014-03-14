@@ -14,6 +14,7 @@ import net.es.enos.common.PropertyKeys;
 import net.es.enos.common.UserAlreadyExistException;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
+import net.es.enos.kernel.security.FileACL;
 
 import java.io.*;
 import java.lang.reflect.Method;
@@ -67,13 +68,12 @@ public final class Users {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        // Create user home directory if necessary.
-
     }
 
     public static Users getUsers() {
         return users;
     }
+
 
     public boolean authUser (String user, String password) throws IOException {
         // Read file.
@@ -84,7 +84,7 @@ public final class Users {
             // TODO: default admin user should be configured in a safer way.
             if (Users.ADMIN_USERNAME.equals(user) && Users.ADMIN_PASSWORD.equals(password)) {
                 // Create the initial configuration file
-               try {
+                try {
                     this.do_createUser(Users.ADMIN_USERNAME, Users.ADMIN_PASSWORD, Users.ROOT);
                 } catch (UserAlreadyExistException e) {
                     // Since this code is executed only when the configuration file is empty, this should never happen.
@@ -120,16 +120,15 @@ public final class Users {
     }
 
     public boolean createUser  (String username, String password, String privilege) {
-        System.out.println("createUser " + username);
         Method method = null;
         try {
             method = KernelThread.getSysCallMethod(this.getClass(), "do_createUser");
 
             KernelThread.doSysCall(this,
-                                   method,
-                                   username,
-                                   password,
-                                   privilege);
+                    method,
+                    username,
+                    password,
+                    privilege);
         } catch (UserAlreadyExistException e) {
             return false;
         } catch (NoSuchMethodException e) {
@@ -139,7 +138,6 @@ public final class Users {
             e.printStackTrace();
             return false;
         }
-        System.out.println("createUser returns true");
         return true;
     }
 
@@ -153,14 +151,26 @@ public final class Users {
             throw new UserAlreadyExistException(username);
         }
         // Construct the userProfile.
-        // XXX This is just an array of strings.  I wonder if something with more structure is called for.
+        // TODO: This is just an array of strings.  I wonder if something with more structure is called for.
         String[] userProfile = new String[] {
-            username,
-            crypt(password), // Let the Crypt library pick a suitable algorithm and a random salt
-            privilege
+                username,
+                crypt(password), // Let the Crypt library pick a suitable algorithm and a random salt
+                privilege
         };
         this.passwords.put(username,userProfile);
+        // Create home directory
+        File homeDir = new File (Paths.get(this.getHomePath().toString(), username).toString());
+        homeDir.mkdirs();
+        // Create proper access right
+        FileACL fileACL = new FileACL(homeDir.toPath());
+        fileACL.allowUserRead(username);
+
+        // Commit ACL's
+        fileACL.store();
+
+        // Update ENOS user file
         this.writeUserFile();
+
     }
 
     public boolean isPrivileged (String username) {
@@ -225,6 +235,10 @@ public final class Users {
         }
         writer.flush();
         writer.close();
+    }
+
+    public Path getHomePath() {
+        return Paths.get(this.enosRootPath.toString(),Users.USERS_DIR);
     }
 
 }
