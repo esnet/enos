@@ -17,15 +17,18 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 
 public class UserShellCommands {
-    @ShellCommand(name = "adduser")
+    @ShellCommand(name = "adduser",
+    shortHelp = "Add a user to the system",
+    longHelp = "Required arguments are a username, an initial password, and a user class.\n" +
+            "The user class should be either \"root\" or \"user\".")
     public static void addUser(String[] args, InputStream in, OutputStream out, OutputStream err) {
         System.out.println("adduser with " + args.length + " arguments");
 
-        PrintStream o = System.out;
+        PrintStream o = new PrintStream(out);
 
         // Argument checking
         if (args.length != 4) {
-            o.println("Usage");
+            o.println("Usage:  adduser <username> <password> <userclass>");
             return;
         }
 

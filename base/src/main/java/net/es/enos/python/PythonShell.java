@@ -34,7 +34,10 @@ public class PythonShell {
 
     @ShellCommand(
             name="python",
-            forwardLines=false
+            forwardLines=false,
+            shortHelp="Invoke interactive Python shell",
+            longHelp="EOF in the shell exits the shell and returns control to the top-level\n" +
+                    "ENOS shell."
     )
     public static void startPython (String[] args, InputStream in, OutputStream out, OutputStream err) {
         // System.out.println ("Starting Python");
@@ -56,7 +59,8 @@ public class PythonShell {
     }
 
     @ShellCommand(
-            name="test"
+            name="test",
+            shortHelp = "Test command that generates some output"
     )
     public static void test(String[] args, InputStream in, OutputStream out, OutputStream err) {
         try {

@@ -30,8 +30,17 @@ public class ShellBuiltinCommands {
      * @param err unused
      * @throws ENOSException
      */
-    @ShellCommand(name = "exit")
+    @ShellCommand(name = "exit",
+    shortHelp = "Exit login shell")
     public static void exitCommand(String[] args, InputStream in, OutputStream out, OutputStream err) throws ENOSException {
+        throw new ENOSException("Built-in command not handled by shell");
+    }
+
+    @ShellCommand(name = "help",
+    shortHelp = "Print command information and help",
+    longHelp = "With no arguments, print the complete list of commands and abbreviated help.\n" +
+            "With one argument, print detailed help on a given command.")
+    public static void helpCommand(String[] args, InputStream in, OutputStream out, OutputStream err) throws ENOSException {
         throw new ENOSException("Built-in command not handled by shell");
     }
 }

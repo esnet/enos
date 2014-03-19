@@ -17,6 +17,7 @@ import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Set;
 
 import jline.UnixTerminal;
@@ -132,9 +133,41 @@ public class Shell implements Runnable {
                     continue;
                 }
 
-                // The shell has one built-in command handler, this is it.
+                // The shell has a few built-in command handlers.
                 if (args[0].equals("exit")) {
                     break;
+                }
+                else if (args[0].equals("help")) {
+
+                    // "help" with no arguments gives a sorted list of commands along with
+                    // short help.
+                    if (args.length == 1) {
+                        String[] cmds = commandNames.toArray(new String[0]);
+                        Arrays.sort(cmds);
+
+                        for (String n : cmds) {
+                            Method m = ShellCommandsFactory.getCommandMethod(n);
+                            ShellCommand command = m.getAnnotation(ShellCommand.class);
+                            this.print(n + "\t" + command.shortHelp() + "\n");
+                        }
+                    }
+                    // "help" with the name of a top-level command gives a longer help
+                    // message for that one command.
+                    else {
+                        Method m = ShellCommandsFactory.getCommandMethod(args[1]);
+                        if (m != null) {
+                            ShellCommand command = m.getAnnotation(ShellCommand.class);
+                            this.print(args[1] + "\t" + command.shortHelp() + "\n");
+                            // Print longer help if it's available.
+                            if (!command.longHelp().isEmpty()) {
+                                this.print("\n" + command.longHelp() + "\n");
+                            }
+                        }
+                        else {
+                            this.print(args[1] + " is an invalid command");
+                        }
+                    }
+                    continue;
                 }
 
                 method = ShellCommandsFactory.getCommandMethod(args[0]);

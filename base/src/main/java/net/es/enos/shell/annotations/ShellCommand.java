@@ -19,5 +19,6 @@ import java.lang.annotation.Target;
 public @interface ShellCommand {
     String name();
     boolean forwardLines() default false;
+    String shortHelp() default "";
+    String longHelp() default "";
 }
-
