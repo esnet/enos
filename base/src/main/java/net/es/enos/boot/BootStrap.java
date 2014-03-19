@@ -13,6 +13,7 @@ import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.security.AllowedSysCalls;
 import net.es.enos.kernel.security.KernelSecurityManager;
 import net.es.enos.python.PythonShell;
+import net.es.enos.shell.ShellBuiltinCommands;
 import net.es.enos.shell.ShellCommandsFactory;
 import net.es.enos.sshd.SShd;
 import net.es.enos.shell.Shell;
@@ -91,6 +92,7 @@ public class BootStrap implements Runnable {
     }
 
     private void addShellModules() {
+        ShellCommandsFactory.registerShellModule(ShellBuiltinCommands.class);
         ShellCommandsFactory.registerShellModule(PythonShell.class);
         ShellCommandsFactory.registerShellModule(UserShellCommands.class);
     }

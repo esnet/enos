@@ -17,7 +17,7 @@ import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
+import java.util.Set;
 
 import jline.UnixTerminal;
 import jline.console.completer.StringsCompleter;
@@ -105,13 +105,24 @@ public class Shell implements Runnable {
             e.printStackTrace();
         }
         this.in = new ShellInputStream(this.in, this.consoleReader);
-        // consoleReader.addCompleter(this.stringsCompleter);
+
+        // Initialize command completion with commands from modules.
+        Set<String> commandNames = ShellCommandsFactory.getCommandNames();
+        this.stringsCompleter = new StringsCompleter(commandNames);
 
         Method method = null;
 
         while (true) {
             try {
+                /*
+                 * Enable command completion while we try to get a line from the user,
+                 * turn it off immediately afterward to avoid interference with
+                 * possible interactive commands.
+                 */
+                consoleReader.addCompleter(this.stringsCompleter);
                 String line = this.consoleReader.readLine(this.prompt);
+                consoleReader.removeCompleter(this.stringsCompleter);
+
                 if (line == null) {
                     continue;
                 }
