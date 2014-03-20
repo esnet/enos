@@ -40,10 +40,62 @@ public final class Users {
     /* Users directory */
     public final static String USERS_DIR="users";
 
-    private final static int PROFILE_SIZE = 3;
-    private final static int USER_NAME = 0;
-    private final static int PASSWORD = 1;
-    private final static int PRIVILEGE = 2;
+    public final class Profile {
+        private String name;
+        private String password;
+        private String privilege;
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public String getPrivilege() {
+            return privilege;
+        }
+
+        public void setPrivilege(String privilege) {
+            this.privilege = privilege;
+        }
+
+        public Profile(String line) {
+            String[] elements = line.split(":");
+            if (elements.length < 2) {
+                // Incorrect format. Ignore
+                return;
+            }
+            name = elements[0];
+            password = elements[1];
+            privilege = elements[2];
+        }
+
+        public Profile(String name, String password, String privilege) {
+            this.name = name;
+            this.password = password;
+            this.privilege = privilege;
+        }
+
+        @Override
+        public String toString() {
+            String line = "";
+            line += name + ":";
+            line += password + ":";
+            line += privilege;
+
+            return line;
+        }
+    }
 
     private final static String ADMIN_USERNAME = "admin";
     private final static String ADMIN_PASSWORD = "enos";
@@ -51,7 +103,7 @@ public final class Users {
     private final static String USER = "user";
     private Path passwordFilePath;
     private Path enosRootPath;
-    private HashMap<String,String[]> passwords = new HashMap<String, String[]>();
+    private HashMap<String,Profile> passwords = new HashMap<String, Profile>();
 
     public Users() {
         String enosRootDir = System.getProperty(PropertyKeys.ENOS_ROOTDIR);
@@ -64,7 +116,7 @@ public final class Users {
 
         // Read user file or create it if necessary
         try {
-            this.readUserFile();;
+            this.readUserFile();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -100,11 +152,11 @@ public final class Users {
             System.out.println(user + " is unknown");
             return false;
         }
-        String[] userProfile = Users.getUsers().passwords.get(user);
+        Profile userProfile = Users.getUsers().passwords.get(user);
 
         // Local password verification here.  Check an encrypted version of the user's password
         // against what was stored in password file, a la UNIX password authentication.
-        if (userProfile[Users.PASSWORD].equals(crypt(password, userProfile[Users.PASSWORD]))) {
+        if (userProfile.getPassword().equals(crypt(password, userProfile.getPassword()))) {
             System.out.println(user + " has entered correct password");
             return true;
         } else {
@@ -150,13 +202,11 @@ public final class Users {
         if (this.passwords.containsKey(username)) {
             throw new UserAlreadyExistException(username);
         }
-        // Construct the userProfile.
-        // TODO: This is just an array of strings.  I wonder if something with more structure is called for.
-        String[] userProfile = new String[] {
+        // Construct the new Profile.
+        Profile userProfile = new Profile(
                 username,
                 crypt(password), // Let the Crypt library pick a suitable algorithm and a random salt
-                privilege
-        };
+                privilege);
         this.passwords.put(username,userProfile);
         // Create home directory
         File homeDir = new File (Paths.get(this.getHomePath().toString(), username).toString());
@@ -178,12 +228,12 @@ public final class Users {
             // Initial configuration. Add admin user and create configuration file.
             return true;
         }
-        String[] userProfile = this.passwords.get(username);
+        Profile userProfile = this.passwords.get(username);
         if (userProfile == null) {
             // Not a user
             return false;
         }
-        if (Users.ROOT.equals(userProfile[Users.PRIVILEGE])) {
+        if (Users.ROOT.equals(userProfile.getPrivilege())) {
             return true;
         } else {
             return false;
@@ -200,19 +250,20 @@ public final class Users {
                 throw new RuntimeException("Cannot create " + this.passwordFilePath.toString());
             }
         }
-        BufferedReader reader = reader = new BufferedReader(new FileReader(passwordFile));
+        BufferedReader reader = new BufferedReader(new FileReader(passwordFile));
         String line = null;
 
         // Reset the cache
         this.passwords.clear();
 
         while ((line = reader.readLine()) != null) {
-            String [] elements = line.split(":");
-            if (elements.length < 2) {
-                // Incorrect format. Ignore
-                continue;
+            Profile p = new Profile(line);
+            if (p.getName() != null) {
+                this.passwords.put(p.getName(), p);
             }
-            this.passwords.put(elements[0], elements);
+            else {
+                System.out.print("Malformed user entry:  " + line);
+            }
         }
     }
 
@@ -221,16 +272,8 @@ public final class Users {
         File passwordFile = new File(this.passwordFilePath.toString());
         BufferedWriter writer = new BufferedWriter(new FileWriter(passwordFile));
 
-        // Format the line
-
-        for (String elements[] : this.passwords.values() ) {
-            String line="";
-            for (String element : elements) {
-                line += element + ":";
-            }
-            // Strips last ":"
-            line = line.substring(0,line.length() - 1);
-            writer.write(line);
+        for (Profile p : this.passwords.values() ) {
+            writer.write(p.toString());
             writer.newLine();
         }
         writer.flush();
