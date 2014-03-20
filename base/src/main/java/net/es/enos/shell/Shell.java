@@ -133,7 +133,10 @@ public class Shell implements Runnable {
                     continue;
                 }
 
-                // The shell has a few built-in command handlers.
+                // The shell has a few built-in command handlers.  Generally these
+                // built-in commands should be so because they require some special
+                // handling (i.e. access to the Shell member variables).  Other command
+                // handlers should be implemented as ShellCommands.
                 if (args[0].equals("exit")) {
                     break;
                 }
@@ -142,7 +145,7 @@ public class Shell implements Runnable {
                     // "help" with no arguments gives a sorted list of commands along with
                     // short help.
                     if (args.length == 1) {
-                        String[] cmds = commandNames.toArray(new String[0]);
+                        String[] cmds = commandNames.toArray(new String[commandNames.size()]);
                         Arrays.sort(cmds);
 
                         for (String n : cmds) {
