@@ -35,4 +35,29 @@ public class UserShellCommands {
         Users.getUsers().createUser(args[1], args[2], args[3]);
 
     }
+
+    @ShellCommand(name = "passwd",
+            shortHelp = "Change user password",
+            longHelp = "Required arguments are a username, an initial password, and a new password.\n")
+    public static void passwd(String[] args, InputStream in, OutputStream out, OutputStream err) {
+        System.out.println("passwd with " + args.length + " arguments");
+
+        PrintStream o = new PrintStream(out);
+
+        // TODO:  Make this command interactive.
+        // It should take an optional username as an argument
+        // Password prompts for old and new passwords should be interactive and not echo
+        // keystrokes; new password should require confirmation.
+        // Basically want this to emulate UNIX passwd(1).
+
+        // Argument checking
+        if (args.length != 4) {
+            o.println("Usage:  passwd <username> <old password> <new password>");
+            return;
+        }
+
+        Users.getUsers().setPassword(args[1], args[2], args[3]);
+
+    }
+
 }

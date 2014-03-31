@@ -10,6 +10,7 @@
 package net.es.enos.kernel.users;
 
 import net.es.enos.common.DefaultValues;
+import net.es.enos.common.NonExistantUserException;
 import net.es.enos.common.PropertyKeys;
 import net.es.enos.common.UserAlreadyExistException;
 import net.es.enos.kernel.exec.KernelThread;
@@ -167,8 +168,67 @@ public final class Users {
 
 
 
-    public boolean setPassword (User user, String oldPassword, String newPassword) {
-        return false;
+    public boolean setPassword (String userName, String oldPassword, String newPassword) {
+        Method method = null;
+        try {
+            method = KernelThread.getSysCallMethod(this.getClass(), "do_setPassword");
+
+            KernelThread.doSysCall(this,
+                    method,
+                    userName,
+                    oldPassword,
+                    newPassword);
+        } catch (UserAlreadyExistException e) {
+            return false;
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+            return false;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+
+    }
+
+
+    @SysCall(
+            name="do_setPassword"
+    )
+    public void do_setPassword(String userName, String oldPassword, String newPassword) throws NonExistantUserException {
+        System.out.println("do_setPassword");
+
+        // Make sure the user already exists.
+        if (! this.passwords.containsKey(userName)) {
+            throw new NonExistantUserException(userName);
+        }
+        KernelThread kt = KernelThread.getCurrentKernelThread();
+        String currentUserName = kt.getUser().getName();
+
+        System.out.println("current user " + currentUserName);
+
+        // Username check.  Any user can change his or her own password.
+        // A privileged user can change anybody's password.
+        if ((currentUserName.equals(userName)) ||
+                isPrivileged(currentUserName)) {
+            System.out.println("OK to change");
+
+            Profile userProfile = Users.getUsers().passwords.get(userName);
+
+            // Password check the old password.
+            // Alternatively if this thread is privileged, don't need to check this.
+            if (isPrivileged(currentUserName) ||
+                    userProfile.getPassword().equals(crypt(oldPassword, userProfile.getPassword()))) {
+
+                System.out.println("Password check succeeded");
+
+                // TODO:  Encrypt new password and write out the users file
+            }
+
+
+        }
+
+
     }
 
     public boolean createUser  (String username, String password, String privilege) {
