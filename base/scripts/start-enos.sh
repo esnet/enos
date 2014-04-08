@@ -13,6 +13,6 @@ if [ "x$ENOS_HOME" = "x" ]; then
     echo "Setting ENOS_HOME to $ENOS_HOME"
 fi
 
-SYSTEM_PROPS="-Denos.rootdir=${ENOS_ROOTDIR}"
+SYSTEM_PROPS="-Denos.rootdir=${ENOS_ROOTDIR} -Dorg.slf4j.simpleLogger.showDateTime=true"
 
 $JAVA $SYSTEM_PROPS -jar $ENOS_HOME/target/enos-1.0-SNAPSHOT.one-jar.jar

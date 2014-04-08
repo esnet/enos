@@ -10,6 +10,8 @@
 package net.es.enos.shell;
 
 import net.es.enos.shell.annotations.ShellCommand;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -24,6 +26,8 @@ public class ShellCommandsFactory {
     private static HashMap<String, Method> shellCommands = new HashMap<String, Method>();
 
     public static void registerShellModule (Class shellModule) {
+        final Logger logger = LoggerFactory.getLogger(ShellCommandsFactory.class);
+
         Method[] methods = shellModule.getMethods();
 
         for (Method method : methods) {
@@ -31,7 +35,7 @@ public class ShellCommandsFactory {
             ShellCommand command = method.getAnnotation(ShellCommand.class);
             if (command != null) {
                 // This method is command.
-                System.out.println("Adding Shell module " + command.name());
+                logger.info("Adding Shell command {}", command.name());
                 ShellCommandsFactory.shellCommands.put(command.name(),method);
             }
         }
