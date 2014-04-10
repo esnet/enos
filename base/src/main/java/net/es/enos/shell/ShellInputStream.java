@@ -10,6 +10,8 @@
 package net.es.enos.shell;
 
 import jline.console.ConsoleReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,6 +29,8 @@ public class ShellInputStream extends InputStream {
     private boolean doEcho = false;
     private ConsoleReader consoleReader = null;
 
+    private final Logger logger = LoggerFactory.getLogger(ShellInputStream.class);
+
     public ShellInputStream(InputStream in, OutputStream echoOut) {
         this.in = in;
         this.echoOut = echoOut;
@@ -38,12 +42,9 @@ public class ShellInputStream extends InputStream {
     }
 
     public int read() throws IOException {
-
-        if (this.last) {
-            this.last = false;
-            return -1;
-        }
+        logger.debug("last = {}, lastRead = {}", this.last, this.lastRead);
         int c = this.in.read();
+        logger.debug("c = {}", c);
         this.lastRead += 1;
         if (this.doEcho && this.echoOut != null) {
             this.echoOut.write(c);
@@ -97,7 +98,7 @@ public class ShellInputStream extends InputStream {
 
     @Override
     public long skip(long n) throws IOException {
-        System.out.println("skip " + n);
+        logger.debug("skip {}", n);
         return this.in.skip(n);
     }
 
@@ -108,19 +109,19 @@ public class ShellInputStream extends InputStream {
 
     @Override
     public synchronized void mark(int readlimit) {
-        System.out.println("readlimit");
+        logger.debug("readlimit");
         this.mark(readlimit);
     }
 
     @Override
     public synchronized void reset() throws IOException {
-        System.out.println("reset");
+        logger.debug("reset");
         this.in.reset();
     }
 
     @Override
     public boolean markSupported() {
-        System.out.println("markSupported");
+        logger.debug("markSupported");
         return this.in.markSupported();
     }
 }
