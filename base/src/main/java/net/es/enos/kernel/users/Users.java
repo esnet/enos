@@ -16,6 +16,8 @@ import net.es.enos.common.UserAlreadyExistException;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.security.FileACL;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.lang.reflect.Method;
@@ -105,6 +107,7 @@ public final class Users {
     private Path passwordFilePath;
     private Path enosRootPath;
     private HashMap<String,Profile> passwords = new HashMap<String, Profile>();
+    private final Logger logger = LoggerFactory.getLogger(Users.class);
 
     public Users() {
         String enosRootDir = System.getProperty(PropertyKeys.ENOS_ROOTDIR);
@@ -128,9 +131,14 @@ public final class Users {
     }
 
 
-    public boolean authUser (String user, String password) throws IOException {
+    public boolean authUser (String user, String password) {
         // Read file.
-        this.readUserFile();
+        try {
+            this.readUserFile();
+        } catch (IOException e) {
+            logger.error("Cannot read password file");
+        }
+
 
         if (this.passwords.isEmpty()) {
             // No user has been created. Will accept "admin","enos".
@@ -141,8 +149,14 @@ public final class Users {
                     this.do_createUser(Users.ADMIN_USERNAME, Users.ADMIN_PASSWORD, Users.ROOT);
                 } catch (UserAlreadyExistException e) {
                     // Since this code is executed only when the configuration file is empty, this should never happen.
-                    e.printStackTrace();
+                    logger.error("User {} already exists in empty configuration file", Users.ADMIN_USERNAME);
+                    return false;
+                } catch (IOException e) {
+                    // This shouldn't happen either...it means we couldn't create the initial password file.
+                    logger.error("Cannot create initial password file");
+                    return false;
                 }
+
                 // Accept
                 return true;
             }
@@ -150,7 +164,7 @@ public final class Users {
 
 
         if (!Users.getUsers().passwords.containsKey(user)) {
-            System.out.println(user + " is unknown");
+            logger.warn("{} is unknown", user);
             return false;
         }
         Profile userProfile = Users.getUsers().passwords.get(user);
@@ -158,10 +172,10 @@ public final class Users {
         // Local password verification here.  Check an encrypted version of the user's password
         // against what was stored in password file, a la UNIX password authentication.
         if (userProfile.getPassword().equals(crypt(password, userProfile.getPassword()))) {
-            System.out.println(user + " has entered correct password");
+            logger.warn("{} has entered correct password", user);
             return true;
         } else {
-            System.out.println(user + " has entered incorrect password ");
+            logger.warn("{} has entered incorrect password", user);
             return false;
         }
     }
@@ -178,7 +192,7 @@ public final class Users {
                     userName,
                     oldPassword,
                     newPassword);
-        } catch (UserAlreadyExistException e) {
+        } catch (NonExistantUserException e) {
             return false;
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
@@ -196,7 +210,7 @@ public final class Users {
             name="do_setPassword"
     )
     public void do_setPassword(String userName, String oldPassword, String newPassword) throws NonExistantUserException {
-        System.out.println("do_setPassword");
+        logger.info("do_setPassword entry");
 
         // Make sure the user already exists.
         if (! this.passwords.containsKey(userName)) {
@@ -205,22 +219,23 @@ public final class Users {
         KernelThread kt = KernelThread.getCurrentKernelThread();
         String currentUserName = kt.getUser().getName();
 
-        System.out.println("current user " + currentUserName);
+        logger.debug("current user {}", currentUserName);
 
         // Username check.  Any user can change his or her own password.
         // A privileged user can change anybody's password.
         if ((currentUserName.equals(userName)) ||
                 isPrivileged(currentUserName)) {
-            System.out.println("OK to change");
+            logger.debug("OK to change");
 
             Profile userProfile = Users.getUsers().passwords.get(userName);
 
             // Password check the old password.
             // Alternatively if this thread is privileged, don't need to check this.
             if (isPrivileged(currentUserName) ||
-                    userProfile.getPassword().equals(crypt(oldPassword, userProfile.getPassword()))) {
+                    Users.getUsers().authUser(currentUserName, oldPassword)) {
+//                    userProfile.getPassword().equals(crypt(oldPassword, userProfile.getPassword()))) {
 
-                System.out.println("Password check succeeded");
+                logger.debug("Password check succeeded");
 
                 // TODO:  Encrypt new password and write out the users file
             }
@@ -257,7 +272,7 @@ public final class Users {
             name="do_createUser"
     )
     public void do_createUser (String username, String password, String privilege) throws UserAlreadyExistException, IOException {
-        System.out.println("do_createUser");
+        logger.info("do_createUser entry");
         // Checks if the user already exists
         if (this.passwords.containsKey(username)) {
             throw new UserAlreadyExistException(username);
@@ -322,7 +337,7 @@ public final class Users {
                 this.passwords.put(p.getName(), p);
             }
             else {
-                System.out.print("Malformed user entry:  " + line);
+                logger.error("Malformed user entry:  {}", line);
             }
         }
     }

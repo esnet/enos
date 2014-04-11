@@ -9,12 +9,20 @@
 
 package net.es.enos.kernel.users;
 
+import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.shell.ShellInputStream;
 import net.es.enos.shell.annotations.ShellCommand;
 import net.es.enos.kernel.users.Users;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+
+import jline.UnixTerminal;
+import jline.console.ConsoleReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class UserShellCommands {
     @ShellCommand(name = "adduser",
@@ -22,7 +30,8 @@ public class UserShellCommands {
     longHelp = "Required arguments are a username, an initial password, and a user class.\n" +
             "The user class should be either \"root\" or \"user\".")
     public static void addUser(String[] args, InputStream in, OutputStream out, OutputStream err) {
-        System.out.println("adduser with " + args.length + " arguments");
+        Logger logger = LoggerFactory.getLogger(UserShellCommands.class);
+        logger.info("adduser with {} arguments", args.length);
 
         PrintStream o = new PrintStream(out);
 
@@ -38,25 +47,62 @@ public class UserShellCommands {
 
     @ShellCommand(name = "passwd",
             shortHelp = "Change user password",
-            longHelp = "Required arguments are a username, an initial password, and a new password.\n")
+            longHelp = "No arguments are required; this command will prompt for them interactively.\n")
     public static void passwd(String[] args, InputStream in, OutputStream out, OutputStream err) {
-        System.out.println("passwd with " + args.length + " arguments");
+        Logger logger = LoggerFactory.getLogger(UserShellCommands.class);
+        logger.info("passwd with {} arguments", args.length);
 
         PrintStream o = new PrintStream(out);
 
-        // TODO:  Make this command interactive.
-        // It should take an optional username as an argument
-        // Password prompts for old and new passwords should be interactive and not echo
-        // keystrokes; new password should require confirmation.
-        // Basically want this to emulate UNIX passwd(1).
+        ConsoleReader consoleReader = null;
+        try {
+            consoleReader = new ConsoleReader(in, out, new UnixTerminal());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
+        // in = new ShellInputStream(in, consoleReader);
 
-        // Argument checking
-        if (args.length != 4) {
-            o.println("Usage:  passwd <username> <old password> <new password>");
+        try {
+            // If this thread is privileged, then ask for a username (because we can set anybody's passwd).
+            // If not privileged, require password verification to change our own passwd.
+            String userName, oldPassword;
+            if (KernelThread.getCurrentKernelThread().isPrivileged()) {
+                userName = consoleReader.readLine("Username: ");
+                oldPassword = "";
+            }
+            else {
+                userName = KernelThread.getCurrentKernelThread().getUser().getName();
+                oldPassword = consoleReader.readLine("Old password: ", '*');
+
+                // Password check to fail early here
+                /* XXX something is broken here, but what?
+                if (Users.getUsers().authUser(userName, oldPassword) == false) {
+                    o.println("Old password is incorrect");
+                    return;
+                }
+                */
+            }
+
+            String newPassword = consoleReader.readLine("New password (initial): ", '*');
+            String new2Password = consoleReader.readLine("New password (confirm): ", '*');
+            if (! newPassword.equals(new2Password)) {
+                o.println("New and old passwords do not match");
+                return;
+            }
+
+            boolean p = Users.getUsers().setPassword(userName, oldPassword, newPassword);
+            if (p) {
+                o.println("Password change successful");
+            }
+            else {
+                o.println("Password change failed");
+            }
+
+        } catch (IOException e) {
             return;
         }
 
-        Users.getUsers().setPassword(args[1], args[2], args[3]);
 
     }
 
