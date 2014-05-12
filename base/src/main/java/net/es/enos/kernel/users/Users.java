@@ -43,10 +43,14 @@ public final class Users {
     /* Users directory */
     public final static String USERS_DIR="users";
 
+    /**
+     * Representation of a user in the password file.
+     * Essentially this is analogous to a single line in /etc/passwd on a UNIX system.
+     */
     public final class Profile {
-        private String name;
-        private String password;
-        private String privilege;
+        private String name; // Username, must be a valid UNIX filename.
+        private String password; // Encrypted password
+        private String privilege; // Privilege, currently either "root" or "user"
 
         public String getName() {
             return name;
@@ -132,6 +136,7 @@ public final class Users {
 
 
     public boolean authUser (String user, String password) {
+        logger.warn("authUser entry");
         // Read file.
         try {
             this.readUserFile();
@@ -162,7 +167,7 @@ public final class Users {
             }
         }
 
-
+        logger.warn("looking for key for {}", user);
         if (!Users.getUsers().passwords.containsKey(user)) {
             logger.warn("{} is unknown", user);
             return false;
@@ -209,7 +214,7 @@ public final class Users {
     @SysCall(
             name="do_setPassword"
     )
-    public void do_setPassword(String userName, String oldPassword, String newPassword) throws NonExistantUserException {
+    public void do_setPassword(String userName, String oldPassword, String newPassword) throws NonExistantUserException, IOException {
         logger.info("do_setPassword entry");
 
         // Make sure the user already exists.
@@ -237,7 +242,9 @@ public final class Users {
 
                 logger.debug("Password check succeeded");
 
-                // TODO:  Encrypt new password and write out the users file
+                // Encrypt new password and write out the users file
+                userProfile.setPassword(crypt(newPassword));
+                this.writeUserFile();
             }
 
 

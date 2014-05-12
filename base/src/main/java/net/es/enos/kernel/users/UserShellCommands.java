@@ -64,11 +64,17 @@ public class UserShellCommands {
         // in = new ShellInputStream(in, consoleReader);
 
         try {
+            // Get our current username.
+            String thisUserName = KernelThread.getCurrentKernelThread().getUser().getName();
+
             // If this thread is privileged, then ask for a username (because we can set anybody's passwd).
             // If not privileged, require password verification to change our own passwd.
             String userName, oldPassword;
             if (KernelThread.getCurrentKernelThread().isPrivileged()) {
-                userName = consoleReader.readLine("Username: ");
+                userName = consoleReader.readLine("Username (default = " + thisUserName + "): ");
+                if (userName.isEmpty()) {
+                    userName = thisUserName;
+                }
                 oldPassword = "";
             }
             else {
@@ -76,7 +82,7 @@ public class UserShellCommands {
                 oldPassword = consoleReader.readLine("Old password: ", '*');
 
                 // Password check to fail early here
-                /* XXX something is broken here, but what?
+                /* TODO:  Figure out why this fails.
                 if (Users.getUsers().authUser(userName, oldPassword) == false) {
                     o.println("Old password is incorrect");
                     return;
@@ -84,6 +90,7 @@ public class UserShellCommands {
                 */
             }
 
+            o.println("Changing password for " + thisUserName);
             String newPassword = consoleReader.readLine("New password (initial): ", '*');
             String new2Password = consoleReader.readLine("New password (confirm): ", '*');
             if (! newPassword.equals(new2Password)) {
