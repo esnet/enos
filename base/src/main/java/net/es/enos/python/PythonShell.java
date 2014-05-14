@@ -23,6 +23,8 @@ import java.util.Arrays;
 
 import org.python.util.InteractiveInterpreter;
 import org.python.util.InteractiveConsole;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 // import org.python.util.JLineConsole;
 
 import javax.print.DocFlavor;
@@ -40,7 +42,9 @@ public class PythonShell {
                     "ENOS shell."
     )
     public static void startPython (String[] args, InputStream in, OutputStream out, OutputStream err) {
-        // System.out.println ("Starting Python");
+
+        final Logger logger = LoggerFactory.getLogger(PythonShell.class);
+        logger.debug("Starting Python");
 
         try {
             InteractiveConsole console = new InteractiveConsole();
@@ -55,7 +59,7 @@ public class PythonShell {
             // e.printStackTrace();
         }
 
-        // System.out.println ("Exits Python");
+        logger.debug("Exiting Python");
     }
 
     @ShellCommand(

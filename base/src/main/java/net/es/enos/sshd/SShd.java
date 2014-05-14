@@ -53,7 +53,6 @@ public class SShd {
 
         PasswordAuthenticator auth = new PasswordAuthenticator() {
             public boolean authenticate(String username, String password, ServerSession ss) {
-                try {
                     if (Users.getUsers().authUser(username, password)) {
                         TokenId tokenId = new TokenId(username,
                                                       true,
@@ -63,10 +62,6 @@ public class SShd {
                     } else {
                         return false;
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    return false;
-                }
             }
         };
 

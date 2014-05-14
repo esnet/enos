@@ -20,6 +20,8 @@ import net.es.enos.shell.Shell;
 import net.es.enos.kernel.users.UserShellCommands;
 
 import java.io.IOException;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 /**
  * Created by lomax on 2/20/14.
@@ -29,6 +31,7 @@ public class BootStrap implements Runnable {
     private String[] args = null;
     private SShd sshd = null;
     private static Thread thread;
+    final private Logger logger = LoggerFactory.getLogger(BootStrap.class);
 
     private static final KernelSecurityManager securityManager = new KernelSecurityManager();
 
@@ -54,17 +57,22 @@ public class BootStrap implements Runnable {
         BootStrap.thread = new Thread(BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup(),
                                       this,
                                       "ENOS Bootstrap");
-
+        logger.info("Starting BootStrap thread");
         BootStrap.thread.start();
 
     }
     public static void main(String[] args) {
-        System.out.println ("Starting ENOS");
+
+        final Logger logger = LoggerFactory.getLogger(BootStrap.class);
+
+        // System.out.println ("Starting ENOS");
+        logger.info("Starting ENOS");
 
         BootStrap.bootStrap = new BootStrap(args);
         BootStrap.bootStrap.init();
         BootStrap.bootStrap.postInitialization();
-        System.out.println("Bootstrap thread exits");
+        // System.out.println("Bootstrap thread exits");
+        logger.info("Bootstrap thread exits");
     }
 
     private BootStrap (String[] args) {
@@ -113,7 +121,8 @@ public class BootStrap implements Runnable {
 
     @Override
     public void run() {
-        System.out.println("Starting services");
+        // System.out.println("Starting services");
+        logger.info("Starting services");
         this.startServices();
     }
 
