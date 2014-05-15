@@ -13,6 +13,8 @@ import net.es.enos.common.DefaultValues;
 import net.es.enos.common.PropertyKeys;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.lang.reflect.Method;
@@ -34,6 +36,7 @@ public final class FileACL extends Properties {
     private Path aclPath;
     private Path filePath;
     private static Path rootPath;
+    private final Logger logger = LoggerFactory.getLogger(FileACL.class);
 
     static {
         String rootdir = System.getProperty(PropertyKeys.ENOS_ROOTDIR);
@@ -48,7 +51,7 @@ public final class FileACL extends Properties {
         super ();
 
         // System.out.println("FileACLL= " + (file != null ? file : "null"));
-
+        logger.debug("Create FileACL for file " + file);
         if (file == null) {
             // root of the file system, no parent
             return;
@@ -94,7 +97,7 @@ public final class FileACL extends Properties {
             name="do_loadACL"
     )
     public void do_loadACL () throws IOException {
-        // System.out.println("do_loadACL");
+        logger.debug("Try to load ACL file " + this.aclPath);
 
         File aclFile = new File(this.aclPath.toString());
         if (!aclFile.exists()) {
@@ -106,6 +109,7 @@ public final class FileACL extends Properties {
             this.inheritParent();
             return;
         }
+        logger.debug("loads file");
         this.load(new FileInputStream(aclFile));
     }
 
@@ -178,10 +182,10 @@ public final class FileACL extends Properties {
         return false;
     }
 
-    public boolean canWrite() {
+    public boolean canWrite(String username) {
         String[] users = this.getCanWrite();
         for (String user : users) {
-            if (user.equals("*") || user.equals(KernelThread.getCurrentKernelThread().getUser().getName())) {
+            if (user.equals("*") || user.equals(username)) {
                 return true;
             }
         }
@@ -197,7 +201,7 @@ public final class FileACL extends Properties {
     }
 
     public String[] getCanWrite() {
-        String users = this.getProperty(FileACL.CAN_WRITE);
+        String users = this.getProperty(FileACL.CAN_WRITE);;
         if (users == null) {
             return new String[0];
         }
@@ -230,6 +234,16 @@ public final class FileACL extends Properties {
         // Add user to the list
         this.setProperty(FileACL.CAN_READ,
                 FileACL.makeString(FileACL.addUser(this.getCanRead(),username)));
+
+    }
+    public synchronized void allowUserWrite(String username) {
+        if (this.canWrite(username)) {
+            // is already allowed
+            return;
+        }
+        // Add user to the list
+        this.setProperty(FileACL.CAN_WRITE,
+                FileACL.makeString(FileACL.addUser(this.getCanWrite(),username)));
 
     }
 

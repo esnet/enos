@@ -85,7 +85,6 @@ public class Shell implements Runnable {
     }
 
     public void run() {
-
         this.kernelThread = KernelThread.getCurrentKernelThread();
 
         System.out.println ("Shell Starting");

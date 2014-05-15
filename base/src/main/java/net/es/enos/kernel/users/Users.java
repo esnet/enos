@@ -286,10 +286,9 @@ public final class Users {
             throw new UserAlreadyExistException(username);
         }
         // Construct the new Profile.
-        Profile userProfile = new Profile(
-                username,
-                crypt(password), // Let the Crypt library pick a suitable algorithm and a random salt
-                privilege);
+        Profile userProfile = new Profile(username,
+                                          crypt(password), // Let the Crypt library pick a suitable algorithm and a random salt
+                                          privilege);
         this.passwords.put(username,userProfile);
         // Create home directory
         File homeDir = new File (Paths.get(this.getHomePath().toString(), username).toString());
@@ -297,6 +296,7 @@ public final class Users {
         // Create proper access right
         FileACL fileACL = new FileACL(homeDir.toPath());
         fileACL.allowUserRead(username);
+        fileACL.allowUserWrite(username);
 
         // Commit ACL's
         fileACL.store();

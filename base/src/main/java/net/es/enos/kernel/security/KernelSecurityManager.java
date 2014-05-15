@@ -127,11 +127,11 @@ public class KernelSecurityManager extends SecurityManager {
         for (Map.Entry<String, Boolean> s : KernelSecurityManager.writeAccess.entrySet()) {
             if (s.getValue() && file.startsWith(s.getKey())) {
                 // Allowed by predefined access
-                logger.warn("Allowing write access by predefined access to " + file);
+                logger.info("Allowing write access by predefined access to " + file);
                 return;
             } else if (!s.getValue() && file.equals(s.getKey())) {
                 // Request strict pathname
-                logger.warn("Allowing write access by predefined access to " + file);
+                logger.info("Allowing write access by predefined access to " + file);
                 return;
             }
         }
@@ -141,20 +141,20 @@ public class KernelSecurityManager extends SecurityManager {
                             !file.startsWith(this.rootPath.toFile().getCanonicalPath()))) {
                 // If the file is not within ENOS root dir, reject.
                 // TODO: this should be sufficient but perhaps needs to be revisited
-                logger.debug("reject write file " + file + " because the file is not an ENOS file");
+                logger.info("reject write file " + file + " because the file is not an ENOS file");
                 throw new SecurityException("Cannot write file " + file);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
         if (this.isPrivileged()) {
-            logger.debug("checkWrite allows " + file + " because thread is privileged");
+            logger.info("checkWrite allows " + file + " because thread is privileged");
             return;
         }
         try {
             FileACL acl = new FileACL(Paths.get(file));
-            if (acl.canWrite()) {
-                logger.debug("checkWrite allows " + file + " because ENOS User ACL for the user allows it.");
+            if (acl.canWrite(KernelThread.getCurrentKernelThread().getUser().getName())) {
+                logger.info("checkWrite allows " + file + " because ENOS User ACL for the user allows it.");
                 return;
             }
         } catch (IOException e) {
