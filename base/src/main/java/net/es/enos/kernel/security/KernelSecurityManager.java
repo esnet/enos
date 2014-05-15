@@ -25,6 +25,9 @@ import java.lang.SecurityManager;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Permission;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * This class implements the core ENOS Security Manager. It implements SecurityManager and is set as the System
@@ -34,16 +37,17 @@ public class KernelSecurityManager extends SecurityManager {
     private ThreadGroup enosRootThreadGroup = new ThreadGroup("ENOS Root ThreadGroup");
     private Path rootPath;
     private final Logger logger = LoggerFactory.getLogger(KernelSecurityManager.class);
+    private static HashMap<String,Boolean> writeAccess = new HashMap<String,Boolean>();
 
     public KernelSecurityManager() {
         this.preloadClasses();
+        this.initializePreAuthorized();
         System.setSecurityManager(this);
         String rootdir = System.getProperty(PropertyKeys.ENOS_ROOTDIR);
         if (rootdir == null) {
             // This happens when running within an IDE (not running script/start-enos.sh
             rootdir= DefaultValues.ENOS_DEFAULT_ROOTDIR;
         }
-        System.out.println("rootdir= " + rootdir);
         this.rootPath = Paths.get(rootdir).normalize();
     }
 
@@ -85,7 +89,7 @@ public class KernelSecurityManager extends SecurityManager {
     @Override
     public void checkPackageAccess(String p) throws SecurityException {
 
-        // TODO: lomax@es.net the restriction on es.net classes sound like a neat idea, but might not be
+        // TODO: lomax@es.net the restriction on es.net classes sounds like a neat idea, but might not be
         // neither realistic nor usefull. To revisit.
 
         /*****
@@ -120,7 +124,17 @@ public class KernelSecurityManager extends SecurityManager {
     @Override
     public void checkWrite(String file) throws SecurityException {
         logger.debug("checkWrite " + file );
-
+        for (Map.Entry<String, Boolean> s : KernelSecurityManager.writeAccess.entrySet()) {
+            if (s.getValue() && file.startsWith(s.getKey())) {
+                // Allowed by predefined access
+                logger.warn("Allowing write access by predefined access to " + file);
+                return;
+            } else if (!s.getValue() && file.equals(s.getKey())) {
+                // Request strict pathname
+                logger.warn("Allowing write access by predefined access to " + file);
+                return;
+            }
+        }
         try {
             if (this.rootPath == null ||
                     (!file.startsWith(this.rootPath.toFile().toString()) &&
@@ -238,5 +252,15 @@ public class KernelSecurityManager extends SecurityManager {
         c = SysCall.class;
         c = ENOSException.class;
         c = net.es.enos.common.DefaultValues.class;
+    }
+
+    private void initializePreAuthorized() {
+        String classPath =  System.getProperty("java.class.path");
+        if ((classPath != null) && (classPath.split(" ").length > 0)) {
+            // More than one element in the class path means that ENOS is running within its ONEJAR. Therefore
+            // we need to allow write access to the jyphon cache. TODO: this sounds dangerous
+            KernelSecurityManager.writeAccess.put(System.getProperty("java.class.path") + "!", new Boolean(true));
+
+        }
     }
 }

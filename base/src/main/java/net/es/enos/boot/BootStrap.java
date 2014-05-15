@@ -19,6 +19,7 @@ import net.es.enos.sshd.SShd;
 import net.es.enos.shell.Shell;
 import net.es.enos.kernel.users.UserShellCommands;
 
+import java.io.File;
 import java.io.IOException;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
@@ -64,7 +65,7 @@ public class BootStrap implements Runnable {
     public static void main(String[] args) {
 
         final Logger logger = LoggerFactory.getLogger(BootStrap.class);
-
+        System.out.println(System.getProperty("java.class.path"));
         // System.out.println ("Starting ENOS");
         logger.info("Starting ENOS");
 
