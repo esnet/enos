@@ -15,6 +15,8 @@ import net.es.enos.common.PropertyKeys;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.users.User;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileDescriptor;
 import java.io.FilePermission;
@@ -31,6 +33,7 @@ import java.security.Permission;
 public class KernelSecurityManager extends SecurityManager {
     private ThreadGroup enosRootThreadGroup = new ThreadGroup("ENOS Root ThreadGroup");
     private Path rootPath;
+    private final Logger logger = LoggerFactory.getLogger(KernelSecurityManager.class);
 
     public KernelSecurityManager() {
         this.preloadClasses();
@@ -40,6 +43,7 @@ public class KernelSecurityManager extends SecurityManager {
             // This happens when running within an IDE (not running script/start-enos.sh
             rootdir= DefaultValues.ENOS_DEFAULT_ROOTDIR;
         }
+        System.out.println("rootdir= " + rootdir);
         this.rootPath = Paths.get(rootdir).normalize();
     }
 
@@ -72,6 +76,8 @@ public class KernelSecurityManager extends SecurityManager {
             // from java library classes. This is safe.
             return;
         }
+        Thread.dumpStack();
+
         throw new SecurityException("Illegal Thread access from " + Thread.currentThread().getName() + " onto " +
                                      t.getName());
     }
@@ -113,7 +119,7 @@ public class KernelSecurityManager extends SecurityManager {
 
     @Override
     public void checkWrite(String file) throws SecurityException {
-        // System.out.println("checkWrite " + file );
+        logger.debug("checkWrite " + file );
 
         try {
             if (this.rootPath == null ||
@@ -121,27 +127,28 @@ public class KernelSecurityManager extends SecurityManager {
                             !file.startsWith(this.rootPath.toFile().getCanonicalPath()))) {
                 // If the file is not within ENOS root dir, reject.
                 // TODO: this should be sufficient but perhaps needs to be revisited
-                System.out.println("Cannot write file " + file);
+                logger.debug("reject write file " + file + " because the file is not an ENOS file");
                 throw new SecurityException("Cannot write file " + file);
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
         if (this.isPrivileged()) {
-            // System.out.println("checkWrite is privileged " + file );
+            logger.debug("checkWrite allows " + file + " because thread is privileged");
             return;
         }
         try {
             FileACL acl = new FileACL(Paths.get(file));
             if (acl.canWrite()) {
-                // System.out.println("checkWrite can read");
+                logger.debug("checkWrite allows " + file + " because ENOS User ACL for the user allows it.");
                 return;
             }
         } catch (IOException e) {
-            // System.out.println("checkWrite IOEXception");
+            logger.info("checkWrite rejects " + file + " due to IOException " + e.getMessage());
             throw new SecurityException("IOException when retrieving ACL of " + file + ": " + e);
         }
-        // System.out.println("checkRead cannot read " + this.isPrivileged() + " " + file);
+        logger.info("checkWrite rejects " + file);
+
         throw new SecurityException("Not authorized to write file " + file);
     }
 
@@ -152,28 +159,33 @@ public class KernelSecurityManager extends SecurityManager {
 
     @Override
     public void checkRead(String file) {
-        // System.out.println("checkRead " + file );
+        logger.debug("checkRead starts " + file );
 
         if (this.rootPath == null || !file.startsWith(this.rootPath.toFile().getAbsolutePath())) {
             // If the file is not within ENOS root dir, allow and rely on system permissions for read.
             // TODO: this should be sufficient but perhaps needs to be revisited
+            logger.debug("checkRead ok " + file + " not an ENOS file. Rely on system access");
             return;
         }
         if (this.isPrivileged()) {
             // System.out.println("checkRead is privileged " + file );
+            logger.debug("checkRead ok " + file + " because thread is privileged");
             return;
         }
         try {
             FileACL acl = new FileACL(Paths.get(file));
             if (acl.canRead()) {
                 // System.out.println("checkRead can read");
+                logger.debug("checkRead ok " + file + " because user ENOS ACL allows it.");
                 return;
             }
         } catch (IOException e) {
             // System.out.println("checkRead IOEXception");
+            logger.info("checkRead reject " + file + " got exception " + e.toString());
             throw new SecurityException("IOException when retrieving ACL of " + file + ": " + e);
         }
         // System.out.println("checkRead cannot read " + this.isPrivileged() + " " + file);
+        logger.info("checkRead reject  " + file + " because thread is user, file is in ENOS rootdir and user ACL does not allows");
         throw new SecurityException("Not authorized to read file " + file);
     }
 

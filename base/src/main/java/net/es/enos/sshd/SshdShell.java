@@ -70,7 +70,7 @@ public class SshdShell extends Shell implements Command, SessionAware {
         }
         User user = User.getUser(tokenId.username);
         if (user == null) {
-            // First thread from this user
+            // First login from this user
             user = new User(tokenId.username);
         }
 

@@ -5,7 +5,7 @@
 #
 JAVA=java
 if [ "x$ENOS_ROOTDIR" = "x" ]; then
-    export ENOS_ROOTDIR=$PWD
+    export ENOS_ROOTDIR=/tmp/enos
     echo "Setting ENOS_ROOTDIR to $ENOS_ROOTDIR"
 fi
 if [ "x$ENOS_HOME" = "x" ]; then
