@@ -21,7 +21,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import org.python.util.InteractiveInterpreter;
+import org.python.util.PythonInterpreter;
 import org.python.util.InteractiveConsole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,36 +46,32 @@ public class PythonShell {
         final Logger logger = LoggerFactory.getLogger(PythonShell.class);
         logger.debug("Starting Python");
 
-        try {
-            InteractiveConsole console = new InteractiveConsole();
+        if ((args != null) && (args.length > 1)) {
+            // A program is provided.
+            PythonInterpreter python = new PythonInterpreter();
+            python.setIn(in);
+            python.setOut(out);
+            python.setErr(err);
+            logger.info("Executes file " + args[1] + " for user " + KernelThread.getCurrentKernelThread().getUser().getName());
+            python.execfile(args[1]);
 
-            console.setOut(out);
-            console.setErr(err);
-            console.setIn(in);
-            // Start the interactive session
-            console.interact();
-        } catch (Exception e) {
-            // Nothing has to be done. This happens when the jython shell exits, obviously not too gracefully.
-            // e.printStackTrace();
+        } else {
+            // This is an interactive session
+            try {
+                InteractiveConsole console = new InteractiveConsole();
+
+                console.setOut(out);
+                console.setErr(err);
+                console.setIn(in);
+                // Start the interactive session
+                console.interact();
+            } catch (Exception e) {
+                // Nothing has to be done. This happens when the jython shell exits, obviously not too gracefully.
+                // e.printStackTrace();
+            }
         }
 
         logger.debug("Exiting Python");
     }
 
-    @ShellCommand(
-            name="test",
-            shortHelp = "Test command that generates some output"
-    )
-    public static void test(String[] args, InputStream in, OutputStream out, OutputStream err) {
-        try {
-            out.write("Hello World\n".getBytes());
-            for (int i=1; i < args.length; ++i) {
-                String line = "argument " + i + "= " + args[i] + "\n";
-                out.write(line.getBytes());
-            }
-            out.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 }

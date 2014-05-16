@@ -171,7 +171,7 @@ public final class  KernelThread {
             // Retrieve, when possible, the User associated to this thread
             this.user = User.getUser(Thread.currentThread().getThreadGroup());
             if (this.user != null) {
-                logger.info("Adapting thread " + Thread.currentThread().getId() + " user= " + this.user.getName());
+                logger.info("Adopting thread " + Thread.currentThread().getId() + " user= " + this.user.getName());
             } else {
                 logger.warn("Cannot find user for thread " + Thread.currentThread().getId());
             }
