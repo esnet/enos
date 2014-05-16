@@ -40,6 +40,12 @@ public class KernelSecurityManager extends SecurityManager {
     private static HashMap<String,Boolean> writeAccess = new HashMap<String,Boolean>();
 
     public KernelSecurityManager() {
+        String sec = System.getProperty(PropertyKeys.ENOS_SECURITYMANAGER);
+        if ((sec != null) && (sec.equals("no")))  {
+            // No do start SecurityManager. If undefined, start SecurityManager
+            logger.warn("enos.securitymanager is set to no. This disables ENOS SecurityManager, which disables security all together. MUST NOT RUN IN PRODUCTION.");
+            return;
+        }
         this.preloadClasses();
         this.initializePreAuthorized();
         System.setSecurityManager(this);
@@ -182,23 +188,19 @@ public class KernelSecurityManager extends SecurityManager {
             return;
         }
         if (this.isPrivileged()) {
-            // System.out.println("checkRead is privileged " + file );
             logger.debug("checkRead ok " + file + " because thread is privileged");
             return;
         }
         try {
             FileACL acl = new FileACL(Paths.get(file));
             if (acl.canRead()) {
-                // System.out.println("checkRead can read");
                 logger.debug("checkRead ok " + file + " because user ENOS ACL allows it.");
                 return;
             }
         } catch (IOException e) {
-            // System.out.println("checkRead IOEXception");
             logger.info("checkRead reject " + file + " got exception " + e.toString());
             throw new SecurityException("IOException when retrieving ACL of " + file + ": " + e);
         }
-        // System.out.println("checkRead cannot read " + this.isPrivileged() + " " + file);
         logger.info("checkRead reject  " + file + " because thread is user, file is in ENOS rootdir and user ACL does not allows");
         throw new SecurityException("Not authorized to read file " + file);
     }

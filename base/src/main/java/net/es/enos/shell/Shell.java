@@ -29,7 +29,7 @@ import jline.console.ConsoleReader;
 import net.es.enos.kernel.users.Users;
 import net.es.enos.shell.annotations.ShellCommand;
 
-public class Shell implements Runnable {
+public class Shell {
 
     private InputStream in = null;
     private OutputStream out = null;
@@ -84,10 +84,9 @@ public class Shell implements Runnable {
         this.prompt = "\n" + prompt;
     }
 
-    public void run() {
+    public void startShell() {
+        System.out.println("Shell is starting");
         this.kernelThread = KernelThread.getCurrentKernelThread();
-
-        System.out.println ("Shell Starting");
 
         this.setPrompt(kernelThread.getUser().getName() + "@enos> ");
 

@@ -44,74 +44,13 @@ public final class Users {
     /* Users directory */
     public final static String USERS_DIR="users";
 
-    /**
-     * Representation of a user in the password file.
-     * Essentially this is analogous to a single line in /etc/passwd on a UNIX system.
-     */
-    public final class Profile {
-        private String name; // Username, must be a valid UNIX filename.
-        private String password; // Encrypted password
-        private String privilege; // Privilege, currently either "root" or "user"
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getPassword() {
-            return password;
-        }
-
-        public void setPassword(String password) {
-            this.password = password;
-        }
-
-        public String getPrivilege() {
-            return privilege;
-        }
-
-        public void setPrivilege(String privilege) {
-            this.privilege = privilege;
-        }
-
-        public Profile(String line) {
-            String[] elements = line.split(":");
-            if (elements.length < 2) {
-                // Incorrect format. Ignore
-                return;
-            }
-            name = elements[0];
-            password = elements[1];
-            privilege = elements[2];
-        }
-
-        public Profile(String name, String password, String privilege) {
-            this.name = name;
-            this.password = password;
-            this.privilege = privilege;
-        }
-
-        @Override
-        public String toString() {
-            String line = "";
-            line += name + ":";
-            line += password + ":";
-            line += privilege;
-
-            return line;
-        }
-    }
-
     private final static String ADMIN_USERNAME = "admin";
     private final static String ADMIN_PASSWORD = "enos";
     private final static String ROOT = "root";
     private final static String USER = "user";
     private Path passwordFilePath;
     private Path enosRootPath;
-    private HashMap<String,Profile> passwords = new HashMap<String, Profile>();
+    private HashMap<String,UserProfile> passwords = new HashMap<String, UserProfile>();
     private final Logger logger = LoggerFactory.getLogger(Users.class);
 
     public Users() {
@@ -173,7 +112,7 @@ public final class Users {
             logger.warn("{} is unknown", user);
             return false;
         }
-        Profile userProfile = Users.getUsers().passwords.get(user);
+        UserProfile userProfile = Users.getUsers().passwords.get(user);
 
         // Local password verification here.  Check an encrypted version of the user's password
         // against what was stored in password file, a la UNIX password authentication.
@@ -233,13 +172,13 @@ public final class Users {
                 isPrivileged(currentUserName)) {
             logger.debug("OK to change");
 
-            Profile userProfile = Users.getUsers().passwords.get(userName);
+            UserProfile userProfile = Users.getUsers().passwords.get(userName);
 
             // Password check the old password.
             // Alternatively if this thread is privileged, don't need to check this.
             if (isPrivileged(currentUserName) ||
                     Users.getUsers().authUser(currentUserName, oldPassword)) {
-//                    userProfile.getPassword().equals(crypt(oldPassword, userProfile.getPassword()))) {
+//   userProfile.getPassword().equals(crypt(oldPassword, userProfile.getPassword()))) {  TODO: is this debug artifacts ?
 
                 logger.debug("Password check succeeded");
 
@@ -247,11 +186,7 @@ public final class Users {
                 userProfile.setPassword(crypt(newPassword));
                 this.writeUserFile();
             }
-
-
         }
-
-
     }
 
     public boolean createUser  (String username, String password, String privilege) {
@@ -286,7 +221,7 @@ public final class Users {
             throw new UserAlreadyExistException(username);
         }
         // Construct the new Profile.
-        Profile userProfile = new Profile(username,
+        UserProfile userProfile = new UserProfile(username,
                                           crypt(password), // Let the Crypt library pick a suitable algorithm and a random salt
                                           privilege);
         this.passwords.put(username,userProfile);
@@ -311,7 +246,7 @@ public final class Users {
             // Initial configuration. Add admin user and create configuration file.
             return true;
         }
-        Profile userProfile = this.passwords.get(username);
+        UserProfile userProfile = this.passwords.get(username);
         if (userProfile == null) {
             // Not a user
             return false;
@@ -340,7 +275,7 @@ public final class Users {
         this.passwords.clear();
 
         while ((line = reader.readLine()) != null) {
-            Profile p = new Profile(line);
+            UserProfile p = new UserProfile(line);
             if (p.getName() != null) {
                 this.passwords.put(p.getName(), p);
             }
@@ -355,7 +290,7 @@ public final class Users {
         File passwordFile = new File(this.passwordFilePath.toString());
         BufferedWriter writer = new BufferedWriter(new FileWriter(passwordFile));
 
-        for (Profile p : this.passwords.values() ) {
+        for (UserProfile p : this.passwords.values() ) {
             writer.write(p.toString());
             writer.newLine();
         }

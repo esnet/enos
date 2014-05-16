@@ -7,14 +7,33 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.common;
+package net.es.enos.sshd;
+
+import org.apache.sshd.server.Environment;
+import org.apache.sshd.server.ExitCallback;
+import org.apache.sshd.server.command.ScpCommandFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 /**
- * Static class defining configuration property keys
+ * Created by lomax on 5/15/14.
  */
-public final class PropertyKeys {
-    /* ENOS root directory  */
-    public static final String ENOS_ROOTDIR = "enos.rootdir";
-    public static final String ENOS_SECURITYMANAGER = "enos.securitymanager";
+public class SshdScpCommandFactory implements org.apache.sshd.server.CommandFactory {
 
+    public SshdScpCommandFactory() {
+
+    }
+
+    public org.apache.sshd.server.Command createCommand(String command) {
+        // First set the ENOS KernelThread
+        try {
+            return new SshdShell(command);
+        } catch (IOException e) {
+            Thread.dumpStack();
+            return null;
+        }
+    }
 }
+

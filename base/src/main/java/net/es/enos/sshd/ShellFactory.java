@@ -24,7 +24,7 @@ import java.io.IOException;
 public class ShellFactory implements Factory<Command> {
 
     public Command create() {
-
+        System.out.println("CREATE SHELL COMMAND");
         try {
             return new SshdShell();
         } catch (IOException e) {

@@ -12,28 +12,42 @@ package net.es.enos.sshd;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.users.User;
 import net.es.enos.shell.Shell;
+import org.apache.sshd.common.file.FileSystemAware;
+import org.apache.sshd.common.file.FileSystemView;
 import org.apache.sshd.server.Command;
 import org.apache.sshd.server.Environment;
 import org.apache.sshd.server.ExitCallback;
 import org.apache.sshd.server.SessionAware;
+import org.apache.sshd.server.command.ScpCommand;
 import org.apache.sshd.server.session.ServerSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-public class SshdShell extends Shell implements Command, SessionAware {
+public class SshdShell extends Shell implements Command, SessionAware, FileSystemAware, Runnable {
 
     private OutputStream err;
     private ExitCallback callback;
     private Environment environment;
     private Thread thread;
     private ServerSession session;
-
+    private ScpCommand scpCommand;
+    private final Logger logger = LoggerFactory.getLogger(SshdShell.class);
     public SshdShell() throws IOException {
+        // Constructor for ssh
         super(null, null);
+        logger.debug("Accepted new SSH connection");
     }
 
+    public SshdShell(String command) throws IOException {
+        // Constructor for scp
+        super(null, null);
+        scpCommand = new ScpCommand(command);
+        logger.debug("Accepted new SCP connection " + command);
+    }
 
     public Environment getEnvironment() {
         return environment;
@@ -41,22 +55,35 @@ public class SshdShell extends Shell implements Command, SessionAware {
 
     public void setInputStream(InputStream in) {
         super.setIn (in);
+        if (this.scpCommand != null) {
+            this.scpCommand.setInputStream(in);
+        }
     }
 
     public void setOutputStream(OutputStream out) {
         super.setOut(out);
+        if (this.scpCommand != null) {
+            this.scpCommand.setOutputStream(out);
+        }
     }
 
     public void setErrorStream(OutputStream err) {
         this.err = err;
+        if (this.scpCommand != null) {
+            this.scpCommand.setErrorStream(err);
+        }
     }
 
     public void setExitCallback(ExitCallback callback) {
         this.callback = callback;
+        if (this.scpCommand != null) {
+            this.scpCommand.setExitCallback(callback);
+        }
     }
 
     public void start(Environment env) throws IOException {
         this.environment = env;
+
         // Retrieve user
         SShd.TokenId tokenId = this.session.getAttribute(SShd.TOKEN_ID);
         if (tokenId == null) {
@@ -73,13 +100,33 @@ public class SshdShell extends Shell implements Command, SessionAware {
             // First login from this user
             user = new User(tokenId.username);
         }
-
+        if (this.scpCommand != null) {
+            logger.info("Accepted new SCP user=" + user.getName() + " command=" + scpCommand.toString());
+        } else {
+            logger.info("Accepted new SSH user=" + user.getName());
+        }
         // Create a new Thread.
         this.thread = new Thread(user.getThreadGroup(),
                                  this,
                                  "ENOS Shell User= " + user.getName() );
         KernelThread.getKernelThread(this.thread).setUser(user);
         this.thread.start();
+    }
+
+    public void run() {
+        if (this.scpCommand == null) {
+            // SSH
+            this.startShell();
+        } else {
+            // SCP
+            try {
+                scpCommand.start(this.environment);
+            } catch (IOException e) {
+                e.printStackTrace();
+                logger.warn("Exception while scp " + this.scpCommand.toString());
+            }
+
+        }
     }
 
     @Override
@@ -90,5 +137,12 @@ public class SshdShell extends Shell implements Command, SessionAware {
     @Override
     public void setSession(ServerSession serverSession) {
         this.session = serverSession;
+    }
+
+    @Override
+    public void setFileSystemView(FileSystemView view) {
+        if (scpCommand != null) {
+            scpCommand.setFileSystemView(view);
+        }
     }
 }

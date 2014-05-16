@@ -19,6 +19,8 @@ import net.es.enos.common.ENOSException;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.users.User;
 import net.es.enos.kernel.security.AllowedSysCalls;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -37,6 +39,7 @@ import java.util.List;
  */
 public final class  KernelThread {
 
+    private final Logger logger = LoggerFactory.getLogger(KernelThread.class);
     private final static HashMap<Thread,KernelThread> kernelThreads = new HashMap<Thread, KernelThread>();
     private static LinkedList<Class> systemClasses = new LinkedList<Class>();
 
@@ -162,8 +165,20 @@ public final class  KernelThread {
      * Returns the user owning this thread
      * @return Returns the user owning this thread
      */
-    public User getUser() {
+    public synchronized User getUser() {
+
+        if (this.user == null) {
+            // Retrieve, when possible, the User associated to this thread
+            this.user = User.getUser(Thread.currentThread().getThreadGroup());
+            if (this.user != null) {
+                logger.info("Adapting thread " + Thread.currentThread().getId() + " user= " + this.user.getName());
+            } else {
+                logger.warn("Cannot find user for thread " + Thread.currentThread().getId());
+            }
+        }
+
         return this.user;
+
     }
 
     /**

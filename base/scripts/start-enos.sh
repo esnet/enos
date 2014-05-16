@@ -14,9 +14,12 @@ fi
 echo "Setting ENOS_HOME to $ENOS_HOME"
 if [ "x$ENOS_LOGLEVEL" = "x" ]; then
     export xENOS_LOGLEVEL=info
-    echo "Setting ENOS_LOGLEVEL to $ENOS_LOGLEVEL"
 fi
-echo "Setting ENOS_LOGLEVEL to $LOGLEVEL"
-SYSTEM_PROPS="-Dorg.slf4j.simpleLogger.defaultLogLevel=${ENOS_LOGLEVEL} -Denos.rootdir=${ENOS_ROOTDIR} -Dorg.slf4j.simpleLogger.showDateTime=true"
+echo "Setting ENOS_LOGLEVEL to $ENOS_LOGLEVEL"
+if [ "x$ENOS_SECURITYMANAGER" = "x" ]; then
+    export xENOS_SECURITYMANAGER=yes
+fi
+echo "Setting ENOS_SECURITYMANAGER to $ENOS_SECURITYMANAGER"
+SYSTEM_PROPS="-Denos.securitymanager=${ENOS_SECURITYMANAGER} -Dorg.slf4j.simpleLogger.defaultLogLevel=${ENOS_LOGLEVEL} -Denos.rootdir=${ENOS_ROOTDIR} -Dorg.slf4j.simpleLogger.showDateTime=true"
 
 $JAVA $SYSTEM_PROPS -jar $ENOS_HOME/target/enos-1.0-SNAPSHOT.one-jar.jar

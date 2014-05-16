@@ -17,6 +17,7 @@ import net.es.enos.kernel.users.Users;
 import org.apache.sshd.SshServer;
 import org.apache.sshd.common.Session;
 import org.apache.sshd.server.PasswordAuthenticator;
+import org.apache.sshd.server.command.ScpCommandFactory;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.apache.sshd.server.session.ServerSession;
 
@@ -28,13 +29,13 @@ public class SShd {
     private static SShd sshd = null;
     private SshServer sshServer = null;
     public static final Session.AttributeKey<TokenId> TOKEN_ID = new Session.AttributeKey<TokenId>();
+
     public static SShd getSshd() {
         if (SShd.sshd == null) {
             SShd.sshd = new SShd();
         }
         return SShd.sshd;
     }
-
 
     static public class TokenId {
         public String username;
@@ -69,6 +70,7 @@ public class SShd {
 
         this.sshServer.setKeyPairProvider(new SimpleGeneratorHostKeyProvider("hostkey.ser"));
         this.sshServer.setShellFactory(new ShellFactory());
+        this.sshServer.setCommandFactory(new SshdScpCommandFactory());
         this.sshServer.start();
     }
 }
