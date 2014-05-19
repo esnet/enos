@@ -141,6 +141,10 @@ public class KernelSecurityManager extends SecurityManager {
                 return;
             }
         }
+        if (this.isPrivileged()) {
+            logger.info("checkWrite allows " + file + " because thread is privileged");
+            return;
+        }
         try {
             if (this.rootPath == null ||
                     (!file.startsWith(this.rootPath.toFile().toString()) &&
@@ -152,10 +156,6 @@ public class KernelSecurityManager extends SecurityManager {
             }
         } catch (IOException e) {
             e.printStackTrace();
-        }
-        if (this.isPrivileged()) {
-            logger.info("checkWrite allows " + file + " because thread is privileged");
-            return;
         }
         try {
             FileACL acl = new FileACL(Paths.get(file));
