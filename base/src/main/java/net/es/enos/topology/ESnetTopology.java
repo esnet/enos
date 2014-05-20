@@ -100,6 +100,7 @@ public class ESnetTopology {
 
             String output = response.getEntity(String.class);
             logger.info("Retrieved ESnet topology");
+            output = this.normalize(output);
             return output;
 
         } catch (Exception e) {
@@ -107,6 +108,10 @@ public class ESnetTopology {
             e.printStackTrace();
             return null;
         }
+    }
+
+    public ESnetJSONTopology getJSONTopology() {
+        return this.stringToJSON(this.retrieveTopology());
     }
 
     public ESnetJSONTopology stringToJSON (String topology) {
@@ -134,6 +139,19 @@ public class ESnetTopology {
             e.printStackTrace();
         }
         return null;
+    }
+
+    /**
+     * ESnet topology uses two different format in ID:
+     *    1) urn:ogf:network:domain=es.net:node=sunn-cr5:port=to_sunn-ixia-mgmt:link=*
+     *    2) urn:ogf:network:es.net:sunn-cr5:to_sunn-ixia-mgmt:*
+     */
+    public String normalize(String wireformat) {
+        wireformat = wireformat.replaceAll("(?:domain=)","");
+        wireformat = wireformat.replaceAll("(?:node=)","");
+        wireformat = wireformat.replaceAll("(?:link=)","");
+        wireformat = wireformat.replaceAll("(?:port=)","");
+        return wireformat;
     }
 }
 
