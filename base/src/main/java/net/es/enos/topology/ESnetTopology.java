@@ -24,6 +24,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.jgrapht.graph.ListenableDirectedGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +40,8 @@ import java.security.cert.CertificateException;
 public class ESnetTopology {
     public static final String ESNET_DEFAULT_URL = "https://oscars.es.net/topology-publisher";
     private final Logger logger = LoggerFactory.getLogger(ESnetTopology.class);
+    private String wireFormatTopology;
+    private ESnetJSONTopology jsonTopology;
 
     public class TopologyTrustManager implements X509TrustManager {
 
@@ -58,6 +61,10 @@ public class ESnetTopology {
         }
     }
 
+    public ESnetTopology() {
+        this.wireFormatTopology = this.retrieveTopology();
+        this.jsonTopology = this.wireFormatToJSON(this.wireFormatTopology);
+    }
     public String retrieveTopology() {
 
         try {
@@ -82,14 +89,9 @@ public class ESnetTopology {
             sslcontext = httpsProperties.getSSLContext();
             sslcontext.init(null, trustAllCerts, null);
             Client client = Client.create(clientConfig);
-
-            // sslcontext.setDefault(sslcontext);
-
             clientConfig.getFeatures().put(JSONConfiguration.FEATURE_POJO_MAPPING, Boolean.TRUE);
 
             WebResource webResource = client.resource(ESnetTopology.ESNET_DEFAULT_URL);
-
-            // sslcontext.setDefault(sslcontext);
 
             ClientResponse response = webResource.accept("application/json").get(ClientResponse.class);
             if (response.getStatus() != 200) {
@@ -111,10 +113,10 @@ public class ESnetTopology {
     }
 
     public ESnetJSONTopology getJSONTopology() {
-        return this.stringToJSON(this.retrieveTopology());
+        return this.jsonTopology;
     }
 
-    public ESnetJSONTopology stringToJSON (String topology) {
+    public ESnetJSONTopology wireFormatToJSON (String topology) {
         ObjectMapper mapper = new ObjectMapper();
 
         try {
@@ -152,6 +154,12 @@ public class ESnetTopology {
         wireformat = wireformat.replaceAll("(?:link=)","");
         wireformat = wireformat.replaceAll("(?:port=)","");
         return wireformat;
+    }
+
+    public ListenableDirectedGraph getGraph () {
+        ListenableDirectedGraph graphToplogy = null;
+
+        return null;
     }
 }
 
