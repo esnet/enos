@@ -19,8 +19,9 @@ import net.es.enos.sshd.SShd;
 import net.es.enos.shell.Shell;
 import net.es.enos.kernel.users.UserShellCommands;
 
-import java.io.File;
 import java.io.IOException;
+
+import net.es.enos.topology.ESnetTopology;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
@@ -55,6 +56,8 @@ public class BootStrap implements Runnable {
     }
 
     public void init() {
+
+
         BootStrap.thread = new Thread(BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup(),
                                       this,
                                       "ENOS Bootstrap");

@@ -18,10 +18,18 @@ import com.sun.jersey.api.client.config.DefaultClientConfig;
 
 import com.sun.jersey.api.json.JSONConfiguration;
 import com.sun.jersey.client.urlconnection.HTTPSProperties;
+import org.codehaus.jackson.JsonGenerationException;
+import org.codehaus.jackson.map.JsonMappingException;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.type.TypeReference;
+import org.codehaus.jettison.json.JSONException;
+import org.codehaus.jettison.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.*;
+import java.io.File;
+import java.io.IOException;
 import java.security.cert.CertificateException;
 
 
@@ -99,6 +107,33 @@ public class ESnetTopology {
             e.printStackTrace();
             return null;
         }
+    }
+
+    public ESnetJSONTopology stringToJSON (String topology) {
+        ObjectMapper mapper = new ObjectMapper();
+
+        try {
+            JSONObject jsonObj = new JSONObject(topology);
+            ESnetJSONTopology jsonTopology = mapper.readValue(jsonObj.toString(), new TypeReference<ESnetJSONTopology>()
+            {
+            });
+            return jsonTopology;
+        } catch (JsonGenerationException e) {
+
+            e.printStackTrace();
+
+        } catch (JsonMappingException e) {
+
+            e.printStackTrace();
+
+        } catch (IOException e) {
+
+            e.printStackTrace();
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
 
