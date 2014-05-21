@@ -45,6 +45,13 @@ import java.io.FileReader;
  * ENOS configuration manager class.
  * This class is a singleton.  It implements everything needed to read
  * ENOS configurations.
+ *
+ * At the moment this implementation reads a single configuration file in JSON, with JSON objects
+ * corresponding to different sections of the configuration.  We envision an eventual, more complex,
+ * configuration where portions of the configuration space can be overridden by per-user or per-slice
+ * configuration files.  There will necessarily be some policy involved to allow only selected
+ * parameters in the master configuration file to be overridden.
+ *
  * TODO:  Implement logic to allow slices or users to override parts of the configuration space.
  */
 public class EnosConfigurationManager {
