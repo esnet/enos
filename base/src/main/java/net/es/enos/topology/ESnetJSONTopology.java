@@ -10,7 +10,6 @@
 package net.es.enos.topology;
 
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -19,22 +18,22 @@ import java.util.List;
 public class ESnetJSONTopology {
 
     private String status;
-    private List<Domain> domains;
-    private List<Circuit>circuits;
+    private List<ESnetDomain> domains;
+    private List<ESnetCircuit>circuits;
 
-    public List<Circuit> getCircuits() {
+    public List<ESnetCircuit> getCircuits() {
         return circuits;
     }
 
-    public void setCircuits(List<Circuit> circuits) {
+    public void setCircuits(List<ESnetCircuit> circuits) {
         this.circuits = circuits;
     }
 
-    public List<Domain> getDomains() {
+    public List<ESnetDomain> getDomains() {
         return domains;
     }
 
-    public void setDomains(List<Domain> domains) {
+    public void setDomains(List<ESnetDomain> domains) {
         this.domains = domains;
     }
 

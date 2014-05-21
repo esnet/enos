@@ -11,7 +11,7 @@ package net.es.enos.topology;
 
 import java.util.List;
 
-public class Port {
+public class ESnetPort {
     private String id;
     private String capacity;
     private String maximumReservableCapacity;
@@ -22,7 +22,7 @@ public class Port {
     private String netmask;
     private String granularity;
     private String over;
-    private List<Link> links;
+    private List<ESnetLink> links;
 
     public String getGranularity() {
         return granularity;
@@ -32,7 +32,7 @@ public class Port {
         this.granularity = granularity;
     }
 
-    public void setLinks(List<Link> links) {
+    public void setLinks(List<ESnetLink> links) {
         this.links = links;
     }
 
@@ -108,11 +108,11 @@ public class Port {
         this.over = over;
     }
 
-    public List<Link> getLinks() {
+    public List<ESnetLink> getLinks() {
         return links;
     }
 
-    public void setLunks(List<Link> links) {
+    public void setLunks(List<ESnetLink> links) {
         this.links = links;
     }
 }

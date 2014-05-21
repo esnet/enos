@@ -9,26 +9,28 @@
 
 package net.es.enos.topology;
 
+import java.util.List;
+
 /**
  * Created by lomax on 5/19/14.
  */
-public class DataPlaneId {
-    private String scope;
-    private String resource;
+public class ESnetSegment {
+    private String id;
+    private List<String> ports;
 
-    public String getScope() {
-        return scope;
+    public String getId() {
+        return id;
     }
 
-    public void setScope(String scope) {
-        this.scope = scope;
+    public void setId(String id) {
+        this.id = id;
     }
 
-    public String getResource() {
-        return resource;
+    public List<String> getPorts() {
+        return ports;
     }
 
-    public void setResource(String resource) {
-        this.resource = resource;
+    public void setPorts(List<String> ports) {
+        this.ports = ports;
     }
 }

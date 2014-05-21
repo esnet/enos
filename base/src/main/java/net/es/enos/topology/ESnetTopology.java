@@ -29,9 +29,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.*;
-import java.io.File;
 import java.io.IOException;
 import java.security.cert.CertificateException;
+import java.util.List;
 
 
 /**
@@ -158,8 +158,18 @@ public class ESnetTopology {
 
     public ListenableDirectedGraph getGraph () {
         ListenableDirectedGraph graphToplogy = null;
+        graphToplogy = new ListenableDirectedGraph(ESnetLink.class);
+        List<ESnetDomain> domains = this.jsonTopology.getDomains();
+        ESnetDomain esnet = domains.get(0);
+        List<ESnetNode> nodes = esnet.getNodes();
+        for (ESnetNode node : nodes) {
+            List<ESnetPort> ports = node.getPorts();
+            for (ESnetPort port : ports) {
+                List<ESnetLink> links = port.getLinks();
 
-        return null;
+            }
+        }
+        return graphToplogy;
     }
 }
 

@@ -9,20 +9,21 @@
 
 package net.es.enos.topology;
 
-import java.util.List;
-
 /**
- * Created by lomax on 5/19/14.
+ * Created by lomax on 5/16/14.
  */
-public class Circuit {
-    private String start;
-    private String end;
-    private String description;
-    private List<Segment> segments;
-    private String capacity;
-    private List<String> segment_ids;
-    private List<DataPlaneId> dataplane_ids;
+
+public class ESnetLink {
     private String id;
+    private String type;
+    private String remoteLinkId;
+    private int trafficEngineeringMetric;
+    private String switchingcapType;
+    private String encodingType;
+    private String vlanRangeAvailability;
+    private String interfaceMTU;
+    private boolean  vlanTranslation;
+    private String nameType;
     private String name;
 
     public String getName() {
@@ -33,6 +34,14 @@ public class Circuit {
         this.name = name;
     }
 
+    public String getNameType() {
+        return nameType;
+    }
+
+    public void setNameType(String nameType) {
+        this.nameType = nameType;
+    }
+
     public String getId() {
         return id;
     }
@@ -41,59 +50,67 @@ public class Circuit {
         this.id = id;
     }
 
-    public List<String> getSegment_ids() {
-        return segment_ids;
+    public String getType() {
+        return type;
     }
 
-    public void setSegment_ids(List<String> segment_ids) {
-        this.segment_ids = segment_ids;
+    public void setType(String type) {
+        this.type = type;
     }
 
-    public List<DataPlaneId> getDataplane_ids() {
-        return dataplane_ids;
+    public String getRemoteLinkId() {
+        return remoteLinkId;
     }
 
-    public void setDataplane_ids(List<DataPlaneId> dataplane_ids) {
-        this.dataplane_ids = dataplane_ids;
+    public void setRemoteLinkId(String remoteLinkId) {
+        this.remoteLinkId = remoteLinkId;
     }
 
-    public String getCapacity() {
-        return capacity;
+    public int getTrafficEngineeringMetric() {
+        return trafficEngineeringMetric;
     }
 
-    public void setCapacity(String capacity) {
-        this.capacity = capacity;
+    public void setTrafficEngineeringMetric(int trafficEngineeringMetric) {
+        this.trafficEngineeringMetric = trafficEngineeringMetric;
     }
 
-    public String getStart() {
-        return start;
+    public String getSwitchingcapType() {
+        return switchingcapType;
     }
 
-    public void setStart(String start) {
-        this.start = start;
+    public void setSwitchingcapType(String switchingcapType) {
+        this.switchingcapType = switchingcapType;
     }
 
-    public String getEnd() {
-        return end;
+    public String getEncodingType() {
+        return encodingType;
     }
 
-    public void setEnd(String end) {
-        this.end = end;
+    public void setEncodingType(String encodingType) {
+        this.encodingType = encodingType;
     }
 
-    public String getDescription() {
-        return description;
+    public String getVlanRangeAvailability() {
+        return vlanRangeAvailability;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public void setVlanRangeAvailability(String vlanRangeAvailability) {
+        this.vlanRangeAvailability = vlanRangeAvailability;
     }
 
-    public List<Segment> getSegments() {
-        return segments;
+    public String getInterfaceMTU() {
+        return interfaceMTU;
     }
 
-    public void setSegments(List<Segment> segments) {
-        this.segments = segments;
+    public void setInterfaceMTU(String interfaceMTU) {
+        this.interfaceMTU = interfaceMTU;
+    }
+
+    public boolean isVlanTranslation() {
+        return vlanTranslation;
+    }
+
+    public void setVlanTranslation(boolean vlanTranslation) {
+        this.vlanTranslation = vlanTranslation;
     }
 }

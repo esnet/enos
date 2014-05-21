@@ -15,14 +15,14 @@ package net.es.enos.topology;
 
 import java.util.List;
 
-public class Node {
+public class ESnetNode {
     private String id;
     String name;
     String hostName;
     String latitude;
     String longitude;
     String address;
-    List<Port> ports;
+    List<ESnetPort> ports;
     String description;
 
     public String getDescription() {
@@ -81,11 +81,11 @@ public class Node {
         this.longitude = longitude;
     }
 
-    public List<Port> getPorts() {
+    public List<ESnetPort> getPorts() {
         return ports;
     }
 
-    public void setPorts(List<Port> ports) {
+    public void setPorts(List<ESnetPort> ports) {
         this.ports = ports;
     }
 }

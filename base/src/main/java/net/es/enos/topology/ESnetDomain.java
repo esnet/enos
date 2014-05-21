@@ -14,14 +14,14 @@ import java.util.List;
 /**
  * Created by lomax on 5/16/14.
  */
-public class Domain {
+public class ESnetDomain {
     private String Id;
 
-    public List<Node> getNodes() {
+    public List<ESnetNode> getNodes() {
         return nodes;
     }
 
-    public void setNodes(List<Node> nodes) {
+    public void setNodes(List<ESnetNode> nodes) {
         this.nodes = nodes;
     }
 
@@ -33,5 +33,5 @@ public class Domain {
         Id = id;
     }
 
-    List <Node>  nodes;
+    List <ESnetNode>  nodes;
 }
