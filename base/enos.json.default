@@ -1,6 +1,6 @@
 {
     "global": {
-	"home":				"/tmp/enos/",
+	"rootDirectory":		"/tmp/enos/",
 	"sshEnabled":			1,
 	"securityManagerEnabled":	1,
     }

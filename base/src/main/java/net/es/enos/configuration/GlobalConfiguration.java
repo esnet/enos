@@ -36,16 +36,16 @@ package net.es.enos.configuration;
  */
 public class GlobalConfiguration {
 
-    private String home;
+    private String rootDirectory;
     private int sshEnabled;
     private int securityManagerEnabled;
 
-    public String getHome() {
-        return home;
+    public String getRootDirectory() {
+        return rootDirectory;
     }
 
-    public void setHome(String home) {
-        this.home = home;
+    public void setRootDirectory(String home) {
+        this.rootDirectory = home;
     }
 
     public int getSshEnabled() {

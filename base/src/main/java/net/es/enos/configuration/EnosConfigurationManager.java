@@ -60,6 +60,8 @@ public class EnosConfigurationManager {
 
     private final Logger logger = LoggerFactory.getLogger(EnosConfigurationManager.class);
 
+    EnosJSONConfiguration masterConfiguration = new EnosJSONConfiguration();
+
     /**
      * Read the main configuration file.
      */
