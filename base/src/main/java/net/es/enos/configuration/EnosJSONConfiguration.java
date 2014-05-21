@@ -28,17 +28,20 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.api;
+package net.es.enos.configuration;
 
 /**
- * Static class defining configuration property keys
+ * Top-level configuration object.
+ * Read in from JSON format configuration file.
  */
-public final class PropertyKeys {
-    /* ENOS root directory  */
-    public static final String ENOS_ROOTDIR = "enos.rootdir";
-    public static final String ENOS_SECURITYMANAGER = "enos.securitymanager";
+public class EnosJSONConfiguration {
+    private GlobalConfiguration global; // Global configuration object
 
-    /* ENOS configuration file */
-    public static final String ENOS_CONFIGURATION = "enos.configuration";
+    public GlobalConfiguration getGlobal() {
+        return global;
+    }
 
+    public void setGlobal(GlobalConfiguration global) {
+        this.global = global;
+    }
 }

@@ -1,0 +1,7 @@
+{
+    "global": {
+	"home":				"/tmp/enos/",
+	"sshEnabled":			1,
+	"securityManagerEnabled":	1,
+    }
+}

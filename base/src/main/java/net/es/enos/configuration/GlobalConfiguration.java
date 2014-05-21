@@ -28,17 +28,39 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.api;
+package net.es.enos.configuration;
 
 /**
- * Static class defining configuration property keys
+ * ENOS global configuration object.
+ * Defines the behavior of the ENOS main daemon.
  */
-public final class PropertyKeys {
-    /* ENOS root directory  */
-    public static final String ENOS_ROOTDIR = "enos.rootdir";
-    public static final String ENOS_SECURITYMANAGER = "enos.securitymanager";
+public class GlobalConfiguration {
 
-    /* ENOS configuration file */
-    public static final String ENOS_CONFIGURATION = "enos.configuration";
+    private String home;
+    private int sshEnabled;
+    private int securityManagerEnabled;
 
+    public String getHome() {
+        return home;
+    }
+
+    public void setHome(String home) {
+        this.home = home;
+    }
+
+    public int getSshEnabled() {
+        return sshEnabled;
+    }
+
+    public void setSshEnabled(int sshEnabled) {
+        this.sshEnabled = sshEnabled;
+    }
+
+    public int getSecurityManagerEnabled() {
+        return securityManagerEnabled;
+    }
+
+    public void setSecurityManagerEnabled(int securityManagerEnabled) {
+        this.securityManagerEnabled = securityManagerEnabled;
+    }
 }
