@@ -1,7 +1,7 @@
 {
     "global": {
 	"rootDirectory":		"/tmp/enos/",
-	"sshEnabled":			1,
-	"securityManagerEnabled":	1,
+	"sshDisabled":			0,
+	"securityManagerDisabled":	0,
     }
 }

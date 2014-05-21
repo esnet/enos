@@ -37,8 +37,8 @@ package net.es.enos.configuration;
 public class GlobalConfiguration {
 
     private String rootDirectory;
-    private int sshEnabled;
-    private int securityManagerEnabled;
+    private int sshDisabled;
+    private int securityManagerDisabled;
 
     public String getRootDirectory() {
         return rootDirectory;
@@ -48,19 +48,19 @@ public class GlobalConfiguration {
         this.rootDirectory = home;
     }
 
-    public int getSshEnabled() {
-        return sshEnabled;
+    public int getSshDisabled() {
+        return sshDisabled;
     }
 
-    public void setSshEnabled(int sshEnabled) {
-        this.sshEnabled = sshEnabled;
+    public void setSshDisabled(int sshDisabled) {
+        this.sshDisabled = sshDisabled;
     }
 
-    public int getSecurityManagerEnabled() {
-        return securityManagerEnabled;
+    public int getSecurityManagerDisabled() {
+        return securityManagerDisabled;
     }
 
-    public void setSecurityManagerEnabled(int securityManagerEnabled) {
-        this.securityManagerEnabled = securityManagerEnabled;
+    public void setSecurityManagerDisabled(int securityManagerDisabled) {
+        this.securityManagerDisabled = securityManagerDisabled;
     }
 }
