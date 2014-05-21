@@ -34,8 +34,6 @@ package net.es.enos.api;
  * Static class defining configuration property keys
  */
 public final class PropertyKeys {
-    public static final String ENOS_SECURITYMANAGER = "enos.securitymanager";
-
     /* ENOS configuration file */
     public static final String ENOS_CONFIGURATION = "enos.configuration";
 
