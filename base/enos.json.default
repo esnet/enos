@@ -1,7 +1,8 @@
 {
     "global": {
+	"defaultLogLevel":		"info",
 	"rootDirectory":		"/tmp/enos/",
-	"sshDisabled":			0,
 	"securityManagerDisabled":	0,
+	"sshDisabled":			0,
     }
 }

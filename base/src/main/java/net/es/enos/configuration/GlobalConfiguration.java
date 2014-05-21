@@ -36,9 +36,18 @@ package net.es.enos.configuration;
  */
 public class GlobalConfiguration {
 
+    private String defaultLogLevel;
     private String rootDirectory;
     private int sshDisabled;
     private int securityManagerDisabled;
+
+    public String getDefaultLogLevel() {
+        return defaultLogLevel;
+    }
+
+    public void setDefaultLogLevel(String defaultLogLevel) {
+        this.defaultLogLevel = defaultLogLevel;
+    }
 
     public String getRootDirectory() {
         return rootDirectory;

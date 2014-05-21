@@ -47,6 +47,7 @@ import java.io.IOException;
 import net.es.enos.topology.ESnetTopology;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.impl.SimpleLogger;
 
 /**
  * Created by lomax on 2/20/14.
@@ -100,6 +101,18 @@ public class BootStrap implements Runnable {
     public static void main(String[] args) {
 
         final Logger logger = LoggerFactory.getLogger(BootStrap.class);
+
+        // Set default logging level.
+        // TODO:  This doesn't work.  It appears that setting the default logging level has no effect, possibly because all the various loggers have already been created?
+        String defaultLogLevel;
+        try {
+            defaultLogLevel = BootStrap.getMasterConfiguration().getGlobal().getDefaultLogLevel();
+        }
+        catch (NullPointerException e) {
+            defaultLogLevel = "info";
+        }
+        System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, defaultLogLevel);
+
         logger.info("Starting ENOS root= " + BootStrap.rootPath.toString());
 
         BootStrap.bootStrap = new BootStrap(args);
