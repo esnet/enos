@@ -30,7 +30,6 @@
 
 package net.es.enos.configuration;
 
-import net.es.enos.common.PropertyKeys;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.codehaus.jettison.json.JSONObject;
@@ -40,6 +39,8 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+
+import net.es.enos.api.PropertyKeys;
 
 /**
  * ENOS configuration manager class.
@@ -66,8 +67,6 @@ public class EnosConfigurationManager {
     }
 
     private final Logger logger = LoggerFactory.getLogger(EnosConfigurationManager.class);
-
-    EnosJSONConfiguration masterConfiguration = new EnosJSONConfiguration();
 
     /**
      * Read the main configuration file.

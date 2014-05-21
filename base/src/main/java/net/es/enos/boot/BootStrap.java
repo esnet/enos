@@ -30,6 +30,8 @@
 
 package net.es.enos.boot;
 
+import net.es.enos.api.DefaultValues;
+
 import net.es.enos.configuration.EnosConfigurationManager;
 import net.es.enos.configuration.EnosJSONConfiguration;
 import net.es.enos.kernel.exec.KernelThread;
@@ -43,8 +45,10 @@ import net.es.enos.shell.Shell;
 import net.es.enos.kernel.users.UserShellCommands;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-import net.es.enos.topology.ESnetTopology;
+import net.es.enos.esnet.ESnetTopology;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.impl.SimpleLogger;
@@ -62,6 +66,11 @@ public class BootStrap implements Runnable {
     // because the former controls the initialization actions of the latter.
     private static final EnosJSONConfiguration masterConfiguration = EnosConfigurationManager.getInstance().getConfiguration();
     private static final KernelSecurityManager securityManager = new KernelSecurityManager();
+
+    public final static Path rootPath = Paths.get(
+            masterConfiguration.getGlobal().getRootDirectory() != null ?
+                    masterConfiguration.getGlobal().getRootDirectory() :
+                    DefaultValues.ENOS_DEFAULT_ROOTDIR).normalize();
 
     final private Logger logger = LoggerFactory.getLogger(BootStrap.class);
 
@@ -132,9 +141,6 @@ public class BootStrap implements Runnable {
     }
 
     public void startServices() {
-
-        EnosConfigurationManager configMgr = EnosConfigurationManager.getInstance();
-        masterConfiguration = configMgr.getConfiguration();
 
         this.sshd = SShd.getSshd();
         try {
