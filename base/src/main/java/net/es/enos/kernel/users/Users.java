@@ -9,10 +9,10 @@
 
 package net.es.enos.kernel.users;
 
-import net.es.enos.common.DefaultValues;
-import net.es.enos.common.NonExistantUserException;
-import net.es.enos.common.PropertyKeys;
-import net.es.enos.common.UserAlreadyExistException;
+import net.es.enos.api.DefaultValues;
+import net.es.enos.api.NonExistantUserException;
+import net.es.enos.api.PropertyKeys;
+import net.es.enos.api.UserAlreadyExistException;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.security.FileACL;

@@ -9,6 +9,8 @@
 
 package net.es.enos.boot;
 
+import net.es.enos.api.DefaultValues;
+import net.es.enos.api.PropertyKeys;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.security.AllowedSysCalls;
 import net.es.enos.kernel.security.KernelSecurityManager;
@@ -20,8 +22,9 @@ import net.es.enos.shell.Shell;
 import net.es.enos.kernel.users.UserShellCommands;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-import net.es.enos.topology.ESnetTopology;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
@@ -34,6 +37,10 @@ public class BootStrap implements Runnable {
     private SShd sshd = null;
     private static Thread thread;
     final private Logger logger = LoggerFactory.getLogger(BootStrap.class);
+    public final static Path rootPath = Paths.get(
+            System.getProperty(PropertyKeys.ENOS_ROOTDIR) != null ?
+            System.getProperty(PropertyKeys.ENOS_ROOTDIR) :
+            DefaultValues.ENOS_DEFAULT_ROOTDIR ).normalize();
 
     private static final KernelSecurityManager securityManager = new KernelSecurityManager();
 

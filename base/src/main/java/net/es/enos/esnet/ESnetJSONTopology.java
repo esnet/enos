@@ -7,30 +7,43 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.topology;
+package net.es.enos.esnet;
+
 
 import java.util.List;
 
 /**
- * Created by lomax on 5/19/14.
+ * Created by lomax on 5/16/14.
  */
-public class ESnetSegment {
-    private String id;
-    private List<String> ports;
+public class ESnetJSONTopology {
 
-    public String getId() {
-        return id;
+    private String status;
+    private List<ESnetDomain> domains;
+    private List<ESnetCircuit>circuits;
+
+    public List<ESnetCircuit> getCircuits() {
+        return circuits;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public void setCircuits(List<ESnetCircuit> circuits) {
+        this.circuits = circuits;
     }
 
-    public List<String> getPorts() {
-        return ports;
+    public List<ESnetDomain> getDomains() {
+        return domains;
     }
 
-    public void setPorts(List<String> ports) {
-        this.ports = ports;
+    public void setDomains(List<ESnetDomain> domains) {
+        this.domains = domains;
     }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+
 }

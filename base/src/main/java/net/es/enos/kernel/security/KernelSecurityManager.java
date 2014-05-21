@@ -9,17 +9,15 @@
 
 package net.es.enos.kernel.security;
 import net.es.enos.boot.BootStrap;
-import net.es.enos.common.DefaultValues;
-import net.es.enos.common.ENOSException;
-import net.es.enos.common.PropertyKeys;
+import net.es.enos.api.DefaultValues;
+import net.es.enos.api.ENOSException;
+import net.es.enos.api.PropertyKeys;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
-import net.es.enos.kernel.users.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.FileDescriptor;
-import java.io.FilePermission;
 import java.io.IOException;
 import java.lang.SecurityManager;
 import java.nio.file.Path;
@@ -27,7 +25,6 @@ import java.nio.file.Paths;
 import java.security.Permission;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * This class implements the core ENOS Security Manager. It implements SecurityManager and is set as the System
@@ -253,7 +250,7 @@ public class KernelSecurityManager extends SecurityManager {
         Class c = KernelThread.class;
         c = SysCall.class;
         c = ENOSException.class;
-        c = net.es.enos.common.DefaultValues.class;
+        c = net.es.enos.api.DefaultValues.class;
     }
 
     private void initializePreAuthorized() {

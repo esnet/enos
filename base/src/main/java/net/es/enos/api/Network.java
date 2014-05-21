@@ -7,14 +7,33 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.common;
+package net.es.enos.api;
 
+import net.es.enos.boot.BootStrap;
+
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.UUID;
 /**
- * Static class defining configuration property keys
+ * Created by lomax on 5/21/14.
  */
-public final class PropertyKeys {
-    /* ENOS root directory  */
-    public static final String ENOS_ROOTDIR = "enos.rootdir";
-    public static final String ENOS_SECURITYMANAGER = "enos.securitymanager";
+public abstract class Network extends Resource {
 
+    public enum networkProperties {
+        CanProvision,
+        CanMonitor,
+        CanMeasure,
+        CanSample,
+        CanSlice,
+        CanVirtualize
+    }
+    public static final String NETWORKS_DIR = "networks";
+
+    public Network(String config, List<String> properties) throws IOException {
+        super(config,properties );
+    }
+    public Network() throws IOException {
+        super(Paths.get(BootStrap.rootPath.toString(), NETWORKS_DIR, UUID.randomUUID().toString()).toString(), null);
+    }
 }

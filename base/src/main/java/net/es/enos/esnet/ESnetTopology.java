@@ -7,7 +7,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.topology;
+package net.es.enos.esnet;
 
 import com.sun.jersey.api.client.Client;
 
@@ -38,7 +38,7 @@ import java.util.List;
  * Created by lomax on 5/16/14.
  */
 public class ESnetTopology {
-    public static final String ESNET_DEFAULT_URL = "https://oscars.es.net/topology-publisher";
+    public static final String ESNET_DEFAULT_URL = "https://oscars.es.net/toplogy-publisher";
     private final Logger logger = LoggerFactory.getLogger(ESnetTopology.class);
     private String wireFormatTopology;
     private ESnetJSONTopology jsonTopology;
@@ -144,7 +144,7 @@ public class ESnetTopology {
     }
 
     /**
-     * ESnet topology uses two different format in ID:
+     * ESnet esnet uses two different format in ID:
      *    1) urn:ogf:network:domain=es.net:node=sunn-cr5:port=to_sunn-ixia-mgmt:link=*
      *    2) urn:ogf:network:es.net:sunn-cr5:to_sunn-ixia-mgmt:*
      */

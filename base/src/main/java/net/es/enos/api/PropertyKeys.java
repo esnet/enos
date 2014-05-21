@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2014, Regents of the University of California  All rights reserved.
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -8,52 +7,14 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.kernel.security;
-
-import net.es.enos.api.DefaultValues;
-import net.es.enos.api.PropertyKeys;
-
-import java.nio.file.Paths;
-import java.io.FilePermission;
-import java.util.LinkedList;
+package net.es.enos.api;
 
 /**
- * This class sets the file permission that KernelSecurityManager will use when doing checkRead/checkWrite.
+ * Static class defining configuration property keys
  */
-public final class Authorized {
-    private static LinkedList<FilePermission> filePermissions;
+public final class PropertyKeys {
+    /* ENOS root directory  */
+    public static final String ENOS_ROOTDIR = "enos.rootdir";
+    public static final String ENOS_SECURITYMANAGER = "enos.securitymanager";
 
-    private static void init() {
-        if (filePermissions != null) {
-            return;
-        }
-        filePermissions = new LinkedList<FilePermission>();
-
-        String rootdir = System.getProperty(PropertyKeys.ENOS_ROOTDIR);
-        if (rootdir == null) {
-            // This happens when running within an IDE (not running script/start-enos.sh
-            rootdir= DefaultValues.ENOS_DEFAULT_ROOTDIR;
-        }
-        filePermissions.add(new FilePermission(Paths.get(rootdir).normalize().toString() + "/-",
-                            "read,write"));
-
-    }
-
-    /**
-     * Checks if the provided FilePermission is implied by any of the authorized FilePermissions
-     * @param filePermission
-     * @return
-     */
-    public static boolean isAuthorized (FilePermission filePermission) {
-        // System.out.println ("isAuthorized ");
-        init();
-        for (FilePermission perm : filePermissions) {
-            if (perm.implies(filePermission)) {
-                // System.out.println("Authorized ");
-                // TODO: log
-                return true;
-            }
-        }
-        return false;
-    }
 }

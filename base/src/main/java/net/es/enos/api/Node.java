@@ -7,28 +7,30 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.topology;
+package net.es.enos.api;
+
+import net.es.enos.boot.BootStrap;
+
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.UUID;
 
 /**
- * Created by lomax on 5/19/14.
+ * Generic Node Class
  */
-public class ESnetDataPlaneId {
-    private String scope;
-    private String resource;
-
-    public String getScope() {
-        return scope;
+public class Node extends Resource {
+    public enum resourceProperties {
+        canOpenFlow1, // OpenFlow 1.0 support
+        canOpenFlow3, // OpenFlow 1.3 support
     }
 
-    public void setScope(String scope) {
-        this.scope = scope;
-    }
+    public static final String NODES_DIR = "nodes";
 
-    public String getResource() {
-        return resource;
+    public Node(String config, List<String> properties) throws IOException {
+        super(config,properties );
     }
-
-    public void setResource(String resource) {
-        this.resource = resource;
+    public Node() throws IOException {
+        super(Paths.get(BootStrap.rootPath.toString(), Node.NODES_DIR, UUID.randomUUID().toString()).toString(), null);
     }
 }

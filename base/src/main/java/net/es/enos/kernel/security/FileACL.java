@@ -9,8 +9,8 @@
 
 package net.es.enos.kernel.security;
 
-import net.es.enos.common.DefaultValues;
-import net.es.enos.common.PropertyKeys;
+import net.es.enos.api.DefaultValues;
+import net.es.enos.api.PropertyKeys;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import org.slf4j.Logger;
@@ -50,7 +50,6 @@ public final class FileACL extends Properties {
     public FileACL (Path file) throws IOException {
         super ();
 
-        // System.out.println("FileACLL= " + (file != null ? file : "null"));
         logger.debug("Create FileACL for file " + file);
         if (file == null) {
             // root of the file system, no parent

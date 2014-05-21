@@ -9,7 +9,7 @@
 
 package net.es.enos.shell;
 
-import net.es.enos.common.ENOSException;
+import net.es.enos.api.ENOSException;
 import net.es.enos.shell.annotations.ShellCommand;
 
 import java.io.InputStream;
