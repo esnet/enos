@@ -56,9 +56,13 @@ public class BootStrap implements Runnable {
     private String[] args = null;
     private SShd sshd = null;
     private static Thread thread;
-    final private Logger logger = LoggerFactory.getLogger(BootStrap.class);
 
+    // We need to be sure the configuration manager gets instantiated before the security manager,
+    // because the former controls the initialization actions of the latter.
+    private static final EnosJSONConfiguration masterConfiguration = EnosConfigurationManager.getInstance().getConfiguration();
     private static final KernelSecurityManager securityManager = new KernelSecurityManager();
+
+    final private Logger logger = LoggerFactory.getLogger(BootStrap.class);
 
     public Shell getShell() {
         return shell;
@@ -78,6 +82,10 @@ public class BootStrap implements Runnable {
         return securityManager;
     }
 
+    public static EnosJSONConfiguration getMasterConfiguration() {
+        return masterConfiguration;
+    }
+
     public void init() {
 
 
@@ -85,6 +93,7 @@ public class BootStrap implements Runnable {
                                       this,
                                       "ENOS Bootstrap");
         logger.info("Starting BootStrap thread");
+        logger.info("Current directory: {}", System.getProperty("user.dir"));
         BootStrap.thread.start();
 
     }

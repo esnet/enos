@@ -58,12 +58,18 @@ public class KernelSecurityManager extends SecurityManager {
     private static HashMap<String,Boolean> writeAccess = new HashMap<String,Boolean>();
 
     public KernelSecurityManager() {
-        String sec = System.getProperty(PropertyKeys.ENOS_SECURITYMANAGER);
-        if ((sec != null) && (sec.equals("no")))  {
-            // No do start SecurityManager. If undefined, start SecurityManager
-            logger.warn("enos.securitymanager is set to no. This disables ENOS SecurityManager, which disables security all together. MUST NOT RUN IN PRODUCTION.");
-            return;
+
+        // See if SecurityManager should be disabled.  We need to be very conservative here in terms
+        // of letting admins turn this off.
+        try {
+            if (BootStrap.getMasterConfiguration().getGlobal().getSecurityManagerDisabled() != 0) {
+                logger.warn("ENOS SecurityManager is currently disabled.  No security checks will be run.  MUST NOT BE USED IN PRODUCTION.");
+                return;
+            }
         }
+        catch (NullPointerException e) {
+        }
+
         this.preloadClasses();
         this.initializePreAuthorized();
         System.setSecurityManager(this);
