@@ -25,7 +25,7 @@ import java.util.UUID;
 public class Resource {
     private String uuid;
     private String name;
-    private String className;
+    private String resourceClassName;
     private String description;
     private List<User> hasWriteAccess;
     private List<User> hasReadAccess;
@@ -39,7 +39,7 @@ public class Resource {
             this.uuid = UUID.randomUUID().toString();
         }
         // Set the classname.
-        this.className = this.getClassName();
+        this.resourceClassName = this.getClass().getCanonicalName();
         // Create, if necessary, the capabilities List.
         if (this.capabilities == null) {
             this.capabilities = new ArrayList<String>();
@@ -106,17 +106,22 @@ public class Resource {
         this.resourceDir = resourceDir;
     }
 
-    public String getClassName() {
-        return className;
+    public String getResourceClassName() {
+        return resourceClassName;
     }
 
-    public void setClassName(String className) {
-        this.className = className;
+    public void setResourceClassName(String resourceClassName) {
+        this.resourceClassName = resourceClassName;
     }
 
     public final void save() throws IOException {
+        Paths.get(BootStrap.rootPath.toString(),this.getResourceDir()).toFile().mkdirs();
+        File config = new File(Paths.get(BootStrap.rootPath.toString(),
+                                         this.getResourceDir(),
+                                         Resource.CONFIG_FILE).toString());
+        // config.createNewFile();
         ObjectMapper mapper = new ObjectMapper();
-        FileOutputStream output = new FileOutputStream(Paths.get(BootStrap.rootPath.toString(),this.getResourceDir()).toString());
+        FileOutputStream output = new FileOutputStream(config);
         mapper.writeValue(output, this);
     }
 
