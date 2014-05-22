@@ -33,13 +33,6 @@ public class ESnetLink extends Link {
     private String  nameType;
     private String  name;
 
-    public ESnetLink(String config) throws IOException {
-        super(config,null);
-    }
-
-    public ESnetLink() throws IOException {
-    }
-
     public String getName() {
         return name;
     }

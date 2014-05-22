@@ -9,6 +9,7 @@
 
 package net.es.enos.python;
 
+import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.shell.ShellInputStream;
 import net.es.enos.shell.annotations.ShellCommand;
@@ -53,7 +54,7 @@ public class PythonShell {
             python.setOut(out);
             python.setErr(err);
             logger.info("Executes file " + args[1] + " for user " + KernelThread.getCurrentKernelThread().getUser().getName());
-            python.execfile(args[1]);
+            python.execfile(BootStrap.rootPath.toString() + args[1]);
 
         } else {
             // This is an interactive session

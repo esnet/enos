@@ -75,7 +75,7 @@ public class BootStrap implements Runnable {
     public static void main(String[] args) {
 
         final Logger logger = LoggerFactory.getLogger(BootStrap.class);
-        logger.info("Starting ENOS");
+        logger.info("Starting ENOS root= " + BootStrap.rootPath.toString());
 
         BootStrap.bootStrap = new BootStrap(args);
         BootStrap.bootStrap.init();

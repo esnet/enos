@@ -24,11 +24,6 @@ public abstract class Link extends  Resource {
     public enum Types {SITE,PEERING,INTERNAL}
     public static final String LINKS_DIR = "links";
 
-    public Link(String config, List<String> properties) throws IOException {
-        super(config,properties);
-    }
-    public Link () throws IOException {
-        super(Paths.get(BootStrap.rootPath.toString(), Link.LINKS_DIR,UUID.randomUUID().toString()).toString(),null );
-    }
+
 }
 

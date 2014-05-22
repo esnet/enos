@@ -20,17 +20,19 @@ import java.util.UUID;
  * Generic Node Class
  */
 public class Node extends Resource {
-    public enum resourceProperties {
-        canOpenFlow1, // OpenFlow 1.0 support
-        canOpenFlow3, // OpenFlow 1.3 support
-    }
-
+    public static final String CanOpenFlow1 = "canOpenFlow1";  // OpenFlow 1.0 support
+    public static final String CanOpenFlow3 = "canOpenFlow2";  // OpenFlow 1.3 support
     public static final String NODES_DIR = "nodes";
 
-    public Node(String config, List<String> properties) throws IOException {
-        super(config,properties );
+    private List<String> parentResources;
+
+
+    public List<String> getParentResources() {
+        return parentResources;
     }
-    public Node() throws IOException {
-        super(Paths.get(BootStrap.rootPath.toString(), Node.NODES_DIR, UUID.randomUUID().toString()).toString(), null);
+
+    public void setParentResources(List<String> parentResources) {
+        this.parentResources = parentResources;
     }
+
 }

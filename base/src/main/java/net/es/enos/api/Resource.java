@@ -16,6 +16,7 @@ import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.*;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -26,33 +27,24 @@ import java.util.UUID;
 public class Resource {
     private String uuid;
     private String name;
+    private String className;
     private String description;
     private List<User> hasWriteAccess;
     private List<User> hasReadAccess;
     private List<String> properties;
     private String homeDir;
+    public static final String CONFIG_FILE = "resource";
 
-    /**
-     * All classes that extend Resources must implement this constructor and call super to initialize
-     * the path name of the directory that will contain the configuration of the resource. The path is
-     * relative to ENOS_HOME. An empty will generate an IOException.
-     * @param relativePath
-     * @param properties
-     */
-    public Resource(String relativePath, List<String> properties) throws IOException {
-        this.homeDir = relativePath;
-        this.load();
+    public Resource() {
         if (this.uuid == null) {
             // Generate new UUID: this is a new resource
             this.uuid = UUID.randomUUID().toString();
-            this.save();
         }
+        // Set the classname.
+        this.className = this.getClassName();
         // Create, if necessary, the properties List.
         if (this.properties == null) {
             this.properties = new ArrayList<String>();
-        }
-        if (this.properties != null) {
-            this.properties.addAll(this.properties);
         }
     }
 
@@ -108,18 +100,62 @@ public class Resource {
         this.properties = properties;
     }
 
+    public String getHomeDir() {
+        return homeDir;
+    }
+
+    public void setHomeDir(String homeDir) {
+        this.homeDir = homeDir;
+    }
+
+    public String getClassName() {
+        return className;
+    }
+
+    public void setClassName(String className) {
+        this.className = className;
+    }
+
     public final void save() throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        FileOutputStream output = new FileOutputStream(this.homeDir);
+        FileOutputStream output = new FileOutputStream(Paths.get(BootStrap.rootPath.toString(),this.getHomeDir()).toString());
         mapper.writeValue(output, this);
     }
-    public final void load() throws IOException {
-        if ( ! new File(this.homeDir).exists()){
-            // Configuration directory does not exist yet. This is a new Resource
-            return;
+
+    public synchronized void addProperties(String property) {
+        this.properties.add(property);
+    }
+    public void addProperties(String[] properties) {
+        for (String property : properties) {
+            this.properties.add(property);
+        }
+    }
+
+    public static final Resource newResource (Class c, String relativePath) throws IOException, InstantiationException {
+        File config = new File(Paths.get(BootStrap.rootPath.toString(),relativePath).toString(),Resource.CONFIG_FILE);
+        if ( ! config.exists() ) {
+            // This is a new resource.
+            Resource resource = TopologyFactory.newResource(c);
+            resource.setHomeDir(relativePath);
+            resource.save();
+            return resource;
         }
         ObjectMapper mapper = new ObjectMapper();
-        FileInputStream input = new FileInputStream(this.homeDir);
-        mapper.readValue(input, this.getClass());
+        FileInputStream input = new FileInputStream(config);
+        Resource resource = (Resource) mapper.readValue(input, c);
+        return resource;
     }
+    public static final Resource newResource (Class c) throws InstantiationException {
+        Resource resource = null;
+        try {
+            resource = (Resource) Class.forName(c.getName()).newInstance();
+            return resource;
+        } catch (IllegalAccessException e) {
+            throw new InstantiationException(e.toString());
+        } catch (ClassNotFoundException e) {
+            throw new InstantiationException(e.toString());
+        }
+    }
+
+
 }

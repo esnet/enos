@@ -20,20 +20,14 @@ import java.util.UUID;
  */
 public abstract class Network extends Resource {
 
-    public enum networkProperties {
-        CanProvision,
-        CanMonitor,
-        CanMeasure,
-        CanSample,
-        CanSlice,
-        CanVirtualize
-    }
+    public static final String CanProvision = "canProvision";
+    public static final String CanMonitor = "canMonitor";
+    public static final String CanMeasure = "canMeasure";
+    public static final String CanSample = "canSample";
+    public static final String CanSlice = "canSlice";
+    public static final String CanVirtualize = "canVirtualize";
+
+
     public static final String NETWORKS_DIR = "networks";
 
-    public Network(String config, List<String> properties) throws IOException {
-        super(config,properties );
-    }
-    public Network() throws IOException {
-        super(Paths.get(BootStrap.rootPath.toString(), NETWORKS_DIR, UUID.randomUUID().toString()).toString(), null);
-    }
 }

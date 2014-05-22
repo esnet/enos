@@ -18,6 +18,7 @@ import com.sun.jersey.api.client.config.DefaultClientConfig;
 
 import com.sun.jersey.api.json.JSONConfiguration;
 import com.sun.jersey.client.urlconnection.HTTPSProperties;
+import net.es.enos.api.TopologyProvider;
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -37,11 +38,12 @@ import java.util.List;
 /**
  * Created by lomax on 5/16/14.
  */
-public class ESnetTopology {
+public class ESnetTopology extends TopologyProvider {
     public static final String ESNET_DEFAULT_URL = "https://oscars.es.net/toplogy-publisher";
     private final Logger logger = LoggerFactory.getLogger(ESnetTopology.class);
     private String wireFormatTopology;
     private ESnetJSONTopology jsonTopology;
+    private String url;
 
     public class TopologyTrustManager implements X509TrustManager {
 
@@ -61,11 +63,12 @@ public class ESnetTopology {
         }
     }
 
-    public ESnetTopology() {
-        this.wireFormatTopology = this.retrieveTopology();
+    public ESnetTopology() throws IOException {
+        super();
+        this.wireFormatTopology = this.loadTopology();
         this.jsonTopology = this.wireFormatToJSON(this.wireFormatTopology);
     }
-    public String retrieveTopology() {
+    public String loadTopology() {
 
         try {
             ClientConfig clientConfig = new DefaultClientConfig();
@@ -112,7 +115,7 @@ public class ESnetTopology {
         }
     }
 
-    public ESnetJSONTopology getJSONTopology() {
+    public ESnetJSONTopology retrieveJSONTopology() {
         return this.jsonTopology;
     }
 
@@ -156,7 +159,7 @@ public class ESnetTopology {
         return wireformat;
     }
 
-    public ListenableDirectedGraph getGraph () {
+    public ListenableDirectedGraph retrieveTopology () {
         ListenableDirectedGraph graphToplogy = null;
         graphToplogy = new ListenableDirectedGraph(ESnetLink.class);
         List<ESnetDomain> domains = this.jsonTopology.getDomains();
@@ -170,6 +173,14 @@ public class ESnetTopology {
             }
         }
         return graphToplogy;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 }
 
