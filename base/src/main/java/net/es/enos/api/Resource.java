@@ -34,10 +34,6 @@ public class Resource {
     public static final String CONFIG_FILE = "resource";
 
     public Resource() {
-        if (this.uuid == null) {
-            // Generate new UUID: this is a new resource
-            this.uuid = UUID.randomUUID().toString();
-        }
         // Set the classname.
         this.resourceClassName = this.getClass().getCanonicalName();
         // Create, if necessary, the capabilities List.
@@ -47,9 +43,11 @@ public class Resource {
     }
 
     public void setUuid(String uuid) {
-        if (this.uuid != null) {
+        if ((this.uuid != null) && !this.uuid.toString().equals(uuid.toString()) ){
+            System.out.println(this.uuid.toString() + "\n" + uuid.toString());
             // It is illegal to try to change the UUID of a resource
-            throw new RuntimeException("Cannot change UUID of a resource once it has been set. Resource= " + this.uuid);
+            throw new RuntimeException("Cannot change UUID of a resource once it has been set. Resource= " + this.uuid +
+                    " current UUID= " + uuid);
         }
         this.uuid = uuid;
     }
@@ -115,6 +113,10 @@ public class Resource {
     }
 
     public final void save() throws IOException {
+        if (this.uuid == null) {
+            // Generate new UUID: this is a new resource
+            this.uuid = UUID.randomUUID().toString();
+        }
         Paths.get(BootStrap.rootPath.toString(),this.getResourceDir()).toFile().mkdirs();
         File config = new File(Paths.get(BootStrap.rootPath.toString(),
                                          this.getResourceDir(),
