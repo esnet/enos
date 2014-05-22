@@ -142,12 +142,23 @@ public class BootStrap implements Runnable {
 
     public void startServices() {
 
-        this.sshd = SShd.getSshd();
+        // Start sshd if it's not disabled.
+        int sshDisabled;
         try {
-            this.sshd.start();
-        } catch (IOException e) {
-            e.printStackTrace();
+            sshDisabled = BootStrap.getMasterConfiguration().getGlobal().getSshDisabled();
         }
+        catch (NullPointerException e) {
+            sshDisabled = 0;
+        }
+        if (sshDisabled == 0) {
+            this.sshd = SShd.getSshd();
+            try {
+                this.sshd.start();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
         // Add Shell Modules
         addShellModules();
 
