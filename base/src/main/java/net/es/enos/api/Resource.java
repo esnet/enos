@@ -11,8 +11,6 @@ package net.es.enos.api;
 
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.users.User;
-import org.codehaus.jackson.JsonGenerationException;
-import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.*;
@@ -31,8 +29,8 @@ public class Resource {
     private String description;
     private List<User> hasWriteAccess;
     private List<User> hasReadAccess;
-    private List<String> properties;
-    private String homeDir;
+    private List<String> capabilities;
+    private String resourceDir;
     public static final String CONFIG_FILE = "resource";
 
     public Resource() {
@@ -42,9 +40,9 @@ public class Resource {
         }
         // Set the classname.
         this.className = this.getClassName();
-        // Create, if necessary, the properties List.
-        if (this.properties == null) {
-            this.properties = new ArrayList<String>();
+        // Create, if necessary, the capabilities List.
+        if (this.capabilities == null) {
+            this.capabilities = new ArrayList<String>();
         }
     }
 
@@ -92,20 +90,20 @@ public class Resource {
         this.hasReadAccess = hasReadAccess;
     }
 
-    public List<String> getProperties() {
-        return properties;
+    public List<String> getCapabilities() {
+        return capabilities;
     }
 
-    public void setProperties(List<String> properties) {
-        this.properties = properties;
+    public void setCapabilities(List<String> capabilities) {
+        this.capabilities = capabilities;
     }
 
-    public String getHomeDir() {
-        return homeDir;
+    public String getResourceDir() {
+        return resourceDir;
     }
 
-    public void setHomeDir(String homeDir) {
-        this.homeDir = homeDir;
+    public void setResourceDir(String resourceDir) {
+        this.resourceDir = resourceDir;
     }
 
     public String getClassName() {
@@ -118,16 +116,16 @@ public class Resource {
 
     public final void save() throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        FileOutputStream output = new FileOutputStream(Paths.get(BootStrap.rootPath.toString(),this.getHomeDir()).toString());
+        FileOutputStream output = new FileOutputStream(Paths.get(BootStrap.rootPath.toString(),this.getResourceDir()).toString());
         mapper.writeValue(output, this);
     }
 
     public synchronized void addProperties(String property) {
-        this.properties.add(property);
+        this.capabilities.add(property);
     }
     public void addProperties(String[] properties) {
         for (String property : properties) {
-            this.properties.add(property);
+            this.capabilities.add(property);
         }
     }
 
@@ -136,7 +134,7 @@ public class Resource {
         if ( ! config.exists() ) {
             // This is a new resource.
             Resource resource = TopologyFactory.newResource(c);
-            resource.setHomeDir(relativePath);
+            resource.setResourceDir(relativePath);
             resource.save();
             return resource;
         }
