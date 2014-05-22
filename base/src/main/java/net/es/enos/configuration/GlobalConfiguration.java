@@ -39,6 +39,7 @@ public class GlobalConfiguration {
     private String defaultLogLevel;
     private String rootDirectory;
     private int sshDisabled;
+    private int sshPort;
     private int securityManagerDisabled;
 
     public String getDefaultLogLevel() {
@@ -63,6 +64,14 @@ public class GlobalConfiguration {
 
     public void setSshDisabled(int sshDisabled) {
         this.sshDisabled = sshDisabled;
+    }
+
+    public int getSshPort() {
+        return sshPort;
+    }
+
+    public void setSshPort(int sshPort) {
+        this.sshPort = sshPort;
     }
 
     public int getSecurityManagerDisabled() {

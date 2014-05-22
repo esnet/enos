@@ -4,5 +4,6 @@
 	"rootDirectory":		"/tmp/enos/",
 	"securityManagerDisabled":	0,
 	"sshDisabled":			0,
+	"sshPort":          8000
     }
 }
