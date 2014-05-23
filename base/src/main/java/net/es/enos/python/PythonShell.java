@@ -12,14 +12,19 @@ package net.es.enos.python;
 import jline.console.ENOSConsoleReader;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.kernel.users.User;
 import net.es.enos.shell.ShellInputStream;;
 import net.es.enos.shell.annotations.ShellCommand;
 
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.HashMap;
 
+import org.python.core.PyDictionary;
 import org.python.util.PythonInterpreter;
 import org.python.util.InteractiveConsole;
 import org.slf4j.Logger;
@@ -32,6 +37,8 @@ import javax.print.DocFlavor;
  * Created by lomax on 2/20/14.
  */
 public class PythonShell {
+    private static final Logger logger = LoggerFactory.getLogger(PythonShell.class);
+    private static HashMap<InputStream,PyDictionary> locals = new HashMap<InputStream, PyDictionary>();
 
     @ShellCommand(
             name="python",
@@ -46,11 +53,29 @@ public class PythonShell {
         if (in instanceof ShellInputStream) {
             ((ShellInputStream) in).setDoCompletion(false);
         }
+        PyDictionary sessionLocals;
+        boolean isFirstSession = true;
+        // Find or create locals
+        synchronized (PythonShell.locals) {
+            if (PythonShell.locals.containsKey(in)) {
+                // Already has a locals created for this session, re-use
+                sessionLocals = PythonShell.locals.get(in);
+                isFirstSession = false;
+            } else {
+                // First python for this session. Create locals
+                sessionLocals = new PyDictionary();
+                PythonShell.locals.put(in,sessionLocals);
+            }
+        }
         logger.debug("Starting Python");
+        if (isFirstSession) {
+            // Run profile
+            PythonShell.execProfile(sessionLocals,in,out,err);
+        }
 
         if ((args != null) && (args.length > 1)) {
             // A program is provided.
-            PythonInterpreter python = new PythonInterpreter();
+            PythonInterpreter python = new PythonInterpreter(sessionLocals);
             python.setIn(in);
             python.setOut(out);
             python.setErr(err);
@@ -60,7 +85,12 @@ public class PythonShell {
         } else {
             // This is an interactive session
             try {
-                InteractiveConsole console = new InteractiveConsole();
+                InteractiveConsole console = new InteractiveConsole(sessionLocals);
+                if (System.getProperty("python.home") == null) {
+                    System.setProperty("python.home", "");
+                }
+                InteractiveConsole.initialize(System.getProperties(),
+                        null, new String[0]);
 
                 console.setOut(out);
                 console.setErr(err);
@@ -77,6 +107,23 @@ public class PythonShell {
         }
 
         logger.debug("Exiting Python");
+    }
+
+    private static void execProfile(PyDictionary locals, InputStream in, OutputStream out, OutputStream err) {
+        User user = KernelThread.getCurrentKernelThread().getUser();
+        Path homeDir = user.getHomePath();
+        File profile = Paths.get(homeDir.toString(),"profile.py").toFile();
+        if (!profile.exists()) {
+            // No profile, nothing to do
+            return;
+        }
+        // Execute the profile
+        PythonInterpreter python = new PythonInterpreter(locals);
+        python.setIn(in);
+        python.setOut(out);
+        python.setErr(err);
+        logger.info("Executes file " + profile.toString() + " for user " + KernelThread.getCurrentKernelThread().getUser().getName());
+        python.execfile(profile.toString());
     }
 
 }
