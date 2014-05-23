@@ -73,13 +73,7 @@ public class SShd {
     public void start() throws IOException {
         this.sshServer = SshServer.setUpDefaultServer();
 
-        int sshPort;
-        try {
-            sshPort = BootStrap.getMasterConfiguration().getGlobal().getSshPort();
-        }
-        catch (NullPointerException e) {
-            sshPort = 8000;
-        }
+        int sshPort = BootStrap.getMasterConfiguration().getGlobal().getSshPort();
         this.sshServer.setPort(sshPort);
 
         PasswordAuthenticator auth = new PasswordAuthenticator() {

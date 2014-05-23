@@ -113,13 +113,7 @@ public class BootStrap implements Runnable {
 
         // Set default logging level.
         // TODO:  This doesn't work.  It appears that setting the default logging level has no effect, possibly because all the various loggers have already been created?
-        String defaultLogLevel;
-        try {
-            defaultLogLevel = BootStrap.getMasterConfiguration().getGlobal().getDefaultLogLevel();
-        }
-        catch (NullPointerException e) {
-            defaultLogLevel = "info";
-        }
+        String defaultLogLevel = BootStrap.getMasterConfiguration().getGlobal().getDefaultLogLevel();
         System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, defaultLogLevel);
 
         logger.info("Starting ENOS root= " + BootStrap.rootPath.toString());
@@ -143,13 +137,7 @@ public class BootStrap implements Runnable {
     public void startServices() {
 
         // Start sshd if it's not disabled.
-        int sshDisabled;
-        try {
-            sshDisabled = BootStrap.getMasterConfiguration().getGlobal().getSshDisabled();
-        }
-        catch (NullPointerException e) {
-            sshDisabled = 0;
-        }
+        int sshDisabled = BootStrap.getMasterConfiguration().getGlobal().getSshDisabled();
         if (sshDisabled == 0) {
             this.sshd = SShd.getSshd();
             try {

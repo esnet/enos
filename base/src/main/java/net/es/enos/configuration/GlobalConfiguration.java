@@ -30,17 +30,19 @@
 
 package net.es.enos.configuration;
 
+import net.es.enos.api.DefaultValues;
+
 /**
  * ENOS global configuration object.
  * Defines the behavior of the ENOS main daemon.
  */
 public class GlobalConfiguration {
 
-    private String defaultLogLevel;
-    private String rootDirectory;
-    private int sshDisabled;
-    private int sshPort;
-    private int securityManagerDisabled;
+    private String defaultLogLevel = "info";
+    private String rootDirectory = DefaultValues.ENOS_DEFAULT_ROOTDIR;
+    private int sshDisabled = 0;
+    private int sshPort = 8000;
+    private int securityManagerDisabled = 0;
 
     public String getDefaultLogLevel() {
         return defaultLogLevel;

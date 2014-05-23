@@ -61,13 +61,9 @@ public class KernelSecurityManager extends SecurityManager {
 
         // See if SecurityManager should be disabled.  We need to be very conservative here in terms
         // of letting admins turn this off.
-        try {
-            if (BootStrap.getMasterConfiguration().getGlobal().getSecurityManagerDisabled() != 0) {
-                logger.warn("ENOS SecurityManager is currently disabled.  No security checks will be run.  MUST NOT BE USED IN PRODUCTION.");
-                return;
-            }
-        }
-        catch (NullPointerException e) {
+        if (BootStrap.getMasterConfiguration().getGlobal().getSecurityManagerDisabled() != 0) {
+            logger.warn("ENOS SecurityManager is currently disabled.  No security checks will be run.  MUST NOT BE USED IN PRODUCTION.");
+            return;
         }
 
         this.preloadClasses();
@@ -75,13 +71,7 @@ public class KernelSecurityManager extends SecurityManager {
         System.setSecurityManager(this);
 
         // Figure out the ENOS root directory.
-        String rootdir;
-        try {
-            rootdir = BootStrap.getMasterConfiguration().getGlobal().getRootDirectory();
-        }
-        catch (NullPointerException e) {
-            rootdir = DefaultValues.ENOS_DEFAULT_ROOTDIR;
-        }
+        String rootdir = BootStrap.getMasterConfiguration().getGlobal().getRootDirectory();
         this.rootPath = Paths.get(rootdir).normalize();
     }
 

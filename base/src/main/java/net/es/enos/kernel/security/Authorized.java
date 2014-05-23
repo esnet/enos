@@ -51,14 +51,7 @@ public final class Authorized {
         filePermissions = new LinkedList<FilePermission>();
 
         // Figure out the ENOS root directory.
-        String rootdir;
-        try {
-            rootdir = BootStrap.getMasterConfiguration().getGlobal().getRootDirectory();
-        }
-        catch (NullPointerException e) {
-            rootdir = DefaultValues.ENOS_DEFAULT_ROOTDIR;
-        }
-
+        String rootdir = BootStrap.getMasterConfiguration().getGlobal().getRootDirectory();
         filePermissions.add(new FilePermission(Paths.get(rootdir).normalize().toString() + "/-",
                             "read,write"));
 

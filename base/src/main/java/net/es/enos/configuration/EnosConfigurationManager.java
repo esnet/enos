@@ -70,6 +70,8 @@ public class EnosConfigurationManager {
 
     /**
      * Read the main configuration file.
+     * Aside from syntactic checks in JSON parsing, also make sure that we have a global
+     * configuration section.
      */
     public EnosJSONConfiguration getConfiguration() {
         String configurationFilePath = System.getProperty(PropertyKeys.ENOS_CONFIGURATION);
@@ -81,10 +83,11 @@ public class EnosConfigurationManager {
 
         logger.info("Master configuration file is {}", configurationFilePath);
 
-        /*
-         * This following try/catch block should probably be made a function or something
-         * like that, for handling the cases where we have multiple configuration files.
-         */
+        //
+        // This following try/catch block should probably be made a function or something
+        // like that, for handling the cases where we have multiple configuration files.
+        //
+        EnosJSONConfiguration conf = null;
         try {
             File configurationFile = new File(configurationFilePath);
             BufferedReader reader = new BufferedReader(new FileReader(configurationFile));
@@ -96,17 +99,29 @@ public class EnosConfigurationManager {
             logger.debug("Configuration:\n{}", configlines.toString());
             JSONObject jsonObj = new JSONObject(configlines.toString());
             ObjectMapper mapper = new ObjectMapper();
-            EnosJSONConfiguration conf = mapper.readValue(jsonObj.toString(),
+            conf = mapper.readValue(jsonObj.toString(),
                     new TypeReference<EnosJSONConfiguration>() { });
 
-            return conf;
         } catch (Exception e) {
-            // If there's a problem reading the file or parsing it, our configuration is in an undefined state.
-            // We might be able to get away with having some sane and sensible defaults so we could continue
-            // operation, but for now, just blow up.
+            // If there's a problem reading the file or parsing it, log an error but try to
+            // keep going.
             e.printStackTrace();
-            System.exit(1);
-            return null;
         }
+
+        //
+        // Semantic checks go here.  If no global configuration section, log an error and make one up with
+        // default values.
+        //
+        if (conf == null) {
+            logger.error("No configuration file found");
+            conf = new EnosJSONConfiguration();
+        }
+        if (conf.getGlobal() == null) {
+            logger.error("No global configuration section found");
+            conf.setGlobal(new GlobalConfiguration());
+        }
+
+        return conf;
+
     }
 }

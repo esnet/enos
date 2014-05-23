@@ -61,13 +61,7 @@ public final class FileACL extends Properties {
 
     static {
         // Figure out the ENOS root directory.
-        String rootdir;
-        try {
-            rootdir = BootStrap.getMasterConfiguration().getGlobal().getRootDirectory();
-        }
-        catch (NullPointerException e) {
-            rootdir = DefaultValues.ENOS_DEFAULT_ROOTDIR;
-        }
+        String rootdir = BootStrap.getMasterConfiguration().getGlobal().getRootDirectory();
         rootPath = Paths.get(rootdir).normalize();
     }
 

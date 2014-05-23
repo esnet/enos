@@ -75,14 +75,8 @@ public final class Users {
     private final Logger logger = LoggerFactory.getLogger(Users.class);
 
     public Users() {
-         // Figure out the ENOS root directory.
-         String enosRootDir;
-        try {
-            enosRootDir = BootStrap.getMasterConfiguration().getGlobal().getRootDirectory();
-        }
-        catch (NullPointerException e) {
-            enosRootDir = DefaultValues.ENOS_DEFAULT_ROOTDIR;
-        }
+        // Figure out the ENOS root directory.
+        String enosRootDir = BootStrap.getMasterConfiguration().getGlobal().getRootDirectory();
         this.enosRootPath = Paths.get(enosRootDir).normalize();
         this.passwordFilePath = Paths.get(this.enosRootPath.toString() +"/etc/enos.users");
 
