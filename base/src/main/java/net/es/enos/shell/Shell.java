@@ -14,37 +14,39 @@ import java.lang.reflect.Method;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Type;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Set;
 
 import jline.UnixTerminal;
+import jline.console.ConsoleReader;
+import jline.console.ENOSConsoleReader;
 import jline.console.completer.StringsCompleter;
 import net.es.enos.kernel.exec.KernelThread;
 
 
-import jline.console.ConsoleReader;
-import net.es.enos.kernel.users.Users;
 import net.es.enos.shell.annotations.ShellCommand;
 
 public class Shell {
 
-    private InputStream in = null;
+    private InputStream in;
     private OutputStream out = null;
     private ConsoleReader consoleReader = null;
+    private ENOSConsoleReader ENOSConsoleReader = null;
     private StringsCompleter stringsCompleter = null;
     private KernelThread kernelThread = null;
     private String prompt = "\nenos";
 
+    /**
     public static String banner =
             " _       __     __                             __           _______   ______  _____\n" +
             "| |     / /__  / /________  ____ ___  ___     / /_____     / ____/ | / / __ \\/ ___/\n" +
             "| | /| / / _ \\/ / ___/ __ \\/ __ `__ \\/ _ \\   / __/ __ \\   / __/ /  |/ / / / /\\__ \\ \n" +
             "| |/ |/ /  __/ / /__/ /_/ / / / / / /  __/  / /_/ /_/ /  / /___/ /|  / /_/ /___/ / \n" +
             "|__/|__/\\___/_/\\___/\\____/_/ /_/ /_/\\___/   \\__/\\____/  /_____/_/ |_/\\____//____/  \n" +
-            "                                                                                                                                                                                                               ";
+            "  ";
+     **/
+
+    public static String banner = "Welcome to ENOS\n";
 
     public OutputStream getOut() {
         return out;
@@ -54,16 +56,11 @@ public class Shell {
         this.out = out;
     }
 
-    public InputStream getIn() {
-        return in;
-    }
-
     public void setIn(InputStream in) {
         this.in = in;
     }
 
     public Shell(InputStream in, OutputStream out) throws IOException {
-        this.in = in;
         this.out = out;
     }
 
@@ -100,10 +97,11 @@ public class Shell {
 
         try {
                 this.consoleReader = new ConsoleReader(this.in, this.out, new UnixTerminal());
+                this.ENOSConsoleReader = new ENOSConsoleReader(this.in, this.out, new UnixTerminal());
         } catch (Exception e) {
             e.printStackTrace();
         }
-        this.in = new ShellInputStream(this.in, this.consoleReader);
+        this.in = new ShellInputStream(this.in, this.consoleReader,this.ENOSConsoleReader);
 
         // Initialize command completion with commands from modules.
         Set<String> commandNames = ShellCommandsFactory.getCommandNames();
@@ -144,6 +142,7 @@ public class Shell {
                     // short help.
                     if (args.length == 1) {
                         String[] cmds = commandNames.toArray(new String[commandNames.size()]);
+
                         Arrays.sort(cmds);
 
                         for (String n : cmds) {

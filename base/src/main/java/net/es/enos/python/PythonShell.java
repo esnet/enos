@@ -9,16 +9,14 @@
 
 package net.es.enos.python;
 
+import jline.console.ENOSConsoleReader;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
-import net.es.enos.shell.ShellInputStream;
+import net.es.enos.shell.ShellInputStream;;
 import net.es.enos.shell.annotations.ShellCommand;
 
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
@@ -45,6 +43,9 @@ public class PythonShell {
     public static void startPython (String[] args, InputStream in, OutputStream out, OutputStream err) {
 
         final Logger logger = LoggerFactory.getLogger(PythonShell.class);
+        if (in instanceof ShellInputStream) {
+            ((ShellInputStream) in).setDoCompletion(false);
+        }
         logger.debug("Starting Python");
 
         if ((args != null) && (args.length > 1)) {
@@ -68,8 +69,11 @@ public class PythonShell {
                 console.interact();
             } catch (Exception e) {
                 // Nothing has to be done. This happens when the jython shell exits, obviously not too gracefully.
-                // e.printStackTrace();
+                e.printStackTrace();
             }
+        }
+        if (in instanceof ShellInputStream) {
+            ((ShellInputStream) in).setDoCompletion(true);
         }
 
         logger.debug("Exiting Python");

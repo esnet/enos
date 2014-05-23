@@ -44,7 +44,6 @@ public class Resource {
 
     public void setUuid(String uuid) {
         if ((this.uuid != null) && !this.uuid.toString().equals(uuid.toString()) ){
-            System.out.println(this.uuid.toString() + "\n" + uuid.toString());
             // It is illegal to try to change the UUID of a resource
             throw new RuntimeException("Cannot change UUID of a resource once it has been set. Resource= " + this.uuid +
                     " current UUID= " + uuid);

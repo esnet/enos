@@ -10,6 +10,7 @@
 package net.es.enos.shell;
 
 import jline.console.ConsoleReader;
+import jline.console.ENOSConsoleReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,17 @@ public class ShellInputStream extends InputStream {
     private int lastRead = 0;
     private boolean doEcho = false;
     private ConsoleReader consoleReader = null;
+    private ENOSConsoleReader ENOSConsoleReader = null;
+
+    public boolean isDoCompletion() {
+        return doCompletion;
+    }
+
+    public void setDoCompletion(boolean doCompletion) {
+        this.doCompletion = doCompletion;
+    }
+
+    private boolean doCompletion = true;
 
     private final Logger logger = LoggerFactory.getLogger(ShellInputStream.class);
 
@@ -36,9 +48,12 @@ public class ShellInputStream extends InputStream {
         this.echoOut = echoOut;
     }
 
-    public ShellInputStream(InputStream in, ConsoleReader consoleReader) {
+    public ShellInputStream(InputStream in,
+                            ConsoleReader     consoleReader,
+                            ENOSConsoleReader enosConsoleReader) {
         this.in = in;
         this.consoleReader = consoleReader;
+        this.ENOSConsoleReader = enosConsoleReader;
     }
 
     public int read() throws IOException {
@@ -74,6 +89,7 @@ public class ShellInputStream extends InputStream {
             int c = this.in.read();
             if (c==13) c=10;
             if (c==10) {
+                b[index++] = (byte) c;
                 return index;
             }
             if (index < b.length) {
@@ -84,16 +100,30 @@ public class ShellInputStream extends InputStream {
         }
     }
 
+
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
-            String prompt = consoleReader.getPrompt();
-            String line = consoleReader.readLine("\000\000\000\000");
-            for (int i=0; i < line.length(); ++i) {
-                 b[off+i] = (byte) line.charAt(i);
-            }
-            b[line.length()] = 10;
+
+        String prompt;
+        String line;
+        if (this.doCompletion) {
+            prompt = consoleReader.getPrompt();
+            line = consoleReader.readLine("\000\000\000\000");
+        } else {
+            prompt = ENOSConsoleReader.getPrompt();
+            line = ENOSConsoleReader.readLine("\000\000\000\000");
+        }
+        if (line == null) return -1;
+        for (int i=0; i < line.length(); ++i) {
+             b[off+i] = (byte) line.charAt(i);
+        }
+        b[line.length()] = 10;
+        if (this.doCompletion) {
             consoleReader.setPrompt(prompt);
-            return line.length() + 1;
+        } else {
+            ENOSConsoleReader.setPrompt(prompt);
+        }
+        return line.length() + 1;
     }
 
     @Override

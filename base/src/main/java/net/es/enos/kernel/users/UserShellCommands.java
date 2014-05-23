@@ -9,10 +9,9 @@
 
 package net.es.enos.kernel.users;
 
+import jline.console.ENOSConsoleReader;
 import net.es.enos.kernel.exec.KernelThread;
-import net.es.enos.shell.ShellInputStream;
 import net.es.enos.shell.annotations.ShellCommand;
-import net.es.enos.kernel.users.Users;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,7 +19,6 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 
 import jline.UnixTerminal;
-import jline.console.ConsoleReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,9 +52,9 @@ public class UserShellCommands {
 
         PrintStream o = new PrintStream(out);
 
-        ConsoleReader consoleReader = null;
+        ENOSConsoleReader consoleReader = null;
         try {
-            consoleReader = new ConsoleReader(in, out, new UnixTerminal());
+            consoleReader = new ENOSConsoleReader(in, out, new UnixTerminal());
         } catch (Exception e) {
             e.printStackTrace();
             return;
