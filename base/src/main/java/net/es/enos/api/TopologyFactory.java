@@ -12,6 +12,7 @@ package net.es.enos.api;
 import org.jgrapht.graph.ListenableDirectedGraph;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -29,23 +30,30 @@ public class TopologyFactory extends Resource {
     private static Object instanceLock = new Object();
 
     public TopologyFactory() throws IOException {
+
+    }
+
+    private void startProviders() {
         // Initialize the topologies
         if (this.providers != null) {
             for (TopologyProviderDescriptor provider : this.providers) {
-                try {
-                    TopologyProvider topologyProvider =
-                            (TopologyProvider) Class.forName(provider.getClassName()).newInstance();
-
-                    this.topologyProviders.put(provider.getType(),topologyProvider);
-
-                } catch (InstantiationException e) {
-                    e.printStackTrace();
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
-                }
+                this.startProvider(provider);
             }
+        }
+    }
+    private void startProvider(TopologyProviderDescriptor provider) {
+        try {
+            TopologyProvider topologyProvider =
+                    (TopologyProvider) Class.forName(provider.getClassName()).newInstance();
+
+            this.topologyProviders.put(provider.getType(),topologyProvider);
+
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
     }
 
@@ -63,6 +71,7 @@ public class TopologyFactory extends Resource {
                 try {
                     TopologyFactory.instance = (TopologyFactory) Resource.newResource(TopologyFactory.class,
                                                                                       TopologyFactory.TOPOLOGY_FACTORY_DIR);
+                    TopologyFactory.instance().startProviders();
                 } catch (IOException e) {
 
                     throw new RuntimeException (e);
@@ -73,5 +82,23 @@ public class TopologyFactory extends Resource {
 
         }
         return TopologyFactory.instance;
+    }
+
+    public List<TopologyProviderDescriptor> getProviders() {
+        return providers;
+    }
+
+    public void setProviders(List<TopologyProviderDescriptor> providers) {
+        this.providers = providers;
+    }
+
+    public synchronized void registerTopologyProvider(String className, String type) throws IOException {
+        if (this.providers == null) {
+            this.providers = new ArrayList<TopologyProviderDescriptor>();
+        }
+        TopologyProviderDescriptor provider = new TopologyProviderDescriptor(className,type);
+        this.providers.add(provider);
+        this.save();
+        this.startProvider(provider);
     }
 }

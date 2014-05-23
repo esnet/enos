@@ -16,6 +16,12 @@ public class TopologyProviderDescriptor {
     private String type;
     private String className;
 
+    public TopologyProviderDescriptor (String className, String type) {
+        this.className = className;
+        this.type = type;
+    }
+    public TopologyProviderDescriptor() {}
+
     public String getType() {
         return type;
     }

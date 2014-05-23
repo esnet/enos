@@ -18,6 +18,7 @@ import com.sun.jersey.api.client.config.DefaultClientConfig;
 
 import com.sun.jersey.api.json.JSONConfiguration;
 import com.sun.jersey.client.urlconnection.HTTPSProperties;
+import net.es.enos.api.TopologyFactory;
 import net.es.enos.api.TopologyProvider;
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.map.JsonMappingException;
@@ -39,7 +40,7 @@ import java.util.List;
  * Created by lomax on 5/16/14.
  */
 public class ESnetTopology extends TopologyProvider {
-    public static final String ESNET_DEFAULT_URL = "https://oscars.es.net/toplogy-publisher";
+    public static final String ESNET_DEFAULT_URL = "https://oscars.es.net/topology-publisher";
     private final Logger logger = LoggerFactory.getLogger(ESnetTopology.class);
     private String wireFormatTopology;
     private ESnetJSONTopology jsonTopology;
@@ -181,6 +182,10 @@ public class ESnetTopology extends TopologyProvider {
 
     public void setUrl(String url) {
         this.url = url;
+    }
+
+    public void registerToFactory() throws IOException {
+        TopologyFactory.instance().registerTopologyProvider(this.getClass().getCanonicalName(),TopologyFactory.LOCAL_LAYER2);
     }
 }
 
