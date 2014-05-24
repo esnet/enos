@@ -10,66 +10,10 @@
 package net.es.enos.esnet;
 
 /**
- * Created by lomax on 5/16/14.
+ * Created by lomax on 5/23/14.
  */
-
-import net.es.enos.api.Node;
-
-import java.util.List;
-
-public class ESnetNode extends Node {
-    private String id;
-    String hostName;
-    String latitude;
-    String longitude;
-    String address;
-    List<ESnetPort> ports;
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public String getHostName() {
-        return hostName;
-    }
-
-    public void setHostName(String hostName) {
-        this.hostName = hostName;
-    }
-
-    public String getLatitude() {
-        return latitude;
-    }
-
-    public void setLatitude(String latitude) {
-        this.latitude = latitude;
-    }
-
-    public String getLongitude() {
-        return longitude;
-    }
-
-    public void setLongitude(String longitude) {
-        this.longitude = longitude;
-    }
-
-    public List<ESnetPort> getPorts() {
-        return ports;
-    }
-
-    public void setPorts(List<ESnetPort> ports) {
-        this.ports = ports;
+public class ESnetSite extends ESnetNode {
+    public ESnetSite (String id) {
+        this.setId(id);
     }
 }

@@ -24,9 +24,9 @@ import java.util.UUID;
  */
 public class Resource {
     private String uuid;
-    private String name;
+    protected String name;
     private String resourceClassName;
-    private String description;
+    protected String description;
     private List<User> hasWriteAccess;
     private List<User> hasReadAccess;
     private List<String> capabilities;

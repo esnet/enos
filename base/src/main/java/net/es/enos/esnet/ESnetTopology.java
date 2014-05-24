@@ -18,6 +18,7 @@ import com.sun.jersey.api.client.config.DefaultClientConfig;
 
 import com.sun.jersey.api.json.JSONConfiguration;
 import com.sun.jersey.client.urlconnection.HTTPSProperties;
+import com.sun.xml.internal.fastinfoset.util.CharArray;
 import net.es.enos.api.TopologyFactory;
 import net.es.enos.api.TopologyProvider;
 import org.codehaus.jackson.JsonGenerationException;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.*;
 import java.io.IOException;
 import java.security.cert.CertificateException;
+import java.util.HashMap;
 import java.util.List;
 
 
@@ -45,6 +47,10 @@ public class ESnetTopology extends TopologyProvider {
     private String wireFormatTopology;
     private ESnetJSONTopology jsonTopology;
     private String url;
+
+    private HashMap<String, ESnetNode> nodes = new HashMap<String, ESnetNode>();
+    private HashMap<String, ESnetNode> sites = new HashMap<String, ESnetNode>();
+    private HashMap<String, ESnetNode> peerings = new HashMap<String, ESnetNode>();
 
     public class TopologyTrustManager implements X509TrustManager {
 
@@ -66,8 +72,6 @@ public class ESnetTopology extends TopologyProvider {
 
     public ESnetTopology() throws IOException {
         super();
-        this.wireFormatTopology = this.loadTopology();
-        this.jsonTopology = this.wireFormatToJSON(this.wireFormatTopology);
     }
     public String loadTopology() {
 
@@ -116,7 +120,25 @@ public class ESnetTopology extends TopologyProvider {
         }
     }
 
+    public HashMap<String, ESnetNode> getNodes() {
+        return nodes;
+    }
+
+    public HashMap<String, ESnetNode> getSites() {
+        return sites;
+    }
+
+    public HashMap<String, ESnetNode> getPeerings() {
+        return peerings;
+    }
+
+    private void init() {
+        this.wireFormatTopology = this.loadTopology();
+        this.jsonTopology = this.wireFormatToJSON(this.wireFormatTopology);
+    }
+
     public ESnetJSONTopology retrieveJSONTopology() {
+        if (this.jsonTopology == null) this.init();
         return this.jsonTopology;
     }
 
@@ -161,19 +183,75 @@ public class ESnetTopology extends TopologyProvider {
     }
 
     public ListenableDirectedGraph retrieveTopology () {
-        ListenableDirectedGraph graphToplogy = null;
-        graphToplogy = new ListenableDirectedGraph(ESnetLink.class);
+        if (this.jsonTopology == null) this.init();
+        nodes.clear();
+        ListenableDirectedGraph<ESnetNode,ESnetLink> topo =
+                new ListenableDirectedGraph<ESnetNode,ESnetLink>(ESnetLink.class);
+
         List<ESnetDomain> domains = this.jsonTopology.getDomains();
         ESnetDomain esnet = domains.get(0);
         List<ESnetNode> nodes = esnet.getNodes();
         for (ESnetNode node : nodes) {
+            this.nodes.put(node.getId(),node);
+            topo.addVertex(node);
+        }
+        for (ESnetNode node : nodes) {
             List<ESnetPort> ports = node.getPorts();
             for (ESnetPort port : ports) {
                 List<ESnetLink> links = port.getLinks();
+                for (ESnetLink link : links) {
+                    this.analyzeLink(topo, node, link);
+                }
 
             }
         }
-        return graphToplogy;
+        return topo;
+    } 
+    private void analyzeLink(ListenableDirectedGraph<ESnetNode,ESnetLink> topo, ESnetNode srcNode, ESnetLink link) {
+        // System.out.println(node.getId() + " -- " + link.getId() + " -- " + link.getRemoteLinkId());
+        String[] localId = link.getId().split(":");
+        String localDomain = localId[3];
+        String localNode = localId[4];
+        String localNodeId = idToUrn(link.getId(),4);
+        String[] remoteId = link.getRemoteLinkId().split(":");
+        String remoteDomain = remoteId[3];
+        String remoteNode = remoteId[4];
+        String remoteNodeId = idToUrn(link.getRemoteLinkId(),4);
+        if (localDomain.equals(remoteDomain)) {
+            // Within ESnet
+            if ( !localNode.equals(remoteNode)) {
+                // Nodes are different, this is link
+                // System.out.println("INTERNAL LINK " + localNodeId + " -- " + link.getId() + " -- " + link.getRemoteLinkId());
+                ESnetNode dstNode = this.nodes.get(remoteNodeId);
+                if (dstNode == null) {
+                    throw new RuntimeException("No Node");
+                }
+                topo.addEdge(srcNode,dstNode,link);
+            } else {
+                // Site
+                ESnetSite site = new ESnetSite(remoteNodeId);
+                topo.addVertex(site);
+                this.sites.put(remoteNodeId,site);
+                topo.addEdge(srcNode,site,link);
+                topo.addEdge(site,srcNode,link);
+            }
+        } else {
+            // Peering
+            ESnetPeering peering = new ESnetPeering(remoteNodeId);
+            topo.addVertex(peering);
+            this.sites.put(remoteNodeId,peering);
+            topo.addEdge(srcNode,peering,link);
+            topo.addEdge(peering,srcNode,link);
+        }
+    }
+
+    static public String idToUrn (String id, int pos) {
+        int endPos=0;
+        for (int i=0; i <= pos; ++i) {
+            endPos = id.indexOf(":", endPos + 1);
+        }
+        return id.substring(0,endPos);
+
     }
 
     public String getUrl() {
@@ -187,5 +265,6 @@ public class ESnetTopology extends TopologyProvider {
     public void registerToFactory() throws IOException {
         TopologyFactory.instance().registerTopologyProvider(this.getClass().getCanonicalName(),TopologyFactory.LOCAL_LAYER2);
     }
-}
 
+    // urn:ogf:network:es.net:wash-sdn2:xe-8/0/0:*
+}
