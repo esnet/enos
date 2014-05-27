@@ -21,7 +21,7 @@ import java.util.HashMap;
  */
 
 
-public final class User {
+public class User {
 
     private static HashMap<String,WeakReference<User>> users = new HashMap<String, WeakReference<User>>();
     private static HashMap<String,WeakReference<User>> usersByGroup = new HashMap<String, WeakReference<User>>();

@@ -32,6 +32,7 @@ public class Resource {
     private List<String> capabilities;
     private String resourceDir;
     public static final String CONFIG_FILE = "resource";
+    private List<String> parentResources;
 
     public Resource() {
         // Set the classname.
@@ -160,6 +161,16 @@ public class Resource {
             throw new InstantiationException(e.toString());
         }
     }
+
+    public List<String> getParentResources() {
+        return parentResources;
+    }
+
+    public void setParentResources(List<String> parentResources) {
+        this.parentResources = parentResources;
+    }
+
+
 
 
 }
