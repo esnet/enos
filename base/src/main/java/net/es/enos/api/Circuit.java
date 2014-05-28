@@ -10,12 +10,28 @@
 package net.es.enos.api;
 
 import org.joda.time.DateTime;
+import sun.nio.cs.ext.ISO2022_CN;
 
 /**
  * Created by lomax on 5/28/14.
  */
 public class Circuit extends Resource {
-    private DateTime startDateTime;
-    private DateTime endDateTime;
+    private ISODateTime startDateTime;
+    private ISODateTime endDateTime;
 
+    public ISODateTime getStartDateTime() {
+        return startDateTime;
+    }
+
+    public void setStartDateTime(ISODateTime startDateTime) {
+        this.startDateTime = startDateTime;
+    }
+
+    public ISODateTime getEndDateTime() {
+        return endDateTime;
+    }
+
+    public void setEndDateTime(ISODateTime endDateTime) {
+        this.endDateTime = endDateTime;
+    }
 }

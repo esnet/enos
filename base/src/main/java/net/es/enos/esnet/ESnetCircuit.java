@@ -9,14 +9,17 @@
 
 package net.es.enos.esnet;
 
+import net.es.enos.api.Circuit;
+import net.es.enos.api.ISODateTime;
+
 import java.util.List;
 
 /**
  * Created by lomax on 5/19/14.
  */
-public class ESnetCircuit {
-    private String start;
-    private String end;
+public class ESnetCircuit extends Circuit {
+    private String start; // UTC time in seconds
+    private String end; // UTC time in seconds
     private String description;
     private List<ESnetSegment> segments;
     private String capacity;
@@ -71,6 +74,7 @@ public class ESnetCircuit {
 
     public void setStart(String start) {
         this.start = start;
+        this.setStartDateTime(new ISODateTime(start));
     }
 
     public String getEnd() {
@@ -79,6 +83,7 @@ public class ESnetCircuit {
 
     public void setEnd(String end) {
         this.end = end;
+        this.setEndDateTime(new ISODateTime(end));
     }
 
     public String getDescription() {

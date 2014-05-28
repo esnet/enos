@@ -286,5 +286,4 @@ public class ESnetTopology extends TopologyProvider {
         TopologyFactory.instance().registerTopologyProvider(this.getClass().getCanonicalName(),TopologyFactory.LOCAL_LAYER2);
     }
 
-    // urn:ogf:network:es.net:wash-sdn2:xe-8/0/0:*
 }
