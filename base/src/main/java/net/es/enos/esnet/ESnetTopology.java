@@ -39,9 +39,7 @@ import com.sun.jersey.api.client.config.DefaultClientConfig;
 
 import com.sun.jersey.api.json.JSONConfiguration;
 import com.sun.jersey.client.urlconnection.HTTPSProperties;
-import net.es.enos.api.Link;
-import net.es.enos.api.TopologyFactory;
-import net.es.enos.api.TopologyProvider;
+import net.es.enos.api.*;
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -49,6 +47,7 @@ import org.codehaus.jackson.type.TypeReference;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.jgrapht.graph.ListenableDirectedGraph;
+import org.python.modules.synchronize;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,6 +70,8 @@ public class ESnetTopology implements TopologyProvider {
     private String url;
 
     private HashMap<String, ESnetNode> nodes = new HashMap<String, ESnetNode>();
+    private HashMap<Link,ArrayList<Node>> nodesByLink = new HashMap<Link, ArrayList<Node>>();
+    private HashMap<Link,ArrayList<Port>> portsByLink = new HashMap<Link, ArrayList<Port>>();
     private HashMap<String, ArrayList<Link>> internalLinks = new HashMap<String, ArrayList<Link>>();
     private HashMap<String, ArrayList<Link>> siteLinks = new HashMap<String, ArrayList<Link>>();
     private HashMap<String, ArrayList<Link>> peeringLinks = new HashMap<String, ArrayList<Link>>();
@@ -144,15 +145,42 @@ public class ESnetTopology implements TopologyProvider {
         return nodes;
     }
 
+    /**
+     * Returns a HashMap of List of Links that connects to or from a Site to ESnet. The map is indexed by
+     * the name of the site as found in the topology.
+     * @return returns the indexed Map.
+     */
     public HashMap<String, ArrayList<Link>> getSiteLinks() {
         return siteLinks;
     }
 
+    /**
+     * Returns a HashMap of List of Links that connects to or from another Domain (OSCARS peering) to ESnet. The map is indexed by
+     * the name of the domain as found in the topology.
+     * @return returns the indexed Map.
+     */
     public HashMap<String, ArrayList<Link>> getPeeringLinks() {
         return peeringLinks;
     }
 
+    /**
+     * Returns a HashMap of List of Links that connects ESnet internal node to each other. The map is indexed by
+     * the name of the node as found in the topology.
+     * @return returns the indexed Map.
+     */
     public HashMap<String, ArrayList<Link>> getInternalLinks() { return internalLinks; }
+
+    /**
+     * Returns a HashMap of the Nodes indexed by Link.
+     * @return
+     */
+    public HashMap<Link, ArrayList<Node>> getNodesByLink() {
+        return nodesByLink;
+    }
+
+    public HashMap<Link, ArrayList<Port>> getPortsByLink() {
+        return portsByLink;
+    }
 
     private void init() {
         this.wireFormatTopology = this.loadTopology();
@@ -222,6 +250,28 @@ public class ESnetTopology implements TopologyProvider {
             for (ESnetPort port : ports) {
                 List<ESnetLink> links = port.getLinks();
                 for (ESnetLink link : links) {
+                    // Add this link to the nodesByLink map
+                    synchronized (this.nodesByLink) {
+                        ArrayList<Node> list = this.nodesByLink.get(link);
+                        if (list == null) {
+                            // This is a new name in tha map. Need to create an new entry in the map
+                            list = new ArrayList<Node>();
+                            this.nodesByLink.put(link, list);
+                        }
+                        // Add the link to the list
+                        list.add(node);
+                    };
+                    // Add this link to the portsByLink map
+                    synchronized (this.portsByLink) {
+                        ArrayList<Port> list = this.portsByLink.get(link);
+                        if (list == null) {
+                            // This is a new name in tha map. Need to create an new entry in the map
+                            list = new ArrayList<Port>();
+                            this.portsByLink.put(link, list);
+                        }
+                        // Add the link to the list
+                        list.add(port);
+                    };
                     this.analyzeLink(topo, node, link);
                 }
 
@@ -230,7 +280,6 @@ public class ESnetTopology implements TopologyProvider {
         return topo;
     } 
     private void analyzeLink(ListenableDirectedGraph<ESnetNode,ESnetLink> topo, ESnetNode srcNode, ESnetLink link) {
-        // System.out.println(node.getId() + " -- " + link.getId() + " -- " + link.getRemoteLinkId());
         String[] localId = link.getId().split(":");
         String localDomain = localId[3];
         String localNode = localId[4];
@@ -239,6 +288,7 @@ public class ESnetTopology implements TopologyProvider {
         String remoteDomain = remoteId[3];
         String remoteNode = remoteId[4];
         String remoteNodeId = idToUrn(link.getRemoteLinkId(),4);
+
         if (localDomain.equals(remoteDomain)) {
             // Within ESnet
             if ( !localNode.equals(remoteNode)) {

@@ -9,9 +9,11 @@
 
 package net.es.enos.esnet;
 
+import net.es.enos.api.Port;
+
 import java.util.List;
 
-public class ESnetPort {
+public class ESnetPort extends Port {
     private String id;
     private String capacity;
     private String maximumReservableCapacity;

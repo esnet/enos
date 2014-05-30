@@ -59,8 +59,8 @@ public final class Authorized {
 
     /**
      * Checks if the provided FilePermission is implied by any of the authorized FilePermissions
-     * @param filePermission
-     * @return
+     * @param filePermission  is Permission that is requested
+     * @return true if authorized
      */
     public static boolean isAuthorized (FilePermission filePermission) {
         // System.out.println ("isAuthorized ");

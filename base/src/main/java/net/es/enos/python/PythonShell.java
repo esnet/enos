@@ -72,35 +72,49 @@ public class PythonShell {
             // Run profile
             PythonShell.execProfile(sessionLocals,in,out,err);
         }
+        try {
+            if ((args != null) && (args.length > 1)) {
+                // A program is provided.
+                PythonInterpreter python = new PythonInterpreter(sessionLocals);
+                python.setIn(in);
+                python.setOut(out);
+                python.setErr(err);
+                logger.info("Executes file " + args[1] + " for user " + KernelThread.getCurrentKernelThread().getUser().getName());
+                python.execfile(BootStrap.rootPath.toString() + args[1]);
 
-        if ((args != null) && (args.length > 1)) {
-            // A program is provided.
-            PythonInterpreter python = new PythonInterpreter(sessionLocals);
-            python.setIn(in);
-            python.setOut(out);
-            python.setErr(err);
-            logger.info("Executes file " + args[1] + " for user " + KernelThread.getCurrentKernelThread().getUser().getName());
-            python.execfile(BootStrap.rootPath.toString() + args[1]);
+            } else {
+                // This is an interactive session
+                try {
+                    InteractiveConsole console = new InteractiveConsole(sessionLocals);
+                    if (System.getProperty("python.home") == null) {
+                        System.setProperty("python.home", "");
+                    }
+                    InteractiveConsole.initialize(System.getProperties(),
+                            null, new String[0]);
 
-        } else {
-            // This is an interactive session
-            try {
-                InteractiveConsole console = new InteractiveConsole(sessionLocals);
-                if (System.getProperty("python.home") == null) {
-                    System.setProperty("python.home", "");
+                    console.setOut(out);
+                    console.setErr(err);
+                    console.setIn(in);
+                    // Start the interactive session
+                    console.interact();
+                } catch (Exception e) {
+                    // Nothing has to be done. This happens when the jython shell exits, obviously not too gracefully.
+                    e.printStackTrace();
                 }
-                InteractiveConsole.initialize(System.getProperties(),
-                        null, new String[0]);
-
-                console.setOut(out);
-                console.setErr(err);
-                console.setIn(in);
-                // Start the interactive session
-                console.interact();
-            } catch (Exception e) {
-                // Nothing has to be done. This happens when the jython shell exits, obviously not too gracefully.
-                e.printStackTrace();
             }
+        } catch (Exception e) {
+            try {
+                err.write(e.toString().getBytes());
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
+            e.printStackTrace();
+        }
+        try {
+            err.flush();
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
         if (in instanceof ShellInputStream) {
             ((ShellInputStream) in).setDoCompletion(true);
