@@ -20,8 +20,6 @@ import java.util.UUID;
 /**
  * Created by lomax on 5/21/14.
  */
-public abstract class TopologyProvider extends Resource {
-    public static final String TOPOLOGY_PROVIDER_DIR="topology/providers";
-
-    public abstract ListenableDirectedGraph retrieveTopology();
+public interface TopologyProvider {
+    public ListenableDirectedGraph retrieveTopology();
 }

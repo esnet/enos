@@ -39,6 +39,7 @@ import com.sun.jersey.api.client.config.DefaultClientConfig;
 
 import com.sun.jersey.api.json.JSONConfiguration;
 import com.sun.jersey.client.urlconnection.HTTPSProperties;
+import net.es.enos.api.Link;
 import net.es.enos.api.TopologyFactory;
 import net.es.enos.api.TopologyProvider;
 import org.codehaus.jackson.JsonGenerationException;
@@ -54,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import javax.net.ssl.*;
 import java.io.IOException;
 import java.security.cert.CertificateException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -61,7 +63,7 @@ import java.util.List;
 /**
  * Created by lomax on 5/16/14.
  */
-public class ESnetTopology extends TopologyProvider {
+public class ESnetTopology implements TopologyProvider {
     public static final String ESNET_DEFAULT_URL = "https://oscars.es.net/topology-publisher";
     private final Logger logger = LoggerFactory.getLogger(ESnetTopology.class);
     private String wireFormatTopology;
@@ -69,8 +71,10 @@ public class ESnetTopology extends TopologyProvider {
     private String url;
 
     private HashMap<String, ESnetNode> nodes = new HashMap<String, ESnetNode>();
-    private HashMap<String, ESnetNode> sites = new HashMap<String, ESnetNode>();
-    private HashMap<String, ESnetNode> peerings = new HashMap<String, ESnetNode>();
+    private HashMap<String, ArrayList<Link>> internalLinks = new HashMap<String, ArrayList<Link>>();
+    private HashMap<String, ArrayList<Link>> siteLinks = new HashMap<String, ArrayList<Link>>();
+    private HashMap<String, ArrayList<Link>> peeringLinks = new HashMap<String, ArrayList<Link>>();
+
 
     public class TopologyTrustManager implements X509TrustManager {
 
@@ -90,9 +94,6 @@ public class ESnetTopology extends TopologyProvider {
         }
     }
 
-    public ESnetTopology() throws IOException {
-        super();
-    }
     public String loadTopology() {
 
         try {
@@ -127,7 +128,6 @@ public class ESnetTopology extends TopologyProvider {
                         + response.getStatus());
             }
 
-
             String output = response.getEntity(String.class);
             logger.info("Retrieved ESnet topology");
             output = this.normalize(output);
@@ -144,13 +144,15 @@ public class ESnetTopology extends TopologyProvider {
         return nodes;
     }
 
-    public HashMap<String, ESnetNode> getSites() {
-        return sites;
+    public HashMap<String, ArrayList<Link>> getSiteLinks() {
+        return siteLinks;
     }
 
-    public HashMap<String, ESnetNode> getPeerings() {
-        return peerings;
+    public HashMap<String, ArrayList<Link>> getPeeringLinks() {
+        return peeringLinks;
     }
+
+    public HashMap<String, ArrayList<Link>> getInternalLinks() { return internalLinks; }
 
     private void init() {
         this.wireFormatTopology = this.loadTopology();
@@ -241,28 +243,43 @@ public class ESnetTopology extends TopologyProvider {
             // Within ESnet
             if ( !localNode.equals(remoteNode)) {
                 // Nodes are different, this is link
-                // System.out.println("INTERNAL LINK " + localNodeId + " -- " + link.getId() + " -- " + link.getRemoteLinkId());
                 ESnetNode dstNode = this.nodes.get(remoteNodeId);
                 if (dstNode == null) {
                     throw new RuntimeException("No Node");
                 }
+                this.addLinkToList(this.internalLinks,remoteNode,link);
                 topo.addEdge(srcNode,dstNode,link);
             } else {
-                // Site
-                ESnetSite site = new ESnetSite(remoteNodeId);
-                topo.addVertex(site);
-                this.sites.put(remoteNodeId,site);
-                topo.addEdge(srcNode,site,link);
-                topo.addEdge(site,srcNode,link);
+                // Site - This is not link, so, do not create an edge
+                // Try to decode the site name. If the port section of the id starts with to- then
+                // the destination is encoded.
+                if (remoteId[5].startsWith("to_")) {
+                    String dest = remoteId[5].substring(3);
+                    this.addLinkToList(this.siteLinks,dest,link);
+                }
             }
         } else {
-            // Peering
-            ESnetPeering peering = new ESnetPeering(remoteNodeId);
-            topo.addVertex(peering);
-            this.sites.put(remoteNodeId,peering);
-            topo.addEdge(srcNode,peering,link);
-            topo.addEdge(peering,srcNode,link);
+            // Peering - This is an intra-domain topology. Other domains are not represented so this link is not
+            // added.
+            this.addLinkToList(this.peeringLinks,remoteId[3],link);
         }
+    }
+
+    private void addLinkToList ( HashMap<String, ArrayList<Link>> map, String name, ESnetLink link)  {
+        synchronized (map) {
+            ArrayList<Link> list = map.get(name);
+            if (list == null) {
+                // This is a new name in tha map. Need to create an new entry in the map
+                list = new ArrayList<Link>();
+                map.put(name, list);
+            }
+            // Add the link to the list
+            list.add(link);
+        }
+    }
+
+    public List<Link> getLinksToSite (String destination) {
+        return this.siteLinks.get(destination);
     }
 
     static public String idToUrn (String id, int pos) {

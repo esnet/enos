@@ -18,12 +18,14 @@ import net.es.enos.api.Node;
 import java.util.List;
 
 public class ESnetNode extends Node {
+
     private String id;
-    String hostName;
-    String latitude;
-    String longitude;
-    String address;
-    List<ESnetPort> ports;
+    private String hostName;
+    private String latitude;
+    private String longitude;
+    private String address;
+    private List<ESnetPort> ports;
+    private String type;
 
     public String getId() {
         return id;
