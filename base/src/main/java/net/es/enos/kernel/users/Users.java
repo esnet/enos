@@ -92,6 +92,14 @@ public final class Users {
         return users;
     }
 
+    /**
+     * Return true if a user exists, false otherwise
+     * @param user user to check
+     * @return true if user exists
+     */
+    public boolean userExists(String user) {
+        return Users.getUsers().passwords.containsKey(user);
+    }
 
     public boolean authUser (String user, String password) {
         logger.warn("authUser entry");
@@ -317,7 +325,11 @@ public final class Users {
     }
 
     public Path getHomePath() {
-        return Paths.get(this.enosRootPath.toString(),Users.USERS_DIR);
+        return enosRootPath.resolve(USERS_DIR);
+    }
+
+    public Path getHomePath(String username) {
+        return getHomePath().resolve(username);
     }
 
 }
