@@ -9,17 +9,47 @@
 
 package net.es.enos.api;
 
-import net.es.enos.boot.BootStrap;
+import net.es.enos.esnet.ESnetNode;
 import org.jgrapht.graph.ListenableDirectedGraph;
 
-import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.UUID;
+import java.util.HashMap;
+
 
 /**
  * Created by lomax on 5/21/14.
  */
 public interface TopologyProvider {
     public ListenableDirectedGraph retrieveTopology();
+    public HashMap<String, ESnetNode> getNodes() ;
+
+    /**
+     * Returns a HashMap of List of Links that connects to or from a Site to this topology. The map is indexed by
+     * the name of the site as found in the topology.
+     * @return returns the indexed Map.
+     */
+    public HashMap<String, List<Link>> getSiteLinks();
+
+    /**
+     * Returns a HashMap of List of Links that connects to or from another Domain to this topology. The map is indexed by
+     * the name of the domain as found in the topology.
+     * @return returns the indexed Map.
+     */
+    public HashMap<String, List<Link>> getPeeringLinks();
+    /**
+     * Returns a HashMap of List of Links that connects two Nodes of this topology. The map is indexed by
+     * the name of the node as found in the topology.
+     * @return returns the indexed Map.
+     */
+    public HashMap<String, List<Link>> getInternalLinks();
+    /**
+     * Returns a HashMap of List of Nodes indexed by Link. When links are directional, the source Node is indexed.
+     * @return a HashMap of Lists of Nodes.
+     */
+    public HashMap<Link, List<Node>> getNodesByLink();
+    /**
+     * Returns a HashMap of List of Ports indexed by Link. When links are directional, the source Port is indexed.
+     * @return a HashMap of Lists of Ports.
+     */
+    public HashMap<Link, List<Port>> getPortsByLink();
 }

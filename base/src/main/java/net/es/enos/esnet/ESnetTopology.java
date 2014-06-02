@@ -70,11 +70,11 @@ public class ESnetTopology implements TopologyProvider {
     private String url;
 
     private HashMap<String, ESnetNode> nodes = new HashMap<String, ESnetNode>();
-    private HashMap<Link,ArrayList<Node>> nodesByLink = new HashMap<Link, ArrayList<Node>>();
-    private HashMap<Link,ArrayList<Port>> portsByLink = new HashMap<Link, ArrayList<Port>>();
-    private HashMap<String, ArrayList<Link>> internalLinks = new HashMap<String, ArrayList<Link>>();
-    private HashMap<String, ArrayList<Link>> siteLinks = new HashMap<String, ArrayList<Link>>();
-    private HashMap<String, ArrayList<Link>> peeringLinks = new HashMap<String, ArrayList<Link>>();
+    private HashMap<Link,List<Node>> nodesByLink = new HashMap<Link, List<Node>>();
+    private HashMap<Link,List<Port>> portsByLink = new HashMap<Link, List<Port>>();
+    private HashMap<String, List<Link>> internalLinks = new HashMap<String, List<Link>>();
+    private HashMap<String, List<Link>> siteLinks = new HashMap<String, List<Link>>();
+    private HashMap<String, List<Link>> peeringLinks = new HashMap<String, List<Link>>();
 
 
     public class TopologyTrustManager implements X509TrustManager {
@@ -150,7 +150,7 @@ public class ESnetTopology implements TopologyProvider {
      * the name of the site as found in the topology.
      * @return returns the indexed Map.
      */
-    public HashMap<String, ArrayList<Link>> getSiteLinks() {
+    public HashMap<String, List<Link>> getSiteLinks() {
         return siteLinks;
     }
 
@@ -159,7 +159,7 @@ public class ESnetTopology implements TopologyProvider {
      * the name of the domain as found in the topology.
      * @return returns the indexed Map.
      */
-    public HashMap<String, ArrayList<Link>> getPeeringLinks() {
+    public HashMap<String, List<Link>> getPeeringLinks() {
         return peeringLinks;
     }
 
@@ -168,17 +168,17 @@ public class ESnetTopology implements TopologyProvider {
      * the name of the node as found in the topology.
      * @return returns the indexed Map.
      */
-    public HashMap<String, ArrayList<Link>> getInternalLinks() { return internalLinks; }
+    public HashMap<String, List<Link>> getInternalLinks() { return internalLinks; }
 
     /**
      * Returns a HashMap of the Nodes indexed by Link.
      * @return
      */
-    public HashMap<Link, ArrayList<Node>> getNodesByLink() {
+    public HashMap<Link, List<Node>> getNodesByLink() {
         return nodesByLink;
     }
 
-    public HashMap<Link, ArrayList<Port>> getPortsByLink() {
+    public HashMap<Link, List<Port>> getPortsByLink() {
         return portsByLink;
     }
 
@@ -252,7 +252,7 @@ public class ESnetTopology implements TopologyProvider {
                 for (ESnetLink link : links) {
                     // Add this link to the nodesByLink map
                     synchronized (this.nodesByLink) {
-                        ArrayList<Node> list = this.nodesByLink.get(link);
+                        List<Node> list = this.nodesByLink.get(link);
                         if (list == null) {
                             // This is a new name in tha map. Need to create an new entry in the map
                             list = new ArrayList<Node>();
@@ -263,7 +263,7 @@ public class ESnetTopology implements TopologyProvider {
                     };
                     // Add this link to the portsByLink map
                     synchronized (this.portsByLink) {
-                        ArrayList<Port> list = this.portsByLink.get(link);
+                        List<Port> list = this.portsByLink.get(link);
                         if (list == null) {
                             // This is a new name in tha map. Need to create an new entry in the map
                             list = new ArrayList<Port>();
@@ -290,15 +290,18 @@ public class ESnetTopology implements TopologyProvider {
         String remoteNodeId = idToUrn(link.getRemoteLinkId(),4);
 
         if (localDomain.equals(remoteDomain)) {
-            // Within ESnet
+            // Within the same domain
             if ( !localNode.equals(remoteNode)) {
-                // Nodes are different, this is link
+                // Nodes are different, within the same domain: this is an internal link
                 ESnetNode dstNode = this.nodes.get(remoteNodeId);
                 if (dstNode == null) {
                     throw new RuntimeException("No Node");
                 }
                 this.addLinkToList(this.internalLinks,remoteNode,link);
+                // Create the edge in the graph
                 topo.addEdge(srcNode,dstNode,link);
+                // Make sure the opposite direction exists since ESnet links are to be assumed bidirectional
+                topo.addEdge(dstNode,srcNode,link);
             } else {
                 // Site - This is not link, so, do not create an edge
                 // Try to decode the site name. If the port section of the id starts with to- then
@@ -315,9 +318,9 @@ public class ESnetTopology implements TopologyProvider {
         }
     }
 
-    private void addLinkToList ( HashMap<String, ArrayList<Link>> map, String name, ESnetLink link)  {
+    private void addLinkToList ( HashMap<String, List<Link>> map, String name, ESnetLink link)  {
         synchronized (map) {
-            ArrayList<Link> list = map.get(name);
+            List<Link> list = map.get(name);
             if (list == null) {
                 // This is a new name in tha map. Need to create an new entry in the map
                 list = new ArrayList<Link>();
