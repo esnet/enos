@@ -61,6 +61,7 @@ public class OSCARSReservations {
         return topoGraph;
     }
 
+
     /**
      * Reads all the reservations that are active within the specified time range and
      * aggregates, per port, the bandwidth that is already reserved. The method returns
