@@ -17,7 +17,7 @@ dstNode = nodes.get("urn:ogf:network:es.net:bnl-mr3")
 
 circuits = OSCARSReservations.retrieveScheduledCircuits()
 
-def setMaxCapacity(circuit=c):
+def setMaxCapacity(c):
 	reserved={}
 
 	segments = c.getSegments()
