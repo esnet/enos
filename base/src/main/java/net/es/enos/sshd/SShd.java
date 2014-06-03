@@ -268,7 +268,9 @@ public class SShd {
         PublickeyAuthenticator publickeyAuth = new EnosPublickeyAuthenticator();
         this.sshServer.setPublickeyAuthenticator(publickeyAuth);
 
-        this.sshServer.setKeyPairProvider(new SimpleGeneratorHostKeyProvider("hostkey.ser"));
+        String hostKeyFile = BootStrap.rootPath.resolve("etc").resolve("hostkey.ser").toString();
+        logger.info("Host key file is {}", hostKeyFile);
+        this.sshServer.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(hostKeyFile));
         this.sshServer.setShellFactory(new ShellFactory());
         this.sshServer.setCommandFactory(new SshdScpCommandFactory());
         this.sshServer.start();
