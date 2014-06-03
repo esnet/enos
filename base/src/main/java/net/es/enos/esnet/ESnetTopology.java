@@ -75,7 +75,7 @@ public class ESnetTopology implements TopologyProvider {
     private HashMap<String, List<Link>> internalLinks = new HashMap<String, List<Link>>();
     private HashMap<String, List<Link>> siteLinks = new HashMap<String, List<Link>>();
     private HashMap<String, List<Link>> peeringLinks = new HashMap<String, List<Link>>();
-
+    private HashMap<String, Link> links = new HashMap<String, Link>();
 
     public class TopologyTrustManager implements X509TrustManager {
 
@@ -93,6 +93,10 @@ public class ESnetTopology implements TopologyProvider {
         public java.security.cert.X509Certificate[] getAcceptedIssuers() {
             return new java.security.cert.X509Certificate[0];
         }
+    }
+
+    public ESnetTopology() {
+        this.init();
     }
 
     public String loadTopology() {
@@ -180,6 +184,10 @@ public class ESnetTopology implements TopologyProvider {
 
     public HashMap<Link, List<Port>> getPortsByLink() {
         return portsByLink;
+    }
+
+    public HashMap<String, Link> getLinks() {
+        return links;
     }
 
     private void init() {
@@ -289,6 +297,9 @@ public class ESnetTopology implements TopologyProvider {
         String remoteNode = remoteId[4];
         String remoteNodeId = idToUrn(link.getRemoteLinkId(),4);
 
+        // Add the link to the links HashMap, index it with the port urn.
+        this.links.put(idToUrn(link.getId(),5),link);
+
         if (localDomain.equals(remoteDomain)) {
             // Within the same domain
             if ( !localNode.equals(remoteNode)) {
@@ -335,13 +346,23 @@ public class ESnetTopology implements TopologyProvider {
         return this.siteLinks.get(destination);
     }
 
-    static public String idToUrn (String id, int pos) {
+    static private String idToUrn (String id, int pos) {
         int endPos=0;
         for (int i=0; i <= pos; ++i) {
             endPos = id.indexOf(":", endPos + 1);
         }
         return id.substring(0,endPos);
 
+    }
+
+    /**
+     * Strip trailing link portion of the urn
+     * @param linkId
+     * @return a normalized link id.
+     */
+    static public String normalizeLinkId(String linkId) {
+
+        return null;
     }
 
     public String getUrl() {

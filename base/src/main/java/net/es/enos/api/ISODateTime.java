@@ -1,11 +1,12 @@
 package net.es.enos.api;
 
 import org.joda.time.DateTime;
+import org.joda.time.ReadableInstant;
 
 /**
  * Created by lomax on 5/28/14.
  */
-public class ISODateTime  {
+public class ISODateTime implements Comparable {
     private String isoDateTime;
     private DateTime dateTime;
 
@@ -34,5 +35,10 @@ public class ISODateTime  {
 
     public DateTime toDateTime() {
         return this.dateTime;
+    }
+
+    @Override
+    public int compareTo(Object o) {
+        return this.dateTime.compareTo((ReadableInstant) o);
     }
 }
