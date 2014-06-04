@@ -23,7 +23,7 @@ import java.util.UUID;
  * Created by lomax on 5/21/14.
  */
 public class Resource {
-    private String uuid;
+    private String uuid; // Perhaps not needed ?
     protected String name;
     private String resourceClassName;
     protected String description;
@@ -169,8 +169,5 @@ public class Resource {
     public void setParentResources(List<String> parentResources) {
         this.parentResources = parentResources;
     }
-
-
-
 
 }

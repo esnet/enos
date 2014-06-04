@@ -13,7 +13,9 @@ package net.es.enos.api;
  * Created by lomax on 5/30/14.
  */
 public class Port extends Resource {
+
     public static final String CanOpenFlow1 = "canOpenFlow1";  // OpenFlow 1.0 support
     public static final String CanOpenFlow3 = "canOpenFlow2";  // OpenFlow 1.3 support
     public static final String PORTS_DIR = "ports";
+
 }

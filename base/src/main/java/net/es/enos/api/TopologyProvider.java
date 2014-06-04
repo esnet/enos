@@ -52,4 +52,5 @@ public interface TopologyProvider {
      * @return a HashMap of Lists of Ports.
      */
     public HashMap<Link, List<Port>> getPortsByLink();
+
 }

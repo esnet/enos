@@ -114,7 +114,15 @@ public class ESnetPort extends Port {
         return links;
     }
 
-    public void setLunks(List<ESnetLink> links) {
-        this.links = links;
+    @Override
+    public boolean equals(Object obj) {
+        if ((obj == null) || !(obj instanceof ESnetPort)) {
+
+            return false;
+        }
+        if ((this.getId() == null) || ((ESnetPort) obj).getId() == null) {
+            return false;
+        }
+        return ((ESnetPort) obj).getId().equals(this.getId());
     }
 }
