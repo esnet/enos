@@ -251,7 +251,7 @@ public class ESnetTopology implements TopologyProvider {
         if (this.jsonTopology == null) this.init();
         nodes.clear();
         ListenableDirectedWeightedGraph<ESnetNode,ESnetLink> topo =
-                new ListenableDirectedWeightedGraph<ESnetNode,ESnetLink>(ESnetLink.class);
+                new ESnetTopologyWeightedGraph(ESnetLink.class);
 
         List<ESnetDomain> domains = this.jsonTopology.getDomains();
         ESnetDomain esnet = domains.get(0);
