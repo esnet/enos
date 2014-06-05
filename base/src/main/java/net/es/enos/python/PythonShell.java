@@ -66,6 +66,20 @@ public class PythonShell {
                 // First python for this session. Create locals
                 sessionLocals = new PyDictionary();
                 PythonShell.locals.put(in,sessionLocals);
+                // Sets the default search path
+                PythonInterpreter python = new PythonInterpreter(sessionLocals);
+                python.setIn(in);
+                python.setOut(out);
+                python.setErr(err);
+                python.exec("import sys");
+                python.exec("sys.path = sys.path + ['" + BootStrap.rootPath.resolve("bin/") + "']");
+                python.exec("sys.path = sys.path + ['" + KernelThread.getCurrentKernelThread().getUser().getHomePath()
+                            + "']");
+                try {
+                    err.flush();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
         logger.debug("Starting Python");
@@ -86,7 +100,10 @@ public class PythonShell {
 
             } else {
                 // This is an interactive session
-
+                if (!sessionLocals.containsKey("command_args"))  {
+                    // Make sure that the variable exists
+                    sessionLocals.put("command_args", new String[] {"python"});
+                }
                 InteractiveConsole console = new InteractiveConsole(sessionLocals);
                 if (System.getProperty("python.home") == null) {
                     System.setProperty("python.home", "");
