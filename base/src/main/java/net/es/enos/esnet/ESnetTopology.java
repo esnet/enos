@@ -392,4 +392,20 @@ public class ESnetTopology implements TopologyProvider {
         TopologyFactory.instance().registerTopologyProvider(this.getClass().getCanonicalName(),TopologyFactory.LOCAL_LAYER2);
     }
 
+    @Override
+    public Node getNode(String name) {
+        if (name == null) {
+            return null;
+        }
+        // Construct the URN
+        String[] tmp = name.split("@");
+        if (tmp.length != 2) {
+            // Incorrect format.
+        }
+        String hostname = tmp[0];
+        String domain = tmp[1];
+        String urn = "urn:ogf:network:" + domain + ":" + hostname;
+
+        return this.nodes.get(urn);
+    }
 }

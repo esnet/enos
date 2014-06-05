@@ -2,13 +2,15 @@ from org.jgrapht.alg import DijkstraShortestPath
 from net.es.enos.api import TopologyFactory
 from net.es.enos.esnet import ESnetTopology,OSCARSReservations
 from org.joda.time import DateTime
+import sys
 
 
-
-if command_args != 4:
+if len(command_args) != 4:
     # Syntax error
     print "Syntax error: path src@domain dst@domain"
-    exit()
+    print "    example: path lbl-mr2@es.net bnl-mr3@es.net"
+    sys.exit()
+
 
 topology = TopologyFactory.instance()
 topo = topology.retrieveTopologyProvider("localLayer2")
@@ -18,8 +20,8 @@ nodes = topo.getNodes()
 nodesByLink = topo.getNodesByLink()
 portsByLink = topo.getPortsByLink()
 
-srcNode = nodes.get("urn:ogf:network:es.net:lbl-mr2")
-dstNode = nodes.get("urn:ogf:network:es.net:bnl-mr3")
+srcNode = topo.getNode(command_args[2]);
+dstNode = topo.getNode(command_args[3]);
 
 path = DijkstraShortestPath.findPathBetween(graph, srcNode, dstNode)
 
@@ -47,7 +49,7 @@ for link in path:
 		maxReservable = remainTo;
 
 print "End Node= " + dstNode.getId()
-print "Max. reservable= " + str(maxReservable)
+print "Max. reservable= " + str(maxReservable) + " bits/sec"
 
 
 
