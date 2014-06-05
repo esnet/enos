@@ -82,7 +82,7 @@ public class PythonShell {
                 python.setOut(out);
                 python.setErr(err);
                 logger.info("Executes file " + args[1] + " for user " + KernelThread.getCurrentKernelThread().getUser().getName());
-                python.execfile(BootStrap.rootPath.resolve(args[1]).toString());
+                python.execfile(BootStrap.rootPath.toString() + args[1]);
 
             } else {
                 // This is an interactive session
