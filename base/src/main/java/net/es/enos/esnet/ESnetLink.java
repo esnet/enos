@@ -32,6 +32,7 @@ public class ESnetLink extends Link {
     private boolean vlanTranslation;
     private String  nameType;
     private String  name;
+    protected double  weight; // Weight can only be accessed by the graph.
 
     public String getName() {
         return name;

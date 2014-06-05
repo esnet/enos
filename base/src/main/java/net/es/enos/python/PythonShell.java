@@ -12,6 +12,7 @@ package net.es.enos.python;
 import jline.console.ENOSConsoleReader;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.kernel.security.ExitSecurityException;
 import net.es.enos.kernel.users.User;
 import net.es.enos.shell.ShellInputStream;;
 import net.es.enos.shell.annotations.ShellCommand;
@@ -74,7 +75,8 @@ public class PythonShell {
         }
         try {
             if ((args != null) && (args.length > 1)) {
-                // A program is provided.
+                // A program is provided. Add the arguments into the python environment as command_args variable
+                sessionLocals.put("command_args", args);
                 PythonInterpreter python = new PythonInterpreter(sessionLocals);
                 python.setIn(in);
                 python.setOut(out);
@@ -84,31 +86,31 @@ public class PythonShell {
 
             } else {
                 // This is an interactive session
-                try {
-                    InteractiveConsole console = new InteractiveConsole(sessionLocals);
-                    if (System.getProperty("python.home") == null) {
-                        System.setProperty("python.home", "");
-                    }
-                    InteractiveConsole.initialize(System.getProperties(),
-                            null, new String[0]);
 
-                    console.setOut(out);
-                    console.setErr(err);
-                    console.setIn(in);
-                    // Start the interactive session
-                    console.interact();
-                } catch (Exception e) {
-                    // Nothing has to be done. This happens when the jython shell exits, obviously not too gracefully.
-                    e.printStackTrace();
+                InteractiveConsole console = new InteractiveConsole(sessionLocals);
+                if (System.getProperty("python.home") == null) {
+                    System.setProperty("python.home", "");
                 }
+                InteractiveConsole.initialize(System.getProperties(),
+                        null, new String[0]);
+
+                console.setOut(out);
+                console.setErr(err);
+                console.setIn(in);
+                // Start the interactive session
+                console.interact();
             }
         } catch (Exception e) {
-            try {
-                err.write(e.toString().getBytes());
-            } catch (IOException e1) {
-                e1.printStackTrace();
+            if ((e instanceof ExitSecurityException) || (e.toString().contains("SystemExit"))) {
+                // This is simply due to sys.exit(). Ignore.
+            } else {
+                try {
+                    err.write(e.toString().getBytes());
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+                e.printStackTrace();
             }
-            e.printStackTrace();
         }
         try {
             err.flush();

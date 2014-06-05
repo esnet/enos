@@ -11,6 +11,7 @@ package net.es.enos.esnet;
 
 import net.es.enos.api.Circuit;
 import net.es.enos.api.ISODateTime;
+import org.joda.time.DateTime;
 
 import java.util.List;
 
@@ -100,5 +101,13 @@ public class ESnetCircuit extends Circuit {
 
     public void setSegments(List<ESnetSegment> segments) {
         this.segments = segments;
+    }
+
+
+    public boolean isActive (DateTime start, DateTime end) {
+        boolean res = ! ((this.getStartDateTime().compareTo(end) >= 0) ||
+                        (this.getEndDateTime().compareTo(start) <=0));
+
+        return res;
     }
 }

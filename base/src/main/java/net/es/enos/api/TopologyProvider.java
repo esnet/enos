@@ -52,4 +52,13 @@ public interface TopologyProvider {
      * @return a HashMap of Lists of Ports.
      */
     public HashMap<Link, List<Port>> getPortsByLink();
+
+    /**
+     * Retrieve from the topology the Node object referenced by its name. The format of the name is as follow:
+     * host@domain. For instance, lbl-mr2@es.net. Note that the implementation of the topology may have a
+     * different format to identify the nodes: the Node id, as retrieved with Node.getId() is an opaque.
+     * @param name is the abstract name of the node, formatted as hostname@domain.
+     * @return the node object if any, of the node identified by name.
+     */
+    public Node getNode(String name);
 }

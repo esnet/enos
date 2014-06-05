@@ -9,12 +9,14 @@
 
 package net.es.enos.esnet;
 
+import net.es.enos.api.Domain;
+
 import java.util.List;
 
 /**
  * Created by lomax on 5/16/14.
  */
-public class ESnetDomain {
+public class ESnetDomain extends Domain {
     private String Id;
 
     public List<ESnetNode> getNodes() {

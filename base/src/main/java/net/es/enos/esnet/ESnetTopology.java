@@ -47,6 +47,7 @@ import org.codehaus.jackson.type.TypeReference;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.jgrapht.graph.ListenableDirectedGraph;
+import org.jgrapht.graph.ListenableDirectedWeightedGraph;
 import org.python.modules.synchronize;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,7 +76,8 @@ public class ESnetTopology implements TopologyProvider {
     private HashMap<String, List<Link>> internalLinks = new HashMap<String, List<Link>>();
     private HashMap<String, List<Link>> siteLinks = new HashMap<String, List<Link>>();
     private HashMap<String, List<Link>> peeringLinks = new HashMap<String, List<Link>>();
-
+    private HashMap<String, Link> links = new HashMap<String, Link>();
+    private boolean isWeighted = true;
 
     public class TopologyTrustManager implements X509TrustManager {
 
@@ -93,6 +95,15 @@ public class ESnetTopology implements TopologyProvider {
         public java.security.cert.X509Certificate[] getAcceptedIssuers() {
             return new java.security.cert.X509Certificate[0];
         }
+    }
+
+    public ESnetTopology() {
+        this.init();
+    }
+
+    public ESnetTopology(boolean isWeighted) {
+        this.isWeighted = isWeighted;
+        this.init();
     }
 
     public String loadTopology() {
@@ -182,6 +193,10 @@ public class ESnetTopology implements TopologyProvider {
         return portsByLink;
     }
 
+    public HashMap<String, Link> getLinks() {
+        return links;
+    }
+
     private void init() {
         this.wireFormatTopology = this.loadTopology();
         this.jsonTopology = this.wireFormatToJSON(this.wireFormatTopology);
@@ -235,8 +250,8 @@ public class ESnetTopology implements TopologyProvider {
     public ListenableDirectedGraph retrieveTopology () {
         if (this.jsonTopology == null) this.init();
         nodes.clear();
-        ListenableDirectedGraph<ESnetNode,ESnetLink> topo =
-                new ListenableDirectedGraph<ESnetNode,ESnetLink>(ESnetLink.class);
+        ListenableDirectedWeightedGraph<ESnetNode,ESnetLink> topo =
+                new ESnetTopologyWeightedGraph(ESnetLink.class);
 
         List<ESnetDomain> domains = this.jsonTopology.getDomains();
         ESnetDomain esnet = domains.get(0);
@@ -279,7 +294,11 @@ public class ESnetTopology implements TopologyProvider {
         }
         return topo;
     } 
-    private void analyzeLink(ListenableDirectedGraph<ESnetNode,ESnetLink> topo, ESnetNode srcNode, ESnetLink link) {
+    private void analyzeLink(ListenableDirectedWeightedGraph<ESnetNode,
+                             ESnetLink> topo,
+                             ESnetNode srcNode,
+                             ESnetLink link) {
+
         String[] localId = link.getId().split(":");
         String localDomain = localId[3];
         String localNode = localId[4];
@@ -288,6 +307,9 @@ public class ESnetTopology implements TopologyProvider {
         String remoteDomain = remoteId[3];
         String remoteNode = remoteId[4];
         String remoteNodeId = idToUrn(link.getRemoteLinkId(),4);
+
+        // Add the link to the links HashMap, index it with the port urn.
+        this.links.put(idToUrn(link.getId(),5),link);
 
         if (localDomain.equals(remoteDomain)) {
             // Within the same domain
@@ -302,6 +324,10 @@ public class ESnetTopology implements TopologyProvider {
                 topo.addEdge(srcNode,dstNode,link);
                 // Make sure the opposite direction exists since ESnet links are to be assumed bidirectional
                 topo.addEdge(dstNode,srcNode,link);
+                if (this.isWeighted) {
+                    // Add traffic engineering as weight
+                    topo.setEdgeWeight(link,link.getTrafficEngineeringMetric());
+                }
             } else {
                 // Site - This is not link, so, do not create an edge
                 // Try to decode the site name. If the port section of the id starts with to- then
@@ -335,13 +361,23 @@ public class ESnetTopology implements TopologyProvider {
         return this.siteLinks.get(destination);
     }
 
-    static public String idToUrn (String id, int pos) {
+    static private String idToUrn (String id, int pos) {
         int endPos=0;
         for (int i=0; i <= pos; ++i) {
             endPos = id.indexOf(":", endPos + 1);
         }
         return id.substring(0,endPos);
 
+    }
+
+    /**
+     * Strip trailing link portion of the urn
+     * @param linkId
+     * @return a normalized link id.
+     */
+    static public String normalizeLinkId(String linkId) {
+
+        return null;
     }
 
     public String getUrl() {
@@ -356,4 +392,20 @@ public class ESnetTopology implements TopologyProvider {
         TopologyFactory.instance().registerTopologyProvider(this.getClass().getCanonicalName(),TopologyFactory.LOCAL_LAYER2);
     }
 
+    @Override
+    public Node getNode(String name) {
+        if (name == null) {
+            return null;
+        }
+        // Construct the URN
+        String[] tmp = name.split("@");
+        if (tmp.length != 2) {
+            // Incorrect format.
+        }
+        String hostname = tmp[0];
+        String domain = tmp[1];
+        String urn = "urn:ogf:network:" + domain + ":" + hostname;
+
+        return this.nodes.get(urn);
+    }
 }
