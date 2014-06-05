@@ -21,7 +21,7 @@ import java.util.List;
 public class OSCARSReservations {
 
     private final Logger logger = LoggerFactory.getLogger(OSCARSReservations.class);
-    private ESnetTopology topology = new ESnetTopology();
+    private ESnetTopology topology;
     private List<ESnetCircuit> circuits;
     private ListenableDirectedGraph topoGraph;
 
@@ -37,16 +37,18 @@ public class OSCARSReservations {
      * @return  a list of circuits.
      * @throws IOException
      */
-    public static List<ESnetCircuit> retrieveScheduledCircuits() throws IOException {
-        return new ESnetTopology().retrieveJSONTopology().getCircuits();
+    public  List<ESnetCircuit> retrieveScheduledCircuits() throws IOException {
+        return this.topology.retrieveJSONTopology().getCircuits();
     }
 
-    public OSCARSReservations() throws IOException {
-        this.circuits = OSCARSReservations.retrieveScheduledCircuits();
+    public OSCARSReservations(ESnetTopology topology) throws IOException {
+        this.topology = topology;
+        this.topology = topology;
+        this.circuits = this.retrieveScheduledCircuits();
         this.topoGraph = topology.retrieveTopology ();
     }
 
-    public long getMaxReservableBandwidth (Graph graph, DateTime start,DateTime end) throws IOException {
+    public long getMaxReservableBandwidth (Graph path, DateTime start,DateTime end) throws IOException {
 
 
 

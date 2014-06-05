@@ -21,7 +21,7 @@ path = DijkstraShortestPath.findPathBetween(graph, srcNode, dstNode)
 
 start = DateTime.now()
 end = start.plusHours(2)
-reserved = OSCARSReservations().getReserved(start,end)
+reserved = OSCARSReservations(topo).getReserved(start,end)
 
 print "Start Node= " + srcNode.getId()
 
@@ -35,13 +35,11 @@ for link in path:
 		continue
 	remainTo = portReservation.maxReservable - portReservation.alreadyReserved[0]
 	remainFrom = portReservation.maxReservable - portReservation.alreadyReserved[1]
-        print "Node= " + nodes[0].getId() + "\tlinkId= " + link.getId() + "\tReservableTo= " + remainTo + "\tReservableFrom= " + remainFrom
+        print "Node= " + nodes[0].getId() + "\tlinkId= " + link.getId() + "\tReservableTo= " + str(remainTo) + "\tReservableFrom= " + str(remainFrom)
 
 
 print "End Node= " + dstNode.getId()
 
-for p in reserved.keySet():
-	pr = reserved.get(p)
-	print p.getId() + " " + str(pr.maxReservable)	
+for
 
 
