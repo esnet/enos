@@ -74,7 +74,8 @@ public class PythonShell {
         }
         try {
             if ((args != null) && (args.length > 1)) {
-                // A program is provided.
+                // A program is provided. Add the arguments into the python environment as command_args variable
+                sessionLocals.put("command_args", args);
                 PythonInterpreter python = new PythonInterpreter(sessionLocals);
                 python.setIn(in);
                 python.setOut(out);

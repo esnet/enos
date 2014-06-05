@@ -3,8 +3,6 @@ from net.es.enos.api import TopologyFactory
 from net.es.enos.esnet import ESnetTopology,OSCARSReservations
 from org.joda.time import DateTime
 
-print "Starting"
-
 topology = TopologyFactory.instance()
 topo = topology.retrieveTopologyProvider("localLayer2")
 
@@ -25,6 +23,8 @@ reserved = OSCARSReservations(topo).getReserved(start,end)
 
 print "Start Node= " + srcNode.getId()
 
+maxReservable = -1
+
 for link in path:
         nodes = nodesByLink.get(link)
 	ports = portsByLink.get(link)
@@ -35,11 +35,12 @@ for link in path:
 		continue
 	remainTo = portReservation.maxReservable - portReservation.alreadyReserved[0]
 	remainFrom = portReservation.maxReservable - portReservation.alreadyReserved[1]
-        print "Node= " + nodes[0].getId() + "\tlinkId= " + link.getId() + "\tReservableTo= " + str(remainTo) + "\tReservableFrom= " + str(remainFrom)
-
+    print "Node= " + nodes[0].getId() + "\tlinkId= " + link.getId() + "\tReservableTo= " + str(remainTo) + "\tReservableFrom= " + str(remainFrom)
+    if (maxReservable == -1) || (maxReservable > remainTo):
+        maxReservable = remainTo;
 
 print "End Node= " + dstNode.getId()
+print "Max. reservable= " + maxReservable
 
-for
 
 
