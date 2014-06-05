@@ -3,6 +3,13 @@ from net.es.enos.api import TopologyFactory
 from net.es.enos.esnet import ESnetTopology,OSCARSReservations
 from org.joda.time import DateTime
 
+
+
+if command_args != 4:
+    # Syntax error
+    print "Syntax error: path src@domain dst@domain"
+    exit()
+
 topology = TopologyFactory.instance()
 topo = topology.retrieveTopologyProvider("localLayer2")
 
@@ -26,21 +33,21 @@ print "Start Node= " + srcNode.getId()
 maxReservable = -1
 
 for link in path:
-        nodes = nodesByLink.get(link)
+	nodes = nodesByLink.get(link)
 	ports = portsByLink.get(link)
 	port = ports[0] # Assume only one port per link
 	portReservation = reserved.get(port)
 	if portReservation == None:
-		print "No portReservation for link " + link.getId() + " port= " +  "   " + port.getId()
+		print "No portReservation for link " + link.getId() + " port= " + port.getId()
 		continue
 	remainTo = portReservation.maxReservable - portReservation.alreadyReserved[0]
 	remainFrom = portReservation.maxReservable - portReservation.alreadyReserved[1]
-    print "Node= " + nodes[0].getId() + "\tlinkId= " + link.getId() + "\tReservableTo= " + str(remainTo) + "\tReservableFrom= " + str(remainFrom)
-    if (maxReservable == -1) || (maxReservable > remainTo):
-        maxReservable = remainTo;
+	print "Node= " + nodes[0].getId() + "\tlinkId= " + link.getId()
+	if (maxReservable == -1) or (maxReservable > remainTo):
+		maxReservable = remainTo;
 
 print "End Node= " + dstNode.getId()
-print "Max. reservable= " + maxReservable
+print "Max. reservable= " + str(maxReservable)
 
 
 

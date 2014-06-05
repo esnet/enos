@@ -76,11 +76,6 @@ public class KernelSecurityManager extends SecurityManager {
     }
 
     @Override
-    public boolean getInCheck() {
-        return super.getInCheck();
-    }
-
-    @Override
     public void checkAccess(Thread t) throws SecurityException {
         // System.out.println("checkAccess(Thread current= " + Thread.currentThread().getName() + " t = " + t.getName());
         // Threads that are not part of ENOS ThreadGroup are authorized
@@ -282,5 +277,18 @@ public class KernelSecurityManager extends SecurityManager {
             KernelSecurityManager.writeAccess.put(System.getProperty("java.class.path") + "!", new Boolean(true));
 
         }
+    }
+
+    @Override
+    public void checkExit(int status) {
+        throw new SecurityException("Cannot quit the JVM");
+    }
+
+    @Override
+    public void checkExec(String cmd) {
+        if (KernelThread.getCurrentKernelThread().isPrivileged()) {
+            return;
+        }
+        throw new ExitSecurityException("Cannot execute UNIX processes");
     }
 }
