@@ -18,6 +18,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 
+
 import jline.UnixTerminal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,21 +26,31 @@ import org.slf4j.LoggerFactory;
 public class UserShellCommands {
     @ShellCommand(name = "adduser",
     shortHelp = "Add a user to the system",
-    longHelp = "Required arguments are a username, an initial password, and a user class.\n" +
-            "The user class should be either \"root\" or \"user\".")
+    longHelp = "Required arguments are a username, an initial password, a user class, a name, an organization name, and an email.\n" +
+            "The user class should be either \"root\" or \"user\".",
+    privNeeded = true)
     public static void addUser(String[] args, InputStream in, OutputStream out, OutputStream err) {
         Logger logger = LoggerFactory.getLogger(UserShellCommands.class);
         logger.info("adduser with {} arguments", args.length);
 
+        boolean newUser = false;
         PrintStream o = new PrintStream(out);
 
         // Argument checking
-        if (args.length != 4) {
-            o.println("Usage:  adduser <username> <password> <userclass>");
+        if (args.length != 7) {
+            o.println("Usage:  adduser <username> <password> <userclass> <name> <organization> <email>");
             return;
         }
 
-        Users.getUsers().createUser(args[1], args[2], args[3]);
+        UserProfile newProfile = new UserProfile(args[1], args[2], args[3], args[4], args[5], args[6]);
+
+        newUser = Users.getUsers().createUser(newProfile);
+
+        if (newUser) {
+            o.print("New User created!");
+        } else {
+            o.print("Unable to create new user");
+        }
 
     }
 
@@ -73,42 +84,102 @@ public class UserShellCommands {
                 if (userName.isEmpty()) {
                     userName = thisUserName;
                 }
-                oldPassword = "";
             }
             else {
                 userName = KernelThread.getCurrentKernelThread().getUser().getName();
                 oldPassword = consoleReader.readLine("Old password: ", '*');
 
                 // Password check to fail early here
-                /* TODO:  Figure out why this fails.
-                if (Users.getUsers().authUser(userName, oldPassword) == false) {
+                // TODO:  Figure out why this fails.
+                // ^User is not privileged, authUser requires access to passwd file.
+                if (! Users.getUsers().authUser(thisUserName, oldPassword)) {
                     o.println("Old password is incorrect");
                     return;
                 }
-                */
             }
 
-            o.println("Changing password for " + thisUserName);
-            String newPassword = consoleReader.readLine("New password (initial): ", '*');
+            o.println("Changing password for " + userName);
+            String newPassword = consoleReader.readLine("New password: ", '*');
             String new2Password = consoleReader.readLine("New password (confirm): ", '*');
             if (! newPassword.equals(new2Password)) {
-                o.println("New and old passwords do not match");
+                o.println("Error: Passwords do not match");
                 return;
             }
 
-            boolean p = Users.getUsers().setPassword(userName, oldPassword, newPassword);
+            boolean p = Users.getUsers().setPassword(userName, newPassword);
             if (p) {
-                o.println("Password change successful");
+                o.println("Password change successful!");
             }
             else {
-                o.println("Password change failed");
+                o.println("Password change failed...");
             }
 
         } catch (IOException e) {
             return;
         }
-
-
     }
 
+
+    @ShellCommand(name = "removeuser",
+            shortHelp = "Remove a user from the system",
+            longHelp = "No arguments are required. \n")
+    public static void removeUser(String[] args, InputStream in, OutputStream out, OutputStream err) {
+        Logger logger = LoggerFactory.getLogger(UserShellCommands.class);
+        logger.info("removeuser with {} arguments", args.length);
+
+        PrintStream o = new PrintStream(out);
+
+        if (args.length != 1) {
+            o.print("removeuser does not take any parameters");
+	        return;
+        }
+
+        ENOSConsoleReader consoleReader = null;
+        try {
+            consoleReader = new ENOSConsoleReader(in, out, new UnixTerminal());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
+
+        try {
+            // Get current username.
+            String thisUserName = KernelThread.getCurrentKernelThread().getUser().getName();
+
+            // If this thread is privileged, then ask for a username (because we can remove any user).
+            // If not privileged, require password verification to remove user.
+            String userName, password;
+            if (KernelThread.getCurrentKernelThread().isPrivileged()) {
+                userName = consoleReader.readLine("Username (default = " + thisUserName + "): ");
+                if (userName.isEmpty()) {
+                    userName = thisUserName;
+                }
+            }
+            else {
+                userName = KernelThread.getCurrentKernelThread().getUser().getName();
+                password = consoleReader.readLine("Password: ", '*');
+
+                if (! Users.getUsers().authUser(thisUserName, password)) {
+                    o.println("Password is incorrect");
+                    return;
+                }
+            }
+
+            o.println("Are you sure you wish to remove this user account?");
+            String confirmRemove = consoleReader.readLine("Y/N: ");
+            if (confirmRemove.equals("Y")) {
+                boolean r = Users.getUsers().removeuser(userName);
+                if (r) {
+                    o.print("Removed User!");
+                } else {
+                    o.print("Unable to remove user...");
+                }
+            } else {
+	            o.print("Not removing user.");
+            }
+
+        } catch (IOException e) {
+            return;
+        }
+    }
 }

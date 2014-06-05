@@ -146,9 +146,14 @@ public class Shell {
                         Arrays.sort(cmds);
 
                         for (String n : cmds) {
+
                             Method m = ShellCommandsFactory.getCommandMethod(n);
                             ShellCommand command = m.getAnnotation(ShellCommand.class);
-                            this.print(n + "\t" + command.shortHelp() + "\n");
+                            //Make sure user has privilege needed to view help for privileged commands
+                            if (command.privNeeded() && KernelThread.getCurrentKernelThread().isPrivileged() ||
+                                    ! command.privNeeded()) {
+                                this.print(n + "\t" + command.shortHelp() + "\n");
+                            }
                         }
                     }
                     // "help" with the name of a top-level command gives a longer help
@@ -157,10 +162,16 @@ public class Shell {
                         Method m = ShellCommandsFactory.getCommandMethod(args[1]);
                         if (m != null) {
                             ShellCommand command = m.getAnnotation(ShellCommand.class);
-                            this.print(args[1] + "\t" + command.shortHelp() + "\n");
-                            // Print longer help if it's available.
-                            if (!command.longHelp().isEmpty()) {
-                                this.print("\n" + command.longHelp() + "\n");
+	                        // Don't show help for options the user can't access
+                            if (command.privNeeded() && KernelThread.getCurrentKernelThread().isPrivileged() ||
+                                    ! command.privNeeded()) {
+                                this.print(args[1] + "\t" + command.shortHelp() + "\n");
+                                // Print longer help if it's available.
+                                if (!command.longHelp().isEmpty()) {
+                                    this.print("\n" + command.longHelp() + "\n");
+                                }
+                            } else {
+                                this.print("Your user account does not have the privilege needed to view help for this" + "\n" + "command");
                             }
                         }
                         else {
