@@ -159,4 +159,17 @@ public class PythonShell {
         python.execfile(profile.toString());
     }
 
+    public static String getProgramPath(String command) {
+        File path = null;
+        // Retrieve the python search path
+        path = new File(BootStrap.rootPath.resolve("bin/").toString());
+        if  (path.exists()) {
+            return path.toString();
+        }
+        path = new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().toString());
+        if  (path.exists()) {
+            return path.toString();
+        }
+        return null;
+    }
 }

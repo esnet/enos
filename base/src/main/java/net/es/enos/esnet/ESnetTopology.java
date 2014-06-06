@@ -53,7 +53,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.*;
-import java.io.IOException;
+import java.io.*;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -104,6 +104,30 @@ public class ESnetTopology implements TopologyProvider {
     public ESnetTopology(boolean isWeighted) {
         this.isWeighted = isWeighted;
         this.init();
+    }
+
+    /**
+     * This constructor reads the provided file to load the topology in the wire format, instead of
+     * downloading it from the topology service. This is useful when network is not available and only
+     * a cached version of the topology can be used.
+     * @param filename  of the file containing the topology in wire format
+     * @throws IOException
+     */
+    public ESnetTopology(String filename) throws IOException {
+        InputStream in = new FileInputStream(filename);
+        StringBuffer stringbuffer = new StringBuffer();
+        byte[] buffer = new byte[4096];
+        while (true) {
+            int r = in.read(buffer);
+            if (r <= 0) {
+                // EOF
+                break;
+            }
+            new String(buffer,0, r);
+            stringbuffer.append(new String(buffer,0, r));
+        }
+        this.wireFormatTopology = stringbuffer.toString();
+        this.jsonTopology = this.wireFormatToJSON(this.wireFormatTopology);
     }
 
     public String loadTopology() {

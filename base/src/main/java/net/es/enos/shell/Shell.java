@@ -17,6 +17,7 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Set;
 
+import com.sun.xml.internal.fastinfoset.util.StringArray;
 import jline.UnixTerminal;
 import jline.console.ConsoleReader;
 import jline.console.ENOSConsoleReader;
@@ -24,6 +25,7 @@ import jline.console.completer.StringsCompleter;
 import net.es.enos.kernel.exec.KernelThread;
 
 
+import net.es.enos.python.PythonShell;
 import net.es.enos.shell.annotations.ShellCommand;
 
 public class Shell {
@@ -135,8 +137,7 @@ public class Shell {
                 // handlers should be implemented as ShellCommands.
                 if (args[0].equals("exit")) {
                     break;
-                }
-                else if (args[0].equals("help")) {
+                } else if (args[0].equals("help")) {
 
                     // "help" with no arguments gives a sorted list of commands along with
                     // short help.
@@ -183,6 +184,24 @@ public class Shell {
 
                 method = ShellCommandsFactory.getCommandMethod(args[0]);
                 if (method == null) {
+                    // Try to see if a python program exist with that name
+                    String path = PythonShell.getProgramPath(args[0]);
+                    if (path != null) {
+                        // There is a python command of that name execute it. A new String[] with the first
+                        // element set to "python" must be created in order to simulate the python command line.
+                        String[] newArgs = new String[args.length + 1];
+                        newArgs[0] = "python";
+                        int index = 1;
+                        for (String s : args) {
+                            newArgs[index] = s;
+                        }
+                        try {
+                            PythonShell.startPython(newArgs, this.in, this.out, this.out);
+                        } catch (Exception e) {
+                            // This is a catch all. Make sure that the thread recovers in a correct state
+                            this.print( e.toString());
+                        }
+                    }
                     // Non existing command
                     this.print(args[0] + " is an invalid command");
                     continue;
@@ -205,17 +224,12 @@ public class Shell {
                 } catch (Exception e) {
                     // This is a catch all. Make sure that the thread recovers in a correct state
                     this.print( e.toString());
-                    this.fixThread();
                 }
             } catch (IOException e) {
                 break;
             }
         }
         this.destroy();
-    }
-
-    private void fixThread() {
-
     }
 
     // Whatever cleanup is needed after the shell is done.  Subclasses should override if needed.
