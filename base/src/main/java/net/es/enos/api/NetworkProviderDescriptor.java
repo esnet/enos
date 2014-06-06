@@ -9,25 +9,32 @@
 
 package net.es.enos.api;
 
-import net.es.enos.boot.BootStrap;
-
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.UUID;
 /**
- * Created by lomax on 5/21/14.
+ * Created by lomax on 6/6/14.
  */
-public abstract class Network extends Resource {
+public class NetworkProviderDescriptor {
+    private String type;
+    private String className;
 
-    public static final String CanProvision = "canProvision";
-    public static final String CanMonitor = "canMonitor";
-    public static final String CanMeasure = "canMeasure";
-    public static final String CanSample = "canSample";
-    public static final String CanSlice = "canSlice";
-    public static final String CanVirtualize = "canVirtualize";
+    public NetworkProviderDescriptor (String className, String type) {
+        this.className = className;
+        this.type = type;
+    }
+    public NetworkProviderDescriptor() {}
 
+    public String getType() {
+        return type;
+    }
 
-    public static final String NETWORKS_DIR = "networks";
+    public void setType(String type) {
+        this.type = type;
+    }
 
+    public String getClassName() {
+        return className;
+    }
+
+    public void setClassName(String className) {
+        this.className = className;
+    }
 }
