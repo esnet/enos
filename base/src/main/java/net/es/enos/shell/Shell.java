@@ -17,8 +17,6 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Set;
 
-import com.sun.xml.internal.fastinfoset.util.StringArray;
-import jline.UnixTerminal;
 import jline.console.ConsoleReader;
 import jline.console.ENOSConsoleReader;
 import jline.console.completer.StringsCompleter;
@@ -98,8 +96,8 @@ public class Shell {
         }
 
         try {
-                this.consoleReader = new ConsoleReader(this.in, this.out, new UnixTerminal());
-                this.ENOSConsoleReader = new ENOSConsoleReader(this.in, this.out, new UnixTerminal());
+                this.consoleReader = new ConsoleReader(this.in, this.out, new ENOSTerminal());
+                this.ENOSConsoleReader = new ENOSConsoleReader(this.in, this.out, new ENOSTerminal());
         } catch (Exception e) {
             e.printStackTrace();
         }
