@@ -68,7 +68,6 @@ public final class FileACL extends Properties {
     public FileACL (Path file) throws IOException {
         super ();
 
-        // System.out.println("FileACLL= " + (file != null ? file : "null"));
         logger.debug("Create FileACL for file " + file);
         if (file == null) {
             // root of the file system, no parent

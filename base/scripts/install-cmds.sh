@@ -13,5 +13,10 @@ echo "Setting ENOS_HOME to $ENOS_HOME"
 SCRIPT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 export ENOS_DISTRO=$SCRIPT_DIR/..
 
-mkdir  $ENOS_HOME/bin
+# make sure directory exist and create default ACL
+mkdir -p  $ENOS_HOME/bin
+mkdir -p  $ENOS_HOME/.acl
+echo "read=all" > $ENOS_HOME/.acl/bin
+
+# copy python code into /bin
 find $ENOS_DISTRO/src -name "*.py" -exec cp {} $ENOS_HOME/bin \;

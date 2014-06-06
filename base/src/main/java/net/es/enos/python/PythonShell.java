@@ -96,7 +96,15 @@ public class PythonShell {
                 python.setOut(out);
                 python.setErr(err);
                 logger.info("Executes file " + args[1] + " for user " + KernelThread.getCurrentKernelThread().getUser().getName());
-                python.execfile(BootStrap.rootPath.toString() + args[1]);
+                String filePath;
+                if (args[1].startsWith(BootStrap.rootPath.toString())) {
+                    // The file path already contains the ENOS Root.
+                    filePath = args[1];
+                } else {
+                    // Need to prefix the file path with ENOS Root.
+                    filePath = BootStrap.rootPath.toString() + args[1];
+                }
+                python.execfile(filePath);
 
             } else {
                 // This is an interactive session
@@ -159,14 +167,21 @@ public class PythonShell {
         python.execfile(profile.toString());
     }
 
-    public static String getProgramPath(String command) {
+    public static String getProgramPath(String cmd) {
         File path = null;
+        // Make sure that the extension .py is in the name of the command.
+        String command;
+        if (cmd.endsWith(".py")) {
+            command = cmd;
+        } else {
+            command = cmd + ".py";
+        }
         // Retrieve the python search path
-        path = new File(BootStrap.rootPath.resolve("bin/").toString());
+        path = new File(BootStrap.rootPath.resolve("bin").resolve(command).toString());
         if  (path.exists()) {
             return path.toString();
         }
-        path = new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().toString());
+        path = new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().resolve(command).toString());
         if  (path.exists()) {
             return path.toString();
         }

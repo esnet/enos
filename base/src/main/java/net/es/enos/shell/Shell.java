@@ -189,10 +189,8 @@ public class Shell {
                         // element set to "python" must be created in order to simulate the python command line.
                         String[] newArgs = new String[args.length + 1];
                         newArgs[0] = "python";
-                        int index = 1;
-                        for (String s : args) {
-                            newArgs[index] = s;
-                        }
+                        // Set the full path
+                        newArgs[1] = path;
                         try {
                             PythonShell.startPython(newArgs, this.in, this.out, this.out);
                         } catch (Exception e) {
