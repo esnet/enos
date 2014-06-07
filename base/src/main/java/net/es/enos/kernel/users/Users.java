@@ -92,6 +92,7 @@ public final class Users {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
     public static Users getUsers() {
@@ -382,9 +383,47 @@ public final class Users {
         //Delete user directory
         this.deleteUserDir(userDir);
 
-        // Save UserFile with remvoed user
+	    // Delete .acl file associated with this user account
+	    File aclDelete = new File (Paths.get(Users.getUsers().getHomePath().toString(), ".acl", userName).toString());
+	    aclDelete.delete();
+
+        // Save User File with removed user
         this.writeUserFile();
     }
+
+
+	public boolean mkdir (File homeDir) {
+		try {
+			KernelThread kt = KernelThread.getCurrentKernelThread();
+			String username = kt.getUser().getName();
+
+			// Check if directory entered contain valid characters only
+			if (! homeDir.getName().matches("[a-zA-Z0-9_]+")) {
+				throw new UserException(username);
+			}
+
+			// Make sure directory doesn't already exist.
+			if (! homeDir.exists()) {
+				// Will throw exception if user does not have proper permissions to write in directory.
+				homeDir.mkdir();
+			} else {
+				throw new IOException();
+			}
+
+			// Create proper access rights in new directory
+			FileACL fileACL = new FileACL(homeDir.toPath());
+			fileACL.allowUserRead(username);
+			fileACL.allowUserWrite(username);
+
+			// Commit ACL's
+			fileACL.store();
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+		return true;
+	}
 
 
     public boolean isPrivileged (String username) {
@@ -452,15 +491,17 @@ public final class Users {
         // Remove all files from directory before deleting directory.
         if (userDir.list().length == 0) {
             userDir.delete();
+	        logger.debug("Directory deleted");
         } else {
             for (File userFile : userDir.listFiles()) {
                 userFile.delete();
             }
+	        // Make sure all files have been deleted from the directory.
             if (userDir.list().length == 0) {
                 userDir.delete();
+	            logger.debug("Directory deleted");
             }
         }
-        logger.info("Directory deleted");
     }
 
 

@@ -13,11 +13,8 @@ import jline.console.ENOSConsoleReader;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.shell.annotations.ShellCommand;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.PrintStream;
-
+import java.io.*;
+import java.nio.file.Paths;
 
 import jline.UnixTerminal;
 import org.slf4j.Logger;
@@ -165,6 +162,7 @@ public class UserShellCommands {
                 }
             }
 
+	        // Confirm removal of user account
             o.println("Are you sure you wish to remove this user account?");
             String confirmRemove = consoleReader.readLine("Y/N: ");
             if (confirmRemove.equals("Y")) {
@@ -172,14 +170,219 @@ public class UserShellCommands {
                 if (r) {
                     o.print("Removed User!");
                 } else {
-                    o.print("Unable to remove user...");
+                    o.print("Unable to remove user.");
                 }
             } else {
-	            o.print("Not removing user.");
+	            o.print("Canceling operation.");
             }
 
         } catch (IOException e) {
-            return;
+	        return;
         }
     }
+
+
+	@ShellCommand(name = "ls",
+			shortHelp = "List all files in current directory",
+			longHelp = "ls <directory (defaults to current directory)>")
+	public static void ls(String[] args, InputStream in, OutputStream out, OutputStream err) {
+		Logger logger = LoggerFactory.getLogger(UserShellCommands.class);
+		logger.info("ls with {} arguments", args.length);
+
+		PrintStream o = new PrintStream(out);
+
+		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().toString();
+
+		// Do argument number check. If no extra args, displays files in current directory;
+		// If 1 extra arg, displays files in directory specified by the arg.
+		if (args.length == 1 ) {
+		} else if (args.length == 2) {
+			userPath = Paths.get(userPath, args[1]).toString();
+		} else {
+			o.println("Incorrect number of args");
+			return;
+		}
+
+		File lsDir = new File (userPath);
+
+		// Use canonical form to remove redundant names
+		try {
+			lsDir = lsDir.getCanonicalFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		// Store list of files in an array and output.
+		String fileList[] = lsDir.list();
+		for (String file : fileList) {
+			o.println(file);
+		}
+	}
+
+	@ShellCommand(name = "mkdir",
+			shortHelp = "Create a directory in current directory",
+			longHelp = "Creates a directory with <name> <directory (default is home directory)>")
+	public static void mkdir (String[] args, InputStream in, OutputStream out, OutputStream err) {
+		Logger logger = LoggerFactory.getLogger(UserShellCommands.class);
+		logger.info("mkdir with {} arguments", args.length);
+
+		PrintStream o = new PrintStream(out);
+
+		User currentUser = KernelThread.getCurrentKernelThread().getUser();
+		String userPath = currentUser.getHomePath().toString();
+
+		// Argument checking
+		if (args.length < 2) {
+			o.println("Usage <name> <directory (default is home)>");
+			return;
+		}
+
+		// If 2 extra arguments, the last argument is directory where directory will be created.
+		if (args.length == 3) {
+			String tempFilePath = args[2];
+			userPath = Paths.get(userPath, tempFilePath).toString();
+		}
+		// Make sure directory specified exists.
+		File storeInDir = new File (userPath);
+		if (!storeInDir.exists()) {
+			o.print("Directory specified does not exist");
+			return;
+		}
+
+		// Create new file object with path and name that user specified.
+		userPath = Paths.get(userPath, args[1]).toString();
+		File newDir = new File (userPath);
+
+		// Create new directory and confirm directory has been created
+		boolean mkdir = Users.getUsers().mkdir(newDir);
+
+		if (mkdir) {
+			logger.debug("mkdir success!");
+		} else {
+			logger.debug("mkdir failure");
+			o.println("mkdir failed");
+		}
+	}
+
+
+	@ShellCommand(name = "cd",
+	             shortHelp = "Change current directory",
+	             longHelp = "cd <directory>")
+	public static void cd(String[] args, InputStream in, OutputStream out, OutputStream err) {
+		Logger logger = LoggerFactory.getLogger(UserShellCommands.class);
+		logger.info("cd with {} arguments", args.length);
+
+		PrintStream o = new PrintStream(out);
+
+		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().toString();
+
+		// Argument checking
+		if (args.length != 2 ) {
+			o.println("Incorrect number of args");
+			return;
+		}
+
+		File cdDir = new File (Paths.get(userPath, args[1]).toString());
+
+		// Get canonical file form to remove redundant names (confuses fileACL)
+		try {
+			cdDir = cdDir.getCanonicalFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		// Make sure user has permission to read this directory. If not, outputs error message.
+		try {
+			cdDir.canRead();
+			KernelThread.getCurrentKernelThread().getUser().setHomePath(Paths.get(userPath, args[1]));
+			logger.debug("cd success");
+		} catch (SecurityException e) {
+			o.println("Invalid permissions to access this directory");
+		}
+	}
+
+
+	@ShellCommand(name = "cat",
+			shortHelp = "Display contents of a file",
+			longHelp = "cat <directory>")
+	public static void cat(String[] args, InputStream in, OutputStream out, OutputStream err) {
+		Logger logger = LoggerFactory.getLogger(UserShellCommands.class);
+		logger.info("cat with {} arguments", args.length);
+
+		PrintStream o = new PrintStream(out);
+
+		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().toString();
+
+		// Argument checking
+		if (args.length != 2 ) {
+			o.println("Incorrect number of args");
+			return;
+		}
+
+		File catFile = new File (Paths.get(userPath).toString());
+
+		// Get canonical file form to remove redundant names (confuses fileACL)
+		try {
+			catFile = catFile.getCanonicalFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		// Make sure user has permission to read this directory. If not, outputs error message.
+		try {
+			catFile.canRead();
+			try {
+				BufferedReader read = new BufferedReader(new FileReader(Paths.get(catFile.toString(), args[1]).toString()));
+				String print;
+				while((print = read.readLine()) != null) {
+					o.println(print);
+				}
+				read.close();
+			} catch (FileNotFoundException e) {
+				o.println("File not found");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+		} catch (SecurityException e) {
+			o.println("Invalid permissions to read this file");
+			return;
+		}
+	}
+
+
+	@ShellCommand(name = "rm",
+			shortHelp = "Removes specified file",
+			longHelp = "rm <file>")
+	public static void rm(String[] args, InputStream in, OutputStream out, OutputStream err) {
+		Logger logger = LoggerFactory.getLogger(UserShellCommands.class);
+		logger.info("rm with {} arguments", args.length);
+
+		PrintStream o = new PrintStream(out);
+
+		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().toString();
+
+		// Argument checking
+		if (args.length != 2 ) {
+			o.println("Incorrect number of args");
+			return;
+		}
+
+		File rmFile = new File (Paths.get(userPath, args[1]).toString());
+
+		// Get canonical file form to remove redundant names (confuses fileACL)
+		try {
+			rmFile = rmFile.getCanonicalFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		// Make sure user has permission to write in this directory. If not, outputs error message.
+		try {
+			rmFile.canWrite();
+			rmFile.delete();
+			logger.debug("rm success");
+		} catch (SecurityException e) {
+			o.println("Invalid permissions to write in this directory");
+		}
+	}
+
 }

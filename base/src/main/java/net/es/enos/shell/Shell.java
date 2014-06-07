@@ -225,6 +225,9 @@ public class Shell {
                 break;
             }
         }
+	    // Reset homePath before exiting.
+	    KernelThread.getCurrentKernelThread().getUser().resetHomePath();
+
         this.destroy();
     }
 
