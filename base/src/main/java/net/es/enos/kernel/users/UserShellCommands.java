@@ -375,10 +375,16 @@ public class UserShellCommands {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		// Make sure user has permission to write in this directory. If not, outputs error message.
+
 		try {
+			// Make sure user has permission to write in this directory. If not, outputs error message.
 			rmFile.canWrite();
 			rmFile.delete();
+
+			// Delete acl file associated with file if it exists
+			File aclDelete = new File (Paths.get(userPath, ".acl", args[1]).toString());
+			aclDelete.delete();
+
 			logger.debug("rm success");
 		} catch (SecurityException e) {
 			o.println("Invalid permissions to write in this directory");
