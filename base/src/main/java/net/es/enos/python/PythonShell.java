@@ -177,14 +177,21 @@ public class PythonShell {
             command = cmd + ".py";
         }
         // Retrieve the python search path
-        path = new File(BootStrap.rootPath.resolve("bin").resolve(command).toString());
-        if  (path.exists()) {
-            return path.toString();
-        }
-        path = new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().resolve(command).toString());
-        if  (path.exists()) {
-            return path.toString();
-        }
-        return null;
+	    try {
+		    path = new File(BootStrap.rootPath.resolve("bin").resolve(command).toString());
+		    if (path.exists()) {
+			    return path.toString();
+		    }
+	    } catch (SecurityException e) {
+	    }
+	    try {
+		    path = new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().resolve(command).toString());
+		    if (path.exists()) {
+			    return path.toString();
+		    }
+		    return null;
+	    } catch (SecurityException e) {
+		    return null;
+	    }
     }
 }

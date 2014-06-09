@@ -15,6 +15,7 @@ import net.es.enos.shell.annotations.ShellCommand;
 
 import java.io.*;
 import java.nio.file.Paths;
+import java.nio.file.Path;
 
 import jline.UnixTerminal;
 import org.slf4j.Logger;
@@ -205,12 +206,8 @@ public class UserShellCommands {
 
 		File lsDir = new File (userPath);
 
-		// Use canonical form to remove redundant names
-		try {
-			lsDir = lsDir.getCanonicalFile();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		Path normalizedPath = lsDir.toPath().normalize();
+		lsDir = new File (Paths.get(normalizedPath.toString()).toString());
 
 		// Store list of files in an array and output.
 		String fileList[] = lsDir.list();
@@ -227,7 +224,7 @@ public class UserShellCommands {
 		logger.info("mkdir with {} arguments", args.length);
 
 		PrintStream o = new PrintStream(out);
-
+		boolean mkdir = false;
 		User currentUser = KernelThread.getCurrentKernelThread().getUser();
 		String userPath = currentUser.getHomePath().toString();
 
@@ -254,7 +251,11 @@ public class UserShellCommands {
 		File newDir = new File (userPath);
 
 		// Create new directory and confirm directory has been created
-		boolean mkdir = Users.getUsers().mkdir(newDir);
+		try {
+			mkdir = Users.getUsers().mkdir(newDir);
+		} catch (SecurityException e) {
+			o.println("Invalid permissions to access this directory");
+		}
 
 		if (mkdir) {
 			logger.debug("mkdir success!");
@@ -284,12 +285,9 @@ public class UserShellCommands {
 
 		File cdDir = new File (Paths.get(userPath, args[1]).toString());
 
-		// Get canonical file form to remove redundant names (confuses fileACL)
-		try {
-			cdDir = cdDir.getCanonicalFile();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		Path normalizedPath = cdDir.toPath().normalize();
+		cdDir = new File (Paths.get(normalizedPath.toString()).toString());
+
 		// Make sure user has permission to read this directory. If not, outputs error message.
 		try {
 			cdDir.canRead();
@@ -310,22 +308,17 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().toString();
+		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
 
 		// Argument checking
 		if (args.length != 2 ) {
 			o.println("Incorrect number of args");
 			return;
 		}
-
 		File catFile = new File (Paths.get(userPath).toString());
 
-		// Get canonical file form to remove redundant names (confuses fileACL)
-		try {
-			catFile = catFile.getCanonicalFile();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		Path normalizedPath = catFile.toPath().normalize();
+		catFile = new File (Paths.get(normalizedPath.toString()).toString());
 
 		// Make sure user has permission to read this directory. If not, outputs error message.
 		try {
@@ -369,12 +362,8 @@ public class UserShellCommands {
 
 		File rmFile = new File (Paths.get(userPath, args[1]).toString());
 
-		// Get canonical file form to remove redundant names (confuses fileACL)
-		try {
-			rmFile = rmFile.getCanonicalFile();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		Path normalizedPath = rmFile.toPath().normalize();
+		rmFile = new File (Paths.get(normalizedPath.toString()).toString());
 
 		try {
 			// Make sure user has permission to write in this directory. If not, outputs error message.
@@ -382,7 +371,7 @@ public class UserShellCommands {
 			rmFile.delete();
 
 			// Delete acl file associated with file if it exists
-			File aclDelete = new File (Paths.get(userPath, ".acl", args[1]).toString());
+			File aclDelete = new File (Paths.get(normalizedPath.getParent().toString(), ".acl", args[1]).toString());
 			aclDelete.delete();
 
 			logger.debug("rm success");

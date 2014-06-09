@@ -191,14 +191,21 @@ public class Shell {
                         newArgs[0] = "python";
                         // Set the full path
                         newArgs[1] = path;
+
+	                    // Place old args into newArgs.
+	                    for (int i = 1; i< args.length; i++) {
+		                    newArgs[i+1] = args[i];
+	                    }
+
                         try {
                             PythonShell.startPython(newArgs, this.in, this.out, this.out);
                         } catch (Exception e) {
                             // This is a catch all. Make sure that the thread recovers in a correct state
                             this.print( e.toString());
                         }
+	                    continue;
                     }
-                    // Non existing command
+                    // Nonexistent command
                     this.print(args[0] + " is an invalid command");
                     continue;
                 }

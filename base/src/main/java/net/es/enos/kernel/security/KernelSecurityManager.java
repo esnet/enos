@@ -43,7 +43,6 @@ import java.io.IOException;
 import java.lang.SecurityManager;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.io.File;
 import java.security.Permission;
 import java.util.HashMap;
 import java.util.Map;
@@ -195,16 +194,16 @@ public class KernelSecurityManager extends SecurityManager {
 	@Override
 	public void checkRead(String file) {
 		logger.debug("checkRead starts " + file);
-		try {
-			if (this.rootPath == null || !file.startsWith(this.rootPath.toFile().getCanonicalPath())) {
+//		try {
+			if (this.rootPath == null || !file.startsWith(this.rootPath.toFile().getAbsolutePath())) {
 				// If the file is not within ENOS root dir, allow and rely on system permissions for read.
 				// TODO: this should be sufficient but perhaps needs to be revisited
-				logger.debug("checkRead ok " + file + " not an ENOS file. Rely on system access");
+				logger.info("checkRead ok " + file + " not an ENOS file. Rely on system access");
 				return;
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
 		if (this.isPrivileged()) {
 			logger.debug("checkRead ok " + file + " because thread is privileged");
 			return;

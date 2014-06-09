@@ -115,16 +115,12 @@ public final class FileACL extends Properties {
             name="do_loadACL"
     )
     public void do_loadACL () throws IOException {
-        logger.info("Try to load ACL file " + this.aclPath);
+        logger.debug("Try to load ACL file " + this.aclPath);
 
         File aclFile = new File(this.aclPath.toString());
         if (!aclFile.exists()) {
-	        System.out.println("filePath: " + this.filePath);
 
-	        //  if ( !this.filePath.startsWith(FileACL.rootPath.toString())){
-	        // rootPath is /tmp/enos while filePath is private/tmp/enos, so an offset is needed
-            if (!this.filePath.toString().contains(FileACL.rootPath.toString())) {
-	            System.out.println("rootpath: " + this.rootPath);
+            if (!this.filePath.startsWith(FileACL.rootPath.toString())) {
                 // The file is not part of the ENOS file system. Cannot inherit permission from parent
                 return;
             }
@@ -132,7 +128,7 @@ public final class FileACL extends Properties {
             this.inheritParent();
             return;
         }
-        logger.info("loads file");
+        logger.debug("loads file");
         this.load(new FileInputStream(aclFile));
     }
 
@@ -141,10 +137,8 @@ public final class FileACL extends Properties {
      * @throws IOException
      */
     private void inheritParent() throws IOException {
-//       if ( !this.filePath.startsWith(FileACL.rootPath.toString())){
-            // Not ENOS file system
-	    // rootPath is /tmp/enos while filePath is private/tmp/enos, so an offset is needed
-	    if ( !this.filePath.toString().contains(FileACL.rootPath.toString())){
+	    if ( !this.filePath.toString().startsWith(FileACL.rootPath.toString())){
+		    // Not ENOS file system
             return;
         }
         FileACL parentACL = this.getParentFileACL();
