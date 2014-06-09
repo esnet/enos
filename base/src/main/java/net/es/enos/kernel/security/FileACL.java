@@ -36,6 +36,7 @@ import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.lang.String;
 
 import java.io.*;
 import java.lang.reflect.Method;
@@ -114,11 +115,13 @@ public final class FileACL extends Properties {
             name="do_loadACL"
     )
     public void do_loadACL () throws IOException {
-        logger.debug("Try to load ACL file " + this.aclPath);
+        logger.info("Try to load ACL file " + this.aclPath);
 
         File aclFile = new File(this.aclPath.toString());
         if (!aclFile.exists()) {
-            if (!this.filePath.startsWith(FileACL.rootPath.toString())) {
+	        //  if ( !this.filePath.startsWith(FileACL.rootPath.toString())){
+	        // rootPath is /tmp/enos while filePath is private/tmp/enos, so an offset is needed
+            if (!this.filePath.toString().startsWith(FileACL.rootPath.toString(), 8)) {
                 // The file is not part of the ENOS file system. Cannot inherit permission from parent
                 return;
             }
@@ -126,7 +129,7 @@ public final class FileACL extends Properties {
             this.inheritParent();
             return;
         }
-        logger.debug("loads file");
+        logger.info("loads file");
         this.load(new FileInputStream(aclFile));
     }
 
@@ -135,8 +138,10 @@ public final class FileACL extends Properties {
      * @throws IOException
      */
     private void inheritParent() throws IOException {
-        if ( !this.filePath.startsWith(FileACL.rootPath.toString())){
+//       if ( !this.filePath.startsWith(FileACL.rootPath.toString())){
             // Not ENOS file system
+	    // rootPath is /tmp/enos while filePath is private/tmp/enos, so an offset is needed
+	    if ( !this.filePath.toString().startsWith(FileACL.rootPath.toString(), 8)){
             return;
         }
         FileACL parentACL = this.getParentFileACL();
@@ -218,7 +223,7 @@ public final class FileACL extends Properties {
     }
 
     public String[] getCanWrite() {
-        String users = this.getProperty(FileACL.CAN_WRITE);;
+        String users = this.getProperty(FileACL.CAN_WRITE);
         if (users == null) {
             return new String[0];
         }

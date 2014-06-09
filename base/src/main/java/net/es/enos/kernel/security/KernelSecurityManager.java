@@ -174,12 +174,7 @@ public class KernelSecurityManager extends SecurityManager {
 		try {
 			FileACL acl = new FileACL(Paths.get(file));
 
-			// If writing file in directory and file doesn't have ACL, use parent's ACL.
-			File fileBeingRead = new File(file);
-			FileACL parentACL = new FileACL(Paths.get(fileBeingRead.getParent()));
-
-			if (acl.canWrite(KernelThread.getCurrentKernelThread().getUser().getName())
-					|| parentACL.canWrite(KernelThread.getCurrentKernelThread().getUser().getName())) {
+			if (acl.canWrite(KernelThread.getCurrentKernelThread().getUser().getName())) {
 				logger.info("checkWrite allows " + file + " because ENOS User ACL for the user allows it.");
 				return;
 			}
@@ -217,11 +212,7 @@ public class KernelSecurityManager extends SecurityManager {
 		try {
 			FileACL acl = new FileACL(Paths.get(file));
 
-			// If reading file in directory and file doesn't have ACL, use parent's ACL.
-			File fileBeingRead = new File(file);
-			FileACL parentACL = new FileACL(Paths.get(fileBeingRead.getParent()));
-
-			if (acl.canRead() || parentACL.canRead()) {
+			if (acl.canRead()) {
 				logger.debug("checkRead ok " + file + " because user ENOS ACL allows it.");
 				return;
 			}
