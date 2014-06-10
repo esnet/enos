@@ -9,13 +9,14 @@
 
 package net.es.enos.esnet;
 
-import net.es.enos.api.NetworkProvider;
-import net.es.enos.api.Node;
-import net.es.enos.api.TopologyFactory;
-import net.es.enos.api.TopologyProvider;
+import net.es.enos.api.*;
 import org.jgrapht.Graph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * This class implements ESnet layer 2 network. It is a singleton.
@@ -37,6 +38,38 @@ public class ESnet extends NetworkProvider {
         return ESnet.instance;
     }
 
+    /**
+     * This method reads the provided file to load the topology in the wire format, instead of
+     * downloading it from the topology service. This is useful when network is not available and only
+     * a cached version of the topology can be used.
+     * @param filename  of the file containing the topology in wire format
+     * @throws IOException
+     */
+    public static ESnet instance(String filename) throws IOException {
+        synchronized (ESnet.instanceMutex) {
+            if (ESnet.instance == null) {
+                // Create the singleton
+                ESnet.instance = new ESnet(filename);
+            }
+        }
+        return ESnet.instance;
+    }
+
+
+    /**
+     * This constructor reads the provided file to load the topology in the wire format, instead of
+     * downloading it from the topology service. This is useful when network is not available and only
+     * a cached version of the topology can be used.
+     * @param filename  of the file containing the topology in wire format
+     * @throws IOException
+     */
+    private ESnet(String filename) throws IOException {
+        this.topology = new ESnetTopology(filename);
+    }
+
+    /**
+     * Default constructor
+     */
     private ESnet() {
         TopologyProvider topo = TopologyFactory.instance().retrieveTopologyProvider("localLayer2");
         if ( ! (topo instanceof ESnetTopology)) {
@@ -50,4 +83,9 @@ public class ESnet extends NetworkProvider {
     public Graph computePath(Node srcNode, Node dstNode) {
         return super.computePath(srcNode, dstNode);
     }
+
+    public void registerToFactory() throws IOException {
+        NetworkFactory.instance().registerNetworkProvider(this.getClass().getCanonicalName(), NetworkFactory.LOCAL_LAYER2);
+    }
+
 }
