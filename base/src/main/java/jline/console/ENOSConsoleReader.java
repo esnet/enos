@@ -53,6 +53,7 @@ import jline.internal.Log;
 import jline.internal.NonBlockingInputStream;
 import jline.internal.Nullable;
 import jline.internal.Urls;
+import net.es.enos.shell.ENOSTerminal;
 import org.fusesource.jansi.AnsiOutputStream;
 
 import static jline.internal.Preconditions.checkNotNull;
@@ -2231,6 +2232,10 @@ public class ENOSConsoleReader
                 ((UnixTerminal) terminal).disableInterruptCharacter();
             }
 
+            if (handleUserInterrupt && (terminal instanceof ENOSTerminal)) {
+                ((ENOSTerminal) terminal).disableInterruptCharacter();
+            }
+
             String originalPrompt = this.prompt;
 
             state = State.NORMAL;
@@ -2953,6 +2958,9 @@ public class ENOSConsoleReader
             }
             if (handleUserInterrupt && (terminal instanceof UnixTerminal)) {
                 ((UnixTerminal) terminal).enableInterruptCharacter();
+            }
+            if (handleUserInterrupt && (terminal instanceof ENOSTerminal)) {
+                ((ENOSTerminal) terminal).enableInterruptCharacter();
             }
         }
     }

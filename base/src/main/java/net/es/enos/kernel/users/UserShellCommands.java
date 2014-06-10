@@ -11,6 +11,7 @@ package net.es.enos.kernel.users;
 
 import jline.console.ENOSConsoleReader;
 import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.shell.ENOSTerminal;
 import net.es.enos.shell.annotations.ShellCommand;
 
 import java.io.*;
@@ -63,7 +64,7 @@ public class UserShellCommands {
 
         ENOSConsoleReader consoleReader = null;
         try {
-            consoleReader = new ENOSConsoleReader(in, out, new UnixTerminal());
+            consoleReader = new ENOSConsoleReader(in, out, new ENOSTerminal());
         } catch (Exception e) {
             e.printStackTrace();
             return;
@@ -134,7 +135,7 @@ public class UserShellCommands {
 
         ENOSConsoleReader consoleReader = null;
         try {
-            consoleReader = new ENOSConsoleReader(in, out, new UnixTerminal());
+            consoleReader = new ENOSConsoleReader(in, out, new ENOSTerminal());
         } catch (Exception e) {
             e.printStackTrace();
             return;
