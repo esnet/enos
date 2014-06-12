@@ -113,6 +113,7 @@ public class ESnet extends NetworkProvider {
         path.setStart(start);
         path.setEnd(end);
         path.setGraphPath(graphPath);
+        path.setMaxReservable(maxBandwidth);
         return path;
     }
 

@@ -19,6 +19,7 @@ public class Path  {
     private DateTime start;
     private DateTime end;
     private GraphPath graphPath;
+    private long maxReservable;
 
     public DateTime getStart() {
         return start;
@@ -42,6 +43,14 @@ public class Path  {
 
     public void setGraphPath(GraphPath graphPath) {
         this.graphPath = graphPath;
+    }
+
+    public long getMaxReservable() {
+        return maxReservable;
+    }
+
+    public void setMaxReservable(long maxReservable) {
+        this.maxReservable = maxReservable;
     }
 }
 
