@@ -11,12 +11,14 @@ package net.es.enos.esnet;
 
 import net.es.enos.api.*;
 import org.jgrapht.Graph;
+import org.jgrapht.GraphPath;
+import org.jgrapht.alg.DijkstraShortestPath;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
+
 
 /**
  * This class implements ESnet layer 2 network. It is a singleton.
@@ -70,7 +72,7 @@ public class ESnet extends NetworkProvider {
     /**
      * Default constructor
      */
-    private ESnet() {
+    public ESnet() {
         TopologyProvider topo = TopologyFactory.instance().retrieveTopologyProvider("localLayer2");
         if ( ! (topo instanceof ESnetTopology)) {
             // ENOS configuration must be wrong since the layer 2 topology is not ESnet topology.
@@ -80,8 +82,38 @@ public class ESnet extends NetworkProvider {
     }
 
     @Override
-    public Graph computePath(Node srcNode, Node dstNode) {
-        return super.computePath(srcNode, dstNode);
+    public Path computePath(String srcNodeName, String dstNodeName, DateTime start, DateTime end) {
+        // First retrieve the layer 2 topology graph
+        Graph topoGraph = this.topology.retrieveTopology();
+        // Use JGrapht shortest path algorithm to compute the path
+        Node srcNode = this.topology.getNode(srcNodeName);
+        Node dstNode = this.topology.getNode(dstNodeName);
+
+        if ((srcNode == null) || (dstNode == null)) {
+            // Source or destination node does not exist. Cannot compute a path
+            return null;
+        }
+        DijkstraShortestPath shortestPath = new DijkstraShortestPath (topoGraph, srcNode, dstNode);
+        GraphPath<Node,Link> graphPath = shortestPath.getPath();
+
+        // List<Link> links =  DijkstraShortestPath.findPathBetween(topoGraph, srcNode, dstNode);
+        // Compute the maximum reservable bandwidth on this path
+        long maxBandwidth = -1; // -1 means the value was not computed.
+        OSCARSReservations oscarsReservations;
+        Path path = new Path();
+        //
+        try {
+            oscarsReservations = new OSCARSReservations(this.topology);
+            maxBandwidth = oscarsReservations.getMaxReservableBandwidth(graphPath,start,end);
+        } catch (IOException e) {
+            // Return null in case of I/O exception. This should not happen.
+            logger.error("Cannot retrieve OSCARS reservation " + e.getMessage());
+        }
+        // Build the Path object
+        path.setStart(start);
+        path.setEnd(end);
+        path.setGraphPath(graphPath);
+        return path;
     }
 
     public void registerToFactory() throws IOException {

@@ -9,44 +9,39 @@
 
 package net.es.enos.api;
 
-import net.es.enos.boot.BootStrap;
-import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
 import org.joda.time.DateTime;
 
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.UUID;
 /**
- * Created by lomax on 5/21/14.
+ * Created by lomax on 6/12/14.
  */
-public abstract class NetworkProvider extends Resource {
+public class Path  {
+    private DateTime start;
+    private DateTime end;
+    private GraphPath graphPath;
 
-    public static final String CanProvision = "canProvision";
-    public static final String CanMonitor = "canMonitor";
-    public static final String CanMeasure = "canMeasure";
-    public static final String CanSample = "canSample";
-    public static final String CanSlice = "canSlice";
-    public static final String CanVirtualize = "canVirtualize";
-
-
-    public static final String NETWORKS_DIR = "networks";
-
-    public Path computePath (String srcNode, String dstNode, DateTime start, DateTime end) {
-        return null;
+    public DateTime getStart() {
+        return start;
     }
 
-    /**
-     * Convenience method computing the path start now and ending one minute later.
-     * @param srcNodeName
-     * @param dstNodeName
-     * @return
-     */
-    public Path computePath (String srcNodeName, String dstNodeName) {
-        DateTime start = DateTime.now();
-        DateTime end = start.plusMinutes(1);
-        return this.computePath(srcNodeName,dstNodeName,start,end);
+    public void setStart(DateTime start) {
+        this.start = start;
     }
 
+    public DateTime getEnd() {
+        return end;
+    }
+
+    public void setEnd(DateTime end) {
+        this.end = end;
+    }
+
+    public GraphPath getGraphPath() {
+        return graphPath;
+    }
+
+    public void setGraphPath(GraphPath graphPath) {
+        this.graphPath = graphPath;
+    }
 }
+

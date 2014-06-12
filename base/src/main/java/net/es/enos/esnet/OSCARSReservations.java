@@ -5,6 +5,7 @@ import net.es.enos.api.Link;
 import net.es.enos.api.Node;
 import net.es.enos.api.Port;
 import org.jgrapht.Graph;
+import org.jgrapht.GraphPath;
 import org.jgrapht.graph.ListenableDirectedGraph;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -48,7 +49,7 @@ public class OSCARSReservations {
         this.topoGraph = topology.retrieveTopology ();
     }
 
-    public long getMaxReservableBandwidth (Graph path, DateTime start,DateTime end) throws IOException {
+    public long getMaxReservableBandwidth (GraphPath<Node,Link> path, DateTime start,DateTime end) throws IOException {
 
 
 

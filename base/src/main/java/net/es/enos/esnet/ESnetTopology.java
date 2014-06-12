@@ -46,6 +46,9 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+import org.jgrapht.Graph;
+import org.jgrapht.GraphPath;
+import org.jgrapht.graph.GraphPathImpl;
 import org.jgrapht.graph.ListenableDirectedGraph;
 import org.jgrapht.graph.ListenableDirectedWeightedGraph;
 import org.python.modules.synchronize;
@@ -384,6 +387,44 @@ public class ESnetTopology implements TopologyProvider {
     public List<Link> getLinksToSite (String destination) {
         return this.siteLinks.get(destination);
     }
+    /***
+    public GraphPath<Node,Link> linksToGraph(List<ESnetLink> links) {
+        ListenableDirectedGraph<ESnetNode,ESnetLink> graph =
+                new ListenableDirectedGraph<ESnetNode, ESnetLink>(ESnetLink.class);
+        Node srcNode = null;
+        Node dstNode = null;
+        Node currentNode = null;
+        Node previousNode = null;
+
+        for (ESnetLink link : links) {
+            // Get source Node
+            List<Node> srcNodes = this.nodesByLink.get(link);
+            if ((srcNodes == null) || (srcNodes.size() == 0)) {
+                // This should not happen
+                logger.error("No source nodes for link " + link.getId());
+                return null;
+            }
+            previousNode = currentNode;
+            currentNode = (Node) srcNodes.toArray()[0];
+            // Add the node to the graph
+            graph.addVertex((ESnetNode) currentNode);
+            // Check if this is the first node of the path
+            if (srcNode == null) {
+                // First Node
+                srcNode = currentNode;
+            } else {
+                graph.addEdge((ESnetNode) previousNode, (ESnetNode) currentNode, link);
+                // Add reverse link
+                graph.addEdge((ESnetNode) currentNode, (ESnetNode) previousNode, link);
+            }
+        }
+        // Last currentNot is the destination Node
+        dstNode = currentNode;
+        // Build a GrapPath
+        // GraphPathImpl<Node,Link> grapPath = new GraphPathImpl<Node, Link>(graph,srcNode,dstNode );
+        return grapPath;
+    }
+    ****/
 
     static private String idToUrn (String id, int pos) {
         int endPos=0;
