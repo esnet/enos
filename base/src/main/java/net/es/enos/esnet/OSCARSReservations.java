@@ -10,6 +10,7 @@ import org.jgrapht.graph.ListenableDirectedGraph;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.HashMap;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -51,12 +52,29 @@ public class OSCARSReservations {
 
     public long getMaxReservableBandwidth (GraphPath<Node,Link> path, DateTime start,DateTime end) throws IOException {
 
+	    HashMap<Link, List<Port>> portsByLink = topology.getPortsByLink();
 
+	    // First compute the overall reserved bandwidth on the overall topology
+	    HashMap<ESnetPort, PortReservation> reserved = this.getReserved(start, end);
 
-        // First compute the overall reserved bandwidth on the overall topology
-        HashMap<ESnetPort,PortReservation> reserved = this.getReserved(start, end);
+	    long maxReservable = -1;
+	    long remainTo;
 
-        return 0;
+	    // Then compute max reservable for each link.
+	    for (Link link : path.getEdgeList()) {
+		    List<Port> ports = portsByLink.get(link);
+		    Port port = ports.get(0); // Assume one port per link
+		    reserved.get(port);
+		    PortReservation portReservation = reserved.get(port);
+		    if (portReservation == null) {
+			    continue;
+		    }
+		    remainTo = portReservation.maxReservable - portReservation.alreadyReserved[0];
+		    if (maxReservable == -1 || maxReservable > remainTo) {
+			    maxReservable = remainTo;
+		    }
+	    }
+	    return maxReservable;
     }
 
 

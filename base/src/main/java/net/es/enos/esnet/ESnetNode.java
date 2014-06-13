@@ -26,7 +26,7 @@ public class ESnetNode extends Node implements Comparable<ESnetNode> {
     private String address;
     private List<ESnetPort> ports;
 	public double width;
-	public ESnetNode prev;
+	public ESnetNode prev; // Store previous node when calculating max bandwidth
     private String type;
 
     public String getId() {

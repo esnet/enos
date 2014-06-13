@@ -54,6 +54,8 @@ import org.jgrapht.graph.ListenableDirectedWeightedGraph;
 import org.python.modules.synchronize;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.joda.time.DateTime;
+import net.es.enos.esnet.OSCARSReservations;
 
 import javax.net.ssl.*;
 import java.io.*;
@@ -314,7 +316,8 @@ public class ESnetTopology implements TopologyProvider {
                         // Add the link to the list
                         list.add(port);
                     };
-                    this.analyzeLink(topo, node, link, link.getTrafficEngineeringMetric());
+	                long metric = link.getTrafficEngineeringMetric();
+                    this.analyzeLink(topo, node, link, metric);
                 }
 
             }
@@ -322,7 +325,8 @@ public class ESnetTopology implements TopologyProvider {
         return topo;
     }
 
-	public ListenableDirectedGraph retrieveBandwidthTopology () {
+	// retrieveBandwidthTopology will use the available capacity in the link instead of traffic engineering metrics.
+	public ListenableDirectedGraph retrieveBandwidthTopology (ESnetTopology topol, ListenableDirectedGraph graph) {
 		if (this.jsonTopology == null) this.init();
 		nodes.clear();
 		ListenableDirectedWeightedGraph<ESnetNode,ESnetLink> topo =
@@ -338,9 +342,10 @@ public class ESnetTopology implements TopologyProvider {
 		for (ESnetNode node : nodes) {
 			List<ESnetPort> ports = node.getPorts();
 			for (ESnetPort port : ports) {
-				double bandwidth = Double.parseDouble(port.getMaximumReservableCapacity());
+
 				List<ESnetLink> links = port.getLinks();
 				for (ESnetLink link : links) {
+					long bandwidth = 0;
 					// Add this link to the nodesByLink map
 					synchronized (this.nodesByLink) {
 						List<Node> list = this.nodesByLink.get(link);
@@ -363,6 +368,26 @@ public class ESnetTopology implements TopologyProvider {
 						// Add the link to the list
 						list.add(port);
 					};
+					try {
+						// Find available bandwidth
+						DateTime start = DateTime.now();
+						DateTime end = start.plusHours(2);
+						OSCARSReservations reservations  = new OSCARSReservations(topol);
+						Node source = node;
+
+						String remoteNodeId = idToUrn(link.getRemoteLinkId(),4);
+						Node target = this.nodes.get(remoteNodeId);
+
+						if (source == null || target == null) {
+							continue;
+						}
+
+						ArrayList<Link> allEdges = new ArrayList<Link> (graph.getAllEdges(source, target));
+						GraphPathImpl<Node, Link> graphPath = new GraphPathImpl<Node, Link> (graph, source, target, allEdges, 0);
+						bandwidth = reservations.getMaxReservableBandwidth(graphPath, start, end);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
 					this.analyzeLink(topo, node, link, bandwidth);
 				}
 
@@ -375,7 +400,7 @@ public class ESnetTopology implements TopologyProvider {
                              ESnetLink> topo,
                              ESnetNode srcNode,
                              ESnetLink link,
-                             double metric) {
+                             long metric) {
 
         String[] localId = link.getId().split(":");
         String localDomain = localId[3];
