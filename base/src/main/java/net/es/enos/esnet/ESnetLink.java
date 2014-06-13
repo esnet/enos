@@ -32,6 +32,9 @@ public class ESnetLink extends Link {
     private boolean vlanTranslation;
     private String  nameType;
     private String  name;
+	private String capacity;
+	private String maximumReservableCapacity;
+	private String minimumReservableCapacity;
     protected double  weight; // Weight can only be accessed by the graph.
 
     public String getName() {
@@ -121,4 +124,28 @@ public class ESnetLink extends Link {
     public void setVlanTranslation(boolean vlanTranslation) {
         this.vlanTranslation = vlanTranslation;
     }
+
+	public String getCapacity() {
+		return capacity;
+	}
+
+	public void setCapacity(String capacity) {
+		this.capacity = capacity;
+	}
+
+	public String getMaximumReservableCapacity() {
+		return maximumReservableCapacity;
+	}
+
+	public void setMaximumReservableCapacity(String maximumReservableCapacity) {
+		this.maximumReservableCapacity = maximumReservableCapacity;
+	}
+
+	public String getMinimumReservableCapacity() {
+		return minimumReservableCapacity;
+	}
+
+	public void setMinimumReservableCapacity(String minimumReservableCapacity) {
+		this.minimumReservableCapacity = minimumReservableCapacity;
+	}
 }

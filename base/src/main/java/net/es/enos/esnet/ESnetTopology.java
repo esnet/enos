@@ -314,17 +314,68 @@ public class ESnetTopology implements TopologyProvider {
                         // Add the link to the list
                         list.add(port);
                     };
-                    this.analyzeLink(topo, node, link);
+                    this.analyzeLink(topo, node, link, link.getTrafficEngineeringMetric());
                 }
 
             }
         }
         return topo;
-    } 
-    private void analyzeLink(ListenableDirectedWeightedGraph<ESnetNode,
+    }
+
+	public ListenableDirectedGraph retrieveBandwidthTopology () {
+		if (this.jsonTopology == null) this.init();
+		nodes.clear();
+		ListenableDirectedWeightedGraph<ESnetNode,ESnetLink> topo =
+				new ESnetTopologyWeightedGraph(ESnetLink.class);
+
+		List<ESnetDomain> domains = this.jsonTopology.getDomains();
+		ESnetDomain esnet = domains.get(0);
+		List<ESnetNode> nodes = esnet.getNodes();
+		for (ESnetNode node : nodes) {
+			this.nodes.put(node.getId(),node);
+			topo.addVertex(node);
+		}
+		for (ESnetNode node : nodes) {
+			List<ESnetPort> ports = node.getPorts();
+			for (ESnetPort port : ports) {
+				double bandwidth = Double.parseDouble(port.getMaximumReservableCapacity());
+				List<ESnetLink> links = port.getLinks();
+				for (ESnetLink link : links) {
+					// Add this link to the nodesByLink map
+					synchronized (this.nodesByLink) {
+						List<Node> list = this.nodesByLink.get(link);
+						if (list == null) {
+							// This is a new name in tha map. Need to create an new entry in the map
+							list = new ArrayList<Node>();
+							this.nodesByLink.put(link, list);
+						}
+						// Add the link to the list
+						list.add(node);
+					};
+					// Add this link to the portsByLink map
+					synchronized (this.portsByLink) {
+						List<Port> list = this.portsByLink.get(link);
+						if (list == null) {
+							// This is a new name in the map. Need to create an new entry in the map
+							list = new ArrayList<Port>();
+							this.portsByLink.put(link, list);
+						}
+						// Add the link to the list
+						list.add(port);
+					};
+					this.analyzeLink(topo, node, link, bandwidth);
+				}
+
+			}
+		}
+		return topo;
+	}
+
+	private void analyzeLink(ListenableDirectedWeightedGraph<ESnetNode,
                              ESnetLink> topo,
                              ESnetNode srcNode,
-                             ESnetLink link) {
+                             ESnetLink link,
+                             double metric) {
 
         String[] localId = link.getId().split(":");
         String localDomain = localId[3];
@@ -353,7 +404,7 @@ public class ESnetTopology implements TopologyProvider {
                 topo.addEdge(dstNode,srcNode,link);
                 if (this.isWeighted) {
                     // Add traffic engineering as weight
-                    topo.setEdgeWeight(link,link.getTrafficEngineeringMetric());
+                    topo.setEdgeWeight(link,metric);
                 }
             } else {
                 // Site - This is not link, so, do not create an edge

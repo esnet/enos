@@ -17,7 +17,7 @@ import net.es.enos.api.Node;
 
 import java.util.List;
 
-public class ESnetNode extends Node {
+public class ESnetNode extends Node implements Comparable<ESnetNode> {
 
     private String id;
     private String hostName;
@@ -25,6 +25,8 @@ public class ESnetNode extends Node {
     private String longitude;
     private String address;
     private List<ESnetPort> ports;
+	public double width;
+	public ESnetNode prev;
     private String type;
 
     public String getId() {
@@ -74,4 +76,9 @@ public class ESnetNode extends Node {
     public void setPorts(List<ESnetPort> ports) {
         this.ports = ports;
     }
+
+	public int compareTo(ESnetNode other)
+	{
+		return Double.compare(width, other.width);
+	}
 }
