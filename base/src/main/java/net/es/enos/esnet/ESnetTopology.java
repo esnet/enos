@@ -85,6 +85,10 @@ public class ESnetTopology  extends TopologyProvider {
     private HashMap<String, List<Link>> peeringLinks = new HashMap<String, List<Link>>();
     private HashMap<String, Link> links = new HashMap<String, Link>();
 
+    public ESnetTopology() {
+        this.init();
+    }
+
     public class TopologyTrustManager implements X509TrustManager {
 
         @Override
