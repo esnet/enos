@@ -42,6 +42,7 @@ public class GlobalConfiguration {
     private String rootDirectory = DefaultValues.ENOS_DEFAULT_ROOTDIR;
     private int sshDisabled = 0;
     private int sshPort = 8000;
+    private int sshIdleTimeout = 3600000;
     private int securityManagerDisabled = 0;
 
     public String getDefaultLogLevel() {
@@ -74,6 +75,14 @@ public class GlobalConfiguration {
 
     public void setSshPort(int sshPort) {
         this.sshPort = sshPort;
+    }
+
+    public int getSshIdleTimeout() {
+        return sshIdleTimeout;
+    }
+
+    public void setSshIdleTimeout(int sshIdleTimeout) {
+        this.sshIdleTimeout = sshIdleTimeout;
     }
 
     public int getSecurityManagerDisabled() {

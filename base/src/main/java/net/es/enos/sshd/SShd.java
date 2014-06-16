@@ -249,6 +249,9 @@ public class SShd {
         int sshPort = BootStrap.getMasterConfiguration().getGlobal().getSshPort();
         this.sshServer.setPort(sshPort);
 
+        int sshIdleTimeout = BootStrap.getMasterConfiguration().getGlobal().getSshIdleTimeout();
+        this.sshServer.getProperties().put(sshServer.IDLE_TIMEOUT, Integer.toString(sshIdleTimeout));
+
         PasswordAuthenticator passwordAuth = new PasswordAuthenticator() {
             @Override
             public boolean authenticate(String username, String password, ServerSession ss) {
