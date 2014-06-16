@@ -18,4 +18,21 @@ public class Port extends Resource {
     public static final String CanOpenFlow3 = "canOpenFlow2";  // OpenFlow 1.3 support
     public static final String PORTS_DIR = "ports";
 
+    private Node node;
+
+    /**
+     * Returns the Node from where the port belongs to
+     * @return
+     */
+    public Node getNode() {
+        return node;
+    }
+
+    /**
+     * Set the Node where the port belongs to
+     * @param node
+     */
+    public void setNode(Node node) {
+        this.node = node;
+    }
 }

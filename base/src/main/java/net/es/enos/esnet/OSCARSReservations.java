@@ -25,7 +25,7 @@ public class OSCARSReservations {
     private final Logger logger = LoggerFactory.getLogger(OSCARSReservations.class);
     private ESnetTopology topology;
     private List<ESnetCircuit> circuits;
-    private ListenableDirectedGraph topoGraph;
+    private HashMap<Link,Long> linksMaxReservable = new HashMap<Link, Long>();
 
     public class PortReservation {
         public long maxReservable;
@@ -45,16 +45,14 @@ public class OSCARSReservations {
 
     public OSCARSReservations(ESnetTopology topology) throws IOException {
         this.topology = topology;
-        this.topology = topology;
         this.circuits = this.retrieveScheduledCircuits();
-        this.topoGraph = topology.retrieveTopology ();
     }
 
     public long getMaxReservableBandwidth (GraphPath<Node,Link> path, DateTime start,DateTime end) throws IOException {
 
 	    HashMap<Link, List<Port>> portsByLink = topology.getPortsByLink();
 
-	    // First compute the overall reserved bandwidth on the overall topology
+	    // First compute the aggregate reserved bandwidth on the overall topology
 	    HashMap<ESnetPort, PortReservation> reserved = this.getReserved(start, end);
 
 	    long maxReservable = -1;
@@ -76,12 +74,6 @@ public class OSCARSReservations {
 	    }
 	    return maxReservable;
     }
-
-
-    public ListenableDirectedGraph getTopoGraph() {
-        return topoGraph;
-    }
-
 
     /**
      * Reads all the reservations that are active within the specified time range and

@@ -47,6 +47,7 @@ public class ESnet extends NetworkProvider {
      * @param filename  of the file containing the topology in wire format
      * @throws IOException
      */
+    /**
     public static ESnet instance(String filename) throws IOException {
         synchronized (ESnet.instanceMutex) {
             if (ESnet.instance == null) {
@@ -56,6 +57,7 @@ public class ESnet extends NetworkProvider {
         }
         return ESnet.instance;
     }
+     ***/
 
 
     /**
@@ -65,9 +67,11 @@ public class ESnet extends NetworkProvider {
      * @param filename  of the file containing the topology in wire format
      * @throws IOException
      */
+    /***
     private ESnet(String filename) throws IOException {
         this.topology = new ESnetTopology(filename);
     }
+    ***/
 
     /**
      * Default constructor
@@ -82,9 +86,9 @@ public class ESnet extends NetworkProvider {
     }
 
     @Override
-    public Path computePath(String srcNodeName, String dstNodeName, DateTime start, DateTime end) {
+    public Path computePath(String srcNodeName, String dstNodeName, DateTime start, DateTime end) throws IOException {
         // First retrieve the layer 2 topology graph
-        Graph topoGraph = this.topology.retrieveTopology();
+        Graph topoGraph = this.topology.getGraph(start, end, TopologyProvider.WeightType.TrafficEngineering);
         // Use JGrapht shortest path algorithm to compute the path
         Node srcNode = this.topology.getNode(srcNodeName);
         Node dstNode = this.topology.getNode(dstNodeName);
@@ -96,7 +100,6 @@ public class ESnet extends NetworkProvider {
         DijkstraShortestPath shortestPath = new DijkstraShortestPath (topoGraph, srcNode, dstNode);
         GraphPath<Node,Link> graphPath = shortestPath.getPath();
 
-        // List<Link> links =  DijkstraShortestPath.findPathBetween(topoGraph, srcNode, dstNode);
         // Compute the maximum reservable bandwidth on this path
         long maxBandwidth = -1; // -1 means the value was not computed.
         OSCARSReservations oscarsReservations;

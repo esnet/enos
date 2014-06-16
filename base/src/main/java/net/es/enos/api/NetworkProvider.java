@@ -33,7 +33,7 @@ public abstract class NetworkProvider extends Resource {
 
     public static final String NETWORKS_DIR = "networks";
 
-    public Path computePath (String srcNode, String dstNode, DateTime start, DateTime end) {
+    public Path computePath (String srcNode, String dstNode, DateTime start, DateTime end) throws IOException {
         return null;
     }
 
@@ -43,7 +43,7 @@ public abstract class NetworkProvider extends Resource {
      * @param dstNodeName
      * @return
      */
-    public Path computePath (String srcNodeName, String dstNodeName) {
+    public Path computePath (String srcNodeName, String dstNodeName) throws IOException {
         DateTime start = DateTime.now();
         DateTime end = start.plusMinutes(1);
         return this.computePath(srcNodeName,dstNodeName,start,end);

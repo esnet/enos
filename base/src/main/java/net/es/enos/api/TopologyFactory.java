@@ -41,6 +41,7 @@ public class TopologyFactory extends Resource {
             }
         }
     }
+
     private void startProvider(TopologyProviderDescriptor provider) {
         try {
             TopologyProvider topologyProvider =
@@ -61,8 +62,9 @@ public class TopologyFactory extends Resource {
         return this.topologyProviders.get(type);
     }
 
-    public ListenableDirectedGraph retrieveTopology (String type) {
-        return this.topologyProviders.get(type).retrieveTopology();
+    public ListenableDirectedGraph retrieveTopology (String type) throws IOException {
+        // Assume graph of the current topology (i.e. as in "right now" and Traffic Engineering metrics
+        return this.topologyProviders.get(type).getGraph(TopologyProvider.WeightType.TrafficEngineering);
     }
 
     public static TopologyFactory instance() {

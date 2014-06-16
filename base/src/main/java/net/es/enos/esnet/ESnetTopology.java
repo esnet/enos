@@ -48,6 +48,7 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
+import org.jgrapht.WeightedGraph;
 import org.jgrapht.graph.GraphPathImpl;
 import org.jgrapht.graph.ListenableDirectedGraph;
 import org.jgrapht.graph.ListenableDirectedWeightedGraph;
@@ -68,7 +69,8 @@ import java.util.List;
 /**
  * Created by lomax on 5/16/14.
  */
-public class ESnetTopology implements TopologyProvider {
+public class ESnetTopology  extends TopologyProvider {
+
     public static final String ESNET_DEFAULT_URL = "https://oscars.es.net/topology-publisher";
     private final Logger logger = LoggerFactory.getLogger(ESnetTopology.class);
     private String wireFormatTopology;
@@ -82,7 +84,6 @@ public class ESnetTopology implements TopologyProvider {
     private HashMap<String, List<Link>> siteLinks = new HashMap<String, List<Link>>();
     private HashMap<String, List<Link>> peeringLinks = new HashMap<String, List<Link>>();
     private HashMap<String, Link> links = new HashMap<String, Link>();
-    private boolean isWeighted = true;
 
     public class TopologyTrustManager implements X509TrustManager {
 
@@ -102,23 +103,14 @@ public class ESnetTopology implements TopologyProvider {
         }
     }
 
-    public ESnetTopology() {
-        this.init();
-    }
-
-    public ESnetTopology(boolean isWeighted) {
-        this.isWeighted = isWeighted;
-        this.init();
-    }
-
     /**
-     * This constructor reads the provided file to load the topology in the wire format, instead of
+     * This method reads the provided file to load the topology in the wire format, instead of
      * downloading it from the topology service. This is useful when network is not available and only
      * a cached version of the topology can be used.
      * @param filename  of the file containing the topology in wire format
      * @throws IOException
      */
-    public ESnetTopology(String filename) throws IOException {
+    private  String loadFromFile (String filename) throws IOException {
         InputStream in = new FileInputStream(filename);
         StringBuffer stringbuffer = new StringBuffer();
         byte[] buffer = new byte[4096];
@@ -131,11 +123,10 @@ public class ESnetTopology implements TopologyProvider {
             new String(buffer,0, r);
             stringbuffer.append(new String(buffer,0, r));
         }
-        this.wireFormatTopology = stringbuffer.toString();
-        this.jsonTopology = this.wireFormatToJSON(this.wireFormatTopology);
+        return stringbuffer.toString();
     }
 
-    public String loadTopology() {
+    private String loadFromUrl () {
 
         try {
             ClientConfig clientConfig = new DefaultClientConfig();
@@ -170,7 +161,6 @@ public class ESnetTopology implements TopologyProvider {
             }
 
             String output = response.getEntity(String.class);
-            logger.info("Retrieved ESnet topology");
             output = this.normalize(output);
             return output;
 
@@ -226,9 +216,105 @@ public class ESnetTopology implements TopologyProvider {
         return links;
     }
 
+    public Node getOppositeNode (Link l, Node n) {
+        if ( ! (l instanceof ESnetLink)) {
+            throw new RuntimeException("Link is not an ESnetLink");
+        }
+        if ( ! (n instanceof ESnetNode)) {
+            throw new RuntimeException("Node is not an ESnetNode");
+        }
+        ESnetLink link = (ESnetLink) l;
+        ESnetNode node = (ESnetNode) n;
+
+        // Retrieve the ID of both ends of the link and return the opposite
+        if ((link.getId().equals(node.getId()))) {
+            return this.nodes.get(link.getRemoteLinkId());
+        } else {
+            return this.nodes.get(link.getId());
+        }
+    }
+
     private void init() {
-        this.wireFormatTopology = this.loadTopology();
+        // Retrieve topology from the REST ESnet service
+        this.wireFormatTopology = this.loadFromUrl();
+        // Parse it.
         this.jsonTopology = this.wireFormatToJSON(this.wireFormatTopology);
+        // Retrieve from JSON Domain, Node and Link objects and index them into HashMap's
+        List<ESnetDomain> domains = this.jsonTopology.getDomains();
+        // ESnet 5 is a single domain topology. Assume only one domain
+        ESnetDomain esnet = domains.get(0);
+        List<ESnetNode> nodes = esnet.getNodes();
+        // First index all Nodes.
+        for (ESnetNode node : nodes) {
+            this.nodes.put(node.getId(),node);
+        }
+        // Second, index all Links. Note that all the nodes must be indexed beforehand, so, it is not possible
+        // to collapse the seemingly identical for loops.
+        for (ESnetNode node : this.nodes.values()) {
+            List<ESnetPort> ports = node.getPorts();
+            for (ESnetPort port : ports) {
+                // Set the node of the port
+                port.setNode(node);
+                List<ESnetLink> links = port.getLinks();
+                for (ESnetLink link : links) {
+                    // Add this link to the nodesByLink map
+                    List<Node> list = this.nodesByLink.get(link);
+                    if (list == null) {
+                        // This is a new name in tha map. Need to create an new entry in the map
+                        list = new ArrayList<Node>();
+                        this.nodesByLink.put(link, list);
+                    }
+                    // Add the link to the list
+                    list.add(node);
+                    // Add this link to the portsByLink map
+                    List<Port> portList = this.portsByLink.get(link);
+                    if (portList == null) {
+                        // This is a new name in the map. Need to create an new entry
+                        portList = new ArrayList<Port>();
+                        this.portsByLink.put(link, portList);
+                    }
+                    // Add the link to the list
+                    portList.add(port);
+
+                    String[] localId = link.getId().split(":");
+                    String localDomain = localId[3];
+                    String localNode = localId[4];
+                    String[] remoteId = link.getRemoteLinkId().split(":");
+                    String remoteDomain = remoteId[3];
+                    String remoteNode = remoteId[4];
+                    String remoteNodeId = idToUrn(link.getRemoteLinkId(),4);
+
+                    // Add the link to the links HashMap, index it with the port urn.
+                    this.links.put(idToUrn(link.getId(),5),link);
+
+                    if (localDomain.equals(remoteDomain)) {
+                        // Within the same domain
+                        if ( !localNode.equals(remoteNode)) {
+                            // Nodes are different, within the same domain: this is an internal link
+                            ESnetNode dstNode = this.nodes.get(remoteNodeId);
+                            if (dstNode == null) {
+                                throw new RuntimeException("No Node");
+                            }
+                            this.addLinkToList(this.internalLinks,remoteNode,link);
+                            // ESnet only supports currently bidirectional links. Create the reverse link
+                            this.addLinkToList(this.internalLinks,localNode,link);
+                        } else {
+                            // Site - This is not link, so, do not create an edge
+                            // Try to decode the site name. If the port section of the id starts with to- then
+                            // the destination is encoded.
+                            if (remoteId[5].startsWith("to_")) {
+                                String dest = remoteId[5].substring(3);
+                                this.addLinkToList(this.siteLinks,dest,link);
+                            }
+                        }
+                    } else {
+                        // Peering - This is an intra-domain topology. Other domains are not represented so this link is not
+                        // added.
+                        this.addLinkToList(this.peeringLinks,remoteId[3],link);
+                    }
+                }
+            }
+        }
     }
 
     public ESnetJSONTopology retrieveJSONTopology() {
@@ -275,177 +361,99 @@ public class ESnetTopology implements TopologyProvider {
         wireformat = wireformat.replaceAll("(?:port=)","");
         return wireformat;
     }
+    /**
+     * This method returns a Listenable, Directed and Weighted graph of ESnet topology. While ESnet 5 links are
+     * to be assumed to be bidirectional, the generic API does not. Therefore, each links are in fact two identical
+     * links, but in reverse directions. The weight is directly taken off the traffic engineering metrics as
+     * stated in the topology wire format.
+     *
+     * @return
+     */
+    @Override
+    public ListenableDirectedWeightedGraph<ESnetNode, ESnetLink> getGraph (DateTime start,
+                                                                           DateTime end,
+                                                                           WeightType weightType) throws IOException {
 
-    public ListenableDirectedGraph retrieveTopology () {
-        if (this.jsonTopology == null) this.init();
-        nodes.clear();
-        ListenableDirectedWeightedGraph<ESnetNode,ESnetLink> topo =
+        HashMap<ESnetPort, OSCARSReservations.PortReservation> reservations = null;
+        if (weightType == WeightType.MaxBandwidth) {
+            // Retrieve the reservations only once and cache it
+            reservations = (new OSCARSReservations(this)).getReserved(start, end);
+        }
+
+        ListenableDirectedWeightedGraph<ESnetNode,ESnetLink> graph =
                 new ESnetTopologyWeightedGraph(ESnetLink.class);
 
-        List<ESnetDomain> domains = this.jsonTopology.getDomains();
-        ESnetDomain esnet = domains.get(0);
-        List<ESnetNode> nodes = esnet.getNodes();
-        for (ESnetNode node : nodes) {
-            this.nodes.put(node.getId(),node);
-            topo.addVertex(node);
+        // First, add all Vertices
+        for (ESnetNode node : this.nodes.values()) {
+            graph.addVertex(node);
         }
-        for (ESnetNode node : nodes) {
-            List<ESnetPort> ports = node.getPorts();
-            for (ESnetPort port : ports) {
-                List<ESnetLink> links = port.getLinks();
-                for (ESnetLink link : links) {
-                    // Add this link to the nodesByLink map
-                    synchronized (this.nodesByLink) {
-                        List<Node> list = this.nodesByLink.get(link);
-                        if (list == null) {
-                            // This is a new name in tha map. Need to create an new entry in the map
-                            list = new ArrayList<Node>();
-                            this.nodesByLink.put(link, list);
+        // Second, add all internal Edges.
+        for (List<Link> links : this.internalLinks.values()) {
+            for (Link l : links) {
+                if ( ! (l instanceof ESnetLink) ) {
+                    // This should not happen
+                    throw new RuntimeException ("Link is not an ESnetLink");
+                }
+                ESnetLink link = (ESnetLink) l;
+                List<Node> nodeList = this.nodesByLink.get(link);
+                if (nodeList == null) {
+                    // This should not happen
+                    throw new RuntimeException("Link without Nodes " + link.getId());
+                }
+                for (Node n : nodeList) {
+                    if ( ! (n instanceof ESnetNode)) {
+                        // This should not happen
+                        throw new RuntimeException("Node is not an ESnetNode");
+                    }
+                    ESnetNode srcNode = (ESnetNode) n;
+                    Node r = this.getOppositeNode(link, srcNode);
+                    if ( ! (r instanceof  ESnetNode)) {
+                        throw new RuntimeException("Node is not an ESnetNode");
+                    }
+                    ESnetNode dstNode = (ESnetNode) r;
+                    // Create the Edge
+                    graph.addEdge(srcNode,dstNode,link);
+                    // Add the weight
+                    long metric = 0;
+                    if (weightType == WeightType.TrafficEngineering) {
+                        metric = link.getTrafficEngineeringMetric();
+                        graph.setEdgeWeight(link, metric);
+                    } else if (weightType == (WeightType.MaxBandwidth)) {
+                        // Retrieve the source port of the link
+                        List<Port> portsList = this.portsByLink.get(link);
+                        if (portsList == null) {
+                            throw new RuntimeException("no ports connected to a link");
                         }
-                        // Add the link to the list
-                        list.add(node);
-                    };
-                    // Add this link to the portsByLink map
-                    synchronized (this.portsByLink) {
-                        List<Port> list = this.portsByLink.get(link);
-                        if (list == null) {
-                            // This is a new name in tha map. Need to create an new entry in the map
-                            list = new ArrayList<Port>();
-                            this.portsByLink.put(link, list);
+                        for (Port p : portsList) {
+                            if ( ! (p instanceof ESnetPort)) {
+                                throw new RuntimeException("Port is not an ESnetPort");
+                            }
+                            ESnetPort port = (ESnetPort) p;
+                            if (srcNode.getId().equals(port.getId())) {
+                                // This is the port of the source Node connected to that Link
+                                OSCARSReservations.PortReservation res = reservations.get(port);
+                                if (res != null) {
+                                    // First element of alreadyReserved is the path forward. Compute the available
+                                    // reservable bandwidth, make it a negative value and set it as the weight of
+                                    // the graph.
+                                    long available = res.maxReservable - res.alreadyReserved[0];
+                                    metric = available * -1L;
+                                } else {
+                                    // The link is not reservable. Set the weight to MAX_VALUE;
+                                    metric = Long.MAX_VALUE;
+                                }
+                            }
+                            graph.setEdgeWeight(link, metric);
+                            break;
                         }
-                        // Add the link to the list
-                        list.add(port);
-                    };
-	                long metric = link.getTrafficEngineeringMetric();
-                    this.analyzeLink(topo, node, link, metric);
-                }
-
-            }
-        }
-        return topo;
-    }
-
-	// retrieveBandwidthTopology will use the available capacity in the link instead of traffic engineering metrics.
-	public ListenableDirectedGraph retrieveBandwidthTopology (ESnetTopology topol, ListenableDirectedGraph graph) {
-		if (this.jsonTopology == null) this.init();
-		nodes.clear();
-		ListenableDirectedWeightedGraph<ESnetNode,ESnetLink> topo =
-				new ESnetTopologyWeightedGraph(ESnetLink.class);
-
-		List<ESnetDomain> domains = this.jsonTopology.getDomains();
-		ESnetDomain esnet = domains.get(0);
-		List<ESnetNode> nodes = esnet.getNodes();
-		for (ESnetNode node : nodes) {
-			this.nodes.put(node.getId(),node);
-			topo.addVertex(node);
-		}
-		for (ESnetNode node : nodes) {
-			List<ESnetPort> ports = node.getPorts();
-			for (ESnetPort port : ports) {
-
-				List<ESnetLink> links = port.getLinks();
-				for (ESnetLink link : links) {
-					long bandwidth = 0;
-					// Add this link to the nodesByLink map
-					synchronized (this.nodesByLink) {
-						List<Node> list = this.nodesByLink.get(link);
-						if (list == null) {
-							// This is a new name in tha map. Need to create an new entry in the map
-							list = new ArrayList<Node>();
-							this.nodesByLink.put(link, list);
-						}
-						// Add the link to the list
-						list.add(node);
-					};
-					// Add this link to the portsByLink map
-					synchronized (this.portsByLink) {
-						List<Port> list = this.portsByLink.get(link);
-						if (list == null) {
-							// This is a new name in the map. Need to create an new entry in the map
-							list = new ArrayList<Port>();
-							this.portsByLink.put(link, list);
-						}
-						// Add the link to the list
-						list.add(port);
-					};
-					try {
-						// Find available bandwidth
-						DateTime start = DateTime.now();
-						DateTime end = start.plusHours(2);
-						OSCARSReservations reservations  = new OSCARSReservations(topol);
-						Node source = node;
-
-						String remoteNodeId = idToUrn(link.getRemoteLinkId(),4);
-						Node target = this.nodes.get(remoteNodeId);
-
-						if (source == null || target == null) {
-							continue;
-						}
-
-						ArrayList<Link> allEdges = new ArrayList<Link> (graph.getAllEdges(source, target));
-						GraphPathImpl<Node, Link> graphPath = new GraphPathImpl<Node, Link> (graph, source, target, allEdges, 0);
-						bandwidth = reservations.getMaxReservableBandwidth(graphPath, start, end);
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-					this.analyzeLink(topo, node, link, bandwidth);
-				}
-
-			}
-		}
-		return topo;
-	}
-
-	private void analyzeLink(ListenableDirectedWeightedGraph<ESnetNode,
-                             ESnetLink> topo,
-                             ESnetNode srcNode,
-                             ESnetLink link,
-                             long metric) {
-
-        String[] localId = link.getId().split(":");
-        String localDomain = localId[3];
-        String localNode = localId[4];
-        String localNodeId = idToUrn(link.getId(),4);
-        String[] remoteId = link.getRemoteLinkId().split(":");
-        String remoteDomain = remoteId[3];
-        String remoteNode = remoteId[4];
-        String remoteNodeId = idToUrn(link.getRemoteLinkId(),4);
-
-        // Add the link to the links HashMap, index it with the port urn.
-        this.links.put(idToUrn(link.getId(),5),link);
-
-        if (localDomain.equals(remoteDomain)) {
-            // Within the same domain
-            if ( !localNode.equals(remoteNode)) {
-                // Nodes are different, within the same domain: this is an internal link
-                ESnetNode dstNode = this.nodes.get(remoteNodeId);
-                if (dstNode == null) {
-                    throw new RuntimeException("No Node");
-                }
-                this.addLinkToList(this.internalLinks,remoteNode,link);
-                // Create the edge in the graph
-                topo.addEdge(srcNode,dstNode,link);
-                // Make sure the opposite direction exists since ESnet links are to be assumed bidirectional
-                topo.addEdge(dstNode,srcNode,link);
-                if (this.isWeighted) {
-                    // Add traffic engineering as weight
-                    topo.setEdgeWeight(link,metric);
-                }
-            } else {
-                // Site - This is not link, so, do not create an edge
-                // Try to decode the site name. If the port section of the id starts with to- then
-                // the destination is encoded.
-                if (remoteId[5].startsWith("to_")) {
-                    String dest = remoteId[5].substring(3);
-                    this.addLinkToList(this.siteLinks,dest,link);
+                    }
                 }
             }
-        } else {
-            // Peering - This is an intra-domain topology. Other domains are not represented so this link is not
-            // added.
-            this.addLinkToList(this.peeringLinks,remoteId[3],link);
+
         }
+        return graph;
     }
+
 
     private void addLinkToList ( HashMap<String, List<Link>> map, String name, ESnetLink link)  {
         synchronized (map) {
@@ -463,44 +471,6 @@ public class ESnetTopology implements TopologyProvider {
     public List<Link> getLinksToSite (String destination) {
         return this.siteLinks.get(destination);
     }
-    /***
-    public GraphPath<Node,Link> linksToGraph(List<ESnetLink> links) {
-        ListenableDirectedGraph<ESnetNode,ESnetLink> graph =
-                new ListenableDirectedGraph<ESnetNode, ESnetLink>(ESnetLink.class);
-        Node srcNode = null;
-        Node dstNode = null;
-        Node currentNode = null;
-        Node previousNode = null;
-
-        for (ESnetLink link : links) {
-            // Get source Node
-            List<Node> srcNodes = this.nodesByLink.get(link);
-            if ((srcNodes == null) || (srcNodes.size() == 0)) {
-                // This should not happen
-                logger.error("No source nodes for link " + link.getId());
-                return null;
-            }
-            previousNode = currentNode;
-            currentNode = (Node) srcNodes.toArray()[0];
-            // Add the node to the graph
-            graph.addVertex((ESnetNode) currentNode);
-            // Check if this is the first node of the path
-            if (srcNode == null) {
-                // First Node
-                srcNode = currentNode;
-            } else {
-                graph.addEdge((ESnetNode) previousNode, (ESnetNode) currentNode, link);
-                // Add reverse link
-                graph.addEdge((ESnetNode) currentNode, (ESnetNode) previousNode, link);
-            }
-        }
-        // Last currentNot is the destination Node
-        dstNode = currentNode;
-        // Build a GrapPath
-        // GraphPathImpl<Node,Link> grapPath = new GraphPathImpl<Node, Link>(graph,srcNode,dstNode );
-        return grapPath;
-    }
-    ****/
 
     static private String idToUrn (String id, int pos) {
         int endPos=0;
@@ -508,7 +478,6 @@ public class ESnetTopology implements TopologyProvider {
             endPos = id.indexOf(":", endPos + 1);
         }
         return id.substring(0,endPos);
-
     }
 
     /**

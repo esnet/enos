@@ -9,9 +9,13 @@
 
 package net.es.enos.api;
 
+import net.es.enos.esnet.ESnetLink;
 import net.es.enos.esnet.ESnetNode;
 import org.jgrapht.graph.ListenableDirectedGraph;
+import org.jgrapht.graph.ListenableDirectedWeightedGraph;
+import org.joda.time.DateTime;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.HashMap;
 
@@ -19,46 +23,92 @@ import java.util.HashMap;
 /**
  * Created by lomax on 5/21/14.
  */
-public interface TopologyProvider {
-    public ListenableDirectedGraph retrieveTopology();
-    public HashMap<String, ESnetNode> getNodes() ;
+public abstract class TopologyProvider {
+
+    public static enum WeightType {
+                                   TrafficEngineering, // Path cost as defined by ESnet NESG
+                                   MaxBandwidth,       // Maximum reservable bandwidth by OSCARS
+    }
+
+    /**
+     * Convenience method computing the path start now and ending one minute later, meaning, right now.
+     * @param weight
+     * @return
+     * @throws IOException
+     */
+    public ListenableDirectedWeightedGraph<ESnetNode, ESnetLink> getGraph(WeightType weight) throws IOException {
+        DateTime start = DateTime.now();
+        DateTime end = start.plusMinutes(1);
+        return this.getGraph(start, end,weight);
+    }
+
+    public ListenableDirectedWeightedGraph<ESnetNode, ESnetLink> getGraph(DateTime start,
+                                                                          DateTime end,
+                                                                          WeightType weightType) throws IOException {
+        return null;
+    }
+
+    public HashMap<String, ESnetNode> getNodes() {
+        return null;
+    }
 
     /**
      * Returns a HashMap of List of Links that connects to or from a Site to this topology. The map is indexed by
      * the name of the site as found in the topology.
+     *
      * @return returns the indexed Map.
      */
-    public HashMap<String, List<Link>> getSiteLinks();
+    public HashMap<String, List<Link>> getSiteLinks() {
+        return null;
+    }
 
     /**
      * Returns a HashMap of List of Links that connects to or from another Domain to this topology. The map is indexed by
      * the name of the domain as found in the topology.
+     *
      * @return returns the indexed Map.
      */
-    public HashMap<String, List<Link>> getPeeringLinks();
+    public HashMap<String, List<Link>> getPeeringLinks() {
+        return null;
+    }
+
     /**
      * Returns a HashMap of List of Links that connects two Nodes of this topology. The map is indexed by
      * the name of the node as found in the topology.
+     *
      * @return returns the indexed Map.
      */
-    public HashMap<String, List<Link>> getInternalLinks();
+    public HashMap<String, List<Link>> getInternalLinks() {
+        return null;
+    }
+
     /**
      * Returns a HashMap of List of Nodes indexed by Link. When links are directional, the source Node is indexed.
+     *
      * @return a HashMap of Lists of Nodes.
      */
-    public HashMap<Link, List<Node>> getNodesByLink();
+    public HashMap<Link, List<Node>> getNodesByLink() {
+        return null;
+    }
+
     /**
      * Returns a HashMap of List of Ports indexed by Link. When links are directional, the source Port is indexed.
+     *
      * @return a HashMap of Lists of Ports.
      */
-    public HashMap<Link, List<Port>> getPortsByLink();
+    public HashMap<Link, List<Port>> getPortsByLink() {
+        return null;
+    }
 
     /**
      * Retrieve from the topology the Node object referenced by its name. The format of the name is as follow:
      * host@domain. For instance, lbl-mr2@es.net. Note that the implementation of the topology may have a
      * different format to identify the nodes: the Node id, as retrieved with Node.getId() is an opaque.
+     *
      * @param name is the abstract name of the node, formatted as hostname@domain.
      * @return the node object if any, of the node identified by name.
      */
-    public Node getNode(String name);
+    public Node getNode(String name) {
+        return null;
+    }
 }
