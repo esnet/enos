@@ -56,6 +56,7 @@ public class ESnetLink extends Link {
     }
 
     public void setId(String id) {
+
         this.id = id;
     }
 

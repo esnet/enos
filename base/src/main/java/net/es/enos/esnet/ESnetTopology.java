@@ -234,7 +234,7 @@ public class ESnetTopology  extends TopologyProvider {
         if ((link.getId().equals(node.getId()))) {
             return this.nodes.get(link.getRemoteLinkId());
         } else {
-            return this.nodes.get(link.getId());
+            return this.nodes.get(idToUrn(link.getId(),4));
         }
     }
 
@@ -412,6 +412,7 @@ public class ESnetTopology  extends TopologyProvider {
                     ESnetNode srcNode = (ESnetNode) n;
                     Node r = this.getOppositeNode(link, srcNode);
                     if ( ! (r instanceof  ESnetNode)) {
+                        System.out.println("NODE= " + r.getClass().getCanonicalName());
                         throw new RuntimeException("Node is not an ESnetNode");
                     }
                     ESnetNode dstNode = (ESnetNode) r;
