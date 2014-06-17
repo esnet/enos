@@ -8,7 +8,6 @@ import net.es.enos.esnet.ESnetNode;
 import net.es.enos.esnet.ESnetLink;
 import org.jgrapht.graph.ListenableDirectedGraph;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.*;
 import java.lang.Math;
 
@@ -27,7 +26,6 @@ public class ModifiedDijkstra {
 	}
 
 	public void findPath(ListenableDirectedGraph graph, ESnetNode source, ESnetNode dest) {
-		HashMap<ESnetNode, Boolean> visited = new HashMap<ESnetNode, Boolean>();
 		List<ESnetNode> arrayQueue = new ArrayList<ESnetNode> ();
 
 		this.graph = graph;
@@ -38,29 +36,31 @@ public class ModifiedDijkstra {
 		for (ESnetNode v : vertices) {
 			v.width = Double.NEGATIVE_INFINITY;
 			v.prev = null;
-			visited.put(v, false);
-			arrayQueue.add(v);
 		}
 		// Initialize source vertex with weight of pos inf (bandwidth from and to same place)
 		source.width = Double.POSITIVE_INFINITY;
 
+		Set<ESnetLink> neighborEdge = graph.outgoingEdgesOf(source);
+		ArrayList<ESnetNode> neighbors = new ArrayList();
+		for (ESnetLink edge : neighborEdge) {
+			neighbors.add((ESnetNode)graph.getEdgeTarget(edge));
+		}
+
+		for (ESnetNode neighbor : neighbors) {
+			ESnetLink link = (ESnetLink) graph.getEdge(source, neighbor);
+			neighbor.width = graph.getEdgeWeight(link);
+			neighbor.prev = source;
+			arrayQueue.add(neighbor);
+		}
+		System.out.println(arrayQueue.contains(dest));
 		// Iterate through all vertices
-		while (!arrayQueue.isEmpty()) {
-			// Dijkstra normally uses a priority queue-- however, we need access to the max node, which
-			// is at the end of the queue, which we cannot access. To go around this, an Array is used.
-			// However, the array must be resorted everytime a change is made to simulate a priority queue.
-			Collections.sort(arrayQueue);
+		while (arrayQueue.size() != 0) {
 			ESnetNode maxNode = Collections.max(arrayQueue); // Find the node with the maximum width, and remove it
 			arrayQueue.remove(maxNode);
 
-			// If the path has reached the destination, then stop.
-			if (maxNode == dest) {
-				break;
-			}
-
 			// Find all neighbors of the max node.
-			Set<ESnetLink> neighborEdge = graph.outgoingEdgesOf(maxNode);
-			ArrayList<ESnetNode> neighbors = new ArrayList();
+			neighborEdge = graph.outgoingEdgesOf(maxNode);
+			neighbors = new ArrayList();
 
 			for (ESnetLink edge : neighborEdge) {
 				neighbors.add((ESnetNode)graph.getEdgeTarget(edge));
@@ -69,17 +69,16 @@ public class ModifiedDijkstra {
 			// Iterate through all the neighbors, checking to see if its width field
 			// needs to be changed (similar to normal Dijkstra algorithm)
 			for (ESnetNode neighbor : neighbors) {
-				if (!visited.get(neighbor)) {
-					ESnetLink link = (ESnetLink) graph.getEdge(maxNode, neighbor);
-					Double temp = Math.min(maxNode.width, graph.getEdgeWeight(link));
-					if (temp > neighbor.width) {
-						neighbor.width = temp;
-						neighbor.prev = maxNode;
-						Collections.sort(arrayQueue);
-					}
-					visited.put(neighbor, true);
-				} else {
-					continue;
+				ESnetLink link = (ESnetLink) graph.getEdge(maxNode, neighbor);
+				Double temp = Math.min(maxNode.width, graph.getEdgeWeight(link));
+
+				if (neighbor.width == Double.NEGATIVE_INFINITY) {
+					neighbor.prev = maxNode;
+					neighbor.width = temp;
+					arrayQueue.add(neighbor);
+				} else if (arrayQueue.contains(neighbor) && neighbor.width < temp ) {
+					neighbor.prev = maxNode;
+					neighbor.width = temp;
 				}
 			}
 		}
@@ -106,6 +105,7 @@ public class ModifiedDijkstra {
 		}
 		return finalPath;
 	}
+
 
 	public ArrayList<ESnetLink> getBandwidth() {
 		return this.path;
