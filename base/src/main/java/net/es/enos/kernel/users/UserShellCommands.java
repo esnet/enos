@@ -292,8 +292,12 @@ public class UserShellCommands {
 		// Make sure user has permission to read this directory. If not, outputs error message.
 		try {
 			cdDir.canRead();
-			KernelThread.getCurrentKernelThread().getUser().setHomePath(Paths.get(userPath, args[1]));
-			logger.debug("cd success");
+			if (cdDir.exists() & !cdDir.isFile()) {
+				KernelThread.getCurrentKernelThread().getUser().setHomePath(Paths.get(userPath, args[1]));
+				logger.debug("cd success");
+			} else {
+				o.println("Directory does not exist");
+			}
 		} catch (SecurityException e) {
 			o.println("Invalid permissions to access this directory");
 		}
@@ -368,14 +372,19 @@ public class UserShellCommands {
 
 		try {
 			// Make sure user has permission to write in this directory. If not, outputs error message.
+
 			rmFile.canWrite();
-			rmFile.delete();
+			if (rmFile.exists()) {
+				rmFile.delete();
 
-			// Delete acl file associated with file if it exists
-			File aclDelete = new File (Paths.get(normalizedPath.getParent().toString(), ".acl", args[1]).toString());
-			aclDelete.delete();
+				// Delete acl file associated with file if it exists
+				File aclDelete = new File(Paths.get(normalizedPath.getParent().toString(), ".acl", args[1]).toString());
+				aclDelete.delete();
+				logger.debug("rm success");
+			} else {
+				o.println("File not found");
+			}
 
-			logger.debug("rm success");
 		} catch (SecurityException e) {
 			o.println("Invalid permissions to write in this directory");
 		}
