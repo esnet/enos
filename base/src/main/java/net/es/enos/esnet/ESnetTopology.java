@@ -234,7 +234,7 @@ public class ESnetTopology  extends TopologyProvider {
         if ((link.getId().equals(node.getId()))) {
             return this.nodes.get(link.getRemoteLinkId());
         } else {
-            return this.nodes.get(idToUrn(link.getId(),4));
+            return this.nodes.get(idToUrn(link.getRemoteLinkId(),4));
         }
     }
 
@@ -434,7 +434,10 @@ public class ESnetTopology  extends TopologyProvider {
                                 throw new RuntimeException("Port is not an ESnetPort");
                             }
                             ESnetPort port = (ESnetPort) p;
-                            if (srcNode.getId().equals(port.getId())) {
+
+	                        // When would srcNode.getId() equal port.getId()?
+                            // if (srcNode.getId().equals(port.getId())) {
+
                                 // This is the port of the source Node connected to that Link
                                 OSCARSReservations.PortReservation res = reservations.get(port);
                                 if (res != null) {
@@ -442,19 +445,18 @@ public class ESnetTopology  extends TopologyProvider {
                                     // reservable bandwidth, make it a negative value and set it as the weight of
                                     // the graph.
                                     long available = res.maxReservable - res.alreadyReserved[0];
-                                    metric = available * -1L;
+                                    metric = available;
                                 } else {
                                     // The link is not reservable. Set the weight to MAX_VALUE;
                                     metric = Long.MAX_VALUE;
                                 }
-                            }
+                            //}
                             graph.setEdgeWeight(link, metric);
                             break;
                         }
                     }
                 }
             }
-
         }
         return graph;
     }

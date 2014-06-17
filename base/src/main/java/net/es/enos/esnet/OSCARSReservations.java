@@ -92,6 +92,18 @@ public class OSCARSReservations {
 
         HashMap<ESnetPort,PortReservation> reserved = new HashMap<ESnetPort, PortReservation>();
         List<ESnetCircuit> reservations = topology.retrieveJSONTopology().getCircuits();
+
+	    // Initialize all ports with their maximum reservable capacity.
+		for (Link tempLink : links.values()){
+			ESnetLink link = (ESnetLink) tempLink;
+			List<Port> ports = portsByLink.get(link);
+			Port port = ports.get(0);
+			ESnetPort thisPort = (ESnetPort) port;
+			PortReservation portReservation =
+					new PortReservation(Long.parseLong(thisPort.getMaximumReservableCapacity()));
+			reserved.put(thisPort, portReservation);
+		}
+
         for (ESnetCircuit reservation : reservations) {
             if (! reservation.isActive(start,end))  {
                 // This reservation is not active withing the query time frame, ignore

@@ -52,7 +52,6 @@ public class ModifiedDijkstra {
 			neighbor.prev = source;
 			arrayQueue.add(neighbor);
 		}
-		System.out.println(arrayQueue.contains(dest));
 		// Iterate through all vertices
 		while (arrayQueue.size() != 0) {
 			ESnetNode maxNode = Collections.max(arrayQueue); // Find the node with the maximum width, and remove it
