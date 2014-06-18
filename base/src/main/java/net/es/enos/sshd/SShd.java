@@ -187,6 +187,8 @@ public class SShd {
         private int pos;
 
         /**
+         * Unmarshall a public key from a line in the authorized_keys file.
+         * Supports DSA and RSA keys, but not ECDSA.  Options are ignored, and comments are not allowed.
          * @author Olivier Lamy
          */
         public PublicKey decodePublicKey( String keyLine ) throws Exception {
@@ -244,6 +246,9 @@ public class SShd {
     }
 
     public void start() throws IOException {
+
+        // Create and configure SSH server object.
+        // Timeouts on the SSH session get set here via the SshServer properties map.
         this.sshServer = SshServer.setUpDefaultServer();
 
         int sshPort = BootStrap.getMasterConfiguration().getGlobal().getSshPort();
@@ -252,6 +257,8 @@ public class SShd {
         int sshIdleTimeout = BootStrap.getMasterConfiguration().getGlobal().getSshIdleTimeout();
         this.sshServer.getProperties().put(sshServer.IDLE_TIMEOUT, Integer.toString(sshIdleTimeout));
 
+        // The password authenticator is an object from an anonymous class that implements the
+        // required authenticate method.
         PasswordAuthenticator passwordAuth = new PasswordAuthenticator() {
             @Override
             public boolean authenticate(String username, String password, ServerSession ss) {
@@ -268,6 +275,9 @@ public class SShd {
         };
         this.sshServer.setPasswordAuthenticator(passwordAuth);
 
+        // The public key authenticator is an object from a nested class.  In theory we probably could have
+        // done the same anonymous class as was done for the password authenticator, but the public
+        // key authenticator is somewhat more complex and it'd be unwieldy to have it defined in-line.
         PublickeyAuthenticator publickeyAuth = new EnosPublickeyAuthenticator();
         this.sshServer.setPublickeyAuthenticator(publickeyAuth);
 
