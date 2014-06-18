@@ -4,11 +4,12 @@ package net.es.enos.api;
  * Created by davidhua on 6/12/14.
  */
 
-import net.es.enos.esnet.ESnetNode;
-import net.es.enos.esnet.ESnetLink;
 import org.jgrapht.graph.ListenableDirectedGraph;
 import java.util.Collections;
-import java.util.*;
+import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.lang.Math;
 
 /**
@@ -16,68 +17,78 @@ import java.lang.Math;
  * possible from one node to another node (instead of calculating the shortest path).
  */
 
-public class ModifiedDijkstra {
+public class ModifiedDijkstra<Node, Link> {
 	ListenableDirectedGraph graph;
-	ArrayList<ESnetLink> path;
+	ArrayList<Link> path;
+	HashMap<Node, Double> width;
+	HashMap<Node, Node> prev;
 
-	public ModifiedDijkstra(ListenableDirectedGraph graph, ESnetNode source, ESnetNode dest) {
+	public ModifiedDijkstra(ListenableDirectedGraph graph, Node source, Node dest) {
+		width = new HashMap<Node, Double>();
+		prev = new HashMap<Node, Node>();
 		findPath(graph, source, dest);
 		this.path = bandwidth(source, dest);
 	}
 
-	public void findPath(ListenableDirectedGraph graph, ESnetNode source, ESnetNode dest) {
-		List<ESnetNode> arrayQueue = new ArrayList<ESnetNode> ();
+	public void findPath(ListenableDirectedGraph graph, Node source, Node dest) {
+		List arrayQueue = new ArrayList ();
 
 		this.graph = graph;
-		Set<ESnetNode> vertices = this.graph.vertexSet();
+		Set<Node> vertices = this.graph.vertexSet();
 
 		// Initialize weights of all vertices to neg inf, prev pointers to null, and the visited hashmap to false.
 		// Create queue that will hold all vertices
-		for (ESnetNode v : vertices) {
-			v.width = Double.NEGATIVE_INFINITY;
-			v.prev = null;
+		for (Node v : vertices) {
+			width.put(v, Double.NEGATIVE_INFINITY);
+			prev.put(v, null);
 		}
 		// Initialize source vertex with weight of pos inf (bandwidth from and to same place)
-		source.width = Double.POSITIVE_INFINITY;
+		width.put(source, Double.POSITIVE_INFINITY);
 
-		Set<ESnetLink> neighborEdge = graph.outgoingEdgesOf(source);
-		ArrayList<ESnetNode> neighbors = new ArrayList();
-		for (ESnetLink edge : neighborEdge) {
-			neighbors.add((ESnetNode)graph.getEdgeTarget(edge));
+		Set<Link> neighborLink = graph.outgoingEdgesOf(source);
+		ArrayList<Node> neighbors = new ArrayList();
+		for (Link edge : neighborLink) {
+			neighbors.add((Node)graph.getEdgeTarget(edge));
 		}
 
-		for (ESnetNode neighbor : neighbors) {
-			ESnetLink link = (ESnetLink) graph.getEdge(source, neighbor);
-			neighbor.width = graph.getEdgeWeight(link);
-			neighbor.prev = source;
+		for (Node neighbor : neighbors) {
+			Link link = (Link) graph.getEdge(source, neighbor);
+			width.put(neighbor, graph.getEdgeWeight(link));
+			prev.put(neighbor, source);
 			arrayQueue.add(neighbor);
 		}
 		// Iterate through all vertices
 		while (arrayQueue.size() != 0) {
-			ESnetNode maxNode = Collections.max(arrayQueue); // Find the node with the maximum width, and remove it
+			// Dijkstra normally uses a priority queue-- however, we need access to the max node, which
+			// is at the end of the queue, which we cannot access. To go around this, an Array is used.
+			// However, the array must be resorted everytime a change is made to simulate a priority queue.
+
+			Node maxNode = (Node) Collections.max(arrayQueue); // Find the node with the maximum width, and remove it
 			arrayQueue.remove(maxNode);
 
+			// If the path has reached the destination, then stop.
+
 			// Find all neighbors of the max node.
-			neighborEdge = graph.outgoingEdgesOf(maxNode);
+			neighborLink = graph.outgoingEdgesOf(maxNode);
 			neighbors = new ArrayList();
 
-			for (ESnetLink edge : neighborEdge) {
-				neighbors.add((ESnetNode)graph.getEdgeTarget(edge));
+			for (Link edge : neighborLink) {
+				neighbors.add((Node)graph.getEdgeTarget(edge));
 			}
 
 			// Iterate through all the neighbors, checking to see if its width field
 			// needs to be changed (similar to normal Dijkstra algorithm)
-			for (ESnetNode neighbor : neighbors) {
-				ESnetLink link = (ESnetLink) graph.getEdge(maxNode, neighbor);
-				Double temp = Math.min(maxNode.width, graph.getEdgeWeight(link));
+			for (Node neighbor : neighbors) {
+				Link link = (Link) graph.getEdge(maxNode, neighbor);
+				Double temp = Math.min(width.get(maxNode), graph.getEdgeWeight(link));
 
-				if (neighbor.width == Double.NEGATIVE_INFINITY) {
-					neighbor.prev = maxNode;
-					neighbor.width = temp;
+				if (width.get(neighbor) == Double.NEGATIVE_INFINITY) {
+					prev.put(neighbor, maxNode);
+					width.put(neighbor, temp);
 					arrayQueue.add(neighbor);
-				} else if (arrayQueue.contains(neighbor) && neighbor.width < temp ) {
-					neighbor.prev = maxNode;
-					neighbor.width = temp;
+				} else if (arrayQueue.contains(neighbor) && width.get(neighbor) < temp ) {
+					prev.put(neighbor, maxNode);
+					width.put(neighbor, temp);
 				}
 			}
 		}
@@ -85,12 +96,12 @@ public class ModifiedDijkstra {
 
 	// As modified Dijkstra outputs an array of nodes to the destination,
 	// we need to convert this to an array of links for the actual output.
-	private ArrayList<ESnetLink> bandwidth(ESnetNode source, ESnetNode dest) {
-		ArrayList<ESnetNode> finalNode = new ArrayList<ESnetNode>();
-		ESnetNode current = dest;
+	private ArrayList<Link> bandwidth(Node source, Node dest) {
+		ArrayList<Node> finalNode = new ArrayList<Node>();
+		Node current = dest;
 		finalNode.add(dest);
 		while (current != source && current != null) {
-			current = current.prev;
+			current = prev.get(current);
 			if (current != null) {
 				finalNode.add(current);
 			}
@@ -98,15 +109,14 @@ public class ModifiedDijkstra {
 		finalNode.add(source);
 		Collections.reverse(finalNode);
 
-		ArrayList<ESnetLink> finalPath = new ArrayList<ESnetLink>();
+		ArrayList<Link> finalPath = new ArrayList<Link>();
 		for (int i = 1; i < finalNode.size()-1; i++ ) {
-			finalPath.add((ESnetLink) graph.getEdge(finalNode.get(i), finalNode.get(i+1)));
+			finalPath.add((Link) graph.getEdge(finalNode.get(i), finalNode.get(i+1)));
 		}
 		return finalPath;
 	}
 
-
-	public ArrayList<ESnetLink> getBandwidth() {
+	public ArrayList<Link> getBandwidth() {
 		return this.path;
 	}
 }
