@@ -29,7 +29,14 @@ public class SshdScpCommandFactory implements org.apache.sshd.server.CommandFact
     public org.apache.sshd.server.Command createCommand(String command) {
         // First set the ENOS KernelThread
         try {
-            return new SshdShell(command);
+	        String[] commandList = new String[] {command};
+	        if (command.startsWith("scp")) {
+		        // User wishes to scp.
+		        return new SshdShell(commandList);
+	        } else {
+		        // User has entered a command
+		        return new SshdShell(commandList);
+	        }
         } catch (IOException e) {
             Thread.dumpStack();
             return null;

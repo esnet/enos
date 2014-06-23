@@ -11,6 +11,7 @@ package net.es.enos.shell;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.String;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,6 +30,8 @@ import net.es.enos.shell.annotations.ShellCommand;
 public class Shell {
 
     private InputStream in;
+	private String command;
+	private boolean completedCommand = false;
     private OutputStream out = null;
     private ConsoleReader consoleReader = null;
     private ENOSConsoleReader ENOSConsoleReader = null;
@@ -60,7 +63,10 @@ public class Shell {
         this.in = in;
     }
 
-    public Shell(InputStream in, OutputStream out) throws IOException {
+    public Shell(InputStream in, OutputStream out, String[] command) throws IOException {
+	    if (command != null) {
+		    this.command = command[0];
+	    }
         this.out = out;
     }
 
@@ -116,15 +122,25 @@ public class Shell {
                  * turn it off immediately afterward to avoid interference with
                  * possible interactive commands.
                  */
-                consoleReader.addCompleter(this.stringsCompleter);
-                String line = this.consoleReader.readLine(this.prompt);
-                consoleReader.removeCompleter(this.stringsCompleter);
 
-                if (line == null) {
-                    continue;
-                }
+	            String[] args;
+				// If user has entered a command when ssh'ing, execute command, then exit.
+	            // Otherwise, continue with interactive commands.
+	            if (completedCommand) {
+		            break;
+	            } else if (command==null) {
+		            consoleReader.addCompleter(this.stringsCompleter);
+		            String line = this.consoleReader.readLine(this.prompt);
+		            consoleReader.removeCompleter(this.stringsCompleter);
+		            if (line == null) {
+			            continue;
+		            }
+		            args = line.trim().split("\\s+");
+	            } else {
+		            args = command.split(" ");
+		            completedCommand = true;
+	            }
 
-                String[] args = line.trim().split("\\s+");
                 if (args.length == 0 || (args.length == 1 && args[0].isEmpty())) {
                     continue;
                 }

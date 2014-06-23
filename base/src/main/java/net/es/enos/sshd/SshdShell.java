@@ -38,15 +38,20 @@ public class SshdShell extends Shell implements Command, SessionAware, FileSyste
     private final Logger logger = LoggerFactory.getLogger(SshdShell.class);
     public SshdShell() throws IOException {
         // Constructor for ssh
-        super(null, null);
+        super(null, null, null);
         logger.debug("Accepted new SSH connection");
     }
 
-    public SshdShell(String command) throws IOException {
-        // Constructor for scp
-        super(null, null);
-        scpCommand = new ScpCommand(command);
-        logger.debug("Accepted new SCP connection " + command);
+    public SshdShell(String[] command) throws IOException {
+        // Constructor for scp (or ssh with a command)
+	    super(null, null, command);
+
+	    if (command[0].startsWith("scp")) {
+		    scpCommand = new ScpCommand(command[0]);
+		    logger.debug("Accepted new SCP connection " + command[0]);
+	    } else {
+		    logger.debug("Accepted new SSH connection");
+	    }
     }
 
     public Environment getEnvironment() {
