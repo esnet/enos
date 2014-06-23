@@ -81,4 +81,22 @@ public class ESnetNode extends Node implements Comparable<ESnetNode> {
 	{
 		return Double.compare(width, other.width);
 	}
+
+    @Override
+    public String toString() {
+        return super.toString();
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        return super.clone();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if ( ! (obj instanceof ESnetNode) ) {
+            return false;
+        }
+        return ((ESnetNode) obj).getId().equals(this.getId());
+    }
 }

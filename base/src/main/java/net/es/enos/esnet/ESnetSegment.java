@@ -33,4 +33,22 @@ public class ESnetSegment {
     public void setPorts(List<String> ports) {
         this.ports = ports;
     }
+
+    @Override
+    public String toString() {
+        return super.toString();
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        return super.clone();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if ( ! (obj instanceof ESnetSegment) ) {
+            return false;
+        }
+        return ((ESnetSegment) obj).getId().equals(this.getId());
+    }
 }

@@ -123,4 +123,22 @@ public class ESnetLink extends Link {
     public void setVlanTranslation(boolean vlanTranslation) {
         this.vlanTranslation = vlanTranslation;
     }
+
+    @Override
+    public String toString() {
+        return super.toString();
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        return super.clone();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if ( ! (obj instanceof ESnetLink) ) {
+            return false;
+        }
+        return ((ESnetLink) obj).getId().equals(this.getId());
+    }
 }

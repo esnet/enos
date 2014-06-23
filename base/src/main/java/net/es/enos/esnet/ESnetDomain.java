@@ -36,4 +36,22 @@ public class ESnetDomain extends Domain {
     }
 
     List <ESnetNode>  nodes;
+
+    @Override
+    public String toString() {
+        return super.toString();
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        return super.clone();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if ( ! (obj instanceof ESnetDomain) ) {
+            return false;
+        }
+        return ((ESnetDomain) obj).getId().equals(this.getId());
+    }
 }

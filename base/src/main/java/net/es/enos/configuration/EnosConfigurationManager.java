@@ -39,6 +39,9 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.util.Enumeration;
+import java.util.Properties;
+import java.util.Set;
 
 import net.es.enos.api.PropertyKeys;
 
@@ -78,10 +81,10 @@ public class EnosConfigurationManager {
 
         if (configurationFilePath == null) {
             logger.info("No configuration file property!");
-            configurationFilePath = "./enos.json.default";
+            configurationFilePath = "enos.json.default";
         }
 
-        logger.info("Master configuration file is {}", configurationFilePath);
+        logger.info("Master configuration file is {}", new File(configurationFilePath).getAbsolutePath());
 
         //
         // This following try/catch block should probably be made a function or something
