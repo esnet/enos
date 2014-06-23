@@ -220,6 +220,12 @@ public class ESnetTopology  extends TopologyProvider {
         return links;
     }
 
+    /**
+     * Returns the opposite Node of a point to point Link of the provided Node
+     * @param l is the link
+     * @param n is current end of the link
+     * @return
+     */
     public Node getOppositeNode (Link l, Node n) {
         if ( ! (l instanceof ESnetLink)) {
             throw new RuntimeException("Link is not an ESnetLink");

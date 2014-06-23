@@ -31,12 +31,27 @@
 package net.es.enos.configuration;
 
 import net.es.enos.api.DefaultValues;
+import net.es.enos.api.NonExistantUserException;
+import net.es.enos.api.PropertyKeys;
+import net.es.enos.api.Resource;
+import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.kernel.exec.annotations.SysCall;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Method;
 
 /**
- * ENOS global configuration object.
+ * ENOS global configuration object. It is intended to be used as a read-only singleton.
  * Defines the behavior of the ENOS main daemon.
  */
-public class GlobalConfiguration {
+public class GlobalConfiguration extends Resource {
+
+    private static GlobalConfiguration instance;
+
+    public static String DEFAULT_FILENAME = "enos.json.default";
 
     private String defaultLogLevel = "info";
     private String rootDirectory = DefaultValues.ENOS_DEFAULT_ROOTDIR;
@@ -44,52 +59,134 @@ public class GlobalConfiguration {
     private int sshPort = 8000;
     private int sshIdleTimeout = 3600000;
     private int securityManagerDisabled = 0;
+    private boolean canSet = false;
+    private final static Logger logger = LoggerFactory.getLogger(GlobalConfiguration.class);
 
+    /**
+     * Special constructor that is intended to create a instance of the
+     * GlobalConfiguration that can be set
+     * @param canSet
+     */
+    public GlobalConfiguration(boolean canSet){
+        this.canSet = true;
+    }
     public String getDefaultLogLevel() {
         return defaultLogLevel;
-    }
-
-    public void setDefaultLogLevel(String defaultLogLevel) {
-        this.defaultLogLevel = defaultLogLevel;
     }
 
     public String getRootDirectory() {
         return rootDirectory;
     }
 
-    public void setRootDirectory(String home) {
-        this.rootDirectory = home;
-    }
-
     public int getSshDisabled() {
         return sshDisabled;
-    }
-
-    public void setSshDisabled(int sshDisabled) {
-        this.sshDisabled = sshDisabled;
     }
 
     public int getSshPort() {
         return sshPort;
     }
 
-    public void setSshPort(int sshPort) {
-        this.sshPort = sshPort;
-    }
-
     public int getSshIdleTimeout() {
         return sshIdleTimeout;
-    }
-
-    public void setSshIdleTimeout(int sshIdleTimeout) {
-        this.sshIdleTimeout = sshIdleTimeout;
     }
 
     public int getSecurityManagerDisabled() {
         return securityManagerDisabled;
     }
 
+    public void setDefaultLogLevel(String defaultLogLevel) {
+        if (!this.canSet) {
+            // Silently fail
+            return;
+        }
+        this.defaultLogLevel = defaultLogLevel;
+    }
+
+    public void setRootDirectory(String rootDirectory) {
+        if (!this.canSet) {
+            // Silently fail
+            return;
+        }
+        this.rootDirectory = rootDirectory;
+    }
+
+    public void setSshDisabled(int sshDisabled) {
+        if (!this.canSet) {
+            // Silently fail
+            return;
+        }
+        this.sshDisabled = sshDisabled;
+    }
+
+    public void setSshPort(int sshPort) {
+        if (!this.canSet) {
+            // Silently fail
+            return;
+        }
+        this.sshPort = sshPort;
+    }
+
+    public void setSshIdleTimeout(int sshIdleTimeout) {
+        if (!this.canSet) {
+            // Silently fail
+            return;
+        }
+        this.sshIdleTimeout = sshIdleTimeout;
+    }
+
     public void setSecurityManagerDisabled(int securityManagerDisabled) {
+        if (!this.canSet) {
+            // Silently fail
+            return;
+        }
         this.securityManagerDisabled = securityManagerDisabled;
+    }
+
+
+    public static GlobalConfiguration getInstance() {
+        if (instance == null) {
+            instance = GlobalConfiguration.loadConfiguration();
+        }
+        return instance;
+    }
+
+    public GlobalConfiguration() {
+    }
+
+    /**
+     * Loads from the configuration file. If the file does not exist, the configuration is
+     * "settable". As soon as it is writen onto the file, the configuration is set to not settable.
+      * @return the singleton GlobalConfiguration.
+     */
+    private static GlobalConfiguration loadConfiguration () {
+        String configurationFilePath = System.getProperty(PropertyKeys.ENOS_CONFIGURATION);
+
+        if (configurationFilePath == null) {
+            logger.info("No configuration file property!");
+            configurationFilePath = DEFAULT_FILENAME;
+        }
+        GlobalConfiguration globalConfiguration = null;
+        // Read the configuration
+        try {
+            globalConfiguration = (GlobalConfiguration) Resource.newResource(GlobalConfiguration.class,
+                                                                             configurationFilePath);
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        }
+        if (globalConfiguration.isNewInstance()) {
+            // This is a new instance. Can set
+            globalConfiguration.canSet = true;
+        }
+        logger.info("Master configuration file is {}", new File(configurationFilePath).getAbsolutePath());
+        return globalConfiguration;
+    }
+
+    @Override
+    public void save(File file) throws IOException {
+        super.save(file);
+        // The GlobalConfiguration can no longer be modified within ENOS
+        this.canSet = false;
     }
 }

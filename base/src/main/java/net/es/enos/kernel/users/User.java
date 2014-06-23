@@ -29,7 +29,7 @@ public class User {
     private String name;
     private ThreadGroup threadGroup;
     private Path homePath;
-	private Path orgHomePath; // Keep track of original homePath.
+    private Path currentPath;
     private boolean privileged = false;
 
     public ThreadGroup getThreadGroup() {
@@ -40,8 +40,8 @@ public class User {
         this.name = name;
 
         // Set home directory.
-        this.homePath = Paths.get(Users.getUsers().getHomePath().toString(),this.name).normalize();
-	    this.orgHomePath = this.homePath;
+        this.homePath = this.currentPath =
+                Paths.get(Users.getUsers().getHomePath().toString(),this.name).normalize();
         // TODO: lomax@es.net this creates a very little memory leak. Will need to have a background
         // thread to clean that up.
         User.users.put(this.name, new WeakReference<User>(this));
@@ -87,6 +87,12 @@ public class User {
 	// Set the homepath to simulate changing the working directory.
 	public void setHomePath(Path newPath) { this.homePath = newPath; }
 
-	public void resetHomePath() { this.homePath = this.orgHomePath; }
+    public Path getCurrentPath() {
+        return currentPath;
+    }
+
+    public void setCurrentPath(Path currentPath) {
+        this.currentPath = currentPath;
+    }
 
 }

@@ -32,8 +32,7 @@ package net.es.enos.boot;
 
 import net.es.enos.api.DefaultValues;
 
-import net.es.enos.configuration.EnosConfigurationManager;
-import net.es.enos.configuration.EnosJSONConfiguration;
+import net.es.enos.configuration.GlobalConfiguration;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.security.AllowedSysCalls;
 import net.es.enos.kernel.security.KernelSecurityManager;
@@ -62,14 +61,14 @@ public class BootStrap implements Runnable {
     private SShd sshd = null;
     private static Thread thread;
 
-    // We need to be sure the configuration manager gets instantiated before the security manager,
+    // We need to be sure the global configuration gets instantiated before the security manager,
     // because the former controls the initialization actions of the latter.
-    private static final EnosJSONConfiguration masterConfiguration = EnosConfigurationManager.getInstance().getConfiguration();
+    private static final GlobalConfiguration masterConfiguration = GlobalConfiguration.getInstance();
     private static final KernelSecurityManager securityManager = new KernelSecurityManager();
 
     public final static Path rootPath = Paths.get(
-            masterConfiguration.getGlobal().getRootDirectory() != null ?
-                    masterConfiguration.getGlobal().getRootDirectory() :
+            masterConfiguration.getRootDirectory() != null ?
+                    masterConfiguration.getRootDirectory() :
                     DefaultValues.ENOS_DEFAULT_ROOTDIR).normalize();
 
     final private Logger logger = LoggerFactory.getLogger(BootStrap.class);
@@ -92,10 +91,6 @@ public class BootStrap implements Runnable {
         return securityManager;
     }
 
-    public static EnosJSONConfiguration getMasterConfiguration() {
-        return masterConfiguration;
-    }
-
     public void init() {
 
 
@@ -113,7 +108,7 @@ public class BootStrap implements Runnable {
 
         // Set default logging level.
         // TODO:  This doesn't work.  It appears that setting the default logging level has no effect, possibly because all the various loggers have already been created?
-        String defaultLogLevel = BootStrap.getMasterConfiguration().getGlobal().getDefaultLogLevel();
+        String defaultLogLevel = GlobalConfiguration.getInstance().getDefaultLogLevel();
         System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, defaultLogLevel);
 
         logger.info("Starting ENOS root= " + BootStrap.rootPath.toString());
@@ -137,7 +132,7 @@ public class BootStrap implements Runnable {
     public void startServices() {
 
         // Start sshd if it's not disabled.
-        int sshDisabled = BootStrap.getMasterConfiguration().getGlobal().getSshDisabled();
+        int sshDisabled = GlobalConfiguration.getInstance().getSshDisabled();
         if (sshDisabled == 0) {
             this.sshd = SShd.getSshd();
             try {

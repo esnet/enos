@@ -9,6 +9,8 @@
 
 package net.es.enos.api;
 
+import org.codehaus.jackson.annotate.JsonIgnore;
+
 /**
  * Created by lomax on 5/30/14.
  */
@@ -18,6 +20,7 @@ public class Port extends Resource {
     public static final String CanOpenFlow3 = "canOpenFlow2";  // OpenFlow 1.3 support
     public static final String PORTS_DIR = "ports";
 
+    @JsonIgnore
     private Node node;
 
     /**

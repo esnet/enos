@@ -33,6 +33,7 @@ package net.es.enos.kernel.security;
 
 import net.es.enos.api.DefaultValues;
 import net.es.enos.boot.BootStrap;
+import net.es.enos.configuration.GlobalConfiguration;
 
 import java.nio.file.Paths;
 import java.io.FilePermission;
@@ -51,7 +52,7 @@ public final class Authorized {
         filePermissions = new LinkedList<FilePermission>();
 
         // Figure out the ENOS root directory.
-        String rootdir = BootStrap.getMasterConfiguration().getGlobal().getRootDirectory();
+        String rootdir = GlobalConfiguration.getInstance().getRootDirectory();
         filePermissions.add(new FilePermission(Paths.get(rootdir).normalize().toString() + "/-",
                             "read,write"));
 

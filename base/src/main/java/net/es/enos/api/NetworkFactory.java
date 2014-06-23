@@ -12,6 +12,7 @@ package net.es.enos.api;
 import org.jgrapht.graph.ListenableDirectedGraph;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,7 +21,8 @@ import java.util.List;
  * Created by lomax on 6/6/14.
  */
 public class NetworkFactory extends Resource {
-    public final static String NETWORK_FACTORY_DIR = "networks/factory";
+    public final static String FACTORY_DIR = "/networks";
+    public final static String FACTORY_CONFIGFILE = "factory";
     public final static String LOCAL_LAYER1 = "localLayer1";
     public final static String LOCAL_LAYER2 = "localLayer2";
 
@@ -66,7 +68,7 @@ public class NetworkFactory extends Resource {
             if (NetworkFactory.instance == null) {
                 try {
                     NetworkFactory.instance = (NetworkFactory) Resource.newResource(NetworkFactory.class,
-                            NetworkFactory.NETWORK_FACTORY_DIR);
+                            Paths.get(FACTORY_DIR,FACTORY_CONFIGFILE).toString());
                     NetworkFactory.instance().startProviders();
                 } catch (IOException e) {
 
@@ -94,7 +96,7 @@ public class NetworkFactory extends Resource {
         }
         NetworkProviderDescriptor provider = new NetworkProviderDescriptor(className,type);
         this.providers.add(provider);
-        this.save();
+        this.save(Paths.get(FACTORY_DIR,type,className).toString());
         this.startProvider(provider);
     }
 }

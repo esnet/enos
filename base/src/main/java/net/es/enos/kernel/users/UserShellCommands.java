@@ -312,7 +312,7 @@ public class UserShellCommands {
 		try {
 			cdDir.canRead();
 			if (cdDir.exists() & !cdDir.isFile()) {
-				KernelThread.getCurrentKernelThread().getUser().setHomePath(Paths.get(userPath, dest));
+				KernelThread.getCurrentKernelThread().getUser().setCurrentPath(Paths.get(userPath, dest));
 				logger.debug("cd success");
 			} else {
 				o.println("Directory does not exist");

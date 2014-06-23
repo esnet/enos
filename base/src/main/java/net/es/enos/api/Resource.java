@@ -10,6 +10,7 @@
 package net.es.enos.api;
 
 import net.es.enos.boot.BootStrap;
+import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.users.User;
 import org.codehaus.jackson.map.ObjectMapper;
 
@@ -17,22 +18,20 @@ import java.io.*;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Created by lomax on 5/21/14.
  */
 public class Resource {
-    private String uuid; // Perhaps not needed ?
     protected String name;
     private String resourceClassName;
     protected String description;
     private List<User> hasWriteAccess;
     private List<User> hasReadAccess;
     private List<String> capabilities;
-    private String resourceDir;
-    public static final String CONFIG_FILE = "resource";
+    private String configFile;
     private List<String> parentResources;
+    private boolean isNewInstance = true;
 
     public Resource() {
         // Set the classname.
@@ -41,19 +40,6 @@ public class Resource {
         if (this.capabilities == null) {
             this.capabilities = new ArrayList<String>();
         }
-    }
-
-    public void setUuid(String uuid) {
-        if ((this.uuid != null) && !this.uuid.toString().equals(uuid.toString()) ){
-            // It is illegal to try to change the UUID of a resource
-            throw new RuntimeException("Cannot change UUID of a resource once it has been set. Resource= " + this.uuid +
-                    " current UUID= " + uuid);
-        }
-        this.uuid = uuid;
-    }
-
-    public String getUuid() {
-        return uuid;
     }
 
     public String getName() {
@@ -96,12 +82,12 @@ public class Resource {
         this.capabilities = capabilities;
     }
 
-    public String getResourceDir() {
-        return resourceDir;
+    public String getConfigFile() {
+        return configFile;
     }
 
-    public void setResourceDir(String resourceDir) {
-        this.resourceDir = resourceDir;
+    public void setConfigFile(String configFile) {
+        this.configFile = configFile;
     }
 
     public String getResourceClassName() {
@@ -112,19 +98,45 @@ public class Resource {
         this.resourceClassName = resourceClassName;
     }
 
-    public final void save() throws IOException {
-        if (this.uuid == null) {
-            // Generate new UUID: this is a new resource
-            this.uuid = UUID.randomUUID().toString();
+
+    /**
+     * Save the resource in a file specified by the provided file name. ENOS root is added
+     * to the file name if the filename is absolute.
+     * @param filename
+     * @throws IOException
+     */
+    public final void save(String filename) throws IOException {
+        File file = null;
+        if (BootStrap.rootPath == null) {
+            // Not yet initialized. Assume non ENOS path
+            file = new File(filename);
+        } else {
+            if (new File(filename).isAbsolute()) {
+                file = new File(Paths.get(BootStrap.rootPath.toString(),filename).toString());
+
+            } else {
+                // Relative path.
+                file = new File(Paths.get(KernelThread.getCurrentKernelThread().getUser().getCurrentPath().toString(),
+                                          filename).toString());
+            }
         }
-        Paths.get(BootStrap.rootPath.toString(),this.getResourceDir()).toFile().mkdirs();
-        File config = new File(Paths.get(BootStrap.rootPath.toString(),
-                                         this.getResourceDir(),
-                                         Resource.CONFIG_FILE).toString());
-        // config.createNewFile();
+        this.save(file);
+    }
+
+    /**
+     * Saves the resource into the provided File
+     * @param file
+     * @throws IOException
+     */
+    public void save(File file) throws IOException {
+        /* Make sure all directories exist */
+        file.getParentFile().mkdirs();
+        /* Write JSON */
         ObjectMapper mapper = new ObjectMapper();
-        FileOutputStream output = new FileOutputStream(config);
+        FileOutputStream output = new FileOutputStream(file);
         mapper.writeValue(output, this);
+        // No longer a new resource.
+        this.isNewInstance = false;
     }
 
     public synchronized void addProperties(String property) {
@@ -136,24 +148,63 @@ public class Resource {
         }
     }
 
-    public static final Resource newResource (Class c, String relativePath) throws IOException, InstantiationException {
-        File config = new File(Paths.get(BootStrap.rootPath.toString(),relativePath).toString(),Resource.CONFIG_FILE);
-        if ( ! config.exists() ) {
+    /**
+     * Creates a resource from a file specified by the provided file name. ENOS root is added
+     * to the file name if the filename is absolute.
+     * @param c
+     * @param filename
+     * @return
+     * @throws IOException
+     * @throws InstantiationException
+     */
+    public static final Resource newResource (Class c, String filename) throws IOException, InstantiationException {
+        File file = null;
+        if (new File(filename).isAbsolute()) {
+            // This is an absolute path nane, add ENOS root.
+            if (BootStrap.rootPath == null) {
+                // rootPath is not set yet. Just create the resource, do not associate a file and return
+                // This is a new resource.
+                Resource resource = Resource.newResource(c);
+                resource.isNewInstance = true;
+                return resource;
+            } else {
+                file = new File(Paths.get(BootStrap.rootPath.toString(),filename).toString());
+            }
+        } else {
+            // Relative path
+            file = new File(Paths.get(KernelThread.getCurrentKernelThread().getUser().getCurrentPath().toString(),
+                    filename).toString());
+        }
+        if ( ! file.exists() ) {
             // This is a new resource.
-            Resource resource = TopologyFactory.newResource(c);
-            resource.setResourceDir(relativePath);
-            resource.save();
+            Resource resource = Resource.newResource(c);
+            resource.setConfigFile(file.getAbsolutePath());
+            resource.save(file.getAbsolutePath());
+            resource.isNewInstance = true;
+            return resource;
+        } else {
+            ObjectMapper mapper = new ObjectMapper();
+            FileInputStream input = new FileInputStream(file);
+            Resource resource = (Resource) mapper.readValue(input, c);
+            resource.isNewInstance = false;
             return resource;
         }
-        ObjectMapper mapper = new ObjectMapper();
-        FileInputStream input = new FileInputStream(config);
-        Resource resource = (Resource) mapper.readValue(input, c);
-        return resource;
     }
+
+    /**
+     * Returns true if the resource did not have persistent store file. False if the resource was loaded from
+     * an existing file.
+     * @return whether the resource was loaded or not from a file.
+     */
+    public boolean isNewInstance() {
+        return isNewInstance;
+    }
+
     public static final Resource newResource (Class c) throws InstantiationException {
         Resource resource = null;
         try {
             resource = (Resource) Class.forName(c.getName()).newInstance();
+            resource.isNewInstance = true;
             return resource;
         } catch (IllegalAccessException e) {
             throw new InstantiationException(e.toString());
@@ -161,6 +212,7 @@ public class Resource {
             throw new InstantiationException(e.toString());
         }
     }
+
 
     public List<String> getParentResources() {
         return parentResources;
