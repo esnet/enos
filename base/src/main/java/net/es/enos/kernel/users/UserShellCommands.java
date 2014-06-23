@@ -283,8 +283,13 @@ public class UserShellCommands {
 			o.println("Incorrect number of args");
 			return;
 		}
+		// Go to parent directory if slash is entered
+		String dest = args[1];
+		if (dest.equals("/")) {
+			dest = "..";
+		}
 
-		File cdDir = new File (Paths.get(userPath, args[1]).toString());
+		File cdDir = new File (Paths.get(userPath, dest).toString());
 
 		Path normalizedPath = cdDir.toPath().normalize();
 		cdDir = new File (Paths.get(normalizedPath.toString()).toString());
@@ -293,7 +298,7 @@ public class UserShellCommands {
 		try {
 			cdDir.canRead();
 			if (cdDir.exists() & !cdDir.isFile()) {
-				KernelThread.getCurrentKernelThread().getUser().setHomePath(Paths.get(userPath, args[1]));
+				KernelThread.getCurrentKernelThread().getUser().setHomePath(Paths.get(userPath, dest));
 				logger.debug("cd success");
 			} else {
 				o.println("Directory does not exist");
