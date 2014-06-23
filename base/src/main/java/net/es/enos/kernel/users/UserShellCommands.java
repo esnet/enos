@@ -199,7 +199,14 @@ public class UserShellCommands {
 		// If 1 extra arg, displays files in directory specified by the arg.
 		if (args.length == 1 ) {
 		} else if (args.length == 2) {
-			userPath = Paths.get(userPath, args[1]).toString();
+
+			String dest = args[1];
+			if (dest.startsWith("/")) {
+				dest = dest.substring(1);
+				dest = "../" + dest;
+			}
+
+			userPath = Paths.get(userPath, dest).toString();
 		} else {
 			o.println("Incorrect number of args");
 			return;
@@ -238,7 +245,13 @@ public class UserShellCommands {
 		// If 2 extra arguments, the last argument is directory where directory will be created.
 		if (args.length == 3) {
 			String tempFilePath = args[2];
+			if (tempFilePath.startsWith("/")) {
+				tempFilePath = tempFilePath.substring(1);
+				tempFilePath = "../" + tempFilePath;
+			}
 			userPath = Paths.get(userPath, tempFilePath).toString();
+
+
 		}
 		// Make sure directory specified exists.
 		File storeInDir = new File (userPath);
@@ -285,8 +298,9 @@ public class UserShellCommands {
 		}
 		// Go to parent directory if slash is entered
 		String dest = args[1];
-		if (dest.equals("/")) {
-			dest = "..";
+		if (dest.startsWith("/")) {
+			dest = dest.substring(1);
+			dest = "../" + dest;
 		}
 
 		File cdDir = new File (Paths.get(userPath, dest).toString());
@@ -325,6 +339,13 @@ public class UserShellCommands {
 			o.println("Incorrect number of args");
 			return;
 		}
+
+		String dest = args[1];
+		if (dest.startsWith("/")) {
+			dest = dest.substring(1);
+			dest = "../" + dest;
+		}
+
 		File catFile = new File (Paths.get(userPath).toString());
 
 		Path normalizedPath = catFile.toPath().normalize();
@@ -334,7 +355,7 @@ public class UserShellCommands {
 		try {
 			catFile.canRead();
 			try {
-				BufferedReader read = new BufferedReader(new FileReader(Paths.get(catFile.toString(), args[1]).toString()));
+				BufferedReader read = new BufferedReader(new FileReader(Paths.get(catFile.toString(), dest).toString()));
 				String print;
 				while((print = read.readLine()) != null) {
 					o.println(print);
@@ -370,7 +391,13 @@ public class UserShellCommands {
 			return;
 		}
 
-		File rmFile = new File (Paths.get(userPath, args[1]).toString());
+		String dest = args[1];
+		if (dest.startsWith("/")) {
+			dest = dest.substring(1);
+			dest = "../" + dest;
+		}
+
+		File rmFile = new File (Paths.get(userPath, dest).toString());
 
 		Path normalizedPath = rmFile.toPath().normalize();
 		rmFile = new File (Paths.get(normalizedPath.toString()).toString());
@@ -383,7 +410,7 @@ public class UserShellCommands {
 				rmFile.delete();
 
 				// Delete acl file associated with file if it exists
-				File aclDelete = new File(Paths.get(normalizedPath.getParent().toString(), ".acl", args[1]).toString());
+				File aclDelete = new File(Paths.get(normalizedPath.getParent().toString(), ".acl", dest).toString());
 				aclDelete.delete();
 				logger.debug("rm success");
 			} else {
