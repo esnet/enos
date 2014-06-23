@@ -1,5 +1,5 @@
 from org.jgrapht.alg import DijkstraShortestPath
-from net.es.enos.api import TopologyFactory
+from net.es.enos.api import TopologyFactory,TopologyProvider
 from net.es.enos.esnet import ESnetTopology,OSCARSReservations
 from org.joda.time import DateTime
 import sys
@@ -15,7 +15,7 @@ if len(command_args) != 4:
 topology = TopologyFactory.instance()
 topo = topology.retrieveTopologyProvider("localLayer2")
 
-graph = topo.retrieveTopology()
+graph = topo.getGraph(TopologyProvider.WeightType.TrafficEngineering)
 nodes = topo.getNodes()
 nodesByLink = topo.getNodesByLink()
 portsByLink = topo.getPortsByLink()
