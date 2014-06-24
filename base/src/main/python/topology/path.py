@@ -35,18 +35,18 @@ print "Start Node= " + srcNode.getId()
 maxReservable = -1
 
 for link in path:
-	nodes = nodesByLink.get(link)
-	ports = portsByLink.get(link)
-	port = ports[0] # Assume only one port per link
-	portReservation = reserved.get(port)
-	if portReservation == None:
-		print "No portReservation for link " + link.getId() + " port= " + port.getId()
-		continue
-	remainTo = portReservation.maxReservable - portReservation.alreadyReserved[0]
-	remainFrom = portReservation.maxReservable - portReservation.alreadyReserved[1]
-	print "Node= " + nodes[0].getId() + "\tlinkId= " + link.getId()
-	if (maxReservable == -1) or (maxReservable > remainTo):
-		maxReservable = remainTo;
+    nodes = nodesByLink.get(link)
+    ports = portsByLink.get(link)
+    port = ports[0] # Assume only one port per link
+    portReservation = reserved.get(port)
+    if portReservation == None:
+        print "No portReservation for link " + link.getId() + " port= " + port.getId()
+        continue
+    remainTo = portReservation.maxReservable - portReservation.alreadyReserved[0]
+    remainFrom = portReservation.maxReservable - portReservation.alreadyReserved[1]
+    print "Node= " + nodes[0].getId() + "\tlinkId= " + link.getId()
+    if (maxReservable == -1) or (maxReservable > remainTo):
+        maxReservable = remainTo;
 
 print "End Node= " + dstNode.getId()
 print "Max. reservable= " + str(maxReservable) + " bits/sec"
