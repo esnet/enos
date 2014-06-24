@@ -38,14 +38,11 @@ public class PersistentObject {
         this.configFile = configFile;
     }
 
-
     /**
-     * Save the resource in a file specified by the provided file name. ENOS root is added
-     * to the file name if the filename is absolute.
-     * @param filename
-     * @throws java.io.IOException
+     * Builds the correct pathname of a file, taking into account the ENOS_ROOT and the ENOS user
+     * current directory
      */
-    public final void save(String filename) throws IOException {
+    public static File buildPathname(String filename) {
         File file = null;
         if (BootStrap.rootPath == null) {
             // Not yet initialized. Assume non ENOS path
@@ -60,6 +57,17 @@ public class PersistentObject {
                         filename).toString());
             }
         }
+        return file;
+    }
+
+    /**
+     * Save the resource in a file specified by the provided file name. ENOS root is added
+     * to the file name if the filename is absolute.
+     * @param filename
+     * @throws java.io.IOException
+     */
+    public final void save(String filename) throws IOException {
+        File file = PersistentObject.buildPathname(filename);
         this.save(file);
     }
 
@@ -90,20 +98,7 @@ public class PersistentObject {
      * @throws InstantiationException
      */
     public static final PersistentObject newObject (Class c, String filename) throws IOException, InstantiationException {
-        File file = null;
-        if (new File(filename).isAbsolute()) {
-            // This is an absolute path nane, add ENOS root.
-            if (BootStrap.rootPath == null) {
-                // rootPath is not set yet. Assume non ENOS path
-                file = new File(filename);
-            } else {
-                file = new File(Paths.get(BootStrap.rootPath.toString(),filename).toString());
-            }
-        } else {
-            // Relative path
-            file = new File(Paths.get(KernelThread.getCurrentKernelThread().getUser().getCurrentPath().toString(),
-                    filename).toString());
-        }
+        File file = PersistentObject.buildPathname(filename);
         if ( ! file.exists() ) {
             // This is a new resource.
             PersistentObject obj = PersistentObject.newObject(c);

@@ -58,7 +58,7 @@ public class GlobalConfiguration {
     private int sshIdleTimeout = 3600000;
     private int securityManagerDisabled = 0;
     @JsonIgnore
-    private boolean canSet = false;
+    private boolean canSet = true;
 
     public String getDefaultLogLevel() {
         return defaultLogLevel;

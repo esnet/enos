@@ -61,8 +61,13 @@ public class ENOSConfiguration extends PersistentObject {
         return global;
     }
 
-    public void setGlobal(GlobalConfiguration global) {
-        this.global = global;
+    public final synchronized void setGlobal(GlobalConfiguration global) {
+        if (this.global == null) {
+            // Can only set once. Fail silently otherwise
+            this.global = global;
+            // Make it read-only
+            this.getGlobal().readOnly();
+        }
     }
     /**
      * Loads from the configuration file. If the file does not exist, the configuration is
@@ -81,8 +86,8 @@ public class ENOSConfiguration extends PersistentObject {
 
         // Read the configuration
         try {
-            enosConfiguration = (ENOSConfiguration) Resource.newObject(ENOSConfiguration.class,
-                    configurationFilePath);
+            enosConfiguration = (ENOSConfiguration) PersistentObject.newObject(ENOSConfiguration.class,
+                                                                       configurationFilePath);
         } catch (IOException e) {
             e.printStackTrace();
         } catch (InstantiationException e) {
