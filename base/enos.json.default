@@ -1,7 +1,7 @@
 {
     "global": {
 	"defaultLogLevel":		"info",
-	"rootDirectory":		"/tmp/enos/",
+	"rootDirectory":		"/var/enos/",
 	"securityManagerDisabled":	0,
 	"sshDisabled":			0,
 	"sshIdleTimeout":		3600000,

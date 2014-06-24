@@ -32,6 +32,7 @@ package net.es.enos.boot;
 
 import net.es.enos.api.DefaultValues;
 
+import net.es.enos.api.ENOSException;
 import net.es.enos.configuration.ENOSConfiguration;
 import net.es.enos.configuration.GlobalConfiguration;
 import net.es.enos.kernel.exec.KernelThread;
@@ -44,6 +45,7 @@ import net.es.enos.sshd.SShd;
 import net.es.enos.shell.Shell;
 import net.es.enos.kernel.users.UserShellCommands;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -103,7 +105,7 @@ public class BootStrap implements Runnable {
         BootStrap.thread.start();
 
     }
-    public static void main(String[] args) {
+    public static void main(String[] args) throws ENOSException {
 
         final Logger logger = LoggerFactory.getLogger(BootStrap.class);
 
@@ -111,6 +113,19 @@ public class BootStrap implements Runnable {
         // TODO:  This doesn't work.  It appears that setting the default logging level has no effect, possibly because all the various loggers have already been created?
         String defaultLogLevel = ENOSConfiguration.getInstance().getGlobal().getDefaultLogLevel();
 
+        // Make sure the root directory exists and that we can write to it.
+        File root = new File(BootStrap.rootPath.toString());
+        if (root.isDirectory()) {
+            if (root.canWrite()) {
+                logger.info("Starting ENOS root= " + BootStrap.rootPath.toString());
+            }
+            else {
+                throw new ENOSException("ENOS root directory " + BootStrap.rootPath + " not writable");
+            }
+        }
+        else {
+            throw new ENOSException("ENOS root directory " + BootStrap.rootPath + " not found");
+        }
 
         ENOSConfiguration enosConfiguration = ENOSConfiguration.getInstance();
 
@@ -121,8 +136,6 @@ public class BootStrap implements Runnable {
         }
 
         System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, defaultLogLevel);
-
-        logger.info("Starting ENOS root= " + BootStrap.rootPath.toString());
 
         BootStrap.bootStrap = new BootStrap(args);
         BootStrap.bootStrap.init();

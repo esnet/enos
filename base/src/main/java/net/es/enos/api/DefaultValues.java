@@ -13,5 +13,5 @@ package net.es.enos.api;
  * This class defines the default values of configuration system properties.
  */
 public final class DefaultValues {
-    public static String ENOS_DEFAULT_ROOTDIR = "/tmp/enos";
+    public static String ENOS_DEFAULT_ROOTDIR = "/var/enos";
 }
