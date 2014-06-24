@@ -32,6 +32,7 @@ package net.es.enos.boot;
 
 import net.es.enos.api.DefaultValues;
 
+import net.es.enos.configuration.ENOSConfiguration;
 import net.es.enos.configuration.GlobalConfiguration;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.security.AllowedSysCalls;
@@ -63,7 +64,7 @@ public class BootStrap implements Runnable {
 
     // We need to be sure the global configuration gets instantiated before the security manager,
     // because the former controls the initialization actions of the latter.
-    private static final GlobalConfiguration masterConfiguration = GlobalConfiguration.getInstance();
+    private static final GlobalConfiguration masterConfiguration = ENOSConfiguration.getInstance().getGlobal();
     private static final KernelSecurityManager securityManager = new KernelSecurityManager();
 
     public final static Path rootPath = Paths.get(
@@ -108,7 +109,17 @@ public class BootStrap implements Runnable {
 
         // Set default logging level.
         // TODO:  This doesn't work.  It appears that setting the default logging level has no effect, possibly because all the various loggers have already been created?
-        String defaultLogLevel = GlobalConfiguration.getInstance().getDefaultLogLevel();
+        String defaultLogLevel = ENOSConfiguration.getInstance().getGlobal().getDefaultLogLevel();
+
+
+        ENOSConfiguration enosConfiguration = ENOSConfiguration.getInstance();
+
+        try {
+            enosConfiguration.save("/tmp/test.json");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, defaultLogLevel);
 
         logger.info("Starting ENOS root= " + BootStrap.rootPath.toString());
@@ -132,7 +143,7 @@ public class BootStrap implements Runnable {
     public void startServices() {
 
         // Start sshd if it's not disabled.
-        int sshDisabled = GlobalConfiguration.getInstance().getSshDisabled();
+        int sshDisabled = ENOSConfiguration.getInstance().getGlobal().getSshDisabled();
         if (sshDisabled == 0) {
             this.sshd = SShd.getSshd();
             try {
@@ -171,7 +182,6 @@ public class BootStrap implements Runnable {
 
     @Override
     public void run() {
-        // System.out.println("Starting services");
         logger.info("Starting services");
         this.startServices();
     }

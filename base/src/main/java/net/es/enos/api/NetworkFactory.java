@@ -67,7 +67,7 @@ public class NetworkFactory extends Resource {
         synchronized (NetworkFactory.instanceLock) {
             if (NetworkFactory.instance == null) {
                 try {
-                    NetworkFactory.instance = (NetworkFactory) Resource.newResource(NetworkFactory.class,
+                    NetworkFactory.instance = (NetworkFactory) Resource.newObject(NetworkFactory.class,
                             Paths.get(FACTORY_DIR,FACTORY_CONFIGFILE).toString());
                     NetworkFactory.instance().startProviders();
                 } catch (IOException e) {

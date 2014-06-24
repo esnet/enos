@@ -35,6 +35,7 @@ import net.es.enos.api.NonExistantUserException;
 import net.es.enos.api.UserAlreadyExistException;
 import net.es.enos.api.UserException;
 import net.es.enos.boot.BootStrap;
+import net.es.enos.configuration.ENOSConfiguration;
 import net.es.enos.configuration.GlobalConfiguration;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
@@ -83,7 +84,7 @@ public final class Users {
 
     public Users() {
         // Figure out the ENOS root directory.
-        String enosRootDir = GlobalConfiguration.getInstance().getRootDirectory();
+        String enosRootDir = ENOSConfiguration.getInstance().getGlobal().getRootDirectory();
         this.enosRootPath = Paths.get(enosRootDir).normalize();
         this.passwordFilePath = Paths.get(this.enosRootPath.toString() +"/etc/enos.users");
 

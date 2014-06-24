@@ -73,7 +73,7 @@ public class TopologyFactory extends Resource {
         synchronized (TopologyFactory.instanceLock) {
             if (TopologyFactory.instance == null) {
                 try {
-                    TopologyFactory.instance = (TopologyFactory) Resource.newResource(TopologyFactory.class,
+                    TopologyFactory.instance = (TopologyFactory) Resource.newObject(TopologyFactory.class,
                             Paths.get(FACTORY_DIR, FACTORY_CONFIGFILE).toString());
                     TopologyFactory.instance().startProviders();
                 } catch (IOException e) {

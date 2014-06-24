@@ -35,6 +35,7 @@ package net.es.enos.sshd;
  */
 
 import net.es.enos.boot.BootStrap;
+import net.es.enos.configuration.ENOSConfiguration;
 import net.es.enos.configuration.GlobalConfiguration;
 import net.es.enos.kernel.users.Users;
 import org.apache.mina.util.Base64;
@@ -252,10 +253,10 @@ public class SShd {
         // Timeouts on the SSH session get set here via the SshServer properties map.
         this.sshServer = SshServer.setUpDefaultServer();
 
-        int sshPort = GlobalConfiguration.getInstance().getSshPort();
+        int sshPort = ENOSConfiguration.getInstance().getGlobal().getSshPort();
         this.sshServer.setPort(sshPort);
 
-        int sshIdleTimeout = GlobalConfiguration.getInstance().getSshIdleTimeout();
+        int sshIdleTimeout = ENOSConfiguration.getInstance().getGlobal().getSshIdleTimeout();
         this.sshServer.getProperties().put(sshServer.IDLE_TIMEOUT, Integer.toString(sshIdleTimeout));
 
         // The password authenticator is an object from an anonymous class that implements the

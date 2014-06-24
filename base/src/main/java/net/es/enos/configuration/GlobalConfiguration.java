@@ -36,22 +36,20 @@ import net.es.enos.api.PropertyKeys;
 import net.es.enos.api.Resource;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
+import org.codehaus.jackson.annotate.JsonIgnore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 
 /**
  * ENOS global configuration object. It is intended to be used as a read-only singleton.
  * Defines the behavior of the ENOS main daemon.
  */
-public class GlobalConfiguration extends Resource {
-
-    private static GlobalConfiguration instance;
-
-    public static String DEFAULT_FILENAME = "enos.json.default";
+public class GlobalConfiguration {
 
     private String defaultLogLevel = "info";
     private String rootDirectory = DefaultValues.ENOS_DEFAULT_ROOTDIR;
@@ -59,17 +57,9 @@ public class GlobalConfiguration extends Resource {
     private int sshPort = 8000;
     private int sshIdleTimeout = 3600000;
     private int securityManagerDisabled = 0;
+    @JsonIgnore
     private boolean canSet = false;
-    private final static Logger logger = LoggerFactory.getLogger(GlobalConfiguration.class);
 
-    /**
-     * Special constructor that is intended to create a instance of the
-     * GlobalConfiguration that can be set
-     * @param canSet
-     */
-    public GlobalConfiguration(boolean canSet){
-        this.canSet = true;
-    }
     public String getDefaultLogLevel() {
         return defaultLogLevel;
     }
@@ -142,51 +132,10 @@ public class GlobalConfiguration extends Resource {
         this.securityManagerDisabled = securityManagerDisabled;
     }
 
-
-    public static GlobalConfiguration getInstance() {
-        if (instance == null) {
-            instance = GlobalConfiguration.loadConfiguration();
-        }
-        return instance;
-    }
-
     public GlobalConfiguration() {
     }
 
-    /**
-     * Loads from the configuration file. If the file does not exist, the configuration is
-     * "settable". As soon as it is writen onto the file, the configuration is set to not settable.
-      * @return the singleton GlobalConfiguration.
-     */
-    private static GlobalConfiguration loadConfiguration () {
-        String configurationFilePath = System.getProperty(PropertyKeys.ENOS_CONFIGURATION);
-
-        if (configurationFilePath == null) {
-            logger.info("No configuration file property!");
-            configurationFilePath = DEFAULT_FILENAME;
-        }
-        GlobalConfiguration globalConfiguration = null;
-        // Read the configuration
-        try {
-            globalConfiguration = (GlobalConfiguration) Resource.newResource(GlobalConfiguration.class,
-                                                                             configurationFilePath);
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InstantiationException e) {
-            e.printStackTrace();
-        }
-        if (globalConfiguration.isNewInstance()) {
-            // This is a new instance. Can set
-            globalConfiguration.canSet = true;
-        }
-        logger.info("Master configuration file is {}", new File(configurationFilePath).getAbsolutePath());
-        return globalConfiguration;
-    }
-
-    @Override
-    public void save(File file) throws IOException {
-        super.save(file);
-        // The GlobalConfiguration can no longer be modified within ENOS
+    public void readOnly() {
         this.canSet = false;
     }
 }

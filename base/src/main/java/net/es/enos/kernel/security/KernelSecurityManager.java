@@ -33,6 +33,7 @@ import net.es.enos.boot.BootStrap;
 import net.es.enos.api.DefaultValues;
 import net.es.enos.api.ENOSException;
 import net.es.enos.api.PropertyKeys;
+import net.es.enos.configuration.ENOSConfiguration;
 import net.es.enos.configuration.GlobalConfiguration;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
@@ -62,7 +63,7 @@ public class KernelSecurityManager extends SecurityManager {
 
 		// See if SecurityManager should be disabled.  We need to be very conservative here in terms
 		// of letting admins turn this off.
-		if (GlobalConfiguration.getInstance().getSecurityManagerDisabled() != 0) {
+		if (ENOSConfiguration.getInstance().getGlobal().getSecurityManagerDisabled() != 0) {
 			logger.warn("ENOS SecurityManager is currently disabled.  No security checks will be run.  MUST NOT BE USED IN PRODUCTION.");
 			return;
 		}
@@ -72,7 +73,7 @@ public class KernelSecurityManager extends SecurityManager {
 		System.setSecurityManager(this);
 
 		// Figure out the ENOS root directory.
-		String rootdir = GlobalConfiguration.getInstance().getRootDirectory();
+		String rootdir = ENOSConfiguration.getInstance().getGlobal().getRootDirectory();
 		this.rootPath = Paths.get(rootdir).normalize();
 	}
 

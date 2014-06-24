@@ -32,6 +32,7 @@ package net.es.enos.kernel.security;
 
 import net.es.enos.api.DefaultValues;
 import net.es.enos.boot.BootStrap;
+import net.es.enos.configuration.ENOSConfiguration;
 import net.es.enos.configuration.GlobalConfiguration;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
@@ -63,7 +64,7 @@ public final class FileACL extends Properties {
 
     static {
         // Figure out the ENOS root directory.
-        String rootdir = GlobalConfiguration.getInstance().getRootDirectory();
+        String rootdir = ENOSConfiguration.getInstance().getGlobal().getRootDirectory();
         rootPath = Paths.get(rootdir).normalize();
     }
 
