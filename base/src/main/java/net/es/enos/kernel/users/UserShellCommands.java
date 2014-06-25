@@ -203,7 +203,13 @@ public class UserShellCommands {
 			String dest = args[1];
 			if (dest.startsWith("/")) {
 				dest = dest.substring(1);
-				dest = "../" + dest;
+				String newPath = "";
+				String currentPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
+				int occur = currentPath.length() - currentPath.replace("/", "").length();
+				for (int i = 0; i < occur; i++) {
+					newPath = newPath + "../";
+				}
+				dest = newPath + Users.getUsers().getEnosRootPath() + "/" + dest;
 			}
 
 			userPath = Paths.get(userPath, dest).toString();
@@ -247,11 +253,15 @@ public class UserShellCommands {
 			String tempFilePath = args[2];
 			if (tempFilePath.startsWith("/")) {
 				tempFilePath = tempFilePath.substring(1);
-				tempFilePath = "../" + tempFilePath;
+				String newPath = "";
+				String currentPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
+				int occur = currentPath.length() - currentPath.replace("/", "").length();
+				for (int i = 0; i < occur; i++) {
+					newPath = newPath + "../";
+				}
+				tempFilePath = newPath + Users.getUsers().getEnosRootPath() + "/" + tempFilePath;
 			}
 			userPath = Paths.get(userPath, tempFilePath).toString();
-
-
 		}
 		// Make sure directory specified exists.
 		File storeInDir = new File (userPath);
@@ -296,11 +306,17 @@ public class UserShellCommands {
 			o.println("Incorrect number of args");
 			return;
 		}
-		// Go to parent directory if slash is entered
+		// Go to enos root directory if slash is entered
 		String dest = args[1];
 		if (dest.startsWith("/")) {
 			dest = dest.substring(1);
-			dest = "../" + dest;
+			String newPath = "";
+			String currentPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
+			int occur = currentPath.length() - currentPath.replace("/", "").length();
+			for (int i = 0; i < occur; i++) {
+				newPath = newPath + "../";
+			}
+			dest = newPath + Users.getUsers().getEnosRootPath() + "/" + dest;
 		}
 
 		File cdDir = new File (Paths.get(userPath, dest).toString());
@@ -312,7 +328,7 @@ public class UserShellCommands {
 		try {
 			cdDir.canRead();
 			if (cdDir.exists() & !cdDir.isFile()) {
-				KernelThread.getCurrentKernelThread().getUser().setCurrentPath(Paths.get(userPath, dest));
+				KernelThread.getCurrentKernelThread().getUser().setHomePath(Paths.get(userPath, dest));
 				logger.debug("cd success");
 			} else {
 				o.println("Directory does not exist");
@@ -343,7 +359,13 @@ public class UserShellCommands {
 		String dest = args[1];
 		if (dest.startsWith("/")) {
 			dest = dest.substring(1);
-			dest = "../" + dest;
+			String newPath = "";
+			String currentPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
+			int occur = currentPath.length() - currentPath.replace("/", "").length();
+			for (int i = 0; i < occur; i++) {
+				newPath = newPath + "../";
+			}
+			dest = newPath + Users.getUsers().getEnosRootPath() + "/" + dest;
 		}
 
 		File catFile = new File (Paths.get(userPath).toString());
@@ -394,7 +416,13 @@ public class UserShellCommands {
 		String dest = args[1];
 		if (dest.startsWith("/")) {
 			dest = dest.substring(1);
-			dest = "../" + dest;
+			String newPath = "";
+			String currentPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
+			int occur = currentPath.length() - currentPath.replace("/", "").length();
+			for (int i = 0; i < occur; i++) {
+				newPath = newPath + "../";
+			}
+			dest = newPath + Users.getUsers().getEnosRootPath() + "/" + dest;
 		}
 
 		File rmFile = new File (Paths.get(userPath, dest).toString());
@@ -421,5 +449,21 @@ public class UserShellCommands {
 			o.println("Invalid permissions to write in this directory");
 		}
 	}
+
+
+
+	@ShellCommand(name = "$PWD",
+			shortHelp = "Displays current directory",
+			longHelp = "Displays current directory (no arguments)")
+	public static void PWD(String[] args, InputStream in, OutputStream out, OutputStream err) {
+		Logger logger = LoggerFactory.getLogger(UserShellCommands.class);
+		logger.info("$PWD", args.length);
+
+		PrintStream o = new PrintStream(out);
+
+		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
+		o.println(userPath + ": is a directory");
+	}
+
 
 }

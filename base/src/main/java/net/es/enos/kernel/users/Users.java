@@ -506,6 +506,7 @@ public final class Users {
         }
     }
 
+	public Path getEnosRootPath() { return enosRootPath; }
 
     public Path getHomePath() {
         return enosRootPath.resolve(USERS_DIR);
