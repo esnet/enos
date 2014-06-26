@@ -511,8 +511,8 @@ public class ESnetTopology  extends TopologyProvider {
         this.url = url;
     }
 
-    public void registerToFactory() throws IOException {
-        TopologyFactory.instance().registerTopologyProvider(this.getClass().getCanonicalName(),TopologyFactory.LOCAL_LAYER2);
+    public static void registerToFactory() throws IOException {
+        TopologyFactory.instance().registerTopologyProvider(ESnetTopology.class.getCanonicalName(),TopologyFactory.LOCAL_LAYER2);
     }
 
     @Override

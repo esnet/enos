@@ -120,10 +120,12 @@ public class BootStrap implements Runnable {
                 logger.info("Starting ENOS root= " + BootStrap.rootPath.toString());
             }
             else {
+                logger.error("ENOS root directory " + BootStrap.rootPath + " not writable");
                 throw new ENOSException("ENOS root directory " + BootStrap.rootPath + " not writable");
             }
         }
         else {
+            logger.error("ENOS root directory " + BootStrap.rootPath + " not found");
             throw new ENOSException("ENOS root directory " + BootStrap.rootPath + " not found");
         }
 

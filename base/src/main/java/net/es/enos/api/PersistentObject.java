@@ -103,7 +103,6 @@ public class PersistentObject {
             // This is a new resource.
             PersistentObject obj = PersistentObject.newObject(c);
             obj.setConfigFile(file.getAbsolutePath());
-            obj.save(file.getAbsolutePath());
             obj.isNewInstance = true;
             return obj;
         } else {
