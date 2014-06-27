@@ -109,7 +109,7 @@ public final class FileACL extends Properties {
     }
 
     /**
-     * SysCall implementing the privileged access to the ACL file. If the file does not exist, do_loacACL will
+     * SysCall implementing the privileged access to the ACL file. If the file does not exist, do_loadACL will
      * attempt to retrieve ACL from parent directories until reaching ENOS root.
      * @throws IOException
      */
@@ -173,7 +173,6 @@ public final class FileACL extends Properties {
         // By default inherit parent's ACL
         this.inheritParent();
         // Create the file and save it
-        // System.out.println("Creating " + this.aclPath.toString());
         this.aclPath.getParent().toFile().mkdirs();
         this.aclPath.toFile().createNewFile();
         this.store(new FileOutputStream(this.aclPath.toString()),"ENOS File ACL");
@@ -193,7 +192,6 @@ public final class FileACL extends Properties {
      * @return
      */
     public boolean canRead(String username) {
-        // System.out.println("FileACL.canRead " + this.filePath.toString());
         String[] users = this.getCanRead();
         for (String user : users) {
             if (user.equals("*") || user.equals(username)) {
@@ -267,6 +265,7 @@ public final class FileACL extends Properties {
                 FileACL.makeString(FileACL.addUser(this.getCanWrite(),username)));
 
     }
+
 
 }
 

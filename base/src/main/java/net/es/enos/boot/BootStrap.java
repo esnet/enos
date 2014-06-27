@@ -131,12 +131,6 @@ public class BootStrap implements Runnable {
 
         ENOSConfiguration enosConfiguration = ENOSConfiguration.getInstance();
 
-        try {
-            enosConfiguration.save("/tmp/test.json");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
         System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, defaultLogLevel);
 
         BootStrap.bootStrap = new BootStrap(args);

@@ -35,7 +35,7 @@ public class ShellCommandsFactory {
             ShellCommand command = method.getAnnotation(ShellCommand.class);
             if (command != null) {
                 // This method is command.
-                logger.info("Adding Shell command {}", command.name());
+                logger.debug("Adding Shell command {}", command.name());
                 ShellCommandsFactory.shellCommands.put(command.name(),method);
             }
         }

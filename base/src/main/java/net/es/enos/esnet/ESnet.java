@@ -23,12 +23,13 @@ import java.io.IOException;
 /**
  * This class implements ESnet layer 2 network. It is a singleton.
  */
-public class ESnet extends NetworkProvider {
+public final class ESnet extends NetworkProvider {
 
     private static ESnet instance;
     private ESnetTopology topology;
     private static Object instanceMutex = new Object();
     private static final Logger logger = LoggerFactory.getLogger(ESnet.class);
+    private OSCARS oscars;
 
     public static ESnet instance() {
         synchronized (ESnet.instanceMutex) {
@@ -50,6 +51,7 @@ public class ESnet extends NetworkProvider {
             logger.error("Layer2 local topology is not a ESnetTopology. It is a " + topo.getClass().getCanonicalName());
         }
         this.topology = (ESnetTopology) topo;
+        this.oscars = new OSCARS();
     }
 
     @Override
@@ -94,5 +96,45 @@ public class ESnet extends NetworkProvider {
     @Override
     public TopologyProvider getTopologyProvider() {
         return this.topology;
+    }
+
+    @Override
+    public boolean canProvisionLayer2() {
+        /* OSCARS supports only scheduled virtual circuits. Immediate and not time bounded virtucal may be
+         * supported with NSI, or by using SDN capable links.
+         */
+        return false;
+    }
+
+    @Override
+    public boolean canProvisionScheduledLayer2() {
+        return true;
+    }
+
+    @Override
+    public boolean supportProfile(Layer2ProvisioningProfiles profile) {
+        /* While ESnet's OSCARS can support all profiles, this implementation is restricted to best effort */
+        return profile.equals(Layer2ProvisioningProfiles.BestEffort);
+    }
+
+    @Override
+    public ProvisionedPath provisionLayer2(Path path, Layer2ProvisioningProfiles profile) throws IOException {
+
+        if (path.getStart().equals(path.getEnd()) ||
+            path.getStart().isAfter(path.getEnd())) {
+            throw new IOException("does not support provisioning with time constraints");
+        }
+        if ( ! this.supportProfile(profile)) {
+            throw new IOException("does not support this profile");
+        }
+        if ( ! oscars.canProvision(path))  {
+            throw new SecurityException("not authorized to provision this path");
+        }
+        return null;
+    }
+
+    @Override
+    public void deprovisionLayer2(ProvisionedPath path) throws IOException {
+        super.deprovisionLayer2(path);
     }
 }

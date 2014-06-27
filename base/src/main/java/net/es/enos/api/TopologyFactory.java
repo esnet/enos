@@ -20,7 +20,7 @@ import java.util.List;
 /**
  * Created by lomax on 5/21/14.
  */
-public class TopologyFactory extends Resource {
+public class TopologyFactory extends PersistentObject {
     public final static String FACTORY_DIR = "/topologies";
     public final static String FACTORY_CONFIGFILE = "factory";
     public final static String LOCAL_LAYER1 = "localLayer1";
@@ -73,8 +73,9 @@ public class TopologyFactory extends Resource {
         synchronized (TopologyFactory.instanceLock) {
             if (TopologyFactory.instance == null) {
                 try {
-                    TopologyFactory.instance = (TopologyFactory) Resource.newObject(TopologyFactory.class,
-                            Paths.get(FACTORY_DIR, FACTORY_CONFIGFILE).toString());
+                    TopologyFactory.instance =
+                            (TopologyFactory) PersistentObject.newObject(TopologyFactory.class,
+                                                                         Paths.get(FACTORY_DIR, FACTORY_CONFIGFILE).toString());
                     TopologyFactory.instance().startProviders();
                 } catch (IOException e) {
 
@@ -102,7 +103,7 @@ public class TopologyFactory extends Resource {
         }
         TopologyProviderDescriptor provider = new TopologyProviderDescriptor(className,type);
         this.providers.add(provider);
-        this.save(Paths.get(FACTORY_DIR,type,className).toString());
+        this.save(Paths.get(FACTORY_DIR, FACTORY_CONFIGFILE).toString());
         this.startProvider(provider);
     }
 }

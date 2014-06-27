@@ -9,16 +9,11 @@
 
 package net.es.enos.api;
 
-import net.es.enos.boot.BootStrap;
 import org.codehaus.jackson.annotate.JsonIgnore;
-import org.jgrapht.Graph;
-import org.jgrapht.GraphPath;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.UUID;
+
 /**
  * Created by lomax on 5/21/14.
  */
@@ -27,7 +22,7 @@ public abstract class NetworkProvider extends Resource {
     /**
      * Various defined provisioning profiles that network may implement
      */
-    public static enum Layer2ProvioningProfiles {
+    public static enum Layer2ProvisioningProfiles {
         BestEffort,           // No bandwidth guaranty.
         StrictBandwidth,      // Guaranted bandwidth but no burst allowed
         BandwidthWithBurst    // Guaranted bandwidth burst ok when possible
@@ -77,44 +72,22 @@ public abstract class NetworkProvider extends Resource {
         return false;
     }
 
-    public boolean supportProfile (Layer2ProvioningProfiles profile) {
+    public boolean supportProfile (Layer2ProvisioningProfiles profile) {
         return false;
     }
 
     /**
-     * Provision and schedule the provided layer 2 path.
-     * @param path
-     * @return
-     * @throws IOException when provisioning the provided path failed or
-     * if the network is not capable of provisioning and schedule layer 2 circuits
-     */
-    /**
-     *rovision and schedule the provided layer 2 path.
-     * @param path  provided path to provision
-     * @param profile desired profile. An IOException is thrown when the profile is not available
-     * @param start
-     * @param end
-     * @return Provisioned and scheduled path
-     * @throws IOException
-     */
-    public ProvisionedScheduledPath provisionLayer2(Path path,
-                                                    Layer2ProvioningProfiles profile,
-                                                    DateTime start,
-                                                    DateTime end) throws IOException {
-        throw new IOException("Can not provision layer 2 circuits");
-    }
-
-    /**
-     * Provision the provided layer 2 path providing start and end date. Note that some
-     * networks may not be able to provision with start and end dates. In this case, they
-     * are expected to throw an IOException.
+     * Provision the provided layer 2 path providing start and end date.  If start and end date
+     * are identical, the path is not bounder. Networks that do not support scheduled provisioning
+     * are expected to throw an IOException when start and end dates are not equal. An IOException is
+     * throwned when the Network is not capable of provisioning at the provided dates.
      * @param path rovided path to provision
      * @param profile desired profile. An IOException is thrown when the profile is not available
      * @return Provisioned path
      * @throws IOException when provisioning the provided path failed
      */
     public ProvisionedPath  provisionLayer2(Path path,
-                                            Layer2ProvioningProfiles profile ) throws IOException {
+                                            Layer2ProvisioningProfiles profile ) throws IOException {
         return null;
     }
 

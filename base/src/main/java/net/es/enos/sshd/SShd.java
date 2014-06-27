@@ -147,7 +147,7 @@ public class SShd {
                                 // This is what we do for a valid login.  If we don't find a match, then keep
                                 // checking.
                                 if (match) {
-                                    logger.info("Matching user {} with {} key", username, publicKey.getAlgorithm());
+                                    logger.debug("Matching user {} with {} key", username, publicKey.getAlgorithm());
                                     SShd.TokenId tokenId = new SShd.TokenId(username,
                                             true,
                                             Users.getUsers().isPrivileged(username));

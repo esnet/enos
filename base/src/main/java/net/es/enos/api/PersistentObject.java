@@ -42,7 +42,7 @@ public class PersistentObject {
      * Builds the correct pathname of a file, taking into account the ENOS_ROOT and the ENOS user
      * current directory
      */
-    public static File buildPathname(String filename) {
+    public static File buildFile(String filename) {
         File file = null;
         if (BootStrap.rootPath == null) {
             // Not yet initialized. Assume non ENOS path
@@ -50,7 +50,6 @@ public class PersistentObject {
         } else {
             if (new File(filename).isAbsolute()) {
                 file = new File(Paths.get(BootStrap.rootPath.toString(), filename).toString());
-
             } else {
                 // Relative path.
                 file = new File(Paths.get(KernelThread.getCurrentKernelThread().getUser().getCurrentPath().toString(),
@@ -67,7 +66,7 @@ public class PersistentObject {
      * @throws java.io.IOException
      */
     public final void save(String filename) throws IOException {
-        File file = PersistentObject.buildPathname(filename);
+        File file = PersistentObject.buildFile(filename);
         this.save(file);
     }
 
@@ -98,7 +97,7 @@ public class PersistentObject {
      * @throws InstantiationException
      */
     public static final PersistentObject newObject (Class c, String filename) throws IOException, InstantiationException {
-        File file = PersistentObject.buildPathname(filename);
+        File file = PersistentObject.buildFile(filename);
         if ( ! file.exists() ) {
             // This is a new resource.
             PersistentObject obj = PersistentObject.newObject(c);
