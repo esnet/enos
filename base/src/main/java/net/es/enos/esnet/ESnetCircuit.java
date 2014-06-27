@@ -9,8 +9,8 @@
 
 package net.es.enos.esnet;
 
-import net.es.enos.api.Circuit;
 import net.es.enos.api.ISODateTime;
+import net.es.enos.api.Resource;
 import org.joda.time.DateTime;
 
 import java.util.List;
@@ -18,7 +18,7 @@ import java.util.List;
 /**
  * Created by lomax on 5/19/14.
  */
-public class ESnetCircuit extends Circuit {
+public class ESnetCircuit extends Resource {
     private String start; // UTC time in seconds
     private String end; // UTC time in seconds
     private String description;
@@ -28,6 +28,24 @@ public class ESnetCircuit extends Circuit {
     private List<ESnetDataPlaneId> dataplane_ids;
     private String id;
     private String name;
+    private ISODateTime startDateTime;
+    private ISODateTime endDateTime;
+
+    public ISODateTime getStartDateTime() {
+        return startDateTime;
+    }
+
+    public void setStartDateTime(ISODateTime startDateTime) {
+        this.startDateTime = startDateTime;
+    }
+
+    public ISODateTime getEndDateTime() {
+        return endDateTime;
+    }
+
+    public void setEndDateTime(ISODateTime endDateTime) {
+        this.endDateTime = endDateTime;
+    }
 
     public String getName() {
         return name;

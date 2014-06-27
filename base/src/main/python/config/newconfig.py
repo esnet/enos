@@ -2,7 +2,7 @@
 #
 # Configures the initial ENOS deployment. Currently hard coded for ESnet deployment
 #
-from net.es.enos.esnet import ESnetTopology
+from net.es.enos.esnet import ESnetTopology, ESnet
 
 print "Welcome to ENOS configuration tool."
 print "\t.currently only support ESnet deployment"
@@ -11,4 +11,6 @@ print
 
 print "registering ESnet Topology as default layer 2 topology service"
 ESnetTopology.registerToFactory()
+print "registering ESnet as the default network"
+ESnet.registerToFactory()
 

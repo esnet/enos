@@ -9,29 +9,28 @@
 
 package net.es.enos.api;
 
-import org.joda.time.DateTime;
-import sun.nio.cs.ext.ISO2022_CN;
-
 /**
- * Created by lomax on 5/28/14.
+ * ProvisionedPath is a stub allowing the implementation to add information related to the provisioned path
+ * For instance, the ESnet implementation, using OSCARS, will add the GRI.
  */
-public class Circuit extends Resource {
-    private ISODateTime startDateTime;
-    private ISODateTime endDateTime;
+public class ProvisionedPath extends Resource {
+    private Path path;
 
-    public ISODateTime getStartDateTime() {
-        return startDateTime;
+    /**
+     * Retrieves the provsioned path
+     * @return
+     */
+    public Path getPath() {
+        return path;
     }
 
-    public void setStartDateTime(ISODateTime startDateTime) {
-        this.startDateTime = startDateTime;
+
+    /**
+     * Set the provisioned path
+     * @param path
+     */
+    public void setPath(Path path) {
+        this.path = path;
     }
 
-    public ISODateTime getEndDateTime() {
-        return endDateTime;
-    }
-
-    public void setEndDateTime(ISODateTime endDateTime) {
-        this.endDateTime = endDateTime;
-    }
 }
