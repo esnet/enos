@@ -96,7 +96,7 @@ public class NetworkFactory extends Resource {
         }
         NetworkProviderDescriptor provider = new NetworkProviderDescriptor(className,type);
         this.providers.add(provider);
-        this.save(Paths.get(FACTORY_DIR,type,className).toString());
+        this.save(Paths.get(FACTORY_DIR,FACTORY_CONFIGFILE).toString());
         this.startProvider(provider);
     }
 }

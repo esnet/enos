@@ -46,17 +46,10 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.jgrapht.Graph;
-import org.jgrapht.GraphPath;
-import org.jgrapht.WeightedGraph;
-import org.jgrapht.graph.GraphPathImpl;
-import org.jgrapht.graph.ListenableDirectedGraph;
 import org.jgrapht.graph.ListenableDirectedWeightedGraph;
-import org.python.modules.synchronize;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.joda.time.DateTime;
-import net.es.enos.esnet.OSCARSReservations;
 
 import javax.net.ssl.*;
 import java.io.*;
@@ -84,6 +77,9 @@ public class ESnetTopology  extends TopologyProvider {
     private HashMap<String, List<Link>> siteLinks = new HashMap<String, List<Link>>();
     private HashMap<String, List<Link>> peeringLinks = new HashMap<String, List<Link>>();
     private HashMap<String, Link> links = new HashMap<String, Link>();
+    private HashMap<String, Domain> domains = new HashMap<String, Domain>();
+    private HashMap<String, List<Node>> ptNodes = new HashMap<String, List<Node>>();
+    private HashMap<String, List<Node>> dtnNodes = new HashMap<String, List<Node>>();
 
     public ESnetTopology() {
         this.init();
@@ -314,6 +310,16 @@ public class ESnetTopology  extends TopologyProvider {
                             // the destination is encoded.
                             if (remoteId[5].startsWith("to_")) {
                                 String dest = remoteId[5].substring(3);
+                                // Attempt to decode the destination
+                                String[] elems = dest.split("-");
+                                for (String elem : elems) {
+                                    if (elem.startsWith("pt") &&
+                                        (elem.length() > 2) && (elem.substring(2).matches("\\d+"))) {
+                                        // This is a link to a perfSONAR tester
+                                        PerfSONARTester ptNode = new PerfSONARTester();
+                                        System.out.println("Found pt host " + remoteNodeId);
+                                    }
+                                }
                                 this.addLinkToList(this.siteLinks,dest,link);
                             }
                         }

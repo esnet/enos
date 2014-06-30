@@ -13,4 +13,3 @@ print "registering ESnet Topology as default layer 2 topology service"
 ESnetTopology.registerToFactory()
 print "registering ESnet as the default network"
 ESnet.registerToFactory()
-
