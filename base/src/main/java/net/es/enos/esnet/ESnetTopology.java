@@ -65,6 +65,7 @@ import java.util.List;
 public class ESnetTopology  extends TopologyProvider {
 
     public static final String ESNET_DEFAULT_URL = "https://oscars.es.net/topology-publisher";
+
     private final Logger logger = LoggerFactory.getLogger(ESnetTopology.class);
     private String wireFormatTopology;
     private ESnetJSONTopology jsonTopology;
@@ -75,11 +76,7 @@ public class ESnetTopology  extends TopologyProvider {
     private HashMap<Link,List<Port>> portsByLink = new HashMap<Link, List<Port>>();
     private HashMap<String, List<Link>> internalLinks = new HashMap<String, List<Link>>();
     private HashMap<String, List<Link>> siteLinks = new HashMap<String, List<Link>>();
-    private HashMap<String, List<Link>> peeringLinks = new HashMap<String, List<Link>>();
     private HashMap<String, Link> links = new HashMap<String, Link>();
-    private HashMap<String, Domain> domains = new HashMap<String, Domain>();
-    private HashMap<String, List<Node>> ptNodes = new HashMap<String, List<Node>>();
-    private HashMap<String, List<Node>> dtnNodes = new HashMap<String, List<Node>>();
 
     public ESnetTopology() {
         this.init();
@@ -176,24 +173,6 @@ public class ESnetTopology  extends TopologyProvider {
     }
 
     /**
-     * Returns a HashMap of List of Links that connects to or from a Site to ESnet. The map is indexed by
-     * the name of the site as found in the topology.
-     * @return returns the indexed Map.
-     */
-    public HashMap<String, List<Link>> getSiteLinks() {
-        return siteLinks;
-    }
-
-    /**
-     * Returns a HashMap of List of Links that connects to or from another Domain (OSCARS peering) to ESnet. The map is indexed by
-     * the name of the domain as found in the topology.
-     * @return returns the indexed Map.
-     */
-    public HashMap<String, List<Link>> getPeeringLinks() {
-        return peeringLinks;
-    }
-
-    /**
      * Returns a HashMap of List of Links that connects ESnet internal node to each other. The map is indexed by
      * the name of the node as found in the topology.
      * @return returns the indexed Map.
@@ -282,12 +261,10 @@ public class ESnetTopology  extends TopologyProvider {
                     // Add the link to the list
                     portList.add(port);
 
-                    String[] localId = link.getId().split(":");
-                    String localDomain = localId[3];
-                    String localNode = localId[4];
-                    String[] remoteId = link.getRemoteLinkId().split(":");
-                    String remoteDomain = remoteId[3];
-                    String remoteNode = remoteId[4];
+                    String localDomain = ESnetTopology.idToDomain(link.getId());
+                    String localNode = ESnetTopology.idToName(link.getId());
+                    String remoteDomain = ESnetTopology.idToDomain(link.getRemoteLinkId());
+                    String remoteNode = ESnetTopology.idToName(link.getRemoteLinkId());
                     String remoteNodeId = idToUrn(link.getRemoteLinkId(),4);
 
                     // Add the link to the links HashMap, index it with the port urn.
@@ -304,29 +281,7 @@ public class ESnetTopology  extends TopologyProvider {
                             this.addLinkToList(this.internalLinks,remoteNode,link);
                             // ESnet only supports currently bidirectional links. Create the reverse link
                             this.addLinkToList(this.internalLinks,localNode,link);
-                        } else {
-                            // Site - This is not link, so, do not create an edge
-                            // Try to decode the site name. If the port section of the id starts with to- then
-                            // the destination is encoded.
-                            if (remoteId[5].startsWith("to_")) {
-                                String dest = remoteId[5].substring(3);
-                                // Attempt to decode the destination
-                                String[] elems = dest.split("-");
-                                for (String elem : elems) {
-                                    if (elem.startsWith("pt") &&
-                                        (elem.length() > 2) && (elem.substring(2).matches("\\d+"))) {
-                                        // This is a link to a perfSONAR tester
-                                        PerfSONARTester ptNode = new PerfSONARTester();
-                                        System.out.println("Found pt host " + remoteNodeId);
-                                    }
-                                }
-                                this.addLinkToList(this.siteLinks,dest,link);
-                            }
                         }
-                    } else {
-                        // Peering - This is an intra-domain topology. Other domains are not represented so this link is not
-                        // added.
-                        this.addLinkToList(this.peeringLinks,remoteId[3],link);
                     }
                 }
             }
@@ -424,7 +379,6 @@ public class ESnetTopology  extends TopologyProvider {
                     ESnetNode srcNode = (ESnetNode) n;
                     Node r = this.getOppositeNode(link, srcNode);
                     if ( ! (r instanceof  ESnetNode)) {
-                        System.out.println("NODE= " + r.getClass().getCanonicalName());
                         throw new RuntimeException("Node is not an ESnetNode");
                     }
                     ESnetNode dstNode = (ESnetNode) r;
@@ -447,22 +401,19 @@ public class ESnetTopology  extends TopologyProvider {
                             }
                             ESnetPort port = (ESnetPort) p;
 
-	                        // When would srcNode.getId() equal port.getId()?
-                            // if (srcNode.getId().equals(port.getId())) {
+                            // This is the port of the source Node connected to that Link
+                            OSCARSReservations.PortReservation res = reservations.get(port);
+                            if (res != null) {
+                                // First element of alreadyReserved is the path forward. Compute the available
+                                // reservable bandwidth, make it a negative value and set it as the weight of
+                                // the graph.
+                                long available = res.maxReservable - res.alreadyReserved[0];
+                                metric = available;
+                            } else {
+                                // The link is not reservable. Set the weight to MAX_VALUE;
+                                metric = Long.MAX_VALUE;
+                            }
 
-                                // This is the port of the source Node connected to that Link
-                                OSCARSReservations.PortReservation res = reservations.get(port);
-                                if (res != null) {
-                                    // First element of alreadyReserved is the path forward. Compute the available
-                                    // reservable bandwidth, make it a negative value and set it as the weight of
-                                    // the graph.
-                                    long available = res.maxReservable - res.alreadyReserved[0];
-                                    metric = available;
-                                } else {
-                                    // The link is not reservable. Set the weight to MAX_VALUE;
-                                    metric = Long.MAX_VALUE;
-                                }
-                            //}
                             graph.setEdgeWeight(link, metric);
                             break;
                         }
@@ -491,22 +442,12 @@ public class ESnetTopology  extends TopologyProvider {
         return this.siteLinks.get(destination);
     }
 
-    static private String idToUrn (String id, int pos) {
+    static public String idToUrn (String id, int pos) {
         int endPos=0;
         for (int i=0; i <= pos; ++i) {
             endPos = id.indexOf(":", endPos + 1);
         }
         return id.substring(0,endPos);
-    }
-
-    /**
-     * Strip trailing link portion of the urn
-     * @param linkId
-     * @return a normalized link id.
-     */
-    static public String normalizeLinkId(String linkId) {
-
-        return null;
     }
 
     public String getUrl() {
@@ -536,5 +477,16 @@ public class ESnetTopology  extends TopologyProvider {
         String urn = "urn:ogf:network:" + domain + ":" + hostname;
 
         return this.nodes.get(urn);
+    }
+
+    public static String idToName (String id) {
+        return id.split(":")[4];
+    }
+
+    public static String idToDomain (String id) {
+        return id.split(":")[3];
+    }
+    public static String idToDescription (String id) {
+        return id.split(":")[5];
     }
 }

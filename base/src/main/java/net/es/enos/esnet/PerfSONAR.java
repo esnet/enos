@@ -10,47 +10,46 @@
 package net.es.enos.esnet;
 
 import net.es.enos.api.Link;
-import net.es.enos.api.Node;
-import org.codehaus.jackson.annotate.JsonIgnore;
+import net.es.enos.api.TopologyFactory;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 /**
- * Created by lomax on 6/27/14.
+ * Created by lomax on 6/30/14.
  */
-public class PerfSONARTester extends Node {
-    private String name;
-    private ArrayList<ESnetLink> links = new ArrayList<ESnetLink>();
+public class PerfSONAR {
     private HashMap<String,PerfSONARTester> testers = new HashMap<String,PerfSONARTester>();
 
-    public PerfSONARTester() {}
-
-    public PerfSONARTester(String name) {
-        this.name = name;
+    public PerfSONAR() {
+        this.getCoreTesters();
     }
 
 
-    public String getName() {
-        return name;
+    /**
+     * Retrieve the links from the topology, and assume that a link to a tester host contains the
+     * string "-pt"
+     */
+    private void getCoreTesters() {
+
+        ESnetTopology topology =
+                (ESnetTopology) TopologyFactory.instance().retrieveTopologyProvider(TopologyFactory.LOCAL_LAYER2);
+
+        HashMap<String,Link> links = topology.getLinks();
+
+        for (String link : links.keySet()) {
+            String description = ESnetTopology.idToDescription(link);
+            if (description.contains("-pt")) {
+                // This is a link to a perfSONAR tester connect to one of ESnet core router
+                PerfSONARTester ptNode = new PerfSONARTester();
+                ptNode.setName(description.substring(3));
+                ptNode.addLink((ESnetLink) links.get(link));
+                this.testers.put(ESnetTopology.idToName(link), ptNode);
+            }
+        }
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public HashMap<String, PerfSONARTester> getTesters() {
+        return testers;
     }
-
-    public List<ESnetLink> getLinks() {
-        return links;
-    }
-
-    public void setLinks(ArrayList<ESnetLink> links) {
-        this.links = links;
-    }
-
-    public void addLink(ESnetLink link) {
-        this.links.add(link);
-    }
-
-
 }
