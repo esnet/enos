@@ -55,6 +55,11 @@ public final class ESnet extends NetworkProvider {
     }
 
     @Override
+    public String getDnsName() {
+        return "es.net";
+    }
+
+    @Override
     public Path computePath(String srcNodeName, String dstNodeName, DateTime start, DateTime end) throws IOException {
         // First retrieve the layer 2 topology graph
         Graph topoGraph = this.topology.getGraph(start, end, TopologyProvider.WeightType.TrafficEngineering);

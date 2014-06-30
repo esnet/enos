@@ -100,4 +100,12 @@ public abstract class NetworkProvider extends Resource {
 
     }
 
+    /**
+     * Returns the name of the domain as it is known in DNS
+     * @return
+     */
+    public String getDnsName() {
+        return null;
+    }
+
 }
