@@ -25,18 +25,9 @@ import java.util.List;
  * Created by lomax on 6/24/14.
  */
 public class PersistentObject {
-    @JsonIgnore
-    private String configFile;
+
     @JsonIgnore
     private boolean isNewInstance = true;
-
-    public String getConfigFile() {
-        return configFile;
-    }
-
-    public void setConfigFile(String configFile) {
-        this.configFile = configFile;
-    }
 
     /**
      * Builds the correct pathname of a file, taking into account the ENOS_ROOT and the ENOS user
@@ -101,7 +92,6 @@ public class PersistentObject {
         if ( ! file.exists() ) {
             // This is a new resource.
             PersistentObject obj = PersistentObject.newObject(c);
-            obj.setConfigFile(file.getAbsolutePath());
             obj.isNewInstance = true;
             return obj;
         } else {

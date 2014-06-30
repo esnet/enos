@@ -10,9 +10,66 @@
 package net.es.enos.esnet;
 
 import net.es.enos.api.Node;
+import net.es.enos.api.PersistentObject;
+import org.codehaus.jackson.annotate.JsonIgnore;
+
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Created by lomax on 6/27/14.
+ * This class represents a Data Transfer Node that is deployed within ESnet.
+ * The type, which is a long, represent the type or class of the DTN expressed
+ * in byte/sec. That means the machine is capable of this kind of bandwidth, network,
+ * i/o, cpu.
  */
-public class DataTransferNode extends Node {
+public class DataTransferNode extends ESnetHost {
+
+    private long type;
+    @JsonIgnore
+    public static String DTN_DIR="/dtn";
+    private ArrayList<DataTransferNodeInterface> interfaces = new ArrayList<DataTransferNodeInterface>();
+    public long getType() {
+        return type;
+    }
+
+    public void setType(long type) {
+        this.type = type;
+    }
+
+    public List<DataTransferNodeInterface> getInterfaces() {
+        return interfaces;
+    }
+
+    public void setInterfaces(ArrayList<DataTransferNodeInterface> interfaces) {
+        this.interfaces = interfaces;
+    }
+
+    /**
+     * If a file describing the DataTransferNode exists in DTN_DIR, this method will return a
+     * DataTransferNode object loaded from that file. Returns null otherwise
+     * @param name of the DataTransferNode
+     * @return if existing, a DataTransferNode
+     */
+    @JsonIgnore
+    public static DataTransferNode getDataTransferNode(String name) {
+        // Load from local file system
+        DataTransferNode dtn = null;
+        try {
+            dtn = (DataTransferNode) PersistentObject.newObject(DataTransferNode.class,
+                                                                Paths.get(DTN_DIR, name).toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        }
+
+        return dtn;
+    }
+
+    public void save() throws IOException {
+        this.save(Paths.get(DTN_DIR, this.getName()).toString());
+    }
+
 }

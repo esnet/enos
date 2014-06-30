@@ -9,27 +9,25 @@
 
 package net.es.enos.esnet;
 
-import net.es.enos.api.Node;
-
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 
 /**
- * Any computer that is managed and directly connected to ESnet data plane is an ESnetHost.
- * That includes Data Transfer Nodes, perfSONAR testers.
+ * Created by lomax on 6/30/14.
  */
-public class ESnetHost extends Node {
+public class DataTransferNodeInterface {
+
     private String name;
-    private ArrayList<ESnetLink> links = new ArrayList<ESnetLink>();
-    private HashMap<String,PerfSONARTester> testers = new HashMap<String,PerfSONARTester>();
+    private long speed;
+    private ArrayList<Integer> vlans = new ArrayList<Integer>();
+    private ArrayList<DataTransferNodeLink> links = new ArrayList<DataTransferNodeLink>();
 
-    public ESnetHost() {}
-
-    public ESnetHost(String name) {
-        this.name = name;
+    public ArrayList<Integer> getVlans() {
+        return vlans;
     }
 
+    public void setVlans(ArrayList<Integer> vlans) {
+        this.vlans = vlans;
+    }
 
     public String getName() {
         return name;
@@ -39,20 +37,19 @@ public class ESnetHost extends Node {
         this.name = name;
     }
 
-    public List<ESnetLink> getLinks() {
+    public long getSpeed() {
+        return speed;
+    }
+
+    public void setSpeed(long speed) {
+        this.speed = speed;
+    }
+
+    public ArrayList<DataTransferNodeLink> getLinks() {
         return links;
     }
 
-    public void setLinks(ArrayList<ESnetLink> links) {
+    public void setLinks(ArrayList<DataTransferNodeLink> links) {
         this.links = links;
     }
-
-    public HashMap<String, PerfSONARTester> getTesters() {
-        return testers;
-    }
-
-    public void addLink(ESnetLink link) {
-        this.links.add(link);
-    }
-
 }
