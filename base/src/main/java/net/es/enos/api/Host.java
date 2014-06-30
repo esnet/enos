@@ -33,6 +33,6 @@ package net.es.enos.api;
 /**
  * Created by bmah on 6/19/14.
  */
-public class Host extends Resource {
+public class Host extends Node {
     public static final String HOSTS_DIR = "hosts";
 }

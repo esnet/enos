@@ -30,17 +30,14 @@
 
 package net.es.enos.api;
 
-import net.es.enos.esnet.ESnetHost;
+import net.es.enos.esnet.ESnetPerfSONARHost;
 import net.es.lookup.client.QueryClient;
 import net.es.lookup.client.SimpleLS;
-import net.es.lookup.common.ReservedValues;
 import net.es.lookup.queries.Network.HostQuery;
-import net.es.lookup.queries.Query;
 import net.es.lookup.records.Network.HostRecord;
 import net.es.lookup.records.Record;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
-import org.codehaus.jettison.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -153,8 +150,8 @@ public class SimpleLookupService {
     /**
      * Get all of the hosts
      */
-    public List<ESnetHost> getHosts() {
-        List<ESnetHost> hosts = new ArrayList<ESnetHost>(); // for now try to get all the hostnames
+    public List<ESnetPerfSONARHost> getHosts() {
+        List<ESnetPerfSONARHost> hosts = new ArrayList<ESnetPerfSONARHost>(); // for now try to get all the hostnames
 
         if ((conf == null) || (conf.getHosts().length < 1)) {
             return null;
@@ -182,7 +179,7 @@ public class SimpleLookupService {
 
                 for (Record r : results) {
 
-                    ESnetHost eh = ESnetHost.parseHostRecord((HostRecord) r);
+                    ESnetPerfSONARHost eh = ESnetPerfSONARHost.parseHostRecord((HostRecord) r);
                     hosts.add(eh);
 
                     logger.debug("Host {}", eh.getId());
