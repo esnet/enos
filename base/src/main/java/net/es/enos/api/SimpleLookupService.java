@@ -185,7 +185,7 @@ public class SimpleLookupService {
                     ESnetHost eh = ESnetHost.parseHostRecord((HostRecord) r);
                     hosts.add(eh);
 
-                    logger.info("Host {}", eh.getId());
+                    logger.debug("Host {}", eh.getId());
                 }
             }
             catch (Exception e) {
