@@ -40,6 +40,10 @@ public class Resource extends PersistentObject {
         }
     }
 
+    public Resource(String name) {
+        this.name = name;
+    }
+
     public String getName() {
         return name;
     }

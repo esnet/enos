@@ -31,8 +31,13 @@
 package net.es.enos.api;
 
 /**
- * Created by bmah on 6/19/14.
+ * Mostly a stub for now. Perhaps this class is not useful
  */
 public class Host extends Node {
-    public static final String HOSTS_DIR = "hosts";
+
+    public Host ()  { super ();}
+
+    public Host (String name) {
+        super(name);
+    }
 }

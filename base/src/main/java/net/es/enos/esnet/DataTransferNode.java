@@ -9,6 +9,7 @@
 
 package net.es.enos.esnet;
 
+import net.es.enos.api.Host;
 import net.es.enos.api.Node;
 import net.es.enos.api.PersistentObject;
 import org.codehaus.jackson.annotate.JsonIgnore;
@@ -24,17 +25,19 @@ import java.util.List;
  * in byte/sec. That means the machine is capable of this kind of bandwidth, network,
  * i/o, cpu.
  */
-public class DataTransferNode extends ESnetHost {
+public class DataTransferNode extends Host {
 
-    private long type;
     @JsonIgnore
     public static String DTN_DIR="/dtn";
-    private ArrayList<DataTransferNodeInterface> interfaces = new ArrayList<DataTransferNodeInterface>();
-    public long getType() {
+
+    private String type;
+    private List<DataTransferNodeInterface> interfaces;
+
+    public String getType() {
         return type;
     }
 
-    public void setType(long type) {
+    public void setType(String type) {
         this.type = type;
     }
 
@@ -45,6 +48,7 @@ public class DataTransferNode extends ESnetHost {
     public void setInterfaces(ArrayList<DataTransferNodeInterface> interfaces) {
         this.interfaces = interfaces;
     }
+
 
     /**
      * If a file describing the DataTransferNode exists in DTN_DIR, this method will return a

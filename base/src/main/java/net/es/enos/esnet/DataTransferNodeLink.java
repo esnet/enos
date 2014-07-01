@@ -10,6 +10,7 @@
 package net.es.enos.esnet;
 
 import net.es.enos.api.Link;
+import org.codehaus.jackson.annotate.JsonIgnore;
 
 /**
  * Created by lomax on 6/30/14.
@@ -17,7 +18,7 @@ import net.es.enos.api.Link;
 public class DataTransferNodeLink extends Link {
     private String hostPort;
     private String remoteId;
-    private long capacity;
+    private String capacity;
 
     public String getHostPort() {
         return hostPort;
@@ -35,11 +36,13 @@ public class DataTransferNodeLink extends Link {
         this.remoteId = remoteId;
     }
 
-    public long getCapacity() {
+    public String getCapacity() {
         return capacity;
     }
 
-    public void setCapacity(long capacity) {
+    public void setCapacity(String capacity) {
         this.capacity = capacity;
     }
+
+
 }

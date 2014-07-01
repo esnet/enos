@@ -9,47 +9,47 @@
 
 package net.es.enos.esnet;
 
+import org.codehaus.jackson.annotate.JsonIgnore;
+
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by lomax on 6/30/14.
  */
 public class DataTransferNodeInterface {
 
-    private String name;
-    private long speed;
-    private ArrayList<Integer> vlans = new ArrayList<Integer>();
-    private ArrayList<DataTransferNodeLink> links = new ArrayList<DataTransferNodeLink>();
+    private String ifName;
+    private String speed;
+    private List<String> vlans;
+    private List<DataTransferNodeLink> ifLinks;
 
-    public ArrayList<Integer> getVlans() {
-        return vlans;
+    public String getIfName() {
+        return ifName;
     }
 
-    public void setVlans(ArrayList<Integer> vlans) {
-        this.vlans = vlans;
+    public void setIfName(String ifName) {
+        this.ifName = ifName;
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public long getSpeed() {
+    public String getSpeed() {
         return speed;
     }
 
-    public void setSpeed(long speed) {
+    public void setSpeed(String speed) {
         this.speed = speed;
     }
-
-    public ArrayList<DataTransferNodeLink> getLinks() {
-        return links;
+    public List<DataTransferNodeLink> getIfLinks() {
+        return ifLinks;
+    }
+    public void setIfLinks(List<DataTransferNodeLink> links) {
+        this.ifLinks = links;
+    }
+    public void setVlans(List<String> vlans) {
+        this.vlans = vlans;
+    }
+    public List<String> getVlans() {
+        return vlans;
     }
 
-    public void setLinks(ArrayList<DataTransferNodeLink> links) {
-        this.links = links;
-    }
 }

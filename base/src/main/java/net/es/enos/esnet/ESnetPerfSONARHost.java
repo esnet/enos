@@ -39,7 +39,7 @@ import java.util.List;
 /**
  * Created by bmah on 6/19/14.
  */
-public class ESnetPerfSONARHost extends ESnetHost {
+public class ESnetPerfSONARHost extends Host {
 
     private String id;
 

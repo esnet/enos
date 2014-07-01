@@ -9,6 +9,7 @@
 
 package net.es.enos.esnet;
 
+import net.es.enos.api.Host;
 import net.es.enos.api.Link;
 import net.es.enos.api.Node;
 import org.codehaus.jackson.annotate.JsonIgnore;
@@ -20,35 +21,25 @@ import java.util.List;
 /**
  * Created by lomax on 6/27/14.
  */
-public class PerfSONARTester extends Node {
-    private String name;
-    private ArrayList<ESnetLink> links = new ArrayList<ESnetLink>();
+public class PerfSONARTester extends Host {
+    private ArrayList<Link> links = new ArrayList<Link>();
     private HashMap<String,PerfSONARTester> testers = new HashMap<String,PerfSONARTester>();
 
     public PerfSONARTester() {}
 
     public PerfSONARTester(String name) {
-        this.name = name;
+        super(name);
     }
 
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public List<ESnetLink> getLinks() {
+    public List<Link> getLinks() {
         return links;
     }
 
-    public void setLinks(ArrayList<ESnetLink> links) {
+    public void setLinks(ArrayList<Link> links) {
         this.links = links;
     }
 
-    public void addLink(ESnetLink link) {
+    public void addLink(Link link) {
         this.links.add(link);
     }
 
