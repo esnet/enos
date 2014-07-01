@@ -383,7 +383,11 @@ public class ESnetTopology  extends TopologyProvider {
                     }
                     ESnetNode dstNode = (ESnetNode) r;
                     // Create the Edge
-                    graph.addEdge(srcNode,dstNode,link);
+                    boolean success = graph.addEdge(srcNode,dstNode,link);
+                    if ( !success ) {
+                        // The edge has been ignored by the graph
+                        logger.warn("A link has been ignored by the graph: "+ link.getId());
+                    }
                     // Add the weight
                     long metric = 0;
                     if (weightType == WeightType.TrafficEngineering) {
