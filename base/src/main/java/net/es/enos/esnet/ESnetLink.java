@@ -141,4 +141,25 @@ public class ESnetLink extends Link {
         }
         return ((ESnetLink) obj).getId().equals(this.getId());
     }
+
+    public ESnetLink createReverseLink() {
+        ESnetLink reverseLink = new ESnetLink();
+        reverseLink.setName("reverse-" + this.getName());
+        reverseLink.setId(this.getRemoteLinkId());
+        reverseLink.setRemoteLinkId(this.getId());
+        reverseLink.setEncodingType(this.getEncodingType());
+        reverseLink.setInterfaceMTU(this.getInterfaceMTU());
+        reverseLink.setSwitchingcapType(this.getSwitchingcapType());
+        reverseLink.setNameType(this.getNameType());
+        reverseLink.setTrafficEngineeringMetric(this.getTrafficEngineeringMetric());
+        reverseLink.setType(this.getType());
+        reverseLink.setVlanRangeAvailability(this.getVlanRangeAvailability());
+        reverseLink.setVlanTranslation(this.isVlanTranslation());
+        reverseLink.setCapabilities(this.getCapabilities());
+        reverseLink.setDescription("reverse-" + this.getDescription());
+        reverseLink.setHasReadAccess(this.getHasReadAccess());
+        reverseLink.setHasWriteAccess(this.getHasWriteAccess());
+        reverseLink.setParentResources(this.getParentResources());
+        return reverseLink;
+    }
 }

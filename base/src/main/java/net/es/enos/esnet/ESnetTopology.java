@@ -53,6 +53,7 @@ import org.joda.time.DateTime;
 
 import javax.net.ssl.*;
 import java.io.*;
+import java.nio.file.Paths;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -65,7 +66,8 @@ import java.util.List;
 public class ESnetTopology  extends TopologyProvider {
 
     public static final String ESNET_DEFAULT_URL = "https://oscars.es.net/topology-publisher";
-
+    public static final String CACHE_DIR = "cache";
+    public static final String CACHE_FILE_PREFIX = "esnetLayer2";
     private final Logger logger = LoggerFactory.getLogger(ESnetTopology.class);
     private String wireFormatTopology;
     private ESnetJSONTopology jsonTopology;
@@ -104,11 +106,11 @@ public class ESnetTopology  extends TopologyProvider {
      * This method reads the provided file to load the topology in the wire format, instead of
      * downloading it from the topology service. This is useful when network is not available and only
      * a cached version of the topology can be used.
-     * @param filename  of the file containing the topology in wire format
+     * @param file
      * @throws IOException
      */
-    private  String loadFromFile (String filename) throws IOException {
-        InputStream in = new FileInputStream(filename);
+    private String loadFromFile (File file) throws IOException {
+        InputStream in = new FileInputStream(file);
         StringBuffer stringbuffer = new StringBuffer();
         byte[] buffer = new byte[4096];
         while (true) {
@@ -123,6 +125,55 @@ public class ESnetTopology  extends TopologyProvider {
         return stringbuffer.toString();
     }
 
+    private String loadTodayTopology() throws IOException {
+        File file = this.buildCachedFile();
+        return this.loadFromFile(file);
+    }
+
+    private void saveTodayTopology() throws IOException {
+        File file = this.buildCachedFile();
+        this.saveToFile(file, this.wireFormatTopology);
+    }
+
+    private void saveToFile (File file, String wireFormat) throws IOException {
+        /* Make sure all directories exist */
+        file.getParentFile().mkdirs();
+        OutputStream out = new FileOutputStream(file);
+        out.write(wireFormat.getBytes());
+        out.flush();
+    }
+
+    /**
+     * Check if there is topology in the cache that was retrieved from the URL today.
+     * @return
+     */
+    private boolean isCached() {
+        File file = this.buildCachedFile();
+        return file.exists();
+    }
+
+    public File buildCachedFile() {
+        DateTime now = DateTime.now();
+
+        String today = ESnetTopology.CACHE_FILE_PREFIX + "." +
+                        now.getYear() + "-" +
+                        now.getMonthOfYear() + "-" +
+                        now.getDayOfMonth();
+
+        String filename = Paths.get(
+                TopologyFactory.FACTORY_DIR,
+                ESnetTopology.CACHE_DIR,
+                today).toString();
+        // Get the Operating System absulute path
+        File file = PersistentObject.buildFile(filename);
+        return file;
+    }
+
+
+    /**
+     * Loads the topology from the ESnet URL. The result is in JSON format.
+     * @return a single string that contains the whole topology in its wire format.
+     */
     private String loadFromUrl () {
 
         try {
@@ -220,8 +271,28 @@ public class ESnetTopology  extends TopologyProvider {
     }
 
     private void init() {
-        // Retrieve topology from the REST ESnet service
-        this.wireFormatTopology = this.loadFromUrl();
+        // Check if we have today's topology already cached
+        if (this.isCached()) {
+            try {
+                logger.info("Loading topology from cache");
+                this.wireFormatTopology = this.loadTodayTopology();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        if (this.wireFormatTopology == null) {
+            // Either there is no cache from today or there was a problem reading it from file. Download
+            // from URL.
+            this.wireFormatTopology = this.loadFromUrl();
+            // Save it into the cache
+            try {
+                logger.info("Loading topology from URL");
+                this.saveTodayTopology();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
         // Parse it.
         this.jsonTopology = this.wireFormatToJSON(this.wireFormatTopology);
         // Retrieve from JSON Domain, Node and Link objects and index them into HashMap's
@@ -280,6 +351,8 @@ public class ESnetTopology  extends TopologyProvider {
                             }
                             this.addLinkToList(this.internalLinks,remoteNode,link);
                             // ESnet only supports currently bidirectional links. Create the reverse link
+                            ESnetLink reverseLink = link.createReverseLink();
+
                             this.addLinkToList(this.internalLinks,localNode,link);
                         }
                     }

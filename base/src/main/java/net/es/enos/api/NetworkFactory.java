@@ -94,6 +94,22 @@ public class NetworkFactory extends Resource {
         if (this.providers == null) {
             this.providers = new ArrayList<NetworkProviderDescriptor>();
         }
+        // Checks if there is already a provider for this type
+        if (this.networkProviders.containsKey(type)) {
+            // Remove existing provider
+            NetworkProvider provider = this.networkProviders.get(type);
+            this.networkProviders.remove(provider);
+            ArrayList<NetworkProviderDescriptor> toRemove = new ArrayList<NetworkProviderDescriptor>();
+            for (NetworkProviderDescriptor desc : this.providers) {
+                if (desc.getType().equals(type)) {
+                    // Add it to the list of descriptors to be removed
+                    toRemove.add(desc);
+                }
+            }
+            for (NetworkProviderDescriptor desc : toRemove) {
+                this.providers.remove(desc);
+            }
+        }
         NetworkProviderDescriptor provider = new NetworkProviderDescriptor(className,type);
         this.providers.add(provider);
         this.save(Paths.get(FACTORY_DIR,FACTORY_CONFIGFILE).toString());

@@ -9,6 +9,7 @@
 
 package net.es.enos.api;
 
+import org.codehaus.jackson.annotate.JsonIgnore;
 import org.jgrapht.graph.ListenableDirectedGraph;
 
 import java.io.IOException;
@@ -27,8 +28,11 @@ public class TopologyFactory extends PersistentObject {
     public final static String LOCAL_LAYER2 = "localLayer2";
 
     private List<TopologyProviderDescriptor> providers; // List of class name implementing topology providers
+    @JsonIgnore
     private HashMap <String, TopologyProvider> topologyProviders = new HashMap<String,TopologyProvider>();
+    @JsonIgnore
     private static TopologyFactory  instance;
+    @JsonIgnore
     private static Object instanceLock = new Object();
 
     public TopologyFactory() throws IOException {
@@ -100,6 +104,22 @@ public class TopologyFactory extends PersistentObject {
     public synchronized void registerTopologyProvider(String className, String type) throws IOException {
         if (this.providers == null) {
             this.providers = new ArrayList<TopologyProviderDescriptor>();
+        }
+        // Checks if there is already a provider for this type
+        if (this.topologyProviders.containsKey(type)) {
+            // Remove existing provider
+            TopologyProvider provider = this.topologyProviders.get(type);
+            this.topologyProviders.remove(provider);
+            ArrayList<TopologyProviderDescriptor> toRemove = new ArrayList<TopologyProviderDescriptor>();
+            for (TopologyProviderDescriptor desc : this.providers) {
+                if (desc.getType().equals(type)) {
+                    // Add it to the list of descriptors to be removed
+                    toRemove.add(desc);
+                }
+            }
+            for (TopologyProviderDescriptor desc : toRemove) {
+                this.providers.remove(desc);
+            }
         }
         TopologyProviderDescriptor provider = new TopologyProviderDescriptor(className,type);
         this.providers.add(provider);
