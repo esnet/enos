@@ -53,8 +53,6 @@ public class ESnetPerfSONARHost extends Host {
     private String osName;
     private String osVersion; // uname -r
     private String osKernel; // uname -s
-    private String latitude;
-    private String longitude;
     private List<String> addresses;
     private List<ESnetPerfSONARInterface> interfaces;
     private List<String> interfaceUris;
@@ -73,6 +71,8 @@ public class ESnetPerfSONARHost extends Host {
     private String state;
     private String country;
     private String zipcode;
+    private String latitude;
+    private String longitude;
 
     // Group info
     private List<String> domains;
@@ -152,22 +152,6 @@ public class ESnetPerfSONARHost extends Host {
 
     public void setOsKernel(String osKernel) {
         this.osKernel = osKernel;
-    }
-
-    public String getLatitude() {
-        return latitude;
-    }
-
-    public void setLatitude(String latitude) {
-        this.latitude = latitude;
-    }
-
-    public String getLongitude() {
-        return longitude;
-    }
-
-    public void setLongitude(String longitude) {
-        this.longitude = longitude;
     }
 
     public List<String> getAddresses() {
@@ -280,6 +264,22 @@ public class ESnetPerfSONARHost extends Host {
 
     public void setZipcode(String zipcode) {
         this.zipcode = zipcode;
+    }
+
+    public String getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(String latitude) {
+        this.latitude = latitude;
+    }
+
+    public String getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(String longitude) {
+        this.longitude = longitude;
     }
 
     public List<String> getDomains() {
