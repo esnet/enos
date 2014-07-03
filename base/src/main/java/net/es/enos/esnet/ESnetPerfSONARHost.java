@@ -323,24 +323,9 @@ public class ESnetPerfSONARHost extends Host {
         h.setHostProcessorSpeed(hostRecord.getHostProcessorSpeed());
         h.setHostProcessorCount(hostRecord.getHostProcessorCount());
         h.setHostProcessorCore(hostRecord.getHostProcessorCore());
-        try {
-            h.setOsName(hostRecord.getOSName().get(0));
-        }
-        catch (Exception e) {
-            h.setOsName("");
-        }
-        try {
-            h.setOsVersion(hostRecord.getOSVersion().get(0));
-        }
-        catch (Exception e) {
-            h.setOsVersion("");
-        }
-        try {
-            h.setOsKernel(hostRecord.getOSKernel().get(0));
-        }
-        catch (Exception e) {
-            h.setOsKernel("");
-        }
+        h.setOsName(hostRecord.getOSName());
+        h.setOsVersion(hostRecord.getOSVersion());
+        h.setOsKernel(hostRecord.getOSKernel());
         h.setLatitude(new Double(hostRecord.getLatitude()).toString());
         h.setLongitude(new Double(hostRecord.getLongitude()).toString());
         h.setSiteName(hostRecord.getSiteName());
