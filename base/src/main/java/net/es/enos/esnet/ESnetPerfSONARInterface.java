@@ -52,6 +52,7 @@ public class ESnetPerfSONARInterface extends Port {
 
     @JsonIgnore
     private String queryServer; // which sLS server did this record come from?
+    private String uri;
 
     public List<InetAddress> getAddresses() {
         return addresses;
@@ -105,6 +106,14 @@ public class ESnetPerfSONARInterface extends Port {
         this.queryServer = queryServer;
     }
 
+    public String getUri() {
+        return uri;
+    }
+
+    public void setUri(String uri) {
+        this.uri = uri;
+    }
+
     public static final ESnetPerfSONARInterface parseInterfaceRecord(InterfaceRecord intf) {
         ESnetPerfSONARInterface esi = new ESnetPerfSONARInterface();
 
@@ -118,6 +127,7 @@ public class ESnetPerfSONARInterface extends Port {
         esi.setCapacity(intf.getCapacity());
         esi.setMac(intf.getMacAddress());
         esi.setMtu(intf.getMtu());
+        esi.setUri(intf.getURI());
 
         return esi;
     }

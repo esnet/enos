@@ -71,8 +71,8 @@ public class ESnetPerfSONARHost extends Host {
     private String state;
     private String country;
     private String zipcode;
-    private String latitude;
-    private String longitude;
+    private double latitude;
+    private double longitude;
 
     // Group info
     private List<String> domains;
@@ -81,6 +81,7 @@ public class ESnetPerfSONARHost extends Host {
     // Other metadata
     @JsonIgnore
     private String queryServer; // which sLS server did this record come from?
+    private String uri;
 
     public String getId() {
         return id;
@@ -266,19 +267,19 @@ public class ESnetPerfSONARHost extends Host {
         this.zipcode = zipcode;
     }
 
-    public String getLatitude() {
+    public double getLatitude() {
         return latitude;
     }
 
-    public void setLatitude(String latitude) {
+    public void setLatitude(double latitude) {
         this.latitude = latitude;
     }
 
-    public String getLongitude() {
+    public double getLongitude() {
         return longitude;
     }
 
-    public void setLongitude(String longitude) {
+    public void setLongitude(double longitude) {
         this.longitude = longitude;
     }
 
@@ -306,6 +307,14 @@ public class ESnetPerfSONARHost extends Host {
         this.queryServer = queryServer;
     }
 
+    public String getUri() {
+        return uri;
+    }
+
+    public void setUri(String uri) {
+        this.uri = uri;
+    }
+
     public ESnetPerfSONARHost() {
         hostNames = new LinkedList<String>();
         addresses = new LinkedList<String>();
@@ -326,8 +335,8 @@ public class ESnetPerfSONARHost extends Host {
         h.setOsName(hostRecord.getOSName());
         h.setOsVersion(hostRecord.getOSVersion());
         h.setOsKernel(hostRecord.getOSKernel());
-        h.setLatitude(new Double(hostRecord.getLatitude()).toString());
-        h.setLongitude(new Double(hostRecord.getLongitude()).toString());
+        h.setLatitude(hostRecord.getLatitude());
+        h.setLongitude(hostRecord.getLongitude());
         h.setSiteName(hostRecord.getSiteName());
         for (String hostname : hostRecord.getHostName()) {
             h.getHostNames().add(hostname);
@@ -348,6 +357,7 @@ public class ESnetPerfSONARHost extends Host {
         h.setZipcode(hostRecord.getZipcode());
         h.setDomains(hostRecord.getDomains());
         h.setCommunities(hostRecord.getCommunities());
+        h.setUri(hostRecord.getURI());
 
         // Need to come up with an identifier for the host.  By convention we'll take the first hostname
         // and chop the domain parts off of it.  This part is definitely ESnet specific.
