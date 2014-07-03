@@ -32,6 +32,7 @@ package net.es.enos.esnet;
 
 import net.es.enos.api.Host;
 import net.es.lookup.records.Network.HostRecord;
+import org.codehaus.jackson.annotate.JsonIgnore;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -55,6 +56,8 @@ public class ESnetPerfSONARHost extends Host {
     private String latitude;
     private String longitude;
     private List<String> addresses;
+    private List<ESnetPerfSONARInterface> interfaces;
+    private List<String> interfaceUris;
 
     // TCP info
     private String tcpCongestionAlgorithm;
@@ -74,6 +77,10 @@ public class ESnetPerfSONARHost extends Host {
     // Group info
     private List<String> domains;
     private List<String> communities;
+
+    // Other metadata
+    @JsonIgnore
+    private String queryServer; // which sLS server did this record come from?
 
     public String getId() {
         return id;
@@ -169,6 +176,22 @@ public class ESnetPerfSONARHost extends Host {
 
     public void setAddresses(List<String> addresses) {
         this.addresses = addresses;
+    }
+
+    public List<ESnetPerfSONARInterface> getInterfaces() {
+        return interfaces;
+    }
+
+    public void setInterfaces(List<ESnetPerfSONARInterface> interfaces) {
+        this.interfaces = interfaces;
+    }
+
+    public List<String> getInterfaceUris() {
+        return interfaceUris;
+    }
+
+    public void setInterfaceUris(List<String> interfaceUris) {
+        this.interfaceUris = interfaceUris;
     }
 
     public String getTcpCongestionAlgorithm() {
@@ -275,11 +298,20 @@ public class ESnetPerfSONARHost extends Host {
         this.communities = communities;
     }
 
+    public String getQueryServer() {
+        return queryServer;
+    }
+
+    public void setQueryServer(String queryServer) {
+        this.queryServer = queryServer;
+    }
+
     public ESnetPerfSONARHost() {
         hostNames = new LinkedList<String>();
         addresses = new LinkedList<String>();
         domains = new LinkedList<String>();
         communities = new LinkedList<String>();
+        interfaceUris = new LinkedList<String>();
     }
 
     public static final ESnetPerfSONARHost parseHostRecord(HostRecord hostRecord) {
@@ -314,6 +346,9 @@ public class ESnetPerfSONARHost extends Host {
         h.setSiteName(hostRecord.getSiteName());
         for (String hostname : hostRecord.getHostName()) {
             h.getHostNames().add(hostname);
+        }
+        for (String intf : hostRecord.getInterfaces()) {
+            h.getInterfaceUris().add(intf);
         }
         h.setTcpCongestionAlgorithm(hostRecord.getTcpCongestionAlgorithm());
         h.setSendTcpMaxBuffer(hostRecord.getSendTcpMaxBuffer());

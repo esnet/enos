@@ -30,11 +30,14 @@
 
 package net.es.enos.api;
 
+import net.es.enos.esnet.ESnetPerfSONARInterface;
 import net.es.enos.esnet.ESnetPerfSONARHost;
 import net.es.lookup.client.QueryClient;
 import net.es.lookup.client.SimpleLS;
 import net.es.lookup.queries.Network.HostQuery;
+import net.es.lookup.queries.Network.InterfaceQuery;
 import net.es.lookup.records.Network.HostRecord;
+import net.es.lookup.records.Network.InterfaceRecord;
 import net.es.lookup.records.Record;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
@@ -136,7 +139,7 @@ public class SimpleLookupService {
 
         String [] locators = new String[conf.getHosts().length];
 
-        if ((conf == null) || (conf.getHosts().length < 1)) {
+        if (conf.getHosts().length < 1) {
             return null;
         }
         // TODO:  Actually select something in a reasonable way.
@@ -149,6 +152,8 @@ public class SimpleLookupService {
 
     /**
      * Get all of the hosts
+     *
+     * TODO:  Can we do these in parallel somehow?
      */
     public List<ESnetPerfSONARHost> getHosts() {
         List<ESnetPerfSONARHost> hosts = new ArrayList<ESnetPerfSONARHost>(); // for now try to get all the hostnames
@@ -180,6 +185,11 @@ public class SimpleLookupService {
                 for (Record r : results) {
 
                     ESnetPerfSONARHost eh = ESnetPerfSONARHost.parseHostRecord((HostRecord) r);
+                    eh.setQueryServer(server.getHost()); // keep track of from where we got the HostRecord
+
+                    // Query for the interface info.  Do this here so we can reuse our existing
+                    // QueryClient object.
+                    setInterfacesOnHostFromQueryServer(eh, queryClient);
                     hosts.add(eh);
 
                     logger.debug("Host {}", eh.getId());
@@ -193,5 +203,94 @@ public class SimpleLookupService {
         return hosts;
     }
 
+    /**
+     * Get interfaces corresponding to a list of interface URIs.
+     *
+     * Note that this function cannot set the node member of the newly-constructed interfaces
+     * because we don't know what host object these interfaces belong to.  The caller needs
+     * to handle this.
+     *
+     * TODO:  Figure out if there's actually a use case for this function.
+     */
+    public List<ESnetPerfSONARInterface> retrieveInterfaces(List<String> uris) {
+        List<ESnetPerfSONARInterface> intfs = new ArrayList<ESnetPerfSONARInterface>();
+
+        if (conf.getHosts().length < 1) {
+            return null;
+        }
+
+        // Iterate over all of the sLS servers
+        for (int i = 0; i < conf.getHosts().length; i++) {
+            try {
+                SimpleLS server = new SimpleLS(new URI(conf.getHosts()[i].getLocator()));
+                QueryClient queryClient = new QueryClient(server);
+
+                // Only get type=host records
+                InterfaceQuery query = new InterfaceQuery();
+
+                // Query for specific records.
+                query.setURI(uris);
+
+                queryClient.setQuery(query);
+                List<Record> results = null;
+                results = queryClient.query();
+                logger.debug("Retrieved {} results from {}{}", results.size(), conf.getHosts()[i].getLocator(), query.toURL().toString());
+
+                for (Record r : results) {
+                    ESnetPerfSONARInterface eh = ESnetPerfSONARInterface.parseInterfaceRecord((InterfaceRecord) r);
+                    eh.setQueryServer(queryClient.getServer().getHost());
+                    intfs.add(eh);
+                    logger.debug("Host {}", eh.getName());
+                }
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        return intfs;
+
+    }
+
+    /**
+     * Get interface records for a host, but we don't know which sLS query server
+     * @param h
+     */
+    public void setInterfacesOnHost(ESnetPerfSONARHost h) {
+        h.setInterfaces(retrieveInterfaces(h.getInterfaceUris()));
+        for (ESnetPerfSONARInterface i : h.getInterfaces()) {
+            i.setNode(h);
+        }
+    }
+
+    /**
+     * Get interface records for a host while we're still talking to the sLS query server
+     * Designed for use from getHosts().
+     */
+    protected void setInterfacesOnHostFromQueryServer(ESnetPerfSONARHost h, QueryClient queryClient) {
+        List<ESnetPerfSONARInterface> intfs = new LinkedList<ESnetPerfSONARInterface>();
+        try {
+            InterfaceQuery query = new InterfaceQuery();
+            query.setURI(h.getInterfaceUris());
+
+            queryClient.setQuery(query);
+            List<Record> results = null;
+            results = queryClient.query();
+            logger.debug("Retrieved {} results from {}", results.size(), query.toURL().toString());
+
+            for (Record r : results) {
+                ESnetPerfSONARInterface eh = ESnetPerfSONARInterface.parseInterfaceRecord((InterfaceRecord) r);
+                eh.setNode(h);
+                eh.setQueryServer(queryClient.getServer().getHost());
+                intfs.add(eh);
+                logger.debug("Interface {}", eh.getName());
+            }
+
+            h.setInterfaces(intfs);
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }
 
