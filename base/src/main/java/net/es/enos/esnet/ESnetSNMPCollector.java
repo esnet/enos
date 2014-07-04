@@ -67,7 +67,8 @@ public class ESnetSNMPCollector {
         ArrayList<String> nodes = new ArrayList<String>();
         // Retrieve the nodes from the base SNMP API
         String wireformat = ESnetSNMPCollector.loadFromUrl("");
-        // Create JSON objects
+        // Create JSON objects - the following code should be made generic but I (lomax@es.net) has not been
+        // able to make TypeReference work with the class as a parameter. TODO: fix it.
         ObjectMapper mapper = new ObjectMapper();
         ESnetSNMPNodes nodesRoot = null;
         try {
@@ -77,6 +78,39 @@ public class ESnetSNMPCollector {
                     {
                     });
             return nodesRoot.getChildren();
+        } catch (JsonGenerationException e) {
+
+            e.printStackTrace();
+
+        } catch (JsonMappingException e) {
+
+            e.printStackTrace();
+
+        } catch (IOException e) {
+
+            e.printStackTrace();
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static List<ESnetSNMPInterface> getInterface(String nodeName) {
+        ArrayList<ESnetSNMPInterface> nodes = new ArrayList<ESnetSNMPInterface>();
+        String wireformat = ESnetSNMPCollector.loadFromUrl(nodeName + "/interface/");
+
+        // Create JSON objects - the following code should be made generic but I (lomax@es.net) has not been
+        // able to make TypeReference work with the class as a parameter. TODO: fix it.
+        ObjectMapper mapper = new ObjectMapper();
+        ESnetSNMPInterfaceWrapper root = null;
+        try {
+            JSONObject jsonObj = new JSONObject(wireformat);
+            root = mapper.readValue(jsonObj.toString(),
+                    new TypeReference<ESnetSNMPInterfaceWrapper>()
+                    {
+                    });
+            return root.getChildren();
         } catch (JsonGenerationException e) {
 
             e.printStackTrace();
