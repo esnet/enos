@@ -32,12 +32,15 @@ package net.es.enos.api;
 
 import net.es.enos.esnet.ESnetPerfSONARInterface;
 import net.es.enos.esnet.ESnetPerfSONARHost;
+import net.es.enos.esnet.ESnetPerfSONARService;
 import net.es.lookup.client.QueryClient;
 import net.es.lookup.client.SimpleLS;
 import net.es.lookup.queries.Network.HostQuery;
 import net.es.lookup.queries.Network.InterfaceQuery;
+import net.es.lookup.queries.Network.ServiceQuery;
 import net.es.lookup.records.Network.HostRecord;
 import net.es.lookup.records.Network.InterfaceRecord;
+import net.es.lookup.records.Network.ServiceRecord;
 import net.es.lookup.records.Record;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
@@ -58,6 +61,22 @@ public class SimpleLookupService {
 
     static final Logger logger = LoggerFactory.getLogger(SimpleLookupService.class);
 
+    private List<ESnetPerfSONARHost> allHosts = new LinkedList<ESnetPerfSONARHost>();
+    public List<ESnetPerfSONARInterface> allInterfaces = new LinkedList<ESnetPerfSONARInterface>();
+
+    private List<ESnetPerfSONARService> allServices = new LinkedList<ESnetPerfSONARService>();
+
+    public List<ESnetPerfSONARHost> getAllHosts() {
+        return allHosts;
+    }
+
+    public List<ESnetPerfSONARInterface> getAllInterfaces() {
+        return allInterfaces;
+    }
+
+    public List<ESnetPerfSONARService> getAllServices() {
+        return allServices;
+    }
 
     public SimpleLookupService() {
         init();
@@ -151,12 +170,14 @@ public class SimpleLookupService {
     }
 
     /**
-     * Get all of the hosts
+     * Get all of the hosts and associated records
      *
      * TODO:  Can we do these in parallel somehow?
      */
-    public List<ESnetPerfSONARHost> getHosts() {
-        List<ESnetPerfSONARHost> hosts = new ArrayList<ESnetPerfSONARHost>(); // for now try to get all the hostnames
+    public List<ESnetPerfSONARHost> retrieveHosts() {
+
+        allHosts = new ArrayList<ESnetPerfSONARHost>();
+        allServices = new ArrayList<ESnetPerfSONARService>();
 
         if ((conf == null) || (conf.getHosts().length < 1)) {
             return null;
@@ -190,7 +211,11 @@ public class SimpleLookupService {
                     // Query for the interface info.  Do this here so we can reuse our existing
                     // QueryClient object.
                     setInterfacesOnHostFromQueryServer(eh, queryClient);
-                    hosts.add(eh);
+
+                    // Query for services on this host.
+                    setServicesOnHostFromQueryServer(eh, queryClient);
+
+                    allHosts.add(eh);
 
                     logger.debug("Host {}", eh.getId());
                 }
@@ -200,7 +225,7 @@ public class SimpleLookupService {
             }
         }
 
-        return hosts;
+        return allHosts;
     }
 
     /**
@@ -240,7 +265,7 @@ public class SimpleLookupService {
                     ESnetPerfSONARInterface eh = ESnetPerfSONARInterface.parseInterfaceRecord((InterfaceRecord) r);
                     eh.setQueryServer(queryClient.getServer().getHost());
                     intfs.add(eh);
-                    logger.debug("Host {}", eh.getName());
+                    logger.debug("Interface {}", eh.getName());
                 }
             }
             catch (Exception e) {
@@ -283,10 +308,41 @@ public class SimpleLookupService {
                 eh.setNode(h);
                 eh.setQueryServer(queryClient.getServer().getHost());
                 intfs.add(eh);
+                allInterfaces.add(eh);
                 logger.debug("Interface {}", eh.getName());
             }
 
             h.setInterfaces(intfs);
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    protected void setServicesOnHostFromQueryServer(ESnetPerfSONARHost h, QueryClient queryClient) {
+        List<ESnetPerfSONARService> services = new LinkedList<ESnetPerfSONARService>();
+        try {
+            ServiceQuery query = new ServiceQuery();
+            List<String> hlist = new LinkedList<String>();
+            hlist.add(h.getUri());
+            query.setHost(hlist);
+
+            queryClient.setQuery(query);
+            List<Record> results = null;
+            results = queryClient.query();
+            logger.debug("Retrieved {} results from {}", results.size(), query.toURL().toString());
+
+            for (Record r : results) {
+                ESnetPerfSONARService es = ESnetPerfSONARService.parseServiceRecord((ServiceRecord) r);
+                es.setServiceHost(h);
+                es.setQueryServer(queryClient.getServer().getHost());
+                services.add(es);
+                allServices.add(es);
+                logger.debug("Service {}", es.getServiceName());
+            }
+
+            h.setServices(services);
+
         }
         catch (Exception e) {
             e.printStackTrace();
