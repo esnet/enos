@@ -33,7 +33,7 @@
         <repository>
             <snapshots>
                 <enabled>true</enabled>
-                <updatePolicy>always</updatePolicy>
+                <updatePolicy>interval:5</updatePolicy>
             </snapshots>
             <id>esnet</id>
             <name>ESnet Private Maven Repository</name>
@@ -135,7 +135,7 @@
         <dependency>
             <groupId>net.es.lookup</groupId>
             <artifactId>simple-lookup-service-client</artifactId>
-            <version>1.1</version>
+            <version>1.1-SNAPSHOT</version>
         </dependency>
 
     </dependencies>
