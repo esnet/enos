@@ -10,7 +10,7 @@
 package net.es.enos.api;
 
 import org.codehaus.jackson.annotate.JsonIgnore;
-import org.jgrapht.graph.ListenableDirectedGraph;
+import org.jgrapht.graph.DefaultListenableGraph;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -68,7 +68,7 @@ public class TopologyFactory extends PersistentObject {
         return this.topologyProviders.get(type);
     }
 
-    public ListenableDirectedGraph retrieveTopology (String type) throws IOException {
+    public DefaultListenableGraph retrieveTopology (String type) throws IOException {
         // Assume graph of the current topology (i.e. as in "right now" and Traffic Engineering metrics
         return this.topologyProviders.get(type).getGraph(TopologyProvider.WeightType.TrafficEngineering);
     }

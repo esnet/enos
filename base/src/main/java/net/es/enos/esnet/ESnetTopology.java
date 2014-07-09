@@ -46,7 +46,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import org.jgrapht.graph.ListenableDirectedWeightedGraph;
+import org.jgrapht.graph.DefaultListenableGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.joda.time.DateTime;
@@ -316,7 +316,7 @@ public class ESnetTopology  extends TopologyProvider {
                     // Add this link to the nodesByLink map
                     List<Node> list = this.nodesByLink.get(link);
                     if (list == null) {
-                        // This is a new name in tha map. Need to create an new entry in the map
+						// This is a new name in the map. Need to create an new entry in the map
                         list = new ArrayList<Node>();
                         this.nodesByLink.put(link, list);
                     }
@@ -414,7 +414,7 @@ public class ESnetTopology  extends TopologyProvider {
      * @return
      */
     @Override
-    public ListenableDirectedWeightedGraph<ESnetNode, ESnetLink> getGraph (DateTime start,
+	public DefaultListenableGraph<ESnetNode, ESnetLink> getGraph (DateTime start,
                                                                            DateTime end,
                                                                            WeightType weightType) throws IOException {
 
@@ -424,7 +424,7 @@ public class ESnetTopology  extends TopologyProvider {
             reservations = (new OSCARSReservations(this)).getReserved(start, end);
         }
 
-        ListenableDirectedWeightedGraph<ESnetNode,ESnetLink> graph =
+		DefaultListenableGraph<ESnetNode,ESnetLink> graph =
                 new ESnetTopologyWeightedGraph(ESnetLink.class);
 
         // First, add all Vertices
@@ -459,7 +459,7 @@ public class ESnetTopology  extends TopologyProvider {
                     boolean success = graph.addEdge(srcNode,dstNode,link);
                     if ( !success ) {
                         // The edge has been ignored by the graph
-                        logger.warn("A link has been ignored by the graph: "+ link.getId());
+                        logger.info("A link has been ignored by the graph: "+ link.getId());
                     }
                     // Add the weight
                     long metric = 0;
@@ -490,8 +490,8 @@ public class ESnetTopology  extends TopologyProvider {
                                 // The link is not reservable. Set the weight to MAX_VALUE;
                                 metric = Long.MAX_VALUE;
                             }
-
-                            graph.setEdgeWeight(link, metric);
+							// Invert weights so Dijkstra will be able to find max path
+                            graph.setEdgeWeight(link, Math.pow(metric, -1));
                             break;
                         }
                     }

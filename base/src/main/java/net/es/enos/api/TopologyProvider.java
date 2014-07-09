@@ -11,8 +11,7 @@ package net.es.enos.api;
 
 import net.es.enos.esnet.ESnetLink;
 import net.es.enos.esnet.ESnetNode;
-import org.jgrapht.graph.ListenableDirectedGraph;
-import org.jgrapht.graph.ListenableDirectedWeightedGraph;
+import org.jgrapht.graph.DefaultListenableGraph;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
@@ -36,13 +35,13 @@ public abstract class TopologyProvider {
      * @return
      * @throws IOException
      */
-    public ListenableDirectedWeightedGraph<ESnetNode, ESnetLink> getGraph(WeightType weight) throws IOException {
+    public DefaultListenableGraph<ESnetNode, ESnetLink> getGraph(WeightType weight) throws IOException {
         DateTime start = DateTime.now();
         DateTime end = start.plusMinutes(1);
         return this.getGraph(start, end,weight);
     }
 
-    public ListenableDirectedWeightedGraph<ESnetNode, ESnetLink> getGraph(DateTime start,
+    public DefaultListenableGraph<ESnetNode, ESnetLink> getGraph(DateTime start,
                                                                           DateTime end,
                                                                           WeightType weightType) throws IOException {
         return null;
