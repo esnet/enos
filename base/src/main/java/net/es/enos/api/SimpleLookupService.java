@@ -229,66 +229,6 @@ public class SimpleLookupService {
     }
 
     /**
-     * Get interfaces corresponding to a list of interface URIs.
-     *
-     * Note that this function cannot set the node member of the newly-constructed interfaces
-     * because we don't know what host object these interfaces belong to.  The caller needs
-     * to handle this.
-     *
-     * TODO:  Figure out if there's actually a use case for this function.
-     */
-    public List<ESnetPerfSONARInterface> retrieveInterfaces(List<String> uris) {
-        List<ESnetPerfSONARInterface> intfs = new ArrayList<ESnetPerfSONARInterface>();
-
-        if (conf.getHosts().length < 1) {
-            return null;
-        }
-
-        // Iterate over all of the sLS servers
-        for (int i = 0; i < conf.getHosts().length; i++) {
-            try {
-                SimpleLS server = new SimpleLS(new URI(conf.getHosts()[i].getLocator()));
-                QueryClient queryClient = new QueryClient(server);
-
-                // Only get type=host records
-                InterfaceQuery query = new InterfaceQuery();
-
-                // Query for specific records.
-                query.setURI(uris);
-
-                queryClient.setQuery(query);
-                List<Record> results = null;
-                results = queryClient.query();
-                logger.debug("Retrieved {} results from {}{}", results.size(), conf.getHosts()[i].getLocator(), query.toURL().toString());
-
-                for (Record r : results) {
-                    ESnetPerfSONARInterface eh = ESnetPerfSONARInterface.parseInterfaceRecord((InterfaceRecord) r);
-                    eh.setQueryServer(queryClient.getServer().getHost());
-                    intfs.add(eh);
-                    logger.debug("Interface {}", eh.getName());
-                }
-            }
-            catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
-        return intfs;
-
-    }
-
-    /**
-     * Get interface records for a host, but we don't know which sLS query server
-     * @param h
-     */
-    public void setInterfacesOnHost(ESnetPerfSONARHost h) {
-        h.setInterfaces(retrieveInterfaces(h.getInterfaceUris()));
-        for (ESnetPerfSONARInterface i : h.getInterfaces()) {
-            i.setNode(h);
-        }
-    }
-
-    /**
      * Get interface records for a host while we're still talking to the sLS query server
      * Designed for use from getHosts().
      */
