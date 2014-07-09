@@ -152,19 +152,16 @@ public class SimpleLookupService {
     /**
      * Return the list of servers to query.  We need to perform queries across all of the
      * servers in this list to get a complete answer.
-     * @return selected servers (null if we can't find anything)
+     * @return list with the set of "alive" servers
      */
-    public String [] getSlsLocators() {
+    public List<String> getSlsLocators() {
 
-        String [] locators = new String[conf.getHosts().length];
+        LinkedList<String> locators = new LinkedList<String>();
 
-        if (conf.getHosts().length < 1) {
-            return null;
-        }
-        // TODO:  Actually select something in a reasonable way.
-        // TODO:  What if one of these hosts doesn't have active status?
         for (int i = 0; i < conf.getHosts().length; i++) {
-            locators[i] = conf.getHosts()[i].getLocator();
+            if (conf.getHosts()[i].getStatus().equalsIgnoreCase("alive")) {
+                locators.add(conf.getHosts()[i].getLocator());
+            }
         }
         return locators;
     }
@@ -177,16 +174,13 @@ public class SimpleLookupService {
     public List<ESnetPerfSONARHost> retrieveHosts(String domain) {
 
         allHosts = new ArrayList<ESnetPerfSONARHost>();
+        allInterfaces = new ArrayList<ESnetPerfSONARInterface>();
         allServices = new ArrayList<ESnetPerfSONARService>();
 
-        if ((conf == null) || (conf.getHosts().length < 1)) {
-            return null;
-        }
-
         // Iterate over all of the sLS servers
-        for (int i = 0; i < conf.getHosts().length; i++) {
+        for (String locator : getSlsLocators()) {
             try {
-                SimpleLS server = new SimpleLS(new URI(conf.getHosts()[i].getLocator()));
+                SimpleLS server = new SimpleLS(new URI(locator));
                 QueryClient queryClient = new QueryClient(server);
 
                 // Only get type=host records
@@ -201,7 +195,7 @@ public class SimpleLookupService {
                 List<Record> results = null;
                 results = queryClient.query();
 
-                logger.debug("Retrieved {} results from {}{}", results.size(), conf.getHosts()[i].getLocator(), query.toURL().toString());
+                logger.debug("Retrieved {} results from {}{}", results.size(), locator, query.toURL().toString());
 
                 for (Record r : results) {
 
