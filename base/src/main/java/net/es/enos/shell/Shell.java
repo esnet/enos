@@ -9,12 +9,14 @@
 
 package net.es.enos.shell;
 
+import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.String;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Set;
 
@@ -36,6 +38,7 @@ public class Shell {
     private ConsoleReader consoleReader = null;
     private ENOSConsoleReader ENOSConsoleReader = null;
     private StringsCompleter stringsCompleter = null;
+	private StringsCompleter fileCompleter = null;
     private KernelThread kernelThread = null;
     private String prompt = "\nenos";
 
@@ -111,9 +114,12 @@ public class Shell {
 
         // Initialize command completion with commands from modules.
         Set<String> commandNames = ShellCommandsFactory.getCommandNames();
-        this.stringsCompleter = new StringsCompleter(commandNames);
+	    String files[] = new File(Paths.get(new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().toString()).toPath().normalize().toString()).toString()).list();
 
-        Method method = null;
+	    this.stringsCompleter = new StringsCompleter(commandNames);
+	    this.fileCompleter = new StringsCompleter(files);
+
+	    Method method = null;
 
         while (true) {
             try {
@@ -130,8 +136,10 @@ public class Shell {
 		            break;
 	            } else if (command==null) {
 		            consoleReader.addCompleter(this.stringsCompleter);
+		            consoleReader.addCompleter(this.fileCompleter);
 		            String line = this.consoleReader.readLine(this.prompt);
 		            consoleReader.removeCompleter(this.stringsCompleter);
+		            consoleReader.removeCompleter(this.fileCompleter);
 		            if (line == null) {
 			            continue;
 		            }
@@ -227,8 +235,9 @@ public class Shell {
                 }
                 try {
                     ShellCommand command = method.getAnnotation(ShellCommand.class);
-
-                    if (command.forwardLines()) {
+	                files = new File(Paths.get(new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().toString()).toPath().normalize().toString()).toString()).list();
+	                this.fileCompleter = new StringsCompleter(files);
+	                if (command.forwardLines()) {
                         method.invoke(null, args, this.in, this.out, this.out);
                     } else {
                         // Assume static method    TODO: lomax@es.net to be revisited
