@@ -174,7 +174,7 @@ public class SimpleLookupService {
      *
      * TODO:  Can we do these in parallel somehow?
      */
-    public List<ESnetPerfSONARHost> retrieveHosts() {
+    public List<ESnetPerfSONARHost> retrieveHosts(String domain) {
 
         allHosts = new ArrayList<ESnetPerfSONARHost>();
         allServices = new ArrayList<ESnetPerfSONARService>();
@@ -192,9 +192,9 @@ public class SimpleLookupService {
                 // Only get type=host records
                 HostQuery query = new HostQuery();
 
-                // ESnet specific stuff here...
+                // From the specified domain
                 LinkedList<String> domains = new LinkedList<String>();
-                domains.add("es.net");
+                domains.add(domain);
                 query.setDomains(domains);
 
                 queryClient.setQuery(query);
