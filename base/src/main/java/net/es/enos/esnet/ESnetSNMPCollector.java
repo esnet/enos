@@ -16,7 +16,9 @@ import com.sun.jersey.api.client.config.ClientConfig;
 import com.sun.jersey.api.client.config.DefaultClientConfig;
 import com.sun.jersey.api.json.JSONConfiguration;
 import com.sun.jersey.client.urlconnection.HTTPSProperties;
+import net.sf.json.JSONArray;
 import org.codehaus.jackson.JsonGenerationException;
+import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
@@ -127,6 +129,55 @@ public class ESnetSNMPCollector {
             e.printStackTrace();
         }
         return null;
+    }
+
+    @JsonIgnore
+    public static ESnetSNMPCounter getData (String nodeName, String ifName,String type) {
+        // Build the URI
+        String uri = nodeName + "/interface/" + interfaceToURI(ifName) + "/" + type;
+        String wireformat = ESnetSNMPCollector.loadFromUrl(uri);
+
+        // Create JSON objects - the following code should be made generic but I (lomax@es.net) has not been
+        // able to make TypeReference work with the class as a parameter. TODO: fix it.
+        ObjectMapper mapper = new ObjectMapper();
+        ESnetSNMPCounter root = null;
+        try {
+            JSONObject jsonObj = new JSONObject(wireformat);
+            root = mapper.readValue(jsonObj.toString(),
+                    new TypeReference<ESnetSNMPCounter>()
+                    {
+                    });
+
+            return root;
+
+        } catch (JsonGenerationException e) {
+
+            e.printStackTrace();
+
+        } catch (JsonMappingException e) {
+
+            e.printStackTrace();
+
+        } catch (IOException e) {
+
+            e.printStackTrace();
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+    
+
+    /**
+     * Make the interface name be URI friendly: since "/" is significant in a uri, ports names such as
+     * xe-1/2/0 need to be changed into xe-1_2_0
+     * @param ifName
+     * @return
+     */
+    public static String interfaceToURI(String ifName) {
+        return ifName.replace('/','_');
     }
 
 
