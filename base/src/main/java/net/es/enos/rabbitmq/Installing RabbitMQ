@@ -1,0 +1,31 @@
+To install RabbitMQ (RMQ) on MacOS X (other platforms available on website):
+1) Go to https://www.rabbitmq.com/install-standalone-mac.html.
+2) Download and unzip tar to somewhere on computer.
+Installation complete.
+
+To run RabbitMQ:
+3) cd to RMQ directory.
+4) Run command (sudo) sbin/rabbitmq-server
+	Without a config file, this will default to a non-SSL connection on port 5672.
+
+Enabling SSL:
+(Stop all RMQ instances. To easily do this, run sudo sbin/rabbitmqctl stop
+5) In RMQ directory, go to etc/rabbitmq.
+6) Create file, “rabbitmq.config”
+7) Paste the following:
+
+[
+  {rabbit, [
+     {tcp_listeners, [5672]}, // Have [] to force all connections to use SSL
+     {ssl_listeners, [5671]},
+     {ssl_options, [{cacertfile,”/path/to/cacert.pem"},
+                    {certfile,”/path/to/server/cert.pem"},
+                    {keyfile,”/path/to/server/key.pem"},
+                    {verify,verify_peer},
+                    {fail_if_no_peer_cert,true}]}
+   ]}
+].
+
+Restart RMQ by going back to RMQ directory, then sudo sbin/rabbitmq-server.
+
+Have fun!

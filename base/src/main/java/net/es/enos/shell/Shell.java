@@ -22,6 +22,7 @@ import java.util.Set;
 
 import jline.console.ConsoleReader;
 import jline.console.ENOSConsoleReader;
+import jline.console.completer.ArgumentCompleter;
 import jline.console.completer.StringsCompleter;
 import net.es.enos.kernel.exec.KernelThread;
 
@@ -38,6 +39,7 @@ public class Shell {
     private ConsoleReader consoleReader = null;
     private ENOSConsoleReader ENOSConsoleReader = null;
     private StringsCompleter stringsCompleter = null;
+	private ArgumentCompleter argCompleter = null;
 	private StringsCompleter fileCompleter = null;
     private KernelThread kernelThread = null;
     private String prompt = "\nenos";
@@ -118,6 +120,7 @@ public class Shell {
 
 	    this.stringsCompleter = new StringsCompleter(commandNames);
 	    this.fileCompleter = new StringsCompleter(files);
+	    this.argCompleter = new ArgumentCompleter(stringsCompleter, fileCompleter);
 
 	    Method method = null;
 
@@ -135,10 +138,10 @@ public class Shell {
 	            if (completedCommand) {
 		            break;
 	            } else if (command==null) {
-		            consoleReader.addCompleter(this.stringsCompleter);
+		            consoleReader.addCompleter(this.argCompleter);
 		            consoleReader.addCompleter(this.fileCompleter);
 		            String line = this.consoleReader.readLine(this.prompt);
-		            consoleReader.removeCompleter(this.stringsCompleter);
+		            consoleReader.removeCompleter(this.argCompleter);
 		            consoleReader.removeCompleter(this.fileCompleter);
 		            if (line == null) {
 			            continue;
@@ -235,14 +238,15 @@ public class Shell {
                 }
                 try {
                     ShellCommand command = method.getAnnotation(ShellCommand.class);
-	                files = new File(Paths.get(new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().toString()).toPath().normalize().toString()).toString()).list();
-	                this.fileCompleter = new StringsCompleter(files);
 	                if (command.forwardLines()) {
                         method.invoke(null, args, this.in, this.out, this.out);
                     } else {
                         // Assume static method    TODO: lomax@es.net to be revisited
                         method.invoke(null, args, this.in, this.out, this.out);
                     }
+	                files = new File(Paths.get(new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().toString()).toPath().normalize().toString()).toString()).list();
+	                this.fileCompleter = new StringsCompleter(files);
+	                this.argCompleter = new ArgumentCompleter(stringsCompleter, fileCompleter);
                 } catch (IllegalAccessException e) {
                     this.print(e.toString());
                     continue;
