@@ -56,6 +56,7 @@ public class ESnetPerfSONARHost extends Host {
     private List<String> addresses;
     private List<ESnetPerfSONARInterface> interfaces;
     private List<String> interfaceUris;
+    private List<ESnetPerfSONARService> services;
 
     // TCP info
     private String tcpCongestionAlgorithm;
@@ -177,6 +178,14 @@ public class ESnetPerfSONARHost extends Host {
 
     public void setInterfaceUris(List<String> interfaceUris) {
         this.interfaceUris = interfaceUris;
+    }
+
+    public List<ESnetPerfSONARService> getServices() {
+        return services;
+    }
+
+    public void setServices(List<ESnetPerfSONARService> services) {
+        this.services = services;
     }
 
     public String getTcpCongestionAlgorithm() {
