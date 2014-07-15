@@ -13,7 +13,7 @@ package net.es.enos.api;
  * Created by davidhua on 6/12/14.
  */
 
-import org.jgrapht.graph.ListenableDirectedGraph;
+import org.jgrapht.graph.DefaultListenableGraph;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.ArrayList;
@@ -27,20 +27,20 @@ import java.lang.Math;
  */
 
 public class ModifiedDijkstra<Node, Link> {
-	ListenableDirectedGraph graph;
+	DefaultListenableGraph graph;
 	ArrayList<Link> path;
 	HashMap<Node, Double> width;
 	HashMap<Node, Node> prev;
 
-	public ModifiedDijkstra(ListenableDirectedGraph graph, Node source, Node dest) {
+	public ModifiedDijkstra(DefaultListenableGraph graph, Node source, Node dest) {
 		width = new HashMap<Node, Double>();
 		prev = new HashMap<Node, Node>();
 		findPath(graph, source, dest);
 		this.path = bandwidth(source, dest);
 	}
 
-	public void findPath(ListenableDirectedGraph graph, Node source, Node dest) {
-		List arrayQueue = new ArrayList ();
+	public void findPath(DefaultListenableGraph graph, Node source, Node dest) {
+		List<Node> arrayQueue = new ArrayList ();
 
 		this.graph = graph;
 		Set<Node> vertices = this.graph.vertexSet();
@@ -66,21 +66,22 @@ public class ModifiedDijkstra<Node, Link> {
 			prev.put(neighbor, source);
 			arrayQueue.add(neighbor);
 		}
-		// Iterate through all vertices
-		while (arrayQueue.size() != 0) {
-			// Dijkstra normally uses a priority queue-- however, we need access to the max node, which
-			// is at the end of the queue, which we cannot access. To go around this, an Array is used.
-			// However, the array must be resorted everytime a change is made to simulate a priority queue.
 
-			Node maxNode = (Node) Collections.max(arrayQueue); // Find the node with the maximum width, and remove it
+		while (width.get(dest) == Double.NEGATIVE_INFINITY | arrayQueue.contains(dest)) {
+			// Find the node with the maximum width, and remove it
+			Node maxNode = null;
+			Double maxValue = 0d;
+			for (Node node : arrayQueue) {
+				if (width.get(node) > maxValue) {
+					maxNode = node;
+					maxValue = width.get(node);
+				}
+			}
 			arrayQueue.remove(maxNode);
-
-			// If the path has reached the destination, then stop.
 
 			// Find all neighbors of the max node.
 			neighborLink = graph.outgoingEdgesOf(maxNode);
 			neighbors = new ArrayList();
-
 			for (Link edge : neighborLink) {
 				neighbors.add((Node)graph.getEdgeTarget(edge));
 			}

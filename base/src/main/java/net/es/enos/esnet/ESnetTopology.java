@@ -459,14 +459,14 @@ public class ESnetTopology  extends TopologyProvider {
                     boolean success = graph.addEdge(srcNode,dstNode,link);
                     if ( !success ) {
                         // The edge has been ignored by the graph
-                        logger.info("A link has been ignored by the graph: "+ link.getId());
+                        logger.debug("A link has been ignored by the graph: "+ link.getId());
                     }
                     // Add the weight
                     long metric = 0;
                     if (weightType == WeightType.TrafficEngineering) {
                         metric = link.getTrafficEngineeringMetric();
                         graph.setEdgeWeight(link, metric);
-                    } else if (weightType == (WeightType.MaxBandwidth)) {
+                    } else if (weightType == WeightType.MaxBandwidth) {
                         // Retrieve the source port of the link
                         List<Port> portsList = this.portsByLink.get(link);
                         if (portsList == null) {
@@ -491,7 +491,7 @@ public class ESnetTopology  extends TopologyProvider {
                                 metric = Long.MAX_VALUE;
                             }
 							// Invert weights so Dijkstra will be able to find max path
-                            graph.setEdgeWeight(link, Math.pow(metric, -1));
+                            graph.setEdgeWeight(link, metric);
                             break;
                         }
                     }
