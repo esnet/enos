@@ -185,7 +185,7 @@ public class PythonShell {
 	    } catch (SecurityException e) {
 	    }
 	    try {
-		    path = new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().resolve(command).toString());
+		    path = new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().resolve(command).toString());
 		    if (path.exists()) {
 			    return path.toString();
 		    }

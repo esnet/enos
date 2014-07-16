@@ -67,7 +67,7 @@ public class ModifiedDijkstra<Node, Link> {
 			arrayQueue.add(neighbor);
 		}
 
-		while (width.get(dest) == Double.NEGATIVE_INFINITY | arrayQueue.contains(dest)) {
+		while (width.get(dest) == Double.NEGATIVE_INFINITY || arrayQueue.contains(dest)) {
 			// Find the node with the maximum width, and remove it
 			Node maxNode = null;
 			Double maxValue = 0d;

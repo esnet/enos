@@ -193,7 +193,7 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().toString();
+		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
 
 		// Do argument number check. If no extra args, displays files in current directory;
 		// If 1 extra arg, displays files in directory specified by the arg.
@@ -202,14 +202,7 @@ public class UserShellCommands {
 
 			String dest = args[1];
 			if (dest.startsWith("/")) {
-				dest = dest.substring(1);
-				String newPath = "";
-				String currentPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
-				int occur = currentPath.length() - currentPath.replace("/", "").length();
-				for (int i = 0; i < occur; i++) {
-					newPath = newPath + "../";
-				}
-				dest = newPath + Users.getUsers().getEnosRootPath() + "/" + dest;
+				dest = startsSlash(dest);
 			}
 
 			userPath = Paths.get(userPath, dest).toString();
@@ -240,7 +233,7 @@ public class UserShellCommands {
 		PrintStream o = new PrintStream(out);
 		boolean mkdir = false;
 		User currentUser = KernelThread.getCurrentKernelThread().getUser();
-		String userPath = currentUser.getHomePath().toString();
+		String userPath = currentUser.getHomePath().normalize().toString();
 
 		// Argument checking
 		if (args.length < 2) {
@@ -252,14 +245,7 @@ public class UserShellCommands {
 		if (args.length == 3) {
 			String tempFilePath = args[2];
 			if (tempFilePath.startsWith("/")) {
-				tempFilePath = tempFilePath.substring(1);
-				String newPath = "";
-				String currentPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
-				int occur = currentPath.length() - currentPath.replace("/", "").length();
-				for (int i = 0; i < occur; i++) {
-					newPath = newPath + "../";
-				}
-				tempFilePath = newPath + Users.getUsers().getEnosRootPath() + "/" + tempFilePath;
+				tempFilePath = startsSlash(tempFilePath);
 			}
 			userPath = Paths.get(userPath, tempFilePath).toString();
 		}
@@ -309,14 +295,7 @@ public class UserShellCommands {
 		// Go to enos root directory if slash is entered
 		String dest = args[1];
 		if (dest.startsWith("/")) {
-			dest = dest.substring(1);
-			String newPath = "";
-			String currentPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
-			int occur = currentPath.length() - currentPath.replace("/", "").length();
-			for (int i = 0; i < occur; i++) {
-				newPath = newPath + "../";
-			}
-			dest = newPath + Users.getUsers().getEnosRootPath() + "/" + dest;
+			dest = startsSlash(dest);
 		}
 
 		File cdDir = new File (Paths.get(userPath, dest).toString());
@@ -358,14 +337,7 @@ public class UserShellCommands {
 
 		String dest = args[1];
 		if (dest.startsWith("/")) {
-			dest = dest.substring(1);
-			String newPath = "";
-			String currentPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
-			int occur = currentPath.length() - currentPath.replace("/", "").length();
-			for (int i = 0; i < occur; i++) {
-				newPath = newPath + "../";
-			}
-			dest = newPath + Users.getUsers().getEnosRootPath() + "/" + dest;
+			dest = startsSlash(dest);
 		}
 
 		File catFile = new File (Paths.get(userPath).toString());
@@ -405,7 +377,7 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().toString();
+		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
 
 		// Argument checking
 		if (args.length != 2 ) {
@@ -415,14 +387,7 @@ public class UserShellCommands {
 
 		String dest = args[1];
 		if (dest.startsWith("/")) {
-			dest = dest.substring(1);
-			String newPath = "";
-			String currentPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
-			int occur = currentPath.length() - currentPath.replace("/", "").length();
-			for (int i = 0; i < occur; i++) {
-				newPath = newPath + "../";
-			}
-			dest = newPath + Users.getUsers().getEnosRootPath() + "/" + dest;
+			dest = startsSlash(dest);
 		}
 
 		File rmFile = new File (Paths.get(userPath, dest).toString());
@@ -432,7 +397,6 @@ public class UserShellCommands {
 
 		try {
 			// Make sure user has permission to write in this directory. If not, outputs error message.
-
 			rmFile.canWrite();
 			if (rmFile.exists()) {
 				rmFile.delete();
@@ -451,7 +415,6 @@ public class UserShellCommands {
 	}
 
 
-
 	@ShellCommand(name = "$PWD",
 			shortHelp = "Displays current directory",
 			longHelp = "Displays current directory (no arguments)")
@@ -466,4 +429,14 @@ public class UserShellCommands {
 	}
 
 
+	private static String startsSlash(String dest) {
+		dest = dest.substring(1);
+		String newPath = "";
+		String currentPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
+		int occur = currentPath.length() - currentPath.replace("/", "").length();
+		for (int i = 0; i < occur; i++) {
+			newPath = newPath + "../";
+		}
+		return newPath + Users.getUsers().getEnosRootPath() + "/" + dest;
+	}
 }

@@ -10,8 +10,6 @@
 package net.es.enos.rabbitmq;
 
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 import net.es.enos.kernel.exec.KernelThread;
 
@@ -35,31 +33,24 @@ public class CreateToken {
 		// Info on data needed to create a connection
 		this.info = info;
 
-		// Create connection to rabbitMQ.
-		ConnectionFactory factory = new SSLConnection(info).createConnection();
-		Connection connection = factory.newConnection();
-		Channel channel = connection.createChannel();
-
 		// Create random UUID for producer's temporary queue
 		String uuid = UUID.randomUUID().toString();
 		// Declare this temporary queue and start listening (exclusive queue).
-		channel.queueDeclare(uuid, false, true, true, null);
-		QueueingConsumer consumer = new QueueingConsumer(channel);
+		tokenChannel.queueDeclare(uuid, false, true, true, null);
+		QueueingConsumer consumer = new QueueingConsumer(tokenChannel);
 
-		// Send TOKEN_REQUEST with curent username.
+		// Send TOKEN_REQUEST with current username.
 		String message = "TOKEN_REQUEST" + ":" +  uuid + ":" + KernelThread.getCurrentKernelThread().getUser().getName();
 
 		tokenChannel.basicPublish("", listenerID, null, message.getBytes());
 		// Start consuming to receive token.
-		channel.basicConsume(uuid, true, "tokenRequest", false, false, null, consumer);
+		tokenChannel.basicConsume(uuid, true, "tokenRequest", false, false, null, consumer);
 		QueueingConsumer.Delivery delivery = consumer.nextDelivery();
 
 		// When token is received, store in "token."
 		token = new String(delivery.getBody());
-		// Delete temporary queue, close channel and connection
-		channel.queueDelete(uuid);
-		channel.close();
-		connection.close();
+		// Delete temporary queue
+		tokenChannel.queueDelete(uuid);
 	}
 
 	public String getToken() {
