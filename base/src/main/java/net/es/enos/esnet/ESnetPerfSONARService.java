@@ -45,9 +45,9 @@ public class ESnetPerfSONARService {
     // Service info
     private String serviceName;
     private String serviceType;
-    ESnetPerfSONARHost serviceHost;
-    String serviceLocator;
-    String eventTypes;
+    private ESnetPerfSONARHost serviceHost;
+    private List<String> serviceLocator;
+    private String eventTypes;
 
     // Location info
     private String siteName;
@@ -91,11 +91,11 @@ public class ESnetPerfSONARService {
         this.serviceHost = serviceHost;
     }
 
-    public String getServiceLocator() {
+    public List<String> getServiceLocator() {
         return serviceLocator;
     }
 
-    public void setServiceLocator(String serviceLocator) {
+    public void setServiceLocator(List<String> serviceLocator) {
         this.serviceLocator = serviceLocator;
     }
 
