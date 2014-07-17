@@ -10,7 +10,6 @@ from net.es.enos.api import TopologyProvider
 # Copied over from path.py-- initializes and fetches topology and list of nodes
 topology = TopologyFactory.instance()
 topo = topology.retrieveTopologyProvider("localLayer2")
-links = topo.getPortsByLink()
 listOfLinks = topo.getInternalLinks()
 linkset = listOfLinks.values()
 counter = 0

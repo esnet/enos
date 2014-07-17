@@ -37,7 +37,9 @@ public class OSCARSReservations {
      * @throws IOException
      */
     public  List<ESnetCircuit> retrieveScheduledCircuits() throws IOException {
-        return this.topology.retrieveJSONTopology().getCircuits();
+        OSCARSTopologyPublisher publisher = new OSCARSTopologyPublisher();
+        ESnetJSONTopology jsonTopology = publisher.toJSON();
+        return jsonTopology.getCircuits();
     }
 
     public OSCARSReservations(ESnetTopology topology) throws IOException {
@@ -47,7 +49,7 @@ public class OSCARSReservations {
 
     public long getMaxReservableBandwidth (GraphPath<Node,Link> path, DateTime start,DateTime end) throws IOException {
 
-	    HashMap<Link, List<Port>> portsByLink = topology.getPortsByLink();
+	    HashMap<String, Port> portByLink = topology.getPortByLink();
 
 	    // First compute the aggregate reserved bandwidth on the overall topology
 	    HashMap<ESnetPort, PortReservation> reserved = this.getReserved(start, end);
@@ -57,8 +59,7 @@ public class OSCARSReservations {
 
 	    // Then compute max reservable for each link.
 	    for (Link link : path.getEdgeList()) {
-		    List<Port> ports = portsByLink.get(link);
-		    Port port = ports.get(0); // Assume one port per link
+		    Port port = portByLink.get(link);
 		    reserved.get(port);
 		    PortReservation portReservation = reserved.get(port);
 		    if (portReservation == null) {
@@ -83,22 +84,31 @@ public class OSCARSReservations {
      * @return  an HashMap of PortReservation indexed by ESnetPort
      */
     public HashMap<ESnetPort, PortReservation> getReserved (DateTime start, DateTime end) {
+        OSCARSTopologyPublisher publisher = new OSCARSTopologyPublisher();
+        ESnetJSONTopology jsonTopology = publisher.toJSON();
 
         HashMap<String,Link> links = topology.getLinks();
-        HashMap<Link,List<Port>> portsByLink = topology.getPortsByLink();
+        HashMap<String,Port> portByLink = topology.getPortByLink();
 
         HashMap<ESnetPort,PortReservation> reserved = new HashMap<ESnetPort, PortReservation>();
-        List<ESnetCircuit> reservations = topology.retrieveJSONTopology().getCircuits();
+        List<ESnetCircuit> reservations = jsonTopology.getCircuits();
 
 	    // Initialize all ports with their maximum reservable capacity.
 		for (Link tempLink : links.values()){
 			ESnetLink link = (ESnetLink) tempLink;
-			List<Port> ports = portsByLink.get(link);
-			Port port = ports.get(0);
-			ESnetPort thisPort = (ESnetPort) port;
-			PortReservation portReservation =
-					new PortReservation(Long.parseLong(thisPort.getMaximumReservableCapacity()));
-			reserved.put(thisPort, portReservation);
+			ESnetPort port = topology.searchPortByLink(link.getId());
+            PortReservation portReservation = null;
+            if (port == null) {
+                // TODO: lomax@es.net should perhaps do better.
+                continue;
+            }
+            if (port.getMaximumReservableCapacity() == null) {
+                portReservation = new PortReservation(0L);
+            }  else {
+			    portReservation =
+					new PortReservation(Long.parseLong(port.getMaximumReservableCapacity()));
+            }
+			reserved.put(port, portReservation);
 		}
 
         for (ESnetCircuit reservation : reservations) {
@@ -111,7 +121,7 @@ public class OSCARSReservations {
             for (ESnetSegment segment : segments) {
                 List<String> portNames = segment.getPorts();
                 for (String portName : portNames) {
-                    // String the VLAN off the port name, if any.
+                    // Remove the VLAN off the port name, if any.
                     String[] tmp = portName.split(":");
                     String[] tmp2 = tmp[5].split(".");
                     if (tmp[5].indexOf(".") > 0) {
@@ -125,16 +135,17 @@ public class OSCARSReservations {
                     portName = portName.substring(0,portName.length() -1);
 
                     // Retrieve port from topology.
-                    Link link = links.get(portName);
+                    ESnetLink link = topology.searchLink(portName);
                     if (link == null) {
-                        logger.warn("No link in topology that matches OSCARS path element " + portName);
+                        // This is a link to another domain
                         continue;
                     }
-                    List<Port> ports = portsByLink.get(link);
-                    if (ports.size() < 1) {
+                    Port p = topology.searchPortByLink(link.getId());
+                    if (p == null) {
                         throw new RuntimeException("No port in topology that matches OSCARS path element " + portName);
+                        // TODO: lomax@es.net perhaps should do something better
+                        //continue;
                     }
-                    Port p = ports.get(0); // Assume first port
                     if ( ! (p instanceof ESnetPort)) {
                         // This implementation relies on ESnet types
                         throw new RuntimeException("Unexpected type " + p.getClass().getCanonicalName());

@@ -7,7 +7,7 @@ from org.joda.time import DateTime
 # Create graph with bandwidth weights rather than network metrics
 topology = TopologyFactory.instance()
 topo = topology.retrieveTopologyProvider("localLayer2")
-portsByLink = topo.getPortsByLink()
+portByLink = topo.getPortByLink()
 
 src = raw_input("src: ")
 dst = raw_input("dst: ")
@@ -30,8 +30,7 @@ maxBandwidth = md.getBandwidth()
 # iterate through path to calculate what is the max bandwidth available and the path corresponding
 for link in maxBandwidth:
     print "link: " , link.getId()
-    ports = portsByLink.get(link)
-    port = ports[0] # Assume only one port per link
+    port = portByLink.get(link.getId())
     portReservation = reserved.get(port)
     if portReservation == None:
         continue

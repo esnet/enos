@@ -27,8 +27,6 @@ topology = TopologyFactory.instance()
 topo = topology.retrieveTopologyProvider("localLayer2")
 graph = topo.retrieveTopology()
 nodes = topo.getNodes()
-nodesByLink = topo.getNodesByLink()
-links = topo.getPortsByLink()
 listOfLinks = topo.getLinks()
 
 # Run loop through every node pair in network

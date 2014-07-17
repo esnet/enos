@@ -16,15 +16,18 @@ topology = TopologyFactory.instance()
 topo = topology.retrieveTopologyProvider("localLayer2")
 
 graph = topo.getGraph(TopologyProvider.WeightType.TrafficEngineering)
+
 nodes = topo.getNodes()
-nodesByLink = topo.getNodesByLink()
-portsByLink = topo.getPortsByLink()
+nodeByLink = topo.getNodeByLink()
+portByLink = topo.getPortByLink()
 
 srcNode = topo.getNode(command_args[2]);
 dstNode = topo.getNode(command_args[3]);
 
 path = DijkstraShortestPath.findPathBetween(graph, srcNode, dstNode)
-
+if path == None:
+        print "No path betwen " + srcNode.getId() + " and " + dstNode.getId()
+        sys.exit()
 
 start = DateTime.now()
 end = start.plusHours(2)
@@ -35,16 +38,16 @@ print "Start Node= " + srcNode.getId()
 maxReservable = -1
 
 for link in path:
-    nodes = nodesByLink.get(link)
-    ports = portsByLink.get(link)
-    port = ports[0] # Assume only one port per link
+    node = nodeByLink.get(link.getId())
+    port = portByLink.get(link.getId())
+
     portReservation = reserved.get(port)
     if portReservation == None:
         print "No portReservation for link " + link.getId() + " port= " + port.getId()
         continue
     remainTo = portReservation.maxReservable - portReservation.alreadyReserved[0]
     remainFrom = portReservation.maxReservable - portReservation.alreadyReserved[1]
-    print "Node= " + nodes[0].getId() + "\tlinkId= " + link.getId()
+    print "Node= " + node.getId() + "\tlinkId= " + link.getId()
     if (maxReservable == -1) or (maxReservable > remainTo):
         maxReservable = remainTo;
 
