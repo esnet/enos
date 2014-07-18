@@ -61,6 +61,7 @@ public class ESnetCircuit extends Resource {
 
     public void setId(String id) {
         this.id = id;
+        this.setResourceName(id);
     }
 
     public List<String> getSegment_ids() {

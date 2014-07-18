@@ -10,6 +10,8 @@
 package net.es.enos.esnet;
 
 import net.es.enos.api.*;
+import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.kernel.exec.annotations.SysCall;
 import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
 import org.jgrapht.alg.DijkstraShortestPath;
@@ -18,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 
 
 /**
@@ -78,7 +81,7 @@ public final class ESnet extends NetworkProvider {
         long maxBandwidth = -1; // -1 means the value was not computed.
         OSCARSReservations oscarsReservations;
         Path path = new Path();
-        //
+
         try {
             oscarsReservations = new OSCARSReservations(this.topology);
             maxBandwidth = oscarsReservations.getMaxReservableBandwidth(graphPath,start,end);
@@ -127,7 +130,7 @@ public final class ESnet extends NetworkProvider {
 
         if (path.getStart().equals(path.getEnd()) ||
             path.getStart().isAfter(path.getEnd())) {
-            throw new IOException("does not support provisioning with time constraints");
+            throw new IOException("incorrect time constraints");
         }
         if ( ! this.supportProfile(profile)) {
             throw new IOException("does not support this profile");
@@ -135,6 +138,31 @@ public final class ESnet extends NetworkProvider {
         if ( ! oscars.canProvision(path))  {
             throw new SecurityException("not authorized to provision this path");
         }
+        Method method = null;
+        try {
+            method = KernelThread.getSysCallMethod(this.getClass(), "do_authUser");
+
+            KernelThread.doSysCall(this,
+                    method,
+                    path,
+                    profile);
+        } catch (NonExistantUserException e) {
+            return null;
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+            return null;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        // Verify ACL
+        return null;
+    }
+
+    @SysCall(
+            name="do_provisionLayer2"
+    )
+    private ProvisionedPath do_ProvisionedPath(Path path, Layer2ProvisioningProfiles profile) throws IOException {
         return null;
     }
 
@@ -142,4 +170,6 @@ public final class ESnet extends NetworkProvider {
     public void deprovisionLayer2(ProvisionedPath path) throws IOException {
         super.deprovisionLayer2(path);
     }
+
+
 }

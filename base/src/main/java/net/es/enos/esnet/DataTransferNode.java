@@ -73,7 +73,7 @@ public class DataTransferNode extends Host {
     }
 
     public void save() throws IOException {
-        this.save(Paths.get(DTN_DIR, this.getName()).toString());
+        this.save(Paths.get(DTN_DIR, this.getResourceName()).toString());
     }
 
 }

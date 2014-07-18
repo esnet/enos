@@ -26,6 +26,14 @@ public class ESnetPort extends Port {
     private String over;
     private List<ESnetLink> links;
 
+    public ESnetPort (Port port) {
+        super(port);
+    }
+
+    public ESnetPort() {
+        super();
+    }
+
     public String getGranularity() {
         return granularity;
     }
@@ -112,17 +120,5 @@ public class ESnetPort extends Port {
 
     public List<ESnetLink> getLinks() {
         return links;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if ((obj == null) || !(obj instanceof ESnetPort)) {
-
-            return false;
-        }
-        if ((this.getId() == null) || ((ESnetPort) obj).getId() == null) {
-            return false;
-        }
-        return ((ESnetPort) obj).getId().equals(this.getId());
     }
 }

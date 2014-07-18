@@ -26,6 +26,7 @@ public class ESnetNode extends Node implements Comparable<ESnetNode> {
     private String address;
     private List<ESnetPort> ports;
 	public double width;
+    private String name;
 	public ESnetNode prev; // Store previous node when calculating max bandwidth
     private String type;
 
@@ -35,6 +36,7 @@ public class ESnetNode extends Node implements Comparable<ESnetNode> {
 
     public void setId(String id) {
         this.id = id;
+        this.setResourceName(id);
     }
 
     public String getAddress() {
@@ -77,7 +79,15 @@ public class ESnetNode extends Node implements Comparable<ESnetNode> {
         this.ports = ports;
     }
 
-	public int compareTo(ESnetNode other)
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public int compareTo(ESnetNode other)
 	{
 		return Double.compare(width, other.width);
 	}
@@ -90,13 +100,5 @@ public class ESnetNode extends Node implements Comparable<ESnetNode> {
     @Override
     protected Object clone() throws CloneNotSupportedException {
         return super.clone();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if ( ! (obj instanceof ESnetNode) ) {
-            return false;
-        }
-        return ((ESnetNode) obj).getId().equals(this.getId());
     }
 }

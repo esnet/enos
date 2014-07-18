@@ -42,7 +42,7 @@ public class PerfSONAR {
             if (description.contains("-pt")) {
                 // This is a link to a perfSONAR tester connect to one of ESnet core router
                 PerfSONARTester ptNode = new PerfSONARTester();
-                ptNode.setName(description.substring(3));
+                ptNode.setResourceName(description.substring(3));
                 ptNode.addLink((ESnetLink) links.get(link));
                 this.testers.put(ESnetTopology.idToName(link), ptNode);
             }

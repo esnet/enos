@@ -95,6 +95,7 @@ public class ESnetPerfSONARInterface extends Port {
     }
 
     public ESnetPerfSONARInterface() {
+        super();
         addresses = new LinkedList<InetAddress>();
     }
 
@@ -128,6 +129,7 @@ public class ESnetPerfSONARInterface extends Port {
         esi.setMac(intf.getMacAddress());
         esi.setMtu(intf.getMtu());
         esi.setUri(intf.getURI());
+        esi.setResourceName(intf.getInterfaceName());
 
         return esi;
     }

@@ -40,4 +40,8 @@ public class Host extends Node {
     public Host (String name) {
         super(name);
     }
+
+    public Host(Host host) {
+        super(host);
+    }
 }

@@ -23,6 +23,14 @@ public class ESnetDomain extends Domain {
         return nodes;
     }
 
+    public ESnetDomain (Domain domain) {
+        super(domain);
+    }
+
+    public ESnetDomain () {
+        super();
+    }
+
     public void setNodes(List<ESnetNode> nodes) {
         this.nodes = nodes;
     }
@@ -33,6 +41,7 @@ public class ESnetDomain extends Domain {
 
     public void setId(String id) {
         Id = id;
+        this.setResourceName(id);
     }
 
     List <ESnetNode>  nodes;

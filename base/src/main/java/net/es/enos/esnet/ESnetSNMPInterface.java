@@ -39,6 +39,9 @@ public class ESnetSNMPInterface extends Port {
     private String speed;
     private String end_time;
 
+    public ESnetSNMPInterface(Port port) {
+        super(port);
+    }
     public boolean isLeaf() {
         return leaf;
     }

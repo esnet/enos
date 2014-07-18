@@ -243,7 +243,7 @@ public class SimpleLookupService {
                 eh.setQueryServer(queryClient.getServer().getHost());
                 intfs.add(eh);
                 allInterfaces.add(eh);
-                logger.debug("Interface {}", eh.getName());
+                logger.debug("Interface {}", eh.getResourceName());
             }
 
             h.setInterfaces(intfs);

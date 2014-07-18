@@ -38,4 +38,13 @@ public class Port extends Resource {
     public void setNode(Node node) {
         this.node = node;
     }
+
+    public Port(Port port) {
+        super(port);
+        node = port.getNode();
+    }
+
+    public Port() {
+        super();
+    }
 }

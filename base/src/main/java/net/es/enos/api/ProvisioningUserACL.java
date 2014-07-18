@@ -9,39 +9,18 @@
 
 package net.es.enos.api;
 
-import net.es.enos.boot.BootStrap;
-import org.codehaus.jackson.annotate.JsonIgnore;
+import net.es.enos.kernel.users.User;
+import org.jgrapht.Graph;
 
-import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.UUID;
 
 /**
- * Generic Link class
+ * Created by lomax on 7/11/14.
  */
+public class ProvisioningUserACL {
+    private String user;
+    private List<Graph<Node,Link>> authorizedGraphs;
+    private List<Graph<Node,Link>> deniedGraph;
 
-public class Link extends  Resource {
-    public enum Types {SITE,PEERING,INTERNAL}
-    public static final String LINKS_DIR = "links";
-    protected double  weight;
-
-    public double getWeight() {
-        return weight;
-    }
-
-    public void setWeight(double weight) {
-        this.weight = weight;
-    }
-
-    public Link(Link link) {
-        super(link);
-        this.weight = weight;
-    }
-
-    public Link() {
-        super();
-    }
 
 }
-

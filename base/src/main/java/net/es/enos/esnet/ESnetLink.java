@@ -11,6 +11,7 @@ package net.es.enos.esnet;
 
 import net.es.enos.api.Link;
 import net.es.enos.boot.BootStrap;
+import org.codehaus.jackson.annotate.JsonIgnore;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -33,8 +34,13 @@ public class ESnetLink extends Link {
     private String  nameType;
     private String  name;
 
-    protected double  weight; // Weight can only be accessed by the graph.
+    public ESnetLink (Link link) {
+        super(link);
+    }
 
+    public ESnetLink() {
+        super();
+    }
     public String getName() {
         return name;
     }
@@ -56,8 +62,8 @@ public class ESnetLink extends Link {
     }
 
     public void setId(String id) {
-
         this.id = id;
+        this.setResourceName(id);
     }
 
     public String getType() {
@@ -126,7 +132,7 @@ public class ESnetLink extends Link {
 
     @Override
     public String toString() {
-        return super.toString();
+        return this.getId();
     }
 
     @Override
@@ -135,7 +141,13 @@ public class ESnetLink extends Link {
     }
 
     @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
+
+    @Override
     public boolean equals(Object obj) {
+        System.out.println("EQUALS");
         if ( ! (obj instanceof ESnetLink) ) {
             return false;
         }

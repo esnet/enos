@@ -32,4 +32,8 @@ public class Node extends Resource {
         super();
     }
 
+    public Node(Node n) {
+        super(n);
+    }
+
 }

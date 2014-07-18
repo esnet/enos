@@ -12,26 +12,30 @@ package net.es.enos.api;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.users.User;
+import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.*;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * Created by lomax on 5/21/14.
  */
 public class Resource extends PersistentObject {
-    protected String name;
+    protected String resourceName;
     private String resourceClassName;
     protected String description;
     private List<User> hasWriteAccess;
     private List<User> hasReadAccess;
     private List<String> capabilities;
     private List<String> parentResources;
+    private String creationStackTrace;
 
     public Resource() {
+        this.setCreationStackTrace();
         // Set the classname.
         this.resourceClassName = this.getClass().getCanonicalName();
         // Create, if necessary, the capabilities List.
@@ -40,16 +44,17 @@ public class Resource extends PersistentObject {
         }
     }
 
-    public Resource(String name) {
-        this.name = name;
+    public Resource(String resourceName) {
+        this.setCreationStackTrace();
+        this.resourceName = resourceName;
     }
 
-    public String getName() {
-        return name;
+    public String getResourceName() {
+        return resourceName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setResourceName(String resourceName) {
+        this.resourceName = resourceName;
     }
 
     public String getDescription() {
@@ -102,7 +107,6 @@ public class Resource extends PersistentObject {
         }
     }
 
-
     public List<String> getParentResources() {
         return parentResources;
     }
@@ -111,4 +115,58 @@ public class Resource extends PersistentObject {
         this.parentResources = parentResources;
     }
 
+    public Resource (Resource object) {
+        this.setCreationStackTrace();
+
+        this.resourceName = object.getResourceName();
+        if (object.getCapabilities() !=null) {
+            this.capabilities = new ArrayList<>();
+            this.capabilities.addAll(object.getCapabilities());
+        }
+        this.description = object.getDescription();
+        this.setResourceClassName(this.getClass().getCanonicalName());
+        if (object.getHasReadAccess() != null) {
+            this.setHasReadAccess(new ArrayList<User>());
+            this.getHasReadAccess().addAll(object.getHasReadAccess());
+        }
+        if (object.getHasWriteAccess() != null) {
+            this.setHasWriteAccess(new ArrayList<User>());
+            this.getHasWriteAccess().addAll(object.getHasWriteAccess());
+        }
+        if (object.getParentResources() != null) {
+            this.setParentResources(new ArrayList<String>());
+            this.getParentResources().addAll(object.getParentResources());
+        }
+    }
+
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || ! (o instanceof Resource)) return false;
+
+        Resource resource = (Resource) o;
+
+        if (!resourceName.equals(resource.resourceName)) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        if (this.getResourceName() == null) {
+            return super.hashCode();
+        }
+        return resourceName.hashCode();
+    }
+
+    @JsonIgnore
+    public String getCreationStackTrace() {
+        return this.creationStackTrace;
+    }
+
+    @JsonIgnore
+    private final void setCreationStackTrace() {
+        // this.creationStackTrace = Arrays.toString(Thread.currentThread().getStackTrace());
+    }
 }

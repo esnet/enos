@@ -11,13 +11,14 @@ package net.es.enos.api;
 
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
+import org.codehaus.jackson.JsonParser;
+import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.annotate.JsonIgnore;
+import org.codehaus.jackson.map.DeserializationContext;
+import org.codehaus.jackson.map.JsonDeserializer;
 import org.codehaus.jackson.map.ObjectMapper;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Paths;
 import java.util.List;
 
@@ -125,6 +126,5 @@ public class PersistentObject {
             throw new InstantiationException(e.toString());
         }
     }
-
 
 }
