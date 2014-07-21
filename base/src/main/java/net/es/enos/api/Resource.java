@@ -120,7 +120,7 @@ public class Resource extends PersistentObject {
 
         this.resourceName = object.getResourceName();
         if (object.getCapabilities() !=null) {
-            this.capabilities = new ArrayList<>();
+            this.capabilities = new ArrayList<String>();
             this.capabilities.addAll(object.getCapabilities());
         }
         this.description = object.getDescription();
