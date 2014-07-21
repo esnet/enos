@@ -133,7 +133,7 @@ public class ESnetTopology  extends TopologyProvider {;
     private void parseTopology() {
         OSCARSTopologyPublisher publisher = new OSCARSTopologyPublisher();
         ESnetJSONTopology jsonTopology = publisher.toJSON();
-        // Retrieve from JSON Domain, Node and Link objects and index them into the various HashMap's
+        // Retrieve from JSON Domain, Node and Link objects and index them into the various HashMaps
         List<ESnetDomain> domains = jsonTopology.getDomains();
 
         for (ESnetDomain domain : domains) {
@@ -155,7 +155,7 @@ public class ESnetTopology  extends TopologyProvider {;
                 }
                 this.nodes.put(node.getId(),node);
             }
-            // Second, index all Links. Note that all the nodes must be indexed beforehand, so, it is not possible
+            // Second, index all Links. Note that all the nodes must be indexed beforehand, so it is not possible
             // to collapse the seemingly identical for loops.
             for (ESnetNode node : this.nodes.values()) {
                 List<ESnetPort> ports = node.getPorts();
@@ -320,22 +320,19 @@ public class ESnetTopology  extends TopologyProvider {;
                     graph.setEdgeWeight(link, metric);
                 } else if (weightType == WeightType.MaxBandwidth) {
                     // Retrieve the source port of the link
-                    Port port = this.portByLink.get(link);
+                    Port port = this.portByLink.get(link.getId());
                     // This is the port of the source Node connected to that Link
                     OSCARSReservations.PortReservation res = reservations.get(port);
                     if (res != null) {
                         // First element of alreadyReserved is the path forward. Compute the available
-                        // reservable bandwidth, make it a negative value and set it as the weight of
-                        // the graph.
+                        // reservable bandwidth and set it as the weight of the graph.
                         long available = res.maxReservable - res.alreadyReserved[0];
                         metric = available;
                     } else {
-                        // The link is not reservable. Set the weight to MAX_VALUE;
+                        // The link is not reservable. Set the weight to MAX_VALUE
                         metric = Long.MAX_VALUE;
                     }
-                    // Invert weights so Dijkstra will be able to find max path
                     graph.setEdgeWeight(link, metric);
-                    break;
                 }
             }
         }
