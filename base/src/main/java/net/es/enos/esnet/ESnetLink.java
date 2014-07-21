@@ -147,7 +147,6 @@ public class ESnetLink extends Link {
 
     @Override
     public boolean equals(Object obj) {
-        System.out.println("EQUALS");
         if ( ! (obj instanceof ESnetLink) ) {
             return false;
         }
