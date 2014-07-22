@@ -56,6 +56,7 @@ public final class FileACL extends Properties {
     public static final String ACLDIR = ".acl"; // prefix of the acl file
     public static final String CAN_READ = "read";
     public static final String CAN_WRITE = "write";
+    public static final String CAN_EXECUTE = "execute";
 
     private Path aclPath;
     private Path filePath;
@@ -70,8 +71,6 @@ public final class FileACL extends Properties {
 
     public FileACL (Path file) throws IOException {
         super ();
-
-        logger.debug("Create FileACL for file " + file);
         if (file == null) {
             // root of the file system, no parent
             return;
@@ -226,6 +225,25 @@ public final class FileACL extends Properties {
         }
         return users.split(",");
     }
+
+    public String[] getCanExecute() {
+        String users = this.getProperty(FileACL.CAN_EXECUTE);
+        if (users == null) {
+            return new String[0];
+        }
+        return users.split(",");
+    }
+
+    public boolean canExecute(String username) {
+        String[] users = this.getCanWrite();
+        for (String user : users) {
+            if (user.equals("*") || user.equals(username)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static String[] addUser(String[] users, String username) {
         String[] newUsers = new String[users.length + 1];
         int index = 0;

@@ -16,6 +16,7 @@ package net.es.enos.kernel.exec;
 
 import net.es.enos.boot.BootStrap;
 import net.es.enos.api.ENOSException;
+import net.es.enos.kernel.container.Container;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.users.User;
 import net.es.enos.kernel.security.AllowedSysCalls;
@@ -48,6 +49,7 @@ public final class  KernelThread {
 
     private boolean privileged = false;
     private User user = null;
+    private Container container = null;
 
     /**
      * Creates a new KernelThread associated with the provided Thread t. Only one KernelThread per thread
@@ -177,7 +179,6 @@ public final class  KernelThread {
         }
 
         return this.user;
-
     }
 
     /**
@@ -194,6 +195,21 @@ public final class  KernelThread {
         } else {
             throw new SecurityException("Attempt to change the user");
         }
+    }
+
+    /**
+     * Set the current thread execution container. Only privileged thread can do this.
+     * @param container
+     * @return
+     */
+    public Container setContainer (Container container) {
+        if ( ! this.isPrivileged()) {
+            // Only privileged threads can set the current container
+            throw new SecurityException("Cannot set container");
+        }
+        Container old = this.container;
+        this.container = container;
+        return old;
     }
 
     /**
