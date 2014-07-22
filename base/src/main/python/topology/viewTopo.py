@@ -1,4 +1,4 @@
-from net.es.enos.api import TopologyViewer
+from net.es.enos.esnet import TopologyViewer
 from net.es.enos.api import TopologyFactory
 from net.es.enos.api import TopologyProvider
 
