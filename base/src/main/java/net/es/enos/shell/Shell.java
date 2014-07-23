@@ -24,6 +24,7 @@ import jline.console.ConsoleReader;
 import jline.console.ENOSConsoleReader;
 import jline.console.completer.ArgumentCompleter;
 import jline.console.completer.StringsCompleter;
+import jline.console.history.FileHistory;
 import net.es.enos.kernel.exec.KernelThread;
 
 
@@ -93,7 +94,7 @@ public class Shell {
     }
 
     public void startShell() {
-        System.out.println("Shell is starting");
+
         this.kernelThread = KernelThread.getCurrentKernelThread();
 
         this.setPrompt(kernelThread.getUser().getName() + "@enos> ");
@@ -266,5 +267,6 @@ public class Shell {
 
     // Whatever cleanup is needed after the shell is done.  Subclasses should override if needed.
     public void destroy() {
+
     }
 }
