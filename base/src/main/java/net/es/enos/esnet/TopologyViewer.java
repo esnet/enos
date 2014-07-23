@@ -22,6 +22,7 @@ import java.awt.*;
 
 import javax.swing.*;
 
+import org.jgraph.JGraph;
 import org.jgrapht.ext.*;
 import org.jgrapht.graph.*;
 
@@ -51,7 +52,7 @@ import javax.imageio.ImageIO;
  */
 
 public class TopologyViewer
-		extends JApplet {
+		extends JFrame {
 
 	private final Dimension DEFAULT_SIZE = new Dimension(265, 160);
 
@@ -60,7 +61,7 @@ public class TopologyViewer
 	private Set<ESnetNode> vertices;
 
 	// File location for stored png image (for debugging without applet)
-	private String fileLocation = "/users/davidhua/Desktop/test/image.png";
+	// private String fileLocation = "/users/davidhua/Desktop/test/image.png";
 
 	public TopologyViewer(DefaultListenableGraph<ESnetNode, ESnetLink> graph) {
 		this.g = graph;
@@ -68,10 +69,20 @@ public class TopologyViewer
 	}
 
 
+
+
 	public void init() {
+
+        /**
+        JGraph jgraph = new JGraph(new JGraphModelAdapter(this.g));
+        this.getContentPane().add(new JScrollPane(jgraph));
+        this.pack();
+        this.setVisible(true);
+        **/
+
 		jgxAdapter = new JGraphXAdapter<ESnetNode, ESnetLink>(g);
 		mxGraphComponent graphC = new mxGraphComponent(jgxAdapter);
-		getContentPane().add(graphC);
+		getContentPane().add(new JScrollPane(graphC));
 		resize(DEFAULT_SIZE);
 
 		//for (ESnetNode node : vertices) {
@@ -88,28 +99,11 @@ public class TopologyViewer
 				continue;
 			}
 		}
-		//layout.setOptimizeEdgeDistance(true);
+		layout.setOptimizeEdgeDistance(true);
 		layout.execute(jgxAdapter.getDefaultParent());
-		saveToPng(graphC);
+        this.setVisible(true);
 	}
 
-
-	/*
-	 * Output visualization to png.
-	 */
-	public void saveToPng(mxGraphComponent graphComponent) {
-		try {
-			Color bg = Color.white;
-			BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(fileLocation));
-			BufferedImage image = mxCellRenderer.createBufferedImage(graphComponent.getGraph(),
-					null, 1, bg, graphComponent.isAntiAlias(), null,
-					graphComponent.getCanvas());
-			ImageIO.write(image, "png", out);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
-	}
 
 /*
 	private int noneFinder(ESnetNode node) {
