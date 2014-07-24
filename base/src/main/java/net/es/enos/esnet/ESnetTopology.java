@@ -40,6 +40,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 
 
 /**
@@ -135,6 +136,7 @@ public class ESnetTopology  extends TopologyProvider {;
         ESnetJSONTopology jsonTopology = publisher.toJSON();
         // Retrieve from JSON Domain, Node and Link objects and index them into the various HashMaps
         List<ESnetDomain> domains = jsonTopology.getDomains();
+	    HashMap<String, List<ESnetNode>> locationToNode = new HashMap<> ();
 
         for (ESnetDomain domain : domains) {
             // First index all Nodes.
@@ -149,12 +151,40 @@ public class ESnetTopology  extends TopologyProvider {;
                         ESnetNode n = this.nodes.get(node.getId());
                         n.setLongitude(node.getLongitude());
                         n.setLatitude(node.getLatitude());
+
+                    } else {
+	                    String nodeName;
+	                    String[] nodeList = node.getId().split(":")[4].split("-");
+	                    if (nodeList.length == 3) {
+		                    nodeName = nodeList[0] + "-" + nodeList[1];
+	                    } else {
+		                    nodeName = nodeList[0];
+	                    }
+	                    if (locationToNode.containsKey(nodeName)) {
+		                    for (ESnetNode locationNode : locationToNode.get(nodeName)) {
+			                    locationNode.setLongitude(node.getLongitude());
+			                    locationNode.setLatitude(node.getLatitude());
+		                    }
+	                    }
                     }
                     // All we need from this node is the coordinates.
                     continue;
                 }
+	            String[] nodeList = node.getId().split(":")[4].split("-");
+	            String nodeName;
+	            if (nodeList.length == 3) {
+		            nodeName = nodeList[0] + "-" + nodeList[1];
+	            } else {
+		            nodeName = nodeList[0];
+	            }
+
+	            if (!locationToNode.containsKey(nodeName)) {
+		            locationToNode.put(nodeName, new ArrayList<ESnetNode> ());
+	            }
+	            locationToNode.get(nodeName).add(node);
                 this.nodes.put(node.getId(),node);
             }
+
             // Second, index all Links. Note that all the nodes must be indexed beforehand, so it is not possible
             // to collapse the seemingly identical for loops.
             for (ESnetNode node : this.nodes.values()) {
