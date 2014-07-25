@@ -70,6 +70,7 @@ public class KernelSecurityManager extends SecurityManager {
 
 		this.preloadClasses();
 		this.initializePreAuthorized();
+
 		System.setSecurityManager(this);
 
 		// Figure out the ENOS root directory.
@@ -82,7 +83,6 @@ public class KernelSecurityManager extends SecurityManager {
 		// System.out.println("checkAccess(Thread current= " + Thread.currentThread().getName() + " t = " + t.getName());
 		// Threads that are not part of ENOS ThreadGroup are authorized
 		Thread currentThread = Thread.currentThread();
-		// System.out.println("checkAccess " + currentThread.getThreadGroup().getName());
 		if (this.isPrivileged()) {
 			return;
 		}
@@ -116,7 +116,9 @@ public class KernelSecurityManager extends SecurityManager {
 
 	@Override
 	public void checkPermission(Permission perm) throws SecurityException {
-		// System.out.println ("checkPermission " + perm.getName() + ":" + perm.getActions() + perm.getClass().getName());
+        if (perm.getName().contains("exitVM")) {
+            throw new SecurityException("exit is denied");
+        }
 	}
 
 
@@ -249,6 +251,7 @@ public class KernelSecurityManager extends SecurityManager {
 		c = SysCall.class;
 		c = ENOSException.class;
 		c = net.es.enos.api.DefaultValues.class;
+        c = java.security.Permission.class;
 	}
 
 	private void initializePreAuthorized() {
@@ -262,8 +265,22 @@ public class KernelSecurityManager extends SecurityManager {
     }
 
     @Override
+    public boolean checkTopLevelWindow(Object window) {
+        System.out.println("TopLevel= " + window.toString());
+        return super.checkTopLevelWindow(window);
+    }
+
+    @Override
+    public void checkAwtEventQueueAccess() {
+        System.out.println("AWT");
+        super.checkAwtEventQueueAccess();
+    }
+
+    @Override
     public void checkExit(int status) {
-        throw new SecurityException("Cannot quit the JVM");
+        super.checkExit(status);
+        System.out.println("EXIT t= " + Thread.currentThread().getName());
+        throw new SecurityException("Cannot quit ENOS");
     }
 
     @Override
