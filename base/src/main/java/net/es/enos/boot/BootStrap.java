@@ -43,14 +43,13 @@ import net.es.enos.shell.ShellBuiltinCommands;
 import net.es.enos.shell.ShellCommandsFactory;
 import net.es.enos.sshd.SShd;
 import net.es.enos.shell.Shell;
-import net.es.enos.kernel.users.UserShellCommands;
+import net.es.enos.shell.UserShellCommands;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import net.es.enos.esnet.ESnetTopology;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.impl.SimpleLogger;

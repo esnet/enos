@@ -93,7 +93,7 @@ public class FileACL extends Properties {
      * implemented by a SysCall, do_loadACL.
      * @throws IOException
      */
-    public void loadACL() throws IOException {
+    public void loadACL() {
 
         Method method;
         try {
@@ -115,22 +115,26 @@ public class FileACL extends Properties {
     @SysCall(
             name="do_loadACL"
     )
-    public void do_loadACL () throws IOException {
+    public void do_loadACL ()  {
         logger.debug("Try to load ACL file " + this.aclPath);
+        try {
+            File aclFile = new File(this.aclPath.toString());
+            if (!aclFile.exists()) {
 
-        File aclFile = new File(this.aclPath.toString());
-        if (!aclFile.exists()) {
-
-            if (!this.filePath.startsWith(FileACL.rootPath.toString())) {
-                // The file is not part of the ENOS file system. Cannot inherit permission from parent
+                if (!this.filePath.startsWith(FileACL.rootPath.toString())) {
+                    // The file is not part of the ENOS file system. Cannot inherit permission from parent
+                    return;
+                }
+                // It is ok for a file to not have an ACL file: it then inherits its parents.
+                this.inheritParent();
                 return;
             }
-            // It is ok for a file to not have an ACL file: it then inherits its parents.
-            this.inheritParent();
+            logger.debug("loads file");
+            this.load(new FileInputStream(aclFile));
+        } catch (IOException e) {
+            // File or directory does not exist. Return an empty ACL
             return;
         }
-        logger.debug("loads file");
-        this.load(new FileInputStream(aclFile));
     }
 
     /**

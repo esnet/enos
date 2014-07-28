@@ -7,18 +7,19 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.kernel.users;
+package net.es.enos.shell;
 
 import jline.console.ENOSConsoleReader;
 import net.es.enos.kernel.exec.KernelThread;
-import net.es.enos.shell.ENOSTerminal;
+import net.es.enos.kernel.users.User;
+import net.es.enos.kernel.users.UserProfile;
+import net.es.enos.kernel.users.Users;
 import net.es.enos.shell.annotations.ShellCommand;
 
 import java.io.*;
 import java.nio.file.Paths;
 import java.nio.file.Path;
 
-import jline.UnixTerminal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -17,6 +17,7 @@ import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.security.FileACL;
+import net.es.enos.kernel.users.User;
 import net.es.enos.kernel.users.UserProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,13 +65,12 @@ public class Containers {
         } else {
             pathName = Containers.ROOT + "/" + name;
         }
-        // Normalize the path
-        return new File(pathName).getAbsoluteFile().toString();
+        return pathName;
     }
 
     public static Path getPath(String name) {
         return Paths.get(BootStrap.rootPath.toString(),
-                         Containers.absoluteName(name));
+                Containers.absoluteName(name));
     }
 
     public static boolean exists(String name) {
@@ -83,11 +83,19 @@ public class Containers {
         if (exists(name)) {
             throw new ContainerException("already exists");
         }
-        // Creates the container
-        Container container = new Container(name);
-        container.create();
 
-        return container;
+        // Create the directory container
+        Path containerPath = Paths.get(Containers.getPath(name).toString());
+        new File(containerPath.toString()).mkdirs();
+        // Set the read right to the creator
+        User user = KernelThread.getCurrentKernelThread().getUser();
+        ContainerACL acl = new ContainerACL(containerPath);
+        acl.allowSubContainer(user.getName());
+        acl.allowUserRead(user.getName());
+        acl.allowUserExecute(user.getName());
+        acl.store();
+        // Creates a Container object
+        return new Container(name);
     }
 
 

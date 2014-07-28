@@ -30,8 +30,8 @@ public final class Container {
     }
 
     public Container (String name) {
-        this.name = Containers.absoluteName(name);
-        this.path = Paths.get(BootStrap.rootPath.toString(),this.name).toAbsolutePath();
+        this.name = name;
+        this.path = Containers.getPath(name);
         // Verify that the directory can be accessed
         if (this.path.toFile().exists()) {
             if (!this.path.toFile().canRead()) {
@@ -42,17 +42,6 @@ public final class Container {
 
     public Path getPath() {
         return Paths.get(BootStrap.rootPath.toString(),this.name);
-    }
-    public void create() throws IOException {
-        // Create the directory container
-        this.path.toFile().mkdirs();
-        // Set the read right to the creator
-        User user = KernelThread.getCurrentKernelThread().getUser();
-        ContainerACL acl = new ContainerACL(this.path);
-        acl.allowSubContainer(user.getName());
-        acl.allowUserRead(user.getName());
-        acl.allowUserExecute(user.getName());
-        acl.store();
     }
 
     public String getName() {
