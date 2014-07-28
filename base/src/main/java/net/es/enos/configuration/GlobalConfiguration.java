@@ -36,6 +36,7 @@ import net.es.enos.api.PropertyKeys;
 import net.es.enos.api.Resource;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
+import net.es.enos.sshd.SshdIoServiceFactory;
 import org.codehaus.jackson.annotate.JsonIgnore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +57,7 @@ public class GlobalConfiguration {
     private int sshDisabled = 0;
     private int sshPort = 8000;
     private int sshIdleTimeout = 3600000;
+    private int sshNbWorkerThreads = SshdIoServiceFactory.DEFAULT_NB_WORKER_THREADS;
     private int securityManagerDisabled = 0;
     @JsonIgnore
     private boolean canSet = true;
@@ -130,6 +132,14 @@ public class GlobalConfiguration {
             return;
         }
         this.securityManagerDisabled = securityManagerDisabled;
+    }
+
+    public int getSshNbWorkerThreads() {
+        return sshNbWorkerThreads;
+    }
+
+    public void setSshNbWorkerThreads(int sshNbWorkerThreads) {
+        this.sshNbWorkerThreads = sshNbWorkerThreads;
     }
 
     public GlobalConfiguration() {

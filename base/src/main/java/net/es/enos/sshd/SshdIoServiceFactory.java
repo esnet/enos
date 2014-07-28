@@ -9,6 +9,7 @@
 
 package net.es.enos.sshd;
 
+import net.es.enos.configuration.ENOSConfiguration;
 import org.apache.mina.core.service.IoProcessor;
 import org.apache.mina.core.service.SimpleIoProcessorPool;
 import org.apache.mina.transport.socket.nio.NioProcessor;
@@ -48,9 +49,15 @@ public class SshdIoServiceFactory implements IoServiceFactory {
     private final ExecutorService executor;
     private final IoProcessor<NioSession> ioProcessor;
 
+    public static final int DEFAULT_NB_WORKER_THREADS = 20;
+
     public SshdIoServiceFactory(FactoryManager manager) {
         this.manager = manager;
-        this.executor = Executors.newFixedThreadPool(20);
+        int nbOfWorkerThreads = ENOSConfiguration.getInstance().getGlobal().getSshNbWorkerThreads();
+        if (nbOfWorkerThreads == 0) {
+            nbOfWorkerThreads = DEFAULT_NB_WORKER_THREADS;
+        }
+        this.executor = Executors.newFixedThreadPool( nbOfWorkerThreads);
         ((ThreadPoolExecutor) this.executor).prestartAllCoreThreads();
         // Set a default reject handler
         ((ThreadPoolExecutor) this.executor).setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
