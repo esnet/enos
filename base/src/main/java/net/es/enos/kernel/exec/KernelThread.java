@@ -284,6 +284,36 @@ public final class  KernelThread {
         }
         return null;
     }
+
+
+    /**
+     * Joins a container. Upon success, the current container of the KernelThread is set to the joined Container.
+     * Until the thread leaves this container or joins another, all resources access controls will use this
+     * container.
+     * @param containerName
+     */
+    public synchronized void joinContainer(String containerName) {
+        // Being able to read a container grants access
+        this.container = new Container(containerName,this.container);
+        Container old = this.container;
+    }
+
+    /**
+     * Leaves the current container and return to the previous one.
+     */
+    public synchronized void leaveContainer() {
+        if (this.container != null) {
+            this.joinContainer(this.container.getParentContainer());
+        }
+    }
+
+    /**
+     * Returns the current Container.
+     * @return
+     */
+    public synchronized Container getCurrentContainer () {
+        return new Container(this.container.getName());
+    }
 }
 
 

@@ -51,17 +51,21 @@ public class Containers {
 
 
     public static String absoluteName (String name) {
+
+        String pathName;
         if (name.startsWith("/")) {
             // Absolute name
-            return Containers.ROOT + "/" + name;
+            pathName = Containers.ROOT + "/" + name;
         }
         // Relative to currentContainer
         Container currentContainer = KernelThread.getCurrentKernelThread().getContainer();
         if (currentContainer != null) {
-            return currentContainer.getName() + "/" + name;
+            pathName = currentContainer.getName() + "/" + name;
         } else {
-            return Containers.ROOT + "/" + name;
+            pathName = Containers.ROOT + "/" + name;
         }
+        // Normalize the path
+        return new File(pathName).getAbsoluteFile().toString();
     }
 
     public static Path getPath(String name) {
@@ -80,7 +84,6 @@ public class Containers {
             throw new ContainerException("already exists");
         }
         // Creates the container
-
         Container container = new Container(name);
         container.create();
 

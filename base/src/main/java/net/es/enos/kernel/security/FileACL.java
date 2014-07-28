@@ -51,7 +51,7 @@ import java.util.Properties;
  * file which contains ACL.
  */
 
-public final class FileACL extends Properties {
+public class FileACL extends Properties {
 
     public static final String ACLDIR = ".acl"; // prefix of the acl file
     public static final String CAN_READ = "read";
@@ -235,7 +235,7 @@ public final class FileACL extends Properties {
     }
 
     public boolean canExecute(String username) {
-        String[] users = this.getCanWrite();
+        String[] users = this.getCanExecute();
         for (String user : users) {
             if (user.equals("*") || user.equals(username)) {
                 return true;
@@ -244,7 +244,7 @@ public final class FileACL extends Properties {
         return false;
     }
 
-    private static String[] addUser(String[] users, String username) {
+    protected static String[] addUser(String[] users, String username) {
         String[] newUsers = new String[users.length + 1];
         int index = 0;
         for (String user : users) {
@@ -255,7 +255,7 @@ public final class FileACL extends Properties {
         return newUsers;
     }
 
-    private static String makeString(String [] strings) {
+    protected static String makeString(String [] strings) {
         String result = "";
         for (String u : strings) {
             result += u + ",";
@@ -281,6 +281,17 @@ public final class FileACL extends Properties {
         // Add user to the list
         this.setProperty(FileACL.CAN_WRITE,
                 FileACL.makeString(FileACL.addUser(this.getCanWrite(),username)));
+
+    }
+
+    public synchronized void allowUserExecute(String username) {
+        if (this.canExecute(username)) {
+            // is already allowed
+            return;
+        }
+        // Add user to the list
+        this.setProperty(FileACL.CAN_EXECUTE,
+                FileACL.makeString(FileACL.addUser(this.getCanExecute(),username)));
 
     }
 

@@ -9,8 +9,48 @@
 
 package net.es.enos.kernel.container;
 
+import net.es.enos.kernel.security.FileACL;
+
+import java.io.IOException;
+import java.nio.file.Path;
+
 /**
  * Created by lomax on 7/21/14.
  */
-public class ContainerACL {
+public class ContainerACL extends FileACL {
+    public static final String CAN_SUBCONTAINER = "subContainer";
+    public ContainerACL(Path file) throws IOException {
+        super(file);
+    }
+
+    public synchronized void allowSubContainer(String username) {
+        if (this.canSubContainer(username)) {
+            // is already allowed
+            return;
+        }
+        // Add user to the list
+        this.setProperty(CAN_SUBCONTAINER,
+                FileACL.makeString(FileACL.addUser(this.getCanSubContainer(),username)));
+
+    }
+
+
+
+    public String[] getCanSubContainer() {
+        String users = this.getProperty(CAN_SUBCONTAINER);
+        if (users == null) {
+            return new String[0];
+        }
+        return users.split(",");
+    }
+
+    public boolean canSubContainer(String username) {
+        String[] users = this.getCanSubContainer();
+        for (String user : users) {
+            if (user.equals("*") || user.equals(username)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

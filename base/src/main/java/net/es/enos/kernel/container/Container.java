@@ -4,6 +4,7 @@ import net.es.enos.api.PersistentObject;
 import net.es.enos.api.Resource;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.kernel.security.FileACL;
 import net.es.enos.kernel.users.User;
 import org.codehaus.jackson.annotate.JsonIgnore;
 
@@ -20,6 +21,13 @@ public final class Container {
 
     private String name;
     private Path path;
+    private Container parentContainer;
+
+
+    public Container (String name, Container parentContainer) {
+        this(name);
+        this.parentContainer = parentContainer;
+    }
 
     public Container (String name) {
         this.name = Containers.absoluteName(name);
@@ -29,27 +37,39 @@ public final class Container {
             if (!this.path.toFile().canRead()) {
                 throw new SecurityException("Cannot access this container");
             }
-        } else {
-            // This Container has not been made persistent yet. Verify that the parent is writable.
-            if (this.path.getParent() != null) {
-                if (! this.path.getParent().toFile().canWrite()) {
-                    throw new SecurityException("Cannot create this container.");
-                }
-            } else {
-                throw new SecurityException("Invalid name");
-            }
-
         }
     }
 
     public Path getPath() {
         return Paths.get(BootStrap.rootPath.toString(),this.name);
     }
-    public void create() {
+    public void create() throws IOException {
+        // Create the directory container
         this.path.toFile().mkdirs();
+        // Set the read right to the creator
+        User user = KernelThread.getCurrentKernelThread().getUser();
+        ContainerACL acl = new ContainerACL(this.path);
+        acl.allowSubContainer(user.getName());
+        acl.allowUserRead(user.getName());
+        acl.allowUserExecute(user.getName());
+        acl.store();
     }
 
     public String getName() {
         return name;
     }
+
+    public String getParentContainer() {
+        return parentContainer.getName();
+    }
+
+    public void join() {
+        KernelThread.getCurrentKernelThread().joinContainer(this.getName());
+    }
+
+    public void leave() {
+        KernelThread.getCurrentKernelThread().leaveContainer();
+    }
+
 }
+
