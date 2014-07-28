@@ -41,6 +41,9 @@ import net.es.enos.kernel.users.Users;
 import org.apache.mina.util.Base64;
 import org.apache.sshd.SshServer;
 import org.apache.sshd.common.Session;
+import org.apache.sshd.common.io.IoServiceFactory;
+import org.apache.sshd.common.io.IoServiceFactoryFactory;
+import org.apache.sshd.common.io.mina.MinaServiceFactory;
 import org.apache.sshd.server.PasswordAuthenticator;
 import org.apache.sshd.server.PublickeyAuthenticator;
 import org.apache.sshd.server.command.ScpCommandFactory;
@@ -249,6 +252,9 @@ public class SShd {
 
     public void start() throws IOException {
 
+        // Set a custom IOServiceFactoryFactory in order to control the creation of the threads in the
+        // ThreadPool.
+        System.setProperty(IoServiceFactoryFactory.class.getName(), SshdServiceFactoryFactory.class.getName());
         // Create and configure SSH server object.
         // Timeouts on the SSH session get set here via the SshServer properties map.
         this.sshServer = SshServer.setUpDefaultServer();

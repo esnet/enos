@@ -25,7 +25,7 @@ import java.util.List;
 /**
  * Created by lomax on 6/24/14.
  */
-public class PersistentObject {
+public class PersistentObject implements Serializable {
 
     @JsonIgnore
     private boolean isNewInstance = true;

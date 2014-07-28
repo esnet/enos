@@ -101,7 +101,6 @@ public class KernelSecurityManager extends SecurityManager {
 			// from java library classes. This is safe.
 			return;
 		}
-		Thread.dumpStack();
 
 		throw new SecurityException("Illegal Thread access from " + Thread.currentThread().getName() + " onto " +
 				t.getName());
@@ -199,7 +198,7 @@ public class KernelSecurityManager extends SecurityManager {
 			throw new SecurityException("IOException when retrieving ACL of " + file + ": " + e);
 		}
 		logger.debug("checkRead reject  " + file + " because thread is user, file is in ENOS rootdir and user ACL does not allows");
-		throw new SecurityException("Not authorized to read file " + file);
+		throw new SecurityException(Thread.currentThread().getName() + "Not authorized to read file " + file);
 	}
 
 
@@ -266,20 +265,17 @@ public class KernelSecurityManager extends SecurityManager {
 
     @Override
     public boolean checkTopLevelWindow(Object window) {
-        System.out.println("TopLevel= " + window.toString());
         return super.checkTopLevelWindow(window);
     }
 
     @Override
     public void checkAwtEventQueueAccess() {
-        System.out.println("AWT");
         super.checkAwtEventQueueAccess();
     }
 
     @Override
     public void checkExit(int status) {
         super.checkExit(status);
-        System.out.println("EXIT t= " + Thread.currentThread().getName());
         throw new SecurityException("Cannot quit ENOS");
     }
 

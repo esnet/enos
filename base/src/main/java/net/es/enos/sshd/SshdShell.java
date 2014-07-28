@@ -114,7 +114,9 @@ public class SshdShell extends Shell implements Command, SessionAware, FileSyste
         this.thread = new Thread(user.getThreadGroup(),
                                  this,
                                  "ENOS Shell User= " + user.getName() );
-        KernelThread.getKernelThread(this.thread).setUser(user);
+        Thread currentThread = Thread.currentThread();
+        KernelThread kt = KernelThread.getKernelThread(this.thread);
+        kt.setUser(user);
         this.thread.start();
     }
 

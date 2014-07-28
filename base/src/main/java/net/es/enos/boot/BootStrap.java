@@ -136,7 +136,7 @@ public class BootStrap implements Runnable {
         BootStrap.bootStrap = new BootStrap(args);
         BootStrap.bootStrap.init();
         BootStrap.bootStrap.postInitialization();
-        // System.out.println("Bootstrap thread exits");
+
         logger.info("Bootstrap thread exits");
     }
 

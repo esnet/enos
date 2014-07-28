@@ -61,8 +61,7 @@ public final class  KernelThread {
         this.thread = thread;
         this.init();
 
-        if ((this.thread == null)
-           || (BootStrap.getBootStrap() == null)
+        if ((BootStrap.getBootStrap() == null)
            || (BootStrap.getBootStrap().getSecurityManager() == null)
            || (this.thread.getThreadGroup() == null)
            || this.thread.getThreadGroup().equals(BootStrap.getBootStrap().getSecurityManager().getEnosRootThreadGroup())) {
@@ -181,6 +180,10 @@ public final class  KernelThread {
         return this.user;
     }
 
+    public Container getContainer() {
+        return this.container;
+    }
+
     /**
      * sets a user to the current thread. This can be done only once, when the thread is
      * created
@@ -188,7 +191,6 @@ public final class  KernelThread {
      * @throws SecurityException when the thread was already set
      */
     public synchronized void setUser(User user) throws SecurityException {
-
         if (this.user == null) {
             this.user = user;
             this.privileged = user.isPrivileged();
@@ -233,7 +235,6 @@ public final class  KernelThread {
      */
     public static void doSysCall (Object obj, Method methodToCall, Object... args) throws Exception {
 
-        // System.out.println("doSysCall");
         KernelThread kernelThread = KernelThread.getCurrentKernelThread();
 
         StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
@@ -250,8 +251,6 @@ public final class  KernelThread {
                     kernelThread.privileged = true;
                 }
                 // Call the system call
-
-                // System.out.println("doSysCall is invoking " + methodToCall.getName());
                 methodToCall.invoke(obj, args);
 
             } catch (Exception e) {

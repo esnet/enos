@@ -243,7 +243,7 @@ public final class Users {
         try {
             method = KernelThread.getSysCallMethod(this.getClass(), "do_createUser");
 
-            // Check if user is authorized to change password
+            // Check if user is authorized to create users
             if (KernelThread.getCurrentKernelThread().isPrivileged()) {
                 KernelThread.doSysCall(this,
                         method,
