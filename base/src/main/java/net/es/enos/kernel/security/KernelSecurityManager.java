@@ -152,17 +152,14 @@ public class KernelSecurityManager extends SecurityManager {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		try {
-			FileACL acl = new FileACL(Paths.get(file));
 
-			if (acl.canWrite(KernelThread.getCurrentKernelThread().getUser().getName())) {
-				logger.debug("checkWrite allows " + file + " because ENOS User ACL for the user allows it.");
-				return;
-			}
-		} catch (IOException e) {
-			logger.debug("checkWrite rejects " + file + " due to IOException " + e.getMessage());
-			throw new SecurityException("IOException when retrieving ACL of " + file + ": " + e);
-		}
+        FileACL acl = new FileACL(Paths.get(file));
+
+        if (acl.canWrite(KernelThread.getCurrentKernelThread().getUser().getName())) {
+            logger.debug("checkWrite allows " + file + " because ENOS User ACL for the user allows it.");
+            return;
+        }
+
 		logger.debug("checkWrite rejects " + file);
 
 		throw new SecurityException("Not authorized to write file " + file);
@@ -186,17 +183,14 @@ public class KernelSecurityManager extends SecurityManager {
 			logger.debug("checkRead ok " + file + " because thread is privileged");
 			return;
 		}
-		try {
-			FileACL acl = new FileACL(Paths.get(file));
 
-			if (acl.canRead()) {
-				logger.debug("checkRead ok " + file + " because user ENOS ACL allows it.");
-				return;
-			}
-		} catch (IOException e) {
-			logger.debug("checkRead reject " + file + " got exception " + e.toString());
-			throw new SecurityException("IOException when retrieving ACL of " + file + ": " + e);
-		}
+        FileACL acl = new FileACL(Paths.get(file));
+
+        if (acl.canRead()) {
+            logger.debug("checkRead ok " + file + " because user ENOS ACL allows it.");
+            return;
+        }
+
 		logger.debug("checkRead reject  " + file + " because thread is user, file is in ENOS rootdir and user ACL does not allows");
 		throw new SecurityException(Thread.currentThread().getName() + "Not authorized to read file " + file);
 	}

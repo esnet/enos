@@ -39,11 +39,8 @@ import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.security.AllowedSysCalls;
 import net.es.enos.kernel.security.KernelSecurityManager;
 import net.es.enos.python.PythonShell;
-import net.es.enos.shell.ShellBuiltinCommands;
-import net.es.enos.shell.ShellCommandsFactory;
+import net.es.enos.shell.*;
 import net.es.enos.sshd.SShd;
-import net.es.enos.shell.Shell;
-import net.es.enos.shell.UserShellCommands;
 
 import java.io.File;
 import java.io.IOException;
@@ -172,6 +169,7 @@ public class BootStrap implements Runnable {
         ShellCommandsFactory.registerShellModule(ShellBuiltinCommands.class);
         ShellCommandsFactory.registerShellModule(PythonShell.class);
         ShellCommandsFactory.registerShellModule(UserShellCommands.class);
+        ShellCommandsFactory.registerShellModule(ContainerShellCommands.class);
     }
     public void stop() {
         synchronized (this) {

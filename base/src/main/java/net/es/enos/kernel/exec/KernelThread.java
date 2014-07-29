@@ -17,6 +17,7 @@ package net.es.enos.kernel.exec;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.api.ENOSException;
 import net.es.enos.kernel.container.Container;
+import net.es.enos.kernel.container.ContainerACL;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.users.User;
 import net.es.enos.kernel.security.AllowedSysCalls;
@@ -293,9 +294,13 @@ public final class  KernelThread {
      * @param containerName
      */
     public synchronized void joinContainer(String containerName) {
-        // Being able to read a container grants access
-        this.container = new Container(containerName,this.container);
-        Container old = this.container;
+
+        Container newContainer = new Container(containerName,this.container);
+        // Checks if the user has execution access
+        ContainerACL acl = newContainer.getACL();
+        if (acl.canExecute(KernelThread.getCurrentKernelThread().getUser().getName())) {
+            this.container = newContainer;
+        }
     }
 
     /**

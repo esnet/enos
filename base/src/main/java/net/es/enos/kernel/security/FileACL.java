@@ -69,7 +69,7 @@ public class FileACL extends Properties {
         rootPath = Paths.get(rootdir).normalize();
     }
 
-    public FileACL (Path file) throws IOException {
+    public FileACL (Path file) {
         super ();
         if (file == null) {
             // root of the file system, no parent
@@ -97,7 +97,7 @@ public class FileACL extends Properties {
 
         Method method;
         try {
-            method = KernelThread.getSysCallMethod(this.getClass(), "do_loadACL");
+            method = KernelThread.getSysCallMethod(FileACL.class, "do_loadACL");
 
             KernelThread.doSysCall(this, method);
 

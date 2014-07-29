@@ -90,7 +90,7 @@ public class Containers {
         // Set the read right to the creator
         User user = KernelThread.getCurrentKernelThread().getUser();
         ContainerACL acl = new ContainerACL(containerPath);
-        acl.allowSubContainer(user.getName());
+        acl.allowAdmin(user.getName());
         acl.allowUserRead(user.getName());
         acl.allowUserExecute(user.getName());
         acl.store();
@@ -98,5 +98,9 @@ public class Containers {
         return new Container(name);
     }
 
-
+    public static ContainerACL getACL(String name)  {
+        Path containerPath = Paths.get(Containers.getPath(name).toString());
+        ContainerACL acl = new ContainerACL(containerPath);
+        return acl;
+    }
 }

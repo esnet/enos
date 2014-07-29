@@ -18,34 +18,34 @@ import java.nio.file.Path;
  * Created by lomax on 7/21/14.
  */
 public class ContainerACL extends FileACL {
-    public static final String CAN_SUBCONTAINER = "subContainer";
-    public ContainerACL(Path file) throws IOException {
+    public static final String CAN_ADMIN = "admin";
+    public ContainerACL(Path file) {
         super(file);
     }
 
-    public synchronized void allowSubContainer(String username) {
-        if (this.canSubContainer(username)) {
+    public synchronized void allowAdmin(String username) {
+        if (this.canAdmin(username)) {
             // is already allowed
             return;
         }
         // Add user to the list
-        this.setProperty(CAN_SUBCONTAINER,
-                FileACL.makeString(FileACL.addUser(this.getCanSubContainer(),username)));
+        this.setProperty(CAN_ADMIN,
+                FileACL.makeString(FileACL.addUser(this.getCanAdmin(),username)));
 
     }
 
 
 
-    public String[] getCanSubContainer() {
-        String users = this.getProperty(CAN_SUBCONTAINER);
+    public String[] getCanAdmin() {
+        String users = this.getProperty(CAN_ADMIN);
         if (users == null) {
             return new String[0];
         }
         return users.split(",");
     }
 
-    public boolean canSubContainer(String username) {
-        String[] users = this.getCanSubContainer();
+    public boolean canAdmin(String username) {
+        String[] users = this.getCanAdmin();
         for (String user : users) {
             if (user.equals("*") || user.equals(username)) {
                 return true;
