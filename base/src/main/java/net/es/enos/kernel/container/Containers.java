@@ -9,16 +9,10 @@
 
 package net.es.enos.kernel.container;
 
-import net.es.enos.api.NonExistantUserException;
-import net.es.enos.api.PersistentObject;
-import net.es.enos.api.UserAlreadyExistException;
-import net.es.enos.api.UserException;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
-import net.es.enos.kernel.security.FileACL;
 import net.es.enos.kernel.users.User;
-import net.es.enos.kernel.users.UserProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,9 +34,11 @@ public class Containers {
     // Makes sure the containers directory exists
     static {
         if ( ! homePath.toFile().exists()) {
+            // Create root container
             Containers.homePath.toFile().mkdirs();
         }
     }
+
 
     public static class ContainerException extends Exception {
         public ContainerException(String message) {
@@ -54,12 +50,15 @@ public class Containers {
     public static String absoluteName (String name) {
 
         String pathName;
+        if (name == null) {
+            return null;
+        }
         if (name.startsWith("/")) {
             // Absolute name
             pathName = Containers.ROOT + "/" + name;
         }
         // Relative to currentContainer
-        Container currentContainer = KernelThread.getCurrentKernelThread().getContainer();
+        Container currentContainer = KernelThread.currentKernelThread().getCurrentContainer();
         if (currentContainer != null) {
             pathName = currentContainer.getName() + "/" + name;
         } else {
@@ -69,16 +68,43 @@ public class Containers {
     }
 
     public static Path getPath(String name) {
-        return Paths.get(BootStrap.rootPath.toString(),
-                Containers.absoluteName(name));
+        return Paths.get(BootStrap.rootPath.toString(), Containers.absoluteName(name));
     }
 
     public static boolean exists(String name) {
         return Containers.getPath(name).toFile().exists();
     }
 
-    public static Container createContainer (String name) throws Exception {
 
+    public static void createContainer (String name) throws Exception {
+        Method method;
+        try {
+            method = KernelThread.getSysCallMethod(Container.class, "do_createContainer");
+
+            KernelThread.doSysCall(Container.class, method, name);
+
+        } catch (Exception e) {
+            // Nothing particular to do.
+            e.printStackTrace();
+        }
+    }
+
+    @SysCall(
+            name="do_createContainer"
+    )
+    private final static void do_createContainer (String name) throws Exception {
+
+        // Check permission: load the current container and checks for ADMIN access
+        String containerName = KernelThread.currentContainer();
+        if (containerName == null) {
+            // Must be in a container
+            throw new SecurityException("Must be in a container in order to create one");
+        }
+        ContainerACL parentAcl = new Container(containerName).getACL();
+        if (!parentAcl.canAdmin(KernelThread.currentKernelThread().getUser().getName())) {
+            // Does not have the ADMIN right in the current container
+            throw new SecurityException("Must be ADMIN");
+        }
         // Checks if the container already exists
         if (exists(name)) {
             throw new ContainerException("already exists");
@@ -88,14 +114,14 @@ public class Containers {
         Path containerPath = Paths.get(Containers.getPath(name).toString());
         new File(containerPath.toString()).mkdirs();
         // Set the read right to the creator
-        User user = KernelThread.getCurrentKernelThread().getUser();
+        User user = KernelThread.currentKernelThread().getUser();
         ContainerACL acl = new ContainerACL(containerPath);
         acl.allowAdmin(user.getName());
         acl.allowUserRead(user.getName());
         acl.allowUserExecute(user.getName());
         acl.store();
         // Creates a Container object
-        return new Container(name);
+        return;
     }
 
     public static ContainerACL getACL(String name)  {

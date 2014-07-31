@@ -11,16 +11,11 @@ package net.es.enos.api;
 
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.JsonProcessingException;
 import org.codehaus.jackson.annotate.JsonIgnore;
-import org.codehaus.jackson.map.DeserializationContext;
-import org.codehaus.jackson.map.JsonDeserializer;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.*;
 import java.nio.file.Paths;
-import java.util.List;
 
 /**
  * Created by lomax on 6/24/14.
@@ -44,7 +39,7 @@ public class PersistentObject implements Serializable {
                 file = new File(Paths.get(BootStrap.rootPath.toString(), filename).toString());
             } else {
                 // Relative path.
-                file = new File(Paths.get(KernelThread.getCurrentKernelThread().getUser().getCurrentPath().toString(),
+                file = new File(Paths.get(KernelThread.currentKernelThread().getUser().getCurrentPath().toString(),
                         filename).toString());
             }
         }

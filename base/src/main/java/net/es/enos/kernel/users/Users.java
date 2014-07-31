@@ -30,13 +30,10 @@
 
 package net.es.enos.kernel.users;
 
-import net.es.enos.api.DefaultValues;
 import net.es.enos.api.NonExistantUserException;
 import net.es.enos.api.UserAlreadyExistException;
 import net.es.enos.api.UserException;
-import net.es.enos.boot.BootStrap;
 import net.es.enos.configuration.ENOSConfiguration;
-import net.es.enos.configuration.GlobalConfiguration;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.security.FileACL;
@@ -186,7 +183,7 @@ public final class Users {
         try {
             method = KernelThread.getSysCallMethod(this.getClass(), "do_setPassword");
 
-            KernelThread kt = KernelThread.getCurrentKernelThread();
+            KernelThread kt = KernelThread.currentKernelThread();
             String currentUserName = kt.getUser().getName();
 
             logger.info("current user {}", currentUserName);
@@ -244,7 +241,7 @@ public final class Users {
             method = KernelThread.getSysCallMethod(this.getClass(), "do_createUser");
 
             // Check if user is authorized to create users
-            if (KernelThread.getCurrentKernelThread().isPrivileged()) {
+            if (KernelThread.currentKernelThread().isPrivileged()) {
                 KernelThread.doSysCall(this,
                         method,
                         newUser);
@@ -328,7 +325,7 @@ public final class Users {
 
     public boolean removeuser (String userName) {
         Method method = null;
-        KernelThread kt = KernelThread.getCurrentKernelThread();
+        KernelThread kt = KernelThread.currentKernelThread();
         String currentUserName = kt.getUser().getName();
 
         try {
@@ -396,7 +393,7 @@ public final class Users {
 
 	public boolean mkdir (File homeDir) {
 		try {
-			KernelThread kt = KernelThread.getCurrentKernelThread();
+			KernelThread kt = KernelThread.currentKernelThread();
 			String username = kt.getUser().getName();
 
 			// Check if directory entered contain valid characters only

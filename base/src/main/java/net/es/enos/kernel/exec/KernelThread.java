@@ -131,7 +131,7 @@ public final class  KernelThread {
      * Returns the KernelThread associated to the current thread .
      * @return the KernelThread associated to the current thread
      */
-    public static KernelThread getCurrentKernelThread() {
+    public static KernelThread currentKernelThread() {
         synchronized (KernelThread.kernelThreads) {
             KernelThread kernelThread = KernelThread.kernelThreads.get(Thread.currentThread());
             if (kernelThread == null) {
@@ -179,10 +179,6 @@ public final class  KernelThread {
         }
 
         return this.user;
-    }
-
-    public Container getContainer() {
-        return this.container;
     }
 
     /**
@@ -236,7 +232,7 @@ public final class  KernelThread {
      */
     public static void doSysCall (Object obj, Method methodToCall, Object... args) throws Exception {
 
-        KernelThread kernelThread = KernelThread.getCurrentKernelThread();
+        KernelThread kernelThread = KernelThread.currentKernelThread();
 
         StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
         // The third element is the class/method that is invoking doSysCall
@@ -295,10 +291,15 @@ public final class  KernelThread {
      */
     public synchronized void joinContainer(String containerName) {
 
+        if (containerName == null) {
+            // this means that the Thread needs to be in no container at all
+            this.container = null;
+            return;
+        }
         Container newContainer = new Container(containerName,this.container);
         // Checks if the user has execution access
         ContainerACL acl = newContainer.getACL();
-        if (acl.canExecute(KernelThread.getCurrentKernelThread().getUser().getName())) {
+        if (acl.canExecute(KernelThread.currentKernelThread().getUser().getName())) {
             this.container = newContainer;
         }
     }
@@ -317,7 +318,19 @@ public final class  KernelThread {
      * @return
      */
     public synchronized Container getCurrentContainer () {
-        return new Container(this.container.getName());
+        if (this.container != null) {
+            return new Container(this.container.getName());
+        } else {
+            return null;
+        }
+    }
+
+    static public String currentContainer() {
+        if (KernelThread.currentKernelThread().container != null) {
+            return KernelThread.currentKernelThread().container.getName();
+        } else {
+            return null;
+        }
     }
 }
 

@@ -30,11 +30,8 @@
 
 package net.es.enos.kernel.security;
 import net.es.enos.boot.BootStrap;
-import net.es.enos.api.DefaultValues;
 import net.es.enos.api.ENOSException;
-import net.es.enos.api.PropertyKeys;
 import net.es.enos.configuration.ENOSConfiguration;
-import net.es.enos.configuration.GlobalConfiguration;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import org.slf4j.Logger;
@@ -88,7 +85,7 @@ public class KernelSecurityManager extends SecurityManager {
 		}
 
 		if ((currentThread.getThreadGroup() == null) ||
-				(KernelThread.getCurrentKernelThread().isPrivileged()) ||
+				(KernelThread.currentKernelThread().isPrivileged()) ||
 				( !this.enosRootThreadGroup.parentOf(currentThread.getThreadGroup()))) {
 			return;
 		}
@@ -155,7 +152,7 @@ public class KernelSecurityManager extends SecurityManager {
 
         FileACL acl = new FileACL(Paths.get(file));
 
-        if (acl.canWrite(KernelThread.getCurrentKernelThread().getUser().getName())) {
+        if (acl.canWrite(KernelThread.currentKernelThread().getUser().getName())) {
             logger.debug("checkWrite allows " + file + " because ENOS User ACL for the user allows it.");
             return;
         }
@@ -232,7 +229,7 @@ public class KernelSecurityManager extends SecurityManager {
 
 		} else {
 			// This is an ENOS thread.
-			return KernelThread.getCurrentKernelThread().isPrivileged();
+			return KernelThread.currentKernelThread().isPrivileged();
 		}
 	}
 
@@ -245,6 +242,7 @@ public class KernelSecurityManager extends SecurityManager {
 		c = ENOSException.class;
 		c = net.es.enos.api.DefaultValues.class;
         c = java.security.Permission.class;
+        c = net.es.enos.kernel.container.Containers.class;
 	}
 
 	private void initializePreAuthorized() {
@@ -275,7 +273,7 @@ public class KernelSecurityManager extends SecurityManager {
 
     @Override
     public void checkExec(String cmd) {
-        if (KernelThread.getCurrentKernelThread().isPrivileged()) {
+        if (KernelThread.currentKernelThread().isPrivileged()) {
             return;
         }
         throw new ExitSecurityException("Cannot execute UNIX processes");

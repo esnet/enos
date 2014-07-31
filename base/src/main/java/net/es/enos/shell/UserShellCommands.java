@@ -74,19 +74,19 @@ public class UserShellCommands {
 
         try {
             // Get our current username.
-            String thisUserName = KernelThread.getCurrentKernelThread().getUser().getName();
+            String thisUserName = KernelThread.currentKernelThread().getUser().getName();
 
             // If this thread is privileged, then ask for a username (because we can set anybody's passwd).
             // If not privileged, require password verification to change our own passwd.
             String userName, oldPassword;
-            if (KernelThread.getCurrentKernelThread().isPrivileged()) {
+            if (KernelThread.currentKernelThread().isPrivileged()) {
                 userName = consoleReader.readLine("Username (default = " + thisUserName + "): ");
                 if (userName.isEmpty()) {
                     userName = thisUserName;
                 }
             }
             else {
-                userName = KernelThread.getCurrentKernelThread().getUser().getName();
+                userName = KernelThread.currentKernelThread().getUser().getName();
                 oldPassword = consoleReader.readLine("Old password: ", '*');
 
                 // Password check to fail early here
@@ -144,19 +144,19 @@ public class UserShellCommands {
 
         try {
             // Get current username.
-            String thisUserName = KernelThread.getCurrentKernelThread().getUser().getName();
+            String thisUserName = KernelThread.currentKernelThread().getUser().getName();
 
             // If this thread is privileged, then ask for a username (because we can remove any user).
             // If not privileged, require password verification to remove user.
             String userName, password;
-            if (KernelThread.getCurrentKernelThread().isPrivileged()) {
+            if (KernelThread.currentKernelThread().isPrivileged()) {
                 userName = consoleReader.readLine("Username (default = " + thisUserName + "): ");
                 if (userName.isEmpty()) {
                     userName = thisUserName;
                 }
             }
             else {
-                userName = KernelThread.getCurrentKernelThread().getUser().getName();
+                userName = KernelThread.currentKernelThread().getUser().getName();
                 password = consoleReader.readLine("Password: ", '*');
 
                 if (! Users.getUsers().authUser(thisUserName, password)) {
@@ -194,7 +194,7 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
+		String userPath = KernelThread.currentKernelThread().getUser().getHomePath().normalize().toString();
 
 		// Do argument number check. If no extra args, displays files in current directory;
 		// If 1 extra arg, displays files in directory specified by the arg.
@@ -233,7 +233,7 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 		boolean mkdir = false;
-		User currentUser = KernelThread.getCurrentKernelThread().getUser();
+		User currentUser = KernelThread.currentKernelThread().getUser();
 		String userPath = currentUser.getHomePath().normalize().toString();
 
 		// Argument checking
@@ -286,7 +286,7 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().toString();
+		String userPath = KernelThread.currentKernelThread().getUser().getHomePath().toString();
 
 		// Argument checking
 		if (args.length != 2 ) {
@@ -308,7 +308,7 @@ public class UserShellCommands {
 		try {
 			cdDir.canRead();
 			if (cdDir.exists() & !cdDir.isFile()) {
-				KernelThread.getCurrentKernelThread().getUser().setHomePath(Paths.get(userPath, dest));
+				KernelThread.currentKernelThread().getUser().setHomePath(Paths.get(userPath, dest));
 				logger.debug("cd success");
 			} else {
 				o.println("Directory does not exist");
@@ -328,7 +328,7 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
+		String userPath = KernelThread.currentKernelThread().getUser().getHomePath().normalize().toString();
 
 		// Argument checking
 		if (args.length != 2 ) {
@@ -378,7 +378,7 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
+		String userPath = KernelThread.currentKernelThread().getUser().getHomePath().normalize().toString();
 
 		// Argument checking
 		if (args.length != 2 ) {
@@ -425,7 +425,7 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
+		String userPath = KernelThread.currentKernelThread().getUser().getHomePath().normalize().toString();
 		o.println(userPath + ": is a directory");
 	}
 
@@ -433,7 +433,7 @@ public class UserShellCommands {
 	private static String startsSlash(String dest) {
 		dest = dest.substring(1);
 		String newPath = "";
-		String currentPath = KernelThread.getCurrentKernelThread().getUser().getHomePath().normalize().toString();
+		String currentPath = KernelThread.currentKernelThread().getUser().getHomePath().normalize().toString();
 		int occur = currentPath.length() - currentPath.replace("/", "").length();
 		for (int i = 0; i < occur; i++) {
 			newPath = newPath + "../";

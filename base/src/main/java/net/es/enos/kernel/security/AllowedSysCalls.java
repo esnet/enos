@@ -31,6 +31,7 @@ public final class AllowedSysCalls {
         allowedSysCallClasses.add(net.es.enos.kernel.security.FileACL.class);
         allowedSysCallClasses.add(net.es.enos.kernel.users.Users.class);
         allowedSysCallClasses.add(net.es.enos.kernel.container.Container.class);
+        allowedSysCallClasses.add(net.es.enos.kernel.container.Containers.class);
     }
 
     public static List<Class> getAllowedClasses() {

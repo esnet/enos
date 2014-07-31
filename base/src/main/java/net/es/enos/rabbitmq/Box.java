@@ -11,8 +11,6 @@
 package net.es.enos.rabbitmq;
 
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.QueueingConsumer;
 import net.es.enos.kernel.exec.KernelThread;
 
@@ -57,7 +55,7 @@ public class Box {
 		QueueingConsumer consumer = new QueueingConsumer(channel);
 
 		// Send TOKEN_REQUEST with curent username.
-		String message = token + ":QUEUE_QUERY" + ":" +  uuid + ":" + KernelThread.getCurrentKernelThread().getUser().getName() + ":" + symLink;
+		String message = token + ":QUEUE_QUERY" + ":" +  uuid + ":" + KernelThread.currentKernelThread().getUser().getName() + ":" + symLink;
 
 		channel.basicPublish("", sendQueue, null, message.getBytes());
 		// Start consuming to receive token.

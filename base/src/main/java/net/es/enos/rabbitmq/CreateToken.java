@@ -40,7 +40,7 @@ public class CreateToken {
 		QueueingConsumer consumer = new QueueingConsumer(tokenChannel);
 
 		// Send TOKEN_REQUEST with current username.
-		String message = "TOKEN_REQUEST" + ":" +  uuid + ":" + KernelThread.getCurrentKernelThread().getUser().getName();
+		String message = "TOKEN_REQUEST" + ":" +  uuid + ":" + KernelThread.currentKernelThread().getUser().getName();
 
 		tokenChannel.basicPublish("", listenerID, null, message.getBytes());
 		// Start consuming to receive token.

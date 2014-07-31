@@ -119,7 +119,7 @@ public class ContainerACL extends FileACL {
 
 
     public void changeACL(String user, String cmd, String aclType) throws IOException {
-        if (aclType.equals("execute")) {
+        if (aclType.equals("exec")) {
             if (cmd.equals("allow")) {
                 this.allowUserExecute(user);
             } else if (cmd.equals("deny")) {

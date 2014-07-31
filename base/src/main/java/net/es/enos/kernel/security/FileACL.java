@@ -30,10 +30,7 @@
 
 package net.es.enos.kernel.security;
 
-import net.es.enos.api.DefaultValues;
-import net.es.enos.boot.BootStrap;
 import net.es.enos.configuration.ENOSConfiguration;
-import net.es.enos.configuration.GlobalConfiguration;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import org.slf4j.Logger;
@@ -185,7 +182,7 @@ public class FileACL extends Properties {
      * @return true if the thread can read the file, false otherwise.
      */
     public boolean canRead() {
-        return this.canRead(KernelThread.getCurrentKernelThread().getUser().getName());
+        return this.canRead(KernelThread.currentKernelThread().getUser().getName());
     }
 
     /**

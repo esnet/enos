@@ -1,20 +1,13 @@
 package net.es.enos.kernel.container;
 
-import net.es.enos.api.PersistentObject;
-import net.es.enos.api.Resource;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
-import net.es.enos.kernel.security.FileACL;
-import net.es.enos.kernel.users.User;
-import org.codehaus.jackson.annotate.JsonIgnore;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
 
 /**
  * Created by lomax on 5/27/14.
@@ -51,15 +44,19 @@ public final class Container {
     }
 
     public String getParentContainer() {
-        return parentContainer.getName();
+        if (this.parentContainer != null) {
+            return parentContainer.getName();
+        } else {
+            return null;
+        }
     }
 
     public void join() {
-        KernelThread.getCurrentKernelThread().joinContainer(this.getName());
+        KernelThread.currentKernelThread().joinContainer(this.getName());
     }
 
     public void leave() {
-        KernelThread.getCurrentKernelThread().leaveContainer();
+        KernelThread.currentKernelThread().leaveContainer();
     }
 
     public ContainerACL getACL()  {
@@ -72,7 +69,7 @@ public final class Container {
         try {
             method = KernelThread.getSysCallMethod(this.getClass(), "do_setACL");
 
-            KernelThread.doSysCall(this, method);
+            KernelThread.doSysCall(this, method, acl);
 
         } catch (Exception e) {
             // Nothing particular to do.
@@ -86,7 +83,7 @@ public final class Container {
     public void do_setACL(ContainerACL acl) throws IOException {
         // Check if user has the right to administrate this container
         ContainerACL realAcl = this.getACL();
-        if (realAcl.canAdmin(KernelThread.getCurrentKernelThread().getUser().getName())) {
+        if (realAcl.canAdmin(KernelThread.currentKernelThread().getUser().getName())) {
             // Authorized, save the acl
             acl.store();
         } else {

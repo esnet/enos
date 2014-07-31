@@ -24,7 +24,6 @@ import jline.console.ConsoleReader;
 import jline.console.ENOSConsoleReader;
 import jline.console.completer.ArgumentCompleter;
 import jline.console.completer.StringsCompleter;
-import jline.console.history.FileHistory;
 import net.es.enos.kernel.exec.KernelThread;
 
 
@@ -95,7 +94,7 @@ public class Shell {
 
     public void startShell() {
 
-        this.kernelThread = KernelThread.getCurrentKernelThread();
+        this.kernelThread = KernelThread.currentKernelThread();
 
         this.setPrompt(kernelThread.getUser().getName() + "@enos> ");
 
@@ -117,7 +116,7 @@ public class Shell {
 
         // Initialize command completion with commands from modules.
         Set<String> commandNames = ShellCommandsFactory.getCommandNames();
-	    String files[] = new File(Paths.get(new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().toString()).toPath().normalize().toString()).toString()).list();
+	    String files[] = new File(Paths.get(new File(KernelThread.currentKernelThread().getUser().getHomePath().toString()).toPath().normalize().toString()).toString()).list();
 
 	    this.stringsCompleter = new StringsCompleter(commandNames);
 	    this.fileCompleter = new StringsCompleter(files);
@@ -177,7 +176,7 @@ public class Shell {
                             Method m = ShellCommandsFactory.getCommandMethod(n);
                             ShellCommand command = m.getAnnotation(ShellCommand.class);
                             //Make sure user has privilege needed to view help for privileged commands
-                            if (command.privNeeded() && KernelThread.getCurrentKernelThread().isPrivileged() ||
+                            if (command.privNeeded() && KernelThread.currentKernelThread().isPrivileged() ||
                                     ! command.privNeeded()) {
                                 this.print(n + "\t" + command.shortHelp() + "\n");
                             }
@@ -190,7 +189,7 @@ public class Shell {
                         if (m != null) {
                             ShellCommand command = m.getAnnotation(ShellCommand.class);
 	                        // Don't show help for options the user can't access
-                            if (command.privNeeded() && KernelThread.getCurrentKernelThread().isPrivileged() ||
+                            if (command.privNeeded() && KernelThread.currentKernelThread().isPrivileged() ||
                                     ! command.privNeeded()) {
                                 this.print(args[1] + "\t" + command.shortHelp() + "\n");
                                 // Print longer help if it's available.
@@ -245,7 +244,7 @@ public class Shell {
                         // Assume static method    TODO: lomax@es.net to be revisited
                         method.invoke(null, args, this.in, this.out, this.out);
                     }
-	                files = new File(Paths.get(new File(KernelThread.getCurrentKernelThread().getUser().getHomePath().toString()).toPath().normalize().toString()).toString()).list();
+	                files = new File(Paths.get(new File(KernelThread.currentKernelThread().getUser().getHomePath().toString()).toPath().normalize().toString()).toString()).list();
 	                this.fileCompleter = new StringsCompleter(files);
 	                this.argCompleter = new ArgumentCompleter(stringsCompleter, fileCompleter);
                 } catch (IllegalAccessException e) {
