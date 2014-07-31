@@ -56,7 +56,6 @@ public class FileACL extends Properties {
     public static final String ACLDIR = ".acl"; // prefix of the acl file
     public static final String CAN_READ = "read";
     public static final String CAN_WRITE = "write";
-    public static final String CAN_EXECUTE = "execute";
 
     private Path aclPath;
     private Path filePath;
@@ -230,23 +229,6 @@ public class FileACL extends Properties {
         return users.split(",");
     }
 
-    public String[] getCanExecute() {
-        String users = this.getProperty(FileACL.CAN_EXECUTE);
-        if (users == null) {
-            return new String[0];
-        }
-        return users.split(",");
-    }
-
-    public boolean canExecute(String username) {
-        String[] users = this.getCanExecute();
-        for (String user : users) {
-            if (user.equals("*") || user.equals(username)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     protected static String[] addUser(String[] users, String username) {
         String[] newUsers = new String[users.length + 1];
@@ -265,6 +247,20 @@ public class FileACL extends Properties {
             result += u + ",";
         }
         return result.substring(0,result.length() - 1);
+    }
+
+    public static String[] removeUser(String[] users, String username) {
+        String[] newUsers = new String[users.length -1];
+        int index = 0;
+        for (String user : users) {
+
+            if (! user.equals(username)) {
+                // Keep user in the list
+                newUsers[index] = username;
+            }
+            ++index;
+        }
+        return newUsers;
     }
 
     public synchronized void allowUserRead(String username) {
@@ -288,17 +284,45 @@ public class FileACL extends Properties {
 
     }
 
-    public synchronized void allowUserExecute(String username) {
-        if (this.canExecute(username)) {
-            // is already allowed
+    public synchronized void denyUserRead(String username) {
+        if (!this.canRead(username)) {
+            // is already denied
             return;
         }
-        // Add user to the list
-        this.setProperty(FileACL.CAN_EXECUTE,
-                FileACL.makeString(FileACL.addUser(this.getCanExecute(),username)));
+        // Remove user from the list
+        String[] users = FileACL.removeUser(this.getCanRead(),username);
+        this.setProperty(FileACL.CAN_READ,FileACL.makeString(users));
 
     }
 
+
+    public synchronized void denyUserWrite(String username) {
+        if (!this.canWrite(username)) {
+            // is already denied
+            return;
+        }
+        // Remove user from the list
+        String[] users = FileACL.removeUser(this.getCanRead(),username);
+        this.setProperty(FileACL.CAN_WRITE,FileACL.makeString(users));
+
+    }
+
+
+    public void changeACL(String user, String cmd, String aclType) {
+        if (aclType.equals("read")) {
+            if (cmd.equals("allow")) {
+                this.allowUserRead(user);
+            } else if (cmd.equals("deny")) {
+                this.denyUserRead(user);
+            }
+        } else if (aclType.equals("write")) {
+            if (cmd.equals("allow")) {
+                this.allowUserWrite(user);
+            } else if (cmd.equals("deny")) {
+                this.denyUserWrite(user);
+            }
+        }
+    }
 
 }
 

@@ -18,7 +18,9 @@ import java.nio.file.Path;
  * Created by lomax on 7/21/14.
  */
 public class ContainerACL extends FileACL {
+    public static final String CAN_EXECUTE = "execute";
     public static final String CAN_ADMIN = "admin";
+
     public ContainerACL(Path file) {
         super(file);
     }
@@ -52,5 +54,85 @@ public class ContainerACL extends FileACL {
             }
         }
         return false;
+    }
+
+    public synchronized void allowUserAdmin(String username) {
+        if (this.canAdmin(username)) {
+            // is already allowed
+            return;
+        }
+        // Add user to the list
+        this.setProperty(ContainerACL.CAN_ADMIN,
+                FileACL.makeString(FileACL.addUser(this.getCanAdmin(),username)));
+    }
+
+    public synchronized void denyUserAdmin(String username) {
+        if (!this.canAdmin(username)) {
+            // is already denied
+            return;
+        }
+        // Remove user from the list
+        String[] users = FileACL.removeUser(this.getCanAdmin(),username);
+        this.setProperty(ContainerACL.CAN_ADMIN,FileACL.makeString(users));
+
+    }
+
+    public synchronized void denyUserExecute(String username) {
+        if (!this.canExecute(username)) {
+            // is already denied
+            return;
+        }
+        // Remove user from the list
+        String[] users = FileACL.removeUser(this.getCanExecute(),username);
+        this.setProperty(ContainerACL.CAN_EXECUTE,FileACL.makeString(users));
+
+    }
+
+
+    public synchronized void allowUserExecute(String username) {
+        if (this.canExecute(username)) {
+            // is already allowed
+            return;
+        }
+        // Add user to the list
+        this.setProperty(ContainerACL.CAN_EXECUTE,
+                FileACL.makeString(FileACL.addUser(this.getCanExecute(),username)));
+
+    }
+    public String[] getCanExecute() {
+        String users = this.getProperty(ContainerACL.CAN_EXECUTE);
+        if (users == null) {
+            return new String[0];
+        }
+        return users.split(",");
+    }
+
+    public boolean canExecute(String username) {
+        String[] users = this.getCanExecute();
+        for (String user : users) {
+            if (user.equals("*") || user.equals(username)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    public void changeACL(String user, String cmd, String aclType) {
+        if (aclType.equals("execute")) {
+            if (cmd.equals("allow")) {
+                this.allowUserExecute(user);
+            } else if (cmd.equals("deny")) {
+                this.denyUserExecute(user);
+            }
+        } else if (aclType.equals("write")) {
+            if (cmd.equals("admin")) {
+                this.allowUserAdmin(user);
+            } else if (cmd.equals("deny")) {
+                this.denyUserAdmin(user);
+            }
+        } else {
+            super.changeACL(user,cmd,aclType);
+        }
     }
 }
