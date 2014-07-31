@@ -256,7 +256,7 @@ public class FileACL extends Properties {
 
             if (! user.equals(username)) {
                 // Keep user in the list
-                newUsers[index] = username;
+                newUsers[index] = user;
             }
             ++index;
         }
@@ -308,7 +308,7 @@ public class FileACL extends Properties {
     }
 
 
-    public void changeACL(String user, String cmd, String aclType) {
+    public void changeACL(String user, String cmd, String aclType) throws IOException {
         if (aclType.equals("read")) {
             if (cmd.equals("allow")) {
                 this.allowUserRead(user);
@@ -321,7 +321,11 @@ public class FileACL extends Properties {
             } else if (cmd.equals("deny")) {
                 this.denyUserWrite(user);
             }
+        } else {
+            // Invalid type do nothing
+            return;
         }
+        this.store();
     }
 
 }
