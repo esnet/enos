@@ -33,10 +33,12 @@ public class Containers {
 
     // Makes sure the containers directory exists
     static {
+/**
         if ( ! homePath.toFile().exists()) {
             // Create root container
             Containers.homePath.toFile().mkdirs();
         }
+ **/
     }
 
 
@@ -46,29 +48,28 @@ public class Containers {
         }
     }
 
-
-    public static String absoluteName (String name) {
-
-        String pathName;
+    public static String canonicalName (String name) {
         if (name == null) {
             return null;
         }
+
         if (name.startsWith("/")) {
-            // Absolute name
-            pathName = Containers.ROOT + "/" + name;
+            // Already canonical
+            return name;
         }
-        // Relative to currentContainer
-        Container currentContainer = KernelThread.currentKernelThread().getCurrentContainer();
-        if (currentContainer != null) {
-            pathName = currentContainer.getName() + "/" + name;
-        } else {
-            pathName = Containers.ROOT + "/" + name;
+        // Relative path to the current container
+        String currentContainer = KernelThread.currentContainer();
+        if (currentContainer == null) {
+            // Current is root
+            return "/" + name;
         }
-        return pathName;
+        return currentContainer + "/" + name;
     }
 
     public static Path getPath(String name) {
-        return Paths.get(BootStrap.rootPath.toString(), Containers.absoluteName(name));
+        return Paths.get(BootStrap.rootPath.toString(),
+                         Containers.ROOT,
+                         Containers.canonicalName(name));
     }
 
     public static boolean exists(String name) {
@@ -78,36 +79,36 @@ public class Containers {
 
     public static void createContainer (String name) throws Exception {
         Method method;
-        try {
-            method = KernelThread.getSysCallMethod(Container.class, "do_createContainer");
 
-            KernelThread.doSysCall(Container.class, method, name);
-
-        } catch (Exception e) {
-            // Nothing particular to do.
-            e.printStackTrace();
-        }
+        method = KernelThread.getSysCallMethod(Containers.class, "do_createContainer");
+        KernelThread.doSysCall(Container.class, method, name);
     }
 
     @SysCall(
             name="do_createContainer"
     )
-    private final static void do_createContainer (String name) throws Exception {
+    public final static void do_createContainer (String name) throws Exception {
 
-        // Check permission: load the current container and checks for ADMIN access
-        String containerName = KernelThread.currentContainer();
-        if (containerName == null) {
-            // Must be in a container
-            throw new SecurityException("Must be in a container in order to create one");
-        }
-        ContainerACL parentAcl = new Container(containerName).getACL();
-        if (!parentAcl.canAdmin(KernelThread.currentKernelThread().getUser().getName())) {
-            // Does not have the ADMIN right in the current container
-            throw new SecurityException("Must be ADMIN");
-        }
+        boolean isPrivileged = KernelThread.currentKernelThread().getUser().isPrivileged();
+
         // Checks if the container already exists
         if (exists(name)) {
             throw new ContainerException("already exists");
+        }
+
+        // Check permission: load the current container and checks for ADMIN access
+        String containerName = KernelThread.currentContainer();
+        if ((containerName == null) && ! isPrivileged) {
+            // Must be in a container or be privileged
+            throw new SecurityException("Must be in a container in order to create one");
+        }
+        if (! isPrivileged) {
+            System.out.println(Containers.getPath(containerName.toString()));
+            ContainerACL parentAcl = new ContainerACL(Containers.getPath(containerName));
+            if (!parentAcl.canAdmin(KernelThread.currentKernelThread().getUser().getName())) {
+                // Does not have the ADMIN right in the current container
+                throw new SecurityException("Must be ADMIN");
+            }
         }
 
         // Create the directory container

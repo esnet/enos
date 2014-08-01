@@ -117,7 +117,7 @@ public class ContainerACL extends FileACL {
         return false;
     }
 
-
+    @Override
     public void changeACL(String user, String cmd, String aclType) throws IOException {
         if (aclType.equals("exec")) {
             if (cmd.equals("allow")) {
@@ -125,8 +125,8 @@ public class ContainerACL extends FileACL {
             } else if (cmd.equals("deny")) {
                 this.denyUserExecute(user);
             }
-        } else if (aclType.equals("write")) {
-            if (cmd.equals("admin")) {
+        } else if (aclType.equals("admin")) {
+            if (cmd.equals("allow")) {
                 this.allowUserAdmin(user);
             } else if (cmd.equals("deny")) {
                 this.denyUserAdmin(user);

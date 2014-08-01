@@ -25,13 +25,15 @@ public final class Container {
     }
 
     public Container (String name) {
-        this.name = name;
+        this.name = Containers.canonicalName(name);
         this.path = Containers.getPath(name);
         // Verify that the directory can be accessed
         if (this.path.toFile().exists()) {
             if (!this.path.toFile().canRead()) {
                 throw new SecurityException("Cannot access this container");
             }
+        } else {
+            throw new SecurityException("Container does not exist");
         }
     }
 

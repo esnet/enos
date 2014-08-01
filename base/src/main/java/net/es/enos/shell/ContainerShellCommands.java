@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 
 /**
  * Created by lomax on 7/28/14.
@@ -35,15 +36,17 @@ public class ContainerShellCommands {
             o.println("Usage mkcontainer <name>");
             return;
         }
-        String name = args[1];
+        String name = args[2];
         try {
             Containers.createContainer(name);
         } catch (SecurityException e) {
-            o.println("Not authorized to create");
+            o.println("Not authorized to create " + e.getMessage());
+            return;
+        } catch (InvocationTargetException e) {
+            o.println("failed with " + e.getTargetException().getMessage());
             return;
         } catch (Exception e) {
-            o.println("failed with " + e.getMessage());
-            return;
+            o.println("Failed with " + e.toString());
         }
         o.println("container " + name + " is created");
     }
@@ -66,7 +69,8 @@ public class ContainerShellCommands {
         try {
             KernelThread.currentKernelThread().joinContainer(name);
         } catch (SecurityException e) {
-            o.println("Not allowed to join");
+            o.println("Failed: " + e.getMessage());
+            return;
         }
         o.println("container " + name + " is now the current container");
     }
@@ -129,7 +133,7 @@ public class ContainerShellCommands {
         } else {
             o.print("    ");
             for (String user : users) {
-                o.println(user + ",");
+                o.print(user + ",");
             }
             o.println("\n");
         }
@@ -140,7 +144,7 @@ public class ContainerShellCommands {
         } else {
             o.print("    ");
             for (String user : users) {
-                o.println(user + ",");
+                o.print(user + ",");
             }
             o.println("\n");
         }
@@ -169,14 +173,15 @@ public class ContainerShellCommands {
         String aclType = args[3];
         String containerName = args[4];
 
-        Container container = new Container(containerName);
-        ContainerACL acl = container.getACL();
         try {
+            Container container = new Container(containerName);
+            ContainerACL acl = container.getACL();
             acl.changeACL(user,cmd,aclType);
-        } catch (IOException e) {
-            o.print("Can not rewrite ACL: " + e.getMessage());
+        } catch (Exception e) {
+            o.print("failed: can not change ACL: " + e.getMessage());
+            return;
         }
-
+        showACL(args,in,out,err);
     }
 
 }

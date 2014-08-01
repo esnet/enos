@@ -317,7 +317,7 @@ public final class  KernelThread {
      * Returns the current Container.
      * @return
      */
-    public synchronized Container getCurrentContainer () {
+    public Container getCurrentContainer () {
         if (this.container != null) {
             return new Container(this.container.getName());
         } else {

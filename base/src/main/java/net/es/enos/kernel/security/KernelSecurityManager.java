@@ -32,6 +32,7 @@ package net.es.enos.kernel.security;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.api.ENOSException;
 import net.es.enos.configuration.ENOSConfiguration;
+import net.es.enos.kernel.container.Containers;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import org.slf4j.Logger;
@@ -243,6 +244,7 @@ public class KernelSecurityManager extends SecurityManager {
 		c = net.es.enos.api.DefaultValues.class;
         c = java.security.Permission.class;
         c = net.es.enos.kernel.container.Containers.class;
+
 	}
 
 	private void initializePreAuthorized() {
