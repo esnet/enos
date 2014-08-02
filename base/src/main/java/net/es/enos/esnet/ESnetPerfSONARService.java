@@ -47,6 +47,7 @@ public class ESnetPerfSONARService {
     private String serviceType;
     private ESnetPerfSONARHost serviceHost;
     private List<String> serviceLocator;
+    private String serviceVersion;
     private String eventTypes;
 
     // Location info
@@ -97,6 +98,14 @@ public class ESnetPerfSONARService {
 
     public void setServiceLocator(List<String> serviceLocator) {
         this.serviceLocator = serviceLocator;
+    }
+
+    public String getServiceVersion() {
+        return serviceVersion;
+    }
+
+    public void setServiceVersion(String serviceVersion) {
+        this.serviceVersion = serviceVersion;
     }
 
     public String getEventTypes() {
@@ -207,6 +216,8 @@ public class ESnetPerfSONARService {
         // Grab members from the sLS ServiceRecord
         s.setServiceName(serviceRecord.getServiceName());
         s.setServiceType(serviceRecord.getServiceType());
+        s.setServiceVersion(serviceRecord.getServiceVersion());
+
         // s.setServiceHost();
         s.setServiceLocator(serviceRecord.getServiceLocator());
         s.setEventTypes(serviceRecord.getEventTypes());
