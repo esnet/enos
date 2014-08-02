@@ -35,11 +35,14 @@ import net.es.enos.esnet.ESnetPerfSONARHost;
 import net.es.enos.esnet.ESnetPerfSONARService;
 import net.es.lookup.client.QueryClient;
 import net.es.lookup.client.SimpleLS;
+import net.es.lookup.common.exception.QueryException;
 import net.es.lookup.queries.Network.HostQuery;
 import net.es.lookup.queries.Network.InterfaceQuery;
+import net.es.lookup.queries.Network.PSMetadataQuery;
 import net.es.lookup.queries.Network.ServiceQuery;
 import net.es.lookup.records.Network.HostRecord;
 import net.es.lookup.records.Network.InterfaceRecord;
+import net.es.lookup.records.Network.PSMetadataRecord;
 import net.es.lookup.records.Network.ServiceRecord;
 import net.es.lookup.records.Record;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -167,11 +170,56 @@ public class SimpleLookupService {
     }
 
     /**
-     * Get all of the hosts and associated records
+     * Query all hosts (and associated records) belonging to a given domain.
+     * As a side effect, sets the lists of interfaces and communities retrieved.
+     * @param domain
+     * @return
+     */
+    public List<ESnetPerfSONARHost> retrieveHostsByDomain(String domain) {
+        // Only get type=host records
+        HostQuery query = new HostQuery();
+
+        // From the specified domain
+        LinkedList<String> domains = new LinkedList<String>();
+        domains.add(domain);
+        try {
+            query.setDomains(domains);
+        }
+        catch (QueryException e) {
+            e.printStackTrace();
+        }
+        return retrieveHosts(query);
+    }
+
+    /**
+     * Retrieve hosts (and associated records) belonging to a given community.
+     * @param community
+     * @return
+     */
+    public List<ESnetPerfSONARHost> retrieveHostsByCommunity(String community) {
+        // Only get type=host records
+        HostQuery query = new HostQuery();
+
+        // From the specified community
+        LinkedList<String> communities = new LinkedList<String>();
+        communities.add(community);
+        try {
+            query.setCommunities(communities);
+        }
+        catch (QueryException e) {
+            e.printStackTrace();
+        }
+        return retrieveHosts(query);
+    }
+
+    /**
+     * Get all of the hosts and associated interface and service records
+     * for a query.  Intended to be called from other methods in this class,
+     * but can be invoked directly if needed.
      *
      * TODO:  Can we do these in parallel somehow?
      */
-    public List<ESnetPerfSONARHost> retrieveHosts(String domain) {
+    public List<ESnetPerfSONARHost> retrieveHosts(HostQuery query) {
 
         allHosts = new ArrayList<ESnetPerfSONARHost>();
         allInterfaces = new ArrayList<ESnetPerfSONARInterface>();
@@ -182,14 +230,6 @@ public class SimpleLookupService {
             try {
                 SimpleLS server = new SimpleLS(new URI(locator));
                 QueryClient queryClient = new QueryClient(server);
-
-                // Only get type=host records
-                HostQuery query = new HostQuery();
-
-                // From the specified domain
-                LinkedList<String> domains = new LinkedList<String>();
-                domains.add(domain);
-                query.setDomains(domains);
 
                 queryClient.setQuery(query);
                 List<Record> results = null;
@@ -253,6 +293,10 @@ public class SimpleLookupService {
         }
     }
 
+    /**
+     * Get service records for a host while we're still talking to the sLS query server
+     * Designed for use from getHosts().
+     */
     protected void setServicesOnHostFromQueryServer(ESnetPerfSONARHost h, QueryClient queryClient) {
         List<ESnetPerfSONARService> services = new LinkedList<ESnetPerfSONARService>();
         try {
@@ -268,6 +312,7 @@ public class SimpleLookupService {
 
             for (Record r : results) {
                 ESnetPerfSONARService es = ESnetPerfSONARService.parseServiceRecord((ServiceRecord) r);
+                logger.debug("ServiceRecord {}", ((ServiceRecord) r).getMap().toString());
                 es.setServiceHost(h);
                 es.setQueryServer(queryClient.getServer().getHost());
                 services.add(es);
@@ -281,6 +326,51 @@ public class SimpleLookupService {
         catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Query for type=psmetadata records on all of the lookup servers
+     *
+     * Right now this method is the only way to get psmetadata records, and it's
+     * admittedly a bit cumbersome because the caller has to fill in a PSMetadataQuery
+     * object.  We'll probably add some convenience methods that work analogously
+     * to those for HostRecords, once we figure out some likely use cases for them.
+     *
+     * @param query metadata query
+     * @return list of all metadata objects matching the queries
+     */
+    public List<PSMetadata> queryPSMetadata(PSMetadataQuery query) {
+        List<PSMetadata> psm = new LinkedList<PSMetadata>();
+
+        for  (String locator : getSlsLocators()) {
+            try {
+                SimpleLS server = new SimpleLS(new URI(locator));
+                QueryClient queryClient = new QueryClient(server);
+
+                if (query != null) {
+                    queryClient.setQuery(query);
+                }
+                else {
+                    queryClient.setQuery(new PSMetadataQuery());
+                }
+                List<Record> results = null;
+                results = queryClient.query();
+
+                logger.info("Retrieved {} results from {}{}", results.size(), locator, query.toURL().toString());
+
+                for (Record r : results) {
+                    PSMetadata psMetadata = PSMetadata.parsePSMetadataRecord((PSMetadataRecord) r);
+                    psMetadata.setQueryServer(server.getHost()); // keep track of from where we got the HostRecord
+
+                    psm.add(psMetadata);
+                }
+
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return psm;
     }
 }
 
