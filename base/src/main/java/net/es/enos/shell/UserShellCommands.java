@@ -10,6 +10,7 @@
 package net.es.enos.shell;
 
 import jline.console.ENOSConsoleReader;
+import net.es.enos.api.FileUtils;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.users.User;
 import net.es.enos.kernel.users.UserProfile;
@@ -193,32 +194,26 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.currentKernelThread().getUser().getHomePath().normalize().toString();
+		String userPath = KernelThread.currentKernelThread().getCurrentDirectory();
 
 		// Do argument number check. If no extra args, displays files in current directory;
 		// If 1 extra arg, displays files in directory specified by the arg.
 		if (args.length == 1 ) {
+            userPath = KernelThread.currentKernelThread().getCurrentDirectory();
 		} else if (args.length == 2) {
-
-			String dest = args[1];
-			if (dest.startsWith("/")) {
-				dest = startsSlash(dest);
-			}
-
-			userPath = Paths.get(userPath, dest).toString();
+			userPath = FileUtils.normalize(args[1]);
 		} else {
 			o.println("Incorrect number of args");
 			return;
 		}
-
-		File lsDir = new File (userPath);
-
-		Path normalizedPath = lsDir.toPath().normalize();
-		lsDir = new File (Paths.get(normalizedPath.toString()).toString());
-
-		// Store list of files in an array and output.
-		String fileList[] = lsDir.list();
-		for (String file : fileList) {
+        if (userPath == null) {
+            return;
+        }
+        Path dirPath = FileUtils.toRealPath(userPath);
+        if (dirPath.toFile() == null) {
+            return;
+        }
+		for (String file : dirPath.toFile().list()) {
 			o.println(file);
 		}
 	}

@@ -39,12 +39,16 @@ public class FileUtils {
         if (Paths.get(fileName).startsWith(BootStrap.rootPath)) {
             normalized = fileName.substring(BootStrap.rootPath.toString().length());
         } else {
-            String currentDirectory = KernelThread.currentKernelThread().getCurrentDirectory();
-            if (currentDirectory == null) {
-                // Assumes root
-                normalized =  new File("/", fileName).getAbsoluteFile().toString();
+            if (fileName.startsWith(File.separator)) {
+                normalized = fileName;
             } else {
-                normalized =  new File(currentDirectory, fileName).getAbsoluteFile().toString();
+            String currentDirectory = KernelThread.currentKernelThread().getCurrentDirectory();
+                if (currentDirectory == null) {
+                    // Assumes root
+                    normalized =  new File("/", fileName).toString();
+                } else {
+                    normalized =  new File(currentDirectory, fileName).toString();
+                }
             }
         }
 

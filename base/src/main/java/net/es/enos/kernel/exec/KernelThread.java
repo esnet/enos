@@ -338,7 +338,11 @@ public final class  KernelThread {
     }
 
     public final synchronized String getCurrentDirectory() {
-        return currentDirectory;
+        if (this.currentDirectory == null) {
+            // Default to the home directory of the user
+            this.currentDirectory = FileUtils.normalize(this.user.getHomePath().toString());
+        }
+        return this.currentDirectory;
     }
 
     public final synchronized void setCurrentDirectory(String currentDirectory) {
