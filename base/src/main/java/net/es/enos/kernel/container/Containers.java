@@ -31,16 +31,6 @@ public class Containers {
     private static Path homePath = Paths.get(BootStrap.rootPath.toString(),
                                              ROOT).toAbsolutePath();
 
-    // Makes sure the containers directory exists
-    static {
-/**
-        if ( ! homePath.toFile().exists()) {
-            // Create root container
-            Containers.homePath.toFile().mkdirs();
-        }
- **/
-    }
-
 
     public static class ContainerException extends Exception {
         public ContainerException(String message) {
@@ -91,27 +81,22 @@ public class Containers {
     public final static void do_createContainer (String name) throws Exception {
 
         boolean isPrivileged = KernelThread.currentKernelThread().getUser().isPrivileged();
-
+        logger.info(KernelThread.currentKernelThread().getUser().getName()
+                + (isPrivileged ? "(privileged)" : "(not privileged)")
+                + " is trying to create a container named "
+                + name);
         // Checks if the container already exists
         if (exists(name)) {
+            logger.debug("Already exists");
             throw new ContainerException("already exists");
         }
-
-        // Check permission: load the current container and checks for ADMIN access
-        String containerName = KernelThread.currentContainer();
-        if ((containerName == null) && ! isPrivileged) {
-            // Must be in a container or be privileged
-            throw new SecurityException("Must be in a container in order to create one");
-        }
         if (! isPrivileged) {
-            System.out.println(Containers.getPath(containerName.toString()));
-            ContainerACL parentAcl = new ContainerACL(Containers.getPath(containerName));
-            if (!parentAcl.canAdmin(KernelThread.currentKernelThread().getUser().getName())) {
-                // Does not have the ADMIN right in the current container
-                throw new SecurityException("Must be ADMIN");
-            }
+            // Only privileged users can create containers
+            logger.info(KernelThread.currentKernelThread().getUser() + " is not privileged");
+            throw new SecurityException("Must be privileged");
         }
-
+        // Makes sure that the container root directory does exist.
+        checkContainerDir();
         // Create the directory container
         Path containerPath = Paths.get(Containers.getPath(name).toString());
         new File(containerPath.toString()).mkdirs();
@@ -127,8 +112,17 @@ public class Containers {
     }
 
     public static ContainerACL getACL(String name)  {
+
         Path containerPath = Paths.get(Containers.getPath(name).toString());
         ContainerACL acl = new ContainerACL(containerPath);
         return acl;
     }
+
+    public static void checkContainerDir () {
+        if ( ! homePath.toFile().exists()) {
+            // Create root container
+            Containers.homePath.toFile().mkdirs();
+        }
+    }
+
 }
