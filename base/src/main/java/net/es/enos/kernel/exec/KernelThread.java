@@ -14,17 +14,20 @@ package net.es.enos.kernel.exec;
  */
 
 
-import net.es.enos.boot.BootStrap;
 import net.es.enos.api.ENOSException;
+import net.es.enos.api.FileUtils;
+import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.container.Container;
 import net.es.enos.kernel.container.ContainerACL;
 import net.es.enos.kernel.exec.annotations.SysCall;
-import net.es.enos.kernel.users.User;
 import net.es.enos.kernel.security.AllowedSysCalls;
+import net.es.enos.kernel.security.FileACL;
+import net.es.enos.kernel.users.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -51,6 +54,7 @@ public final class  KernelThread {
     private boolean privileged = false;
     private User user = null;
     private Container container = null;
+    private String currentDirectory = null;
 
     /**
      * Creates a new KernelThread associated with the provided Thread t. Only one KernelThread per thread
@@ -267,7 +271,7 @@ public final class  KernelThread {
         }
     }
 
-    public static Method getSysCallMethod (Class targetClass, String name) {
+    public final static Method getSysCallMethod (Class targetClass, String name) {
         Method[] methods = targetClass.getDeclaredMethods();
         for (Method method : methods) {
 
@@ -289,7 +293,7 @@ public final class  KernelThread {
      * container.
      * @param containerName
      */
-    public synchronized void joinContainer(String containerName) {
+    public final synchronized void joinContainer(String containerName) {
 
         if (containerName == null) {
             // this means that the Thread needs to be in no container at all
@@ -307,7 +311,7 @@ public final class  KernelThread {
     /**
      * Leaves the current container and return to the previous one.
      */
-    public synchronized void leaveContainer() {
+    public final synchronized void leaveContainer() {
         if (this.container != null) {
             this.joinContainer(this.container.getParentContainer());
         }
@@ -317,7 +321,7 @@ public final class  KernelThread {
      * Returns the current Container.
      * @return
      */
-    public Container getCurrentContainer () {
+    public final Container getCurrentContainer () {
         if (this.container != null) {
             return new Container(this.container.getName());
         } else {
@@ -325,11 +329,26 @@ public final class  KernelThread {
         }
     }
 
-    static public String currentContainer() {
+    static final public String currentContainer() {
         if (KernelThread.currentKernelThread().container != null) {
             return KernelThread.currentKernelThread().container.getName();
         } else {
             return null;
+        }
+    }
+
+    public final synchronized String getCurrentDirectory() {
+        return currentDirectory;
+    }
+
+    public final synchronized void setCurrentDirectory(String currentDirectory) {
+        // Check access
+        String newDir = FileUtils.normalize(currentDirectory);
+        FileACL acl = new FileACL(Paths.get(newDir));
+        if (acl.canRead()) {
+            this.currentDirectory = newDir;
+        } else {
+            throw new SecurityException("cannot access.");
         }
     }
 }

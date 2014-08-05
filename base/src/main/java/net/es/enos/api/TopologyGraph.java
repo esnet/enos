@@ -9,8 +9,6 @@
 
 package net.es.enos.api;
 
-import net.es.enos.esnet.ESnetLink;
-import net.es.enos.esnet.ESnetNode;
 import org.codehaus.jackson.annotate.JsonIgnore;
 import org.jgrapht.Graph;
 import org.jgrapht.WeightedGraph;
@@ -18,7 +16,6 @@ import org.jgrapht.graph.DefaultListenableGraph;
 import org.jgrapht.graph.DirectedMultigraph;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -103,7 +100,7 @@ public class TopologyGraph extends Resource {
 
     }
 
-    public class GenericGraph extends DefaultListenableGraph<Node, Link> implements Graph<Node, Link> {
+    static public class GenericGraph extends DefaultListenableGraph<Node, Link> implements Graph<Node, Link> {
         public GenericGraph(Class<? extends Link> edgeClass) {
             super(new DirectedMultigraph<Node, Link>(edgeClass));
         }
@@ -198,5 +195,35 @@ public class TopologyGraph extends Resource {
             }
         }
         return graph;
+    }
+
+    static public TopologyGraph getFullMesh(List<Node> nodes) {
+
+        TopologyGraph topoGraph = new TopologyGraph();
+        topoGraph.nodeDescs = new ArrayList<NodeDesc>();
+        topoGraph.linkDescs = new ArrayList<LinkDesc>();
+
+        for (Node node : nodes) {
+            NodeDesc nodeDesc = new NodeDesc();
+            nodeDesc.setNode(node);
+            nodeDesc.setId(node.getResourceName());
+            topoGraph.nodeDescs.add(nodeDesc);
+        }
+        // Create full mesh (Directed)
+        for (Node srcNode : nodes) {
+            for(Node dstNode : nodes) {
+                if (srcNode.equals(dstNode)) {
+                    continue;
+                }
+                LinkDesc linkDesc = new LinkDesc();
+                Link link = new Link();
+                link.setWeight(1);
+                linkDesc.setLink(link);
+                linkDesc.setSrcNodeId(srcNode.getResourceName());
+                linkDesc.setDstNodeId(dstNode.getResourceName());
+                topoGraph.linkDescs.add(linkDesc);
+            }
+        }
+        return topoGraph;
     }
 }

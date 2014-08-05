@@ -39,8 +39,8 @@ public class PersistentObject implements Serializable {
                 file = new File(Paths.get(BootStrap.rootPath.toString(), filename).toString());
             } else {
                 // Relative path.
-                file = new File(Paths.get(KernelThread.currentKernelThread().getUser().getCurrentPath().toString(),
-                        filename).toString());
+                String curDir = KernelThread.currentKernelThread().getCurrentDirectory();
+                file = new File(FileUtils.toRealPath(curDir),filename);
             }
         }
         return file;

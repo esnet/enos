@@ -15,13 +15,12 @@ import net.es.enos.kernel.users.User;
 import net.es.enos.kernel.users.UserProfile;
 import net.es.enos.kernel.users.Users;
 import net.es.enos.shell.annotations.ShellCommand;
-
-import java.io.*;
-import java.nio.file.Paths;
-import java.nio.file.Path;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class UserShellCommands {
     @ShellCommand(name = "adduser",
@@ -289,33 +288,16 @@ public class UserShellCommands {
 		String userPath = KernelThread.currentKernelThread().getUser().getHomePath().toString();
 
 		// Argument checking
-		if (args.length != 2 ) {
+		if (args.length > 2 ) {
 			o.println("Incorrect number of args");
 			return;
 		}
-		// Go to enos root directory if slash is entered
-		String dest = args[1];
-		if (dest.startsWith("/")) {
-			dest = startsSlash(dest);
-		}
+        if (args.length == 1) {
+            // Go to the home directory
+            Path homePath = KernelThread.currentKernelThread().getUser().getHomePath();
+            KernelThread.currentKernelThread().setCurrentDirectory(homePath.toString());
+        }
 
-		File cdDir = new File (Paths.get(userPath, dest).toString());
-
-		Path normalizedPath = cdDir.toPath().normalize();
-		cdDir = new File (Paths.get(normalizedPath.toString()).toString());
-
-		// Make sure user has permission to read this directory. If not, outputs error message.
-		try {
-			cdDir.canRead();
-			if (cdDir.exists() & !cdDir.isFile()) {
-				KernelThread.currentKernelThread().getUser().setHomePath(Paths.get(userPath, dest));
-				logger.debug("cd success");
-			} else {
-				o.println("Directory does not exist");
-			}
-		} catch (SecurityException e) {
-			o.println("Invalid permissions to access this directory");
-		}
 	}
 
 
@@ -348,7 +330,6 @@ public class UserShellCommands {
 
 		// Make sure user has permission to read this directory. If not, outputs error message.
 		try {
-			catFile.canRead();
 			try {
 				BufferedReader read = new BufferedReader(new FileReader(Paths.get(catFile.toString(), dest).toString()));
 				String print;
@@ -416,12 +397,12 @@ public class UserShellCommands {
 	}
 
 
-	@ShellCommand(name = "$PWD",
+	@ShellCommand(name = "pwd",
 			shortHelp = "Displays current directory",
 			longHelp = "Displays current directory (no arguments)")
-	public static void PWD(String[] args, InputStream in, OutputStream out, OutputStream err) {
+	public static void pwd(String[] args, InputStream in, OutputStream out, OutputStream err) {
 		Logger logger = LoggerFactory.getLogger(UserShellCommands.class);
-		logger.info("$PWD", args.length);
+		logger.info("pwd", args.length);
 
 		PrintStream o = new PrintStream(out);
 
@@ -440,4 +421,25 @@ public class UserShellCommands {
 		}
 		return newPath + Users.getUsers().getEnosRootPath() + "/" + dest;
 	}
+
+    static private void displayACL(String fileName, InputStream in, OutputStream out, OutputStream err) {
+
+    }
+
+    @ShellCommand(name = "acl",
+            shortHelp = "Manages file and directories Access Control List",
+            longHelp = "acl <file path> : show ACL\n" +
+                       "acl <allow|deny> <user> <read|write> <file path>")
+    static public void acl(String[] args, InputStream in, OutputStream out, OutputStream err) {
+
+        if (args.length == 1) {
+            UserShellCommands.displayACL(".", in, out, err);
+            return;
+        }
+
+        if (args.length == 2) {
+            UserShellCommands.displayACL(args[1],in,out,err);
+        }
+
+    }
 }
