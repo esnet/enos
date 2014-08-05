@@ -342,10 +342,16 @@ public final class  KernelThread {
     }
 
     public final synchronized void setCurrentDirectory(String currentDirectory) {
+        // Check if the directory exists
+        if ( ! FileUtils.exists(currentDirectory)) {
+            // Cannot change into a non existing directory
+            return;
+        }
         // Check access
         String newDir = FileUtils.normalize(currentDirectory);
         FileACL acl = new FileACL(Paths.get(newDir));
-        if (acl.canRead()) {
+        if (KernelThread.currentKernelThread().isPrivileged() ||
+            acl.canRead()) {
             this.currentDirectory = newDir;
         } else {
             throw new SecurityException("cannot access.");

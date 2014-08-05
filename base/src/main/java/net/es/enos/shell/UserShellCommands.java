@@ -294,9 +294,11 @@ public class UserShellCommands {
 		}
         if (args.length == 1) {
             // Go to the home directory
-            Path homePath = KernelThread.currentKernelThread().getUser().getHomePath();
-            KernelThread.currentKernelThread().setCurrentDirectory(homePath.toString());
+            KernelThread.currentKernelThread().setCurrentDirectory(userPath);
+        } else {
+            KernelThread.currentKernelThread().setCurrentDirectory(args[1]);
         }
+        o.println("changed to: " + KernelThread.currentKernelThread().getCurrentDirectory());
 
 	}
 
@@ -406,8 +408,8 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.currentKernelThread().getUser().getHomePath().normalize().toString();
-		o.println(userPath + ": is a directory");
+		String userPath = KernelThread.currentKernelThread().getCurrentDirectory();
+		o.println(userPath);
 	}
 
 

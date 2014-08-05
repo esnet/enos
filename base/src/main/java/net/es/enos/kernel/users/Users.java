@@ -9,6 +9,7 @@
 
 package net.es.enos.kernel.users;
 
+import net.es.enos.api.FileUtils;
 import net.es.enos.api.NonExistantUserException;
 import net.es.enos.api.UserAlreadyExistException;
 import net.es.enos.api.UserException;
@@ -61,7 +62,7 @@ public final class Users {
         // Figure out the ENOS root directory.
         String enosRootDir = ENOSConfiguration.getInstance().getGlobal().getRootDirectory();
         this.enosRootPath = Paths.get(enosRootDir).normalize();
-        this.passwordFilePath = Paths.get(this.enosRootPath.toString() +"/etc/enos.users");
+        this.passwordFilePath = FileUtils.toRealPath("/etc/enos.users");
 
         // Read user file or create it if necessary
         try {
@@ -126,9 +127,14 @@ public final class Users {
             if (Users.ADMIN_USERNAME.equals(user) && Users.ADMIN_PASSWORD.equals(password)) {
                 // Create the initial configuration file
                 try {
-                    UserProfile adminProfile = new UserProfile(Users.ADMIN_USERNAME, Users.ADMIN_PASSWORD, Users.ROOT,
-                            "Admin", "Admin", "admin@localhost");
+                    UserProfile adminProfile = new UserProfile(Users.ADMIN_USERNAME,
+                                                               Users.ADMIN_PASSWORD,
+                                                               Users.ROOT,
+                                                               "Admin",
+                                                               "Admin",
+                                                               "admin@localhost");
                     this.do_createUser(adminProfile);
+
                 } catch (UserAlreadyExistException e) {
                     // Since this code is executed only when the configuration file is empty, this should never happen.
                     logger.error("User {} already exists in empty configuration file", Users.ADMIN_USERNAME);
@@ -172,9 +178,9 @@ public final class Users {
                 logger.info("OK to change");
 
                 KernelThread.doSysCall(this,
-                        method,
-                        userName,
-                        newPassword);
+                                       method,
+                                       userName,
+                                       newPassword);
             }
         } catch (NonExistantUserException e) {
             return false;

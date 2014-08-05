@@ -10,26 +10,89 @@
 package net.es.enos.api;
 
 import net.es.enos.boot.BootStrap;
+import net.es.enos.kernel.exec.KernelThread;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Created by lomax on 8/1/14.
+ * Helper class providing methods to manipulate ENOS files
  */
 public class FileUtils {
 
-    static public String normalize(String pathName) {
-        File file = new File("/", pathName);
-        try {
-            return file.getCanonicalPath();
-        } catch (IOException e) {
+    /**
+     * Normalize a file path:
+     *  1) Makes sure that the path hides the host path to ENOS_ROOT
+     *  2) parses . and ..
+     * @param fileName The provided name is an ENOS file name, i.e, hides the host path to
+     * ENOS root.
+     * @return normalized pathName
+     */
+    static public String normalize(String fileName) {
+        if (fileName == null) {
             return null;
         }
+        String normalized;
+
+        if (Paths.get(fileName).startsWith(BootStrap.rootPath)) {
+            normalized = fileName.substring(BootStrap.rootPath.toString().length());
+        } else {
+            String currentDirectory = KernelThread.currentKernelThread().getCurrentDirectory();
+            if (currentDirectory == null) {
+                // Assumes root
+                normalized =  new File("/", fileName).getAbsoluteFile().toString();
+            } else {
+                normalized =  new File(currentDirectory, fileName).getAbsoluteFile().toString();
+            }
+        }
+
+        try {
+            normalized = new File(normalized).getCanonicalFile().toString();
+        } catch (IOException e) {
+            throw new RuntimeException(e.getMessage());
+        }
+
+        return normalized;
     }
 
-    static public String toRealPath(String pathName) {
-        return Paths.get(BootStrap.rootPath.toString(), pathName).toString();
+    /**
+     * Returns a Path to a provided fileName that refers to a file on the host file system that can later be used
+     * for performance I/O.
+     * @param fileName The provided name is an ENOS file name, i.e, hides the host path to
+     * ENOS root.
+     * @return
+     */
+    static public java.nio.file.Path toRealPath(String fileName) {
+        if (fileName == null) {
+            return null;
+        }
+        String realPathName = fileName;
+        if ( ! Paths.get(fileName).startsWith(BootStrap.rootPath)) {
+            realPathName = new File (BootStrap.rootPath.toString(), realPathName).toString();
+        }
+        try {
+            realPathName = new File(realPathName).getCanonicalFile().toString();
+        } catch (IOException e) {
+            throw new RuntimeException(e.getMessage());
+        }
+
+        return Paths.get(realPathName);
+    }
+
+    /**
+     * Verifies if fileName exists. The provided name is an ENOS file name, i.e, hides the host path to
+     * ENOS root.
+     * @param fileName The provided name is an ENOS file name, i.e, hides the host path to
+     * ENOS root.
+     * @return true if the file exists, false otherwise.
+     */
+    static public boolean exists(String fileName) {
+        Path path = FileUtils.toRealPath(fileName);
+        if (path == null) {
+            return false;
+        }
+        return path.toFile().exists();
     }
 }
