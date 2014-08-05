@@ -39,7 +39,8 @@ public class User {
         this.name = name;
 
         // Set home directory.
-        this.homePath = Paths.get(Users.USERS_DIR, name);
+        this.homePath = Paths.get(Users.getUsers().getHomePath().toString(),
+                                  name);
 
         // TODO: lomax@es.net this creates a very little memory leak. Will need to have a background
         // thread to clean that up.
