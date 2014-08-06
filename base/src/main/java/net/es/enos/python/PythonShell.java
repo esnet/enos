@@ -181,12 +181,13 @@ public class PythonShell {
 	    } catch (SecurityException e) {
 	    }
 	    try {
-		    path = new File(KernelThread.currentKernelThread().getUser().getHomePath().normalize().resolve(command).toString());
+		    Path normalized = KernelThread.currentKernelThread().getUser().getHomePath().normalize().toRealPath();
+		    path = new File(normalized.resolve(command).toString());
 		    if (path.exists()) {
 			    return path.toString();
 		    }
 		    return null;
-	    } catch (SecurityException e) {
+	    } catch (SecurityException|IOException e) {
 		    return null;
 	    }
     }
