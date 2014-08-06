@@ -35,29 +35,29 @@ public class FileUtils {
             return null;
         }
         String normalized;
+		try {
+			normalized = Paths.get(fileName).toFile().getCanonicalFile().toString();
+	        if (normalized.startsWith(BootStrap.rootPath.toString())) {
+	            normalized = normalized.substring(BootStrap.rootPath.toString().length());
+	        } else {
+	            if (fileName.startsWith(File.separator)) {
+	                // Absolute file name
+	                normalized = fileName;
+	                if (fileName.length() == 1) {
+	                    // Special case for "/"
+	                    return fileName;
+	                }
+	            } else {
+	                String currentDirectory = KernelThread.currentKernelThread().getCurrentDirectory();
+	                if (currentDirectory == null) {
+	                    // Assumes root
+	                    normalized =  new File(File.separator, fileName).toString();
+	                } else {
+	                    normalized =  new File(currentDirectory, fileName).toString();
+	                }
+	            }
+	        }
 
-        if (Paths.get(fileName).startsWith(BootStrap.rootPath)) {
-            normalized = fileName.substring(BootStrap.rootPath.toString().length());
-        } else {
-            if (fileName.startsWith(File.separator)) {
-                // Absolute file name
-                normalized = fileName;
-                if (fileName.length() == 1) {
-                    // Special case for "/"
-                    return fileName;
-                }
-            } else {
-                String currentDirectory = KernelThread.currentKernelThread().getCurrentDirectory();
-                if (currentDirectory == null) {
-                    // Assumes root
-                    normalized =  new File(File.separator, fileName).toString();
-                } else {
-                    normalized =  new File(currentDirectory, fileName).toString();
-                }
-            }
-        }
-
-        try {
 
             // The host absolute path is needed in order to compute the canonical path
             normalized = new File(BootStrap.rootPath.toString(),
