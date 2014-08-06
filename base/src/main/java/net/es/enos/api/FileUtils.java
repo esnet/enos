@@ -42,6 +42,10 @@ public class FileUtils {
             if (fileName.startsWith(File.separator)) {
                 // Absolute file name
                 normalized = fileName;
+                if (fileName.length() == 1) {
+                    // Special case for "/"
+                    return fileName;
+                }
             } else {
                 String currentDirectory = KernelThread.currentKernelThread().getCurrentDirectory();
                 if (currentDirectory == null) {

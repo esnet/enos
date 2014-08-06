@@ -12,6 +12,7 @@ package net.es.enos.shell;
 import jline.console.ENOSConsoleReader;
 import net.es.enos.api.FileUtils;
 import net.es.enos.kernel.exec.KernelThread;
+import net.es.enos.kernel.security.FileACL;
 import net.es.enos.kernel.users.UserProfile;
 import net.es.enos.kernel.users.Users;
 import net.es.enos.shell.annotations.ShellCommand;
@@ -258,8 +259,6 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.currentKernelThread().getUser().getHomePath().toString();
-
 		// Argument checking
 		if (args.length > 2 ) {
 			o.println("Incorrect number of args");
@@ -267,6 +266,7 @@ public class UserShellCommands {
 		}
         if (args.length == 1) {
             // Go to the home directory
+            String userPath = KernelThread.currentKernelThread().getUser().getHomePath().toString();
             KernelThread.currentKernelThread().setCurrentDirectory(userPath);
         } else {
             KernelThread.currentKernelThread().setCurrentDirectory(args[1]);
@@ -398,7 +398,32 @@ public class UserShellCommands {
 	}
 
     static private void displayACL(String fileName, InputStream in, OutputStream out, OutputStream err) {
+        PrintStream o = new PrintStream(out);
 
+        FileACL acl = new FileACL(fileName);
+        String[] users;
+        users = acl.getCanRead();
+        o.println("Read Access:");
+        if ((users == null) || (users.length == 0)) {
+            o.println("    None");
+        } else {
+            o.print("    ");
+            for (String user : users) {
+                o.print(user + ",");
+            }
+            o.println("\n");
+        }
+        users = acl.getCanWrite();
+        o.println("Write Access:");
+        if ((users == null) || (users.length == 0)) {
+            o.println("    None");
+        } else {
+            o.print("    ");
+            for (String user : users) {
+                o.print(user + ",");
+            }
+            o.println("\n");
+        }
     }
 
     @ShellCommand(name = "acl",

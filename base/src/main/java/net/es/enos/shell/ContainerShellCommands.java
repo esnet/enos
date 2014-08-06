@@ -17,7 +17,9 @@ import net.es.enos.shell.annotations.ShellCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 
 /**
@@ -126,6 +128,29 @@ public class ContainerShellCommands {
         Container container = new Container(args[2]);
         ContainerACL acl = container.getACL();
         String[] users;
+        users = acl.getCanRead();
+        o.println("Read Access:");
+        if ((users == null) || (users.length == 0)) {
+            o.println("    None");
+        } else {
+            o.print("    ");
+            for (String user : users) {
+                o.print(user + ",");
+            }
+            o.println("\n");
+        }
+        users = acl.getCanWrite();
+        o.println("Write Access:");
+        if ((users == null) || (users.length == 0)) {
+            o.println("    None");
+        } else {
+            o.print("    ");
+            for (String user : users) {
+                o.print(user + ",");
+            }
+            o.println("\n");
+
+        }
         users = acl.getCanAdmin();
         o.println("Administrative Access:");
         if ((users == null) || (users.length == 0)) {
@@ -148,17 +173,7 @@ public class ContainerShellCommands {
             }
             o.println("\n");
         }
-        users = acl.getCanRead();
-        o.println("Read Access:");
-        if ((users == null) || (users.length == 0)) {
-            o.println("    None");
-        } else {
-            o.print("    ");
-            for (String user : users) {
-                o.println(user + ",");
-            }
-            o.println("\n");
-        }
+
 
     }
 

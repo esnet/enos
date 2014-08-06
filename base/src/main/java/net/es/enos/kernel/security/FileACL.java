@@ -66,6 +66,10 @@ public class FileACL extends Properties {
         this.loadACL();
     }
 
+    public FileACL (String fileName) {
+        this(Paths.get(FileUtils.normalize(fileName)));
+    }
+
 
     /**
      * Loads the ACL rules from the ACL file. This will require privilege access and be
