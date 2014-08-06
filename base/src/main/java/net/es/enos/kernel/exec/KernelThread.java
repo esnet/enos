@@ -356,7 +356,7 @@ public final class  KernelThread {
         FileACL acl = new FileACL(Paths.get(newDir));
         if (KernelThread.currentKernelThread().isPrivileged() ||
             acl.canRead()) {
-            this.currentDirectory = newDir;
+            this.currentDirectory = FileUtils.normalize(newDir);
         } else {
             throw new SecurityException("cannot access.");
         }

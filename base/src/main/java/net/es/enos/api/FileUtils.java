@@ -40,12 +40,13 @@ public class FileUtils {
             normalized = fileName.substring(BootStrap.rootPath.toString().length());
         } else {
             if (fileName.startsWith(File.separator)) {
+                // Absolute file name
                 normalized = fileName;
             } else {
-            String currentDirectory = KernelThread.currentKernelThread().getCurrentDirectory();
+                String currentDirectory = KernelThread.currentKernelThread().getCurrentDirectory();
                 if (currentDirectory == null) {
                     // Assumes root
-                    normalized =  new File("/", fileName).toString();
+                    normalized =  new File(File.separator, fileName).toString();
                 } else {
                     normalized =  new File(currentDirectory, fileName).toString();
                 }
@@ -53,8 +54,13 @@ public class FileUtils {
         }
 
         try {
-            normalized = new File(normalized).getCanonicalFile().toString();
-        } catch (IOException e) {
+
+            // The host absolute path is needed in order to compute the canonical path
+            normalized = new File(BootStrap.rootPath.toString(),
+                                  normalized).getCanonicalFile().toString();
+            // Prunes potential path for the host root added by the File.getCanonical has introduced.
+            normalized = normalized.substring(BootStrap.rootPath.toString().length());
+        } catch(IOException e) {
             throw new RuntimeException(e.getMessage());
         }
 
@@ -68,11 +74,11 @@ public class FileUtils {
      * ENOS root.
      * @return
      */
-    static public java.nio.file.Path toRealPath(String fileName) {
+    static public Path toRealPath(String fileName) {
         if (fileName == null) {
             return null;
         }
-        String realPathName = fileName;
+        String realPathName = FileUtils.normalize(fileName);
         if ( ! Paths.get(fileName).startsWith(BootStrap.rootPath)) {
             realPathName = new File (BootStrap.rootPath.toString(), realPathName).toString();
         }

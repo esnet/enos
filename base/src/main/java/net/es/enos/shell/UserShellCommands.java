@@ -12,7 +12,6 @@ package net.es.enos.shell;
 import jline.console.ENOSConsoleReader;
 import net.es.enos.api.FileUtils;
 import net.es.enos.kernel.exec.KernelThread;
-import net.es.enos.kernel.users.User;
 import net.es.enos.kernel.users.UserProfile;
 import net.es.enos.kernel.users.Users;
 import net.es.enos.shell.annotations.ShellCommand;
@@ -193,9 +192,7 @@ public class UserShellCommands {
 		logger.info("ls with {} arguments", args.length);
 
 		PrintStream o = new PrintStream(out);
-
-		String userPath = KernelThread.currentKernelThread().getCurrentDirectory();
-
+        String userPath;
 		// Do argument number check. If no extra args, displays files in current directory;
 		// If 1 extra arg, displays files in directory specified by the arg.
 		if (args.length == 1 ) {
@@ -210,7 +207,10 @@ public class UserShellCommands {
             return;
         }
         Path dirPath = FileUtils.toRealPath(userPath);
-        if (dirPath.toFile() == null) {
+        if ((dirPath == null) ||
+            (dirPath.toFile() == null) ||
+            (dirPath.toFile().list() == null)) {
+            o.println(args[1] + " does not exist");
             return;
         }
 		for (String file : dirPath.toFile().list()) {
@@ -220,54 +220,32 @@ public class UserShellCommands {
 
 	@ShellCommand(name = "mkdir",
 			shortHelp = "Create a directory in current directory",
-			longHelp = "Creates a directory with <name> <directory (default is home directory)>")
+			longHelp = "Creates a directory>")
 	public static void mkdir (String[] args, InputStream in, OutputStream out, OutputStream err) {
 		Logger logger = LoggerFactory.getLogger(UserShellCommands.class);
 		logger.info("mkdir with {} arguments", args.length);
 
 		PrintStream o = new PrintStream(out);
 		boolean mkdir = false;
-		User currentUser = KernelThread.currentKernelThread().getUser();
-		String userPath = currentUser.getHomePath().normalize().toString();
+		Path dirPath = null;
 
 		// Argument checking
-		if (args.length < 2) {
-			o.println("Usage <name> <directory (default is home)>");
+		if (args.length != 2) {
+			o.println("Usage mkdir <directory>");
 			return;
 		}
 
-		// If 2 extra arguments, the last argument is directory where directory will be created.
-		if (args.length == 3) {
-			String tempFilePath = args[2];
-			if (tempFilePath.startsWith("/")) {
-				tempFilePath = startsSlash(tempFilePath);
-			}
-			userPath = Paths.get(userPath, tempFilePath).toString();
-		}
-		// Make sure directory specified exists.
-		File storeInDir = new File (userPath);
-		if (!storeInDir.exists()) {
-			o.print("Directory specified does not exist");
-			return;
-		}
-
-		// Create new file object with path and name that user specified.
-		userPath = Paths.get(userPath, args[1]).toString();
-		File newDir = new File (userPath);
-
-		// Create new directory and confirm directory has been created
+        // Get canonical path
+		dirPath = FileUtils.toRealPath(args[1]) ;
+		File newDir = new File (dirPath.toString());
+		// Create new directory
 		try {
-			mkdir = Users.getUsers().mkdir(newDir);
+			newDir.mkdirs();
+            o.println(args[1] + " has been created.");
 		} catch (SecurityException e) {
 			o.println("Invalid permissions to access this directory");
 		}
-
-		if (mkdir) {
-			logger.debug("mkdir success!");
-		} else {
-			logger.debug("mkdir failure");
-			o.println("mkdir failed");
-		}
+        return;
 	}
 
 
