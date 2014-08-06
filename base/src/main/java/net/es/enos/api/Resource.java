@@ -32,6 +32,7 @@ public class Resource extends PersistentObject {
     private List<User> hasReadAccess;
     private List<String> capabilities;
     private List<String> parentResources;
+    private List<String> childrenResources;
     private String creationStackTrace;
 
     public Resource() {
@@ -97,6 +98,13 @@ public class Resource extends PersistentObject {
         this.resourceClassName = resourceClassName;
     }
 
+    public List<String> getChildrenResources() {
+        return childrenResources;
+    }
+
+    public void setChildrenResources(List<String> childrenResources) {
+        this.childrenResources = childrenResources;
+    }
 
     public synchronized void addProperties(String property) {
         this.capabilities.add(property);

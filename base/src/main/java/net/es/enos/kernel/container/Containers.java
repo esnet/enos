@@ -9,10 +9,12 @@
 
 package net.es.enos.kernel.container;
 
+import net.es.enos.api.FileUtils;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.users.User;
+import org.jgrapht.Graph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +29,8 @@ import java.nio.file.Paths;
  */
 public class Containers {
     public static String ROOT = "/containers";
+    public static String SYSTEM_DIR = ROOT + "/sys";
+    public static String USER_DIR = ROOT + "/user";
     private static Logger logger = LoggerFactory.getLogger(Containers.class);
     private static Path homePath = Paths.get(BootStrap.rootPath.toString(),
                                              ROOT).toAbsolutePath();
@@ -90,15 +94,25 @@ public class Containers {
             logger.debug("Already exists");
             throw new ContainerException("already exists");
         }
-        if (! isPrivileged) {
-            // Only privileged users can create containers
+        if ((! isPrivileged) && Containers.isSystem(name)) {
+            // Only privileged users can create system containers
             logger.info(KernelThread.currentKernelThread().getUser() + " is not privileged");
-            throw new SecurityException("Must be privileged");
+            throw new SecurityException("Must be privileged to create system containers");
         }
+
         // Makes sure that the container root directory does exist.
         checkContainerDir();
         // Create the directory container
         Path containerPath = Paths.get(Containers.getPath(name).toString());
+
+        if (! isPrivileged) {
+            // Verifies that the thread user has the ADMIN right
+            ContainerACL acl = new ContainerACL(containerPath);
+            if (! acl.canAdmin(KernelThread.currentKernelThread().getUser().getName())) {
+                throw new SecurityException("Needs admin access to create container " + name);
+            }
+        }
+
         new File(containerPath.toString()).mkdirs();
         // Set the read right to the creator
         User user = KernelThread.currentKernelThread().getUser();
@@ -123,6 +137,11 @@ public class Containers {
             // Create root container
             Containers.homePath.toFile().mkdirs();
         }
+    }
+
+    public static boolean isSystem (String container) {
+        String containerName = FileUtils.normalize(container);
+        return container.startsWith(SYSTEM_DIR);
     }
 
 }

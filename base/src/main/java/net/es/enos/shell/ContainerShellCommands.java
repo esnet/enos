@@ -196,7 +196,8 @@ public class ContainerShellCommands {
             o.print("failed: can not change ACL: " + e.getMessage());
             return;
         }
-        showACL(args,in,out,err);
+        String[] newArgs  = {"container","acl",containerName};
+        showACL(newArgs,in,out,err);
     }
 
 }

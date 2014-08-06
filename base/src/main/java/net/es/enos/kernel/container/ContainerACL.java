@@ -25,6 +25,8 @@ public class ContainerACL extends FileACL {
         super(file);
     }
 
+    public ContainerACL(String fileName) { super(fileName);}
+
     public synchronized void allowAdmin(String username) {
         if (this.canAdmin(username)) {
             // is already allowed
