@@ -63,6 +63,7 @@ public class FileACL extends Properties {
         this.aclPath = Paths.get(this.filePath.getParent().toString(),
                                     FileACL.ACLDIR,
                                     file.getFileName().toString());
+        this.aclPath = FileUtils.toRealPath(this.aclPath.toString());
         this.loadACL();
     }
 

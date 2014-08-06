@@ -83,7 +83,7 @@ public class FileUtils {
             return null;
         }
         String realPathName = FileUtils.normalize(fileName);
-        if ( ! Paths.get(fileName).startsWith(BootStrap.rootPath)) {
+        if ( ! Paths.get(realPathName).startsWith(BootStrap.rootPath)) {
             realPathName = new File (BootStrap.rootPath.toString(), realPathName).toString();
         }
         try {
