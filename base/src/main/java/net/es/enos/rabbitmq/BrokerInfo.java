@@ -20,6 +20,18 @@ public class BrokerInfo {
 	private int port;
 	private boolean ssl = true;
 
+	public BrokerInfo() {
+
+	}
+
+	public BrokerInfo(String host, String user, String password, int port, Boolean ssl) {
+		this.host = host;
+		this.user = user;
+		this.password = password;
+		this.port = port;
+		this.ssl = ssl;
+	}
+
 	public String getHost() {
 		return host;
 	}
