@@ -26,7 +26,7 @@ public class RMQShellCommands {
 		String host = "summer1.es.net";
 		String username = "david2";
 		String password = "123";
-		int port = 5671;
+		int port = 5672;
 		boolean ssl = false;
 
 		PrintStream o = new PrintStream(out);
