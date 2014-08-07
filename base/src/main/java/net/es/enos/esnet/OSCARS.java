@@ -9,14 +9,12 @@
 
 package net.es.enos.esnet;
 
-import net.es.enos.api.Link;
-import net.es.enos.api.Node;
-import net.es.enos.api.Path;
-import net.es.enos.api.PersistentObject;
+import net.es.enos.api.*;
+import net.es.enos.kernel.container.Containers;
+import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
 import org.joda.time.DateTime;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
@@ -24,7 +22,9 @@ import java.util.List;
  */
 public final class OSCARS {
 
-    public static String USERS_DIR = "/oscars/users";
+    public static String ROOT_CONTAINER = "/sys/services/oscars";
+    public static String FULL_TOPOLOGY_CONTAINER = ROOT_CONTAINER + "/" + "all";
+    public static String FULL_TOPOLOGY_RESOURCE = FULL_TOPOLOGY_CONTAINER + "/" + "full.graph";
 
     /**
      * Checks if the user can provision the provided path. A user is authorized to
@@ -37,18 +37,7 @@ public final class OSCARS {
     public boolean canProvision (Path path) {
         OSCARSUser oscarsUser = null;
         // Check if the current user is an authorized user to use OSCARS
-        try {
-            oscarsUser = (OSCARSUser) PersistentObject.newObject(OSCARSUser.class,USERS_DIR);
-            if (oscarsUser.isNewInstance()) {
-                // does not exist.
-                return false;
-            }
-        } catch (IOException e) {
-            return false;
-        } catch (InstantiationException e) {
-            return false;
-        }
-
+        // TODO
         GraphPath<Node,Link> graphPath = path.getGraphPath();
         DateTime start = path.getStart();
         DateTime end = path.getEnd();
@@ -57,6 +46,22 @@ public final class OSCARS {
         List<Link> links = graphPath.getEdgeList();
 
         return false;
+    }
+
+
+    static public void install() throws Exception {
+        // Create OSCARS container
+        Containers.createContainer(ROOT_CONTAINER);
+        // Create the container that contains the full OSCARS topology
+        Containers.createContainer(FULL_TOPOLOGY_CONTAINER);
+        // Retrieve OSCARS topology TopologyGraph
+        TopologyFactory topologyFactory = TopologyFactory.instance();
+        TopologyProvider topologyProvider = topologyFactory.retrieveTopologyProvider("localLayer2");
+        Graph graph = topologyProvider.getGraph(TopologyProvider.WeightType.TrafficEngineering);
+        TopologyGraph topologyGraph = new TopologyGraph(graph);
+        // Store the graph into the container.
+        topologyGraph.save(Containers.getPath(FULL_TOPOLOGY_RESOURCE).toString());
+
     }
 
 

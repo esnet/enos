@@ -10,12 +10,10 @@
 package net.es.enos.api;
 
 import net.es.enos.boot.BootStrap;
-import net.es.enos.kernel.exec.KernelThread;
 import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.*;
-import java.nio.file.Paths;
 
 /**
  * Created by lomax on 6/24/14.
@@ -35,13 +33,7 @@ public class PersistentObject implements Serializable {
             // Not yet initialized. Assume non ENOS path
             file = new File(filename);
         } else {
-            if (new File(filename).isAbsolute()) {
-                file = new File(Paths.get(BootStrap.rootPath.toString(), filename).toString());
-            } else {
-                // Relative path.
-                String curDir = KernelThread.currentKernelThread().getCurrentDirectory();
-                file = new File(FileUtils.toRealPath(curDir).toString(),filename);
-            }
+            file = new File(FileUtils.toRealPath(filename).toString());
         }
         return file;
     }
