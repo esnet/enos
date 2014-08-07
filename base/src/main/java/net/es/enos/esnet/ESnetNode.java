@@ -37,6 +37,8 @@ public class ESnetNode extends Node implements Comparable<ESnetNode> {
     public void setId(String id) {
         this.id = id;
         this.setResourceName(id);
+        // Hostname is not defined in topology. Build it
+        this.hostName = ESnetTopology.idToName(id) + "@" + ESnetTopology.idToDomain(id);
     }
 
     public String getAddress() {
@@ -94,7 +96,7 @@ public class ESnetNode extends Node implements Comparable<ESnetNode> {
 
     @Override
     public String toString() {
-	    return this.getId();
+	    return this.getHostName();
     }
 
     @Override
