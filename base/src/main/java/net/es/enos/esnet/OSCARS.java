@@ -10,6 +10,7 @@
 package net.es.enos.esnet;
 
 import net.es.enos.api.*;
+import net.es.enos.kernel.container.Container;
 import net.es.enos.kernel.container.Containers;
 import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
@@ -59,9 +60,23 @@ public final class OSCARS {
         TopologyProvider topologyProvider = topologyFactory.retrieveTopologyProvider("localLayer2");
         Graph graph = topologyProvider.getGraph(TopologyProvider.WeightType.TrafficEngineering);
         TopologyGraph topologyGraph = new TopologyGraph(graph);
-        // Store the graph into the container.
+        // Store the graph into the container. TODO:
         topologyGraph.save(Containers.getPath(FULL_TOPOLOGY_RESOURCE).toString());
 
+    }
+
+    /**
+     * Creates an authorization TopologyGraph into a container. This container will then be authorized
+     * to create OSCARS circuits as long as they are a subset of the authorized graph.
+     * The creator of the authorized graph must join a container (source) that is already authorized
+     * for the graph.
+     * @param graph
+     * @return
+     */
+    static TopologyGraph createAuthorizedGraph (TopologyGraph graph, Container dest) {
+        // Verify that the container in which the calling thread
+
+        return null;
     }
 
 

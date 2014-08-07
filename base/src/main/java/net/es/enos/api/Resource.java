@@ -9,16 +9,10 @@
 
 package net.es.enos.api;
 
-import net.es.enos.boot.BootStrap;
-import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.users.User;
 import org.codehaus.jackson.annotate.JsonIgnore;
-import org.codehaus.jackson.map.ObjectMapper;
 
-import java.io.*;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -154,10 +148,7 @@ public class Resource extends PersistentObject {
         if (o == null || ! (o instanceof Resource)) return false;
 
         Resource resource = (Resource) o;
-
-        if (!resourceName.equals(resource.resourceName)) return false;
-
-        return true;
+        return resourceName.equals(resource.resourceName);
     }
 
     @Override
@@ -176,5 +167,10 @@ public class Resource extends PersistentObject {
     @JsonIgnore
     private final void setCreationStackTrace() {
         // this.creationStackTrace = Arrays.toString(Thread.currentThread().getStackTrace());
+    }
+
+    @Override
+    public String toString() {
+        return this.resourceName;
     }
 }

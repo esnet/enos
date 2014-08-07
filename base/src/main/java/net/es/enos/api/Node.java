@@ -9,13 +9,6 @@
 
 package net.es.enos.api;
 
-import net.es.enos.boot.BootStrap;
-
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.UUID;
-
 /**
  * Generic Node Class
  */
@@ -35,5 +28,4 @@ public class Node extends Resource {
     public Node(Node n) {
         super(n);
     }
-
 }
