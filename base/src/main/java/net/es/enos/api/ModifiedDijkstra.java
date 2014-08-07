@@ -13,7 +13,10 @@ package net.es.enos.api;
  * Created by davidhua on 6/12/14.
  */
 
+import org.jgrapht.GraphPath;
 import org.jgrapht.graph.DefaultListenableGraph;
+import org.jgrapht.graph.GraphPathImpl;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.ArrayList;
@@ -31,10 +34,14 @@ public class ModifiedDijkstra<Node, Link> {
 	ArrayList<Link> path;
 	HashMap<Node, Double> width;
 	HashMap<Node, Node> prev;
+	Node source;
+	Node dest;
 
 	public ModifiedDijkstra(DefaultListenableGraph graph, Node source, Node dest) {
-		width = new HashMap<Node, Double>();
-		prev = new HashMap<Node, Node>();
+		width = new HashMap<>();
+		prev = new HashMap<>();
+		this.source = source;
+		this.dest = dest;
 		findPath(graph, source, dest);
 		this.path = bandwidth(source, dest);
 	}
@@ -128,5 +135,9 @@ public class ModifiedDijkstra<Node, Link> {
 
 	public ArrayList<Link> getBandwidth() {
 		return this.path;
+	}
+
+	public GraphPath<Node, Link> getPath() {
+		return new GraphPathImpl<Node, Link>(graph, source, dest, path, 0);
 	}
 }
