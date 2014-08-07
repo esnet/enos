@@ -178,10 +178,27 @@ public class ESnetTopology  extends TopologyProvider {;
 		            nodeName = nodeList[0];
 	            }
 
-	            if (!locationToNode.containsKey(nodeName)) {
-		            locationToNode.put(nodeName, new ArrayList<ESnetNode> ());
+	            if (nodeName.equals("sacr")) {
+		            node.setLongitude(Double.toString(-121.478851));
+		            node.setLatitude(Double.toString(38.575764));
+	            } else if (nodeName.equals("snll")) {
+		            node.setLongitude(Double.toString(-121.768056));
+		            node.setLatitude(Double.toString(37.681944));
+	            } else if (nodeName.equals("ameslab")) {
+		            node.setLongitude(Double.toString(-93.6482));
+		            node.setLatitude(Double.toString(42.0305));
+	            } else if (nodeName.equals("albq")) {
+		            node.setLongitude(Double.toString(-106.6100));
+		            node.setLatitude(Double.toString(35.1107));
+	            } else if (nodeName.equals("lsvn")) {
+		            node.setLongitude(Double.toString(-115.1174));
+		            node.setLatitude(Double.toString(36.2365));
+	            } else {
+		            if (!locationToNode.containsKey(nodeName)) {
+			            locationToNode.put(nodeName, new ArrayList<ESnetNode>());
+		            }
+		            locationToNode.get(nodeName).add(node);
 	            }
-	            locationToNode.get(nodeName).add(node);
                 this.nodes.put(node.getId(),node);
             }
 
