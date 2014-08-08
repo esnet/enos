@@ -75,8 +75,11 @@ public class ContainerACL extends FileACL {
         }
         // Remove user from the list
         String[] users = FileACL.removeUser(this.getCanAdmin(),username);
-        this.setProperty(ContainerACL.CAN_ADMIN,FileACL.makeString(users));
-
+        if (users.length == 0) {
+            this.remove(ContainerACL.CAN_ADMIN);
+        }  else {
+            this.setProperty(ContainerACL.CAN_ADMIN,FileACL.makeString(users));
+        }
     }
 
     public synchronized void denyUserExecute(String username) {
@@ -86,8 +89,12 @@ public class ContainerACL extends FileACL {
         }
         // Remove user from the list
         String[] users = FileACL.removeUser(this.getCanExecute(),username);
-        this.setProperty(ContainerACL.CAN_EXECUTE,FileACL.makeString(users));
-
+        if (users.length == 0) {
+            this.remove(ContainerACL
+                    .CAN_EXECUTE);
+        }  else {
+            this.setProperty(ContainerACL.CAN_EXECUTE, FileACL.makeString(users));
+        }
     }
 
 

@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Properties;
 /**
  * ENOS cannot rely on the native file system to provide user access control, since the JVM runs with a
@@ -230,21 +231,25 @@ public class FileACL extends Properties {
         for (String u : strings) {
             result += u + ",";
         }
-        return result.substring(0,result.length() - 1);
+        // Remove trailing ,
+        if (result.length() > 1) {
+            result = result.substring(0,result.length() - 1);
+        } else if (result.length() == 1) {
+            result = "";
+        }
+        return result;
     }
 
     public static String[] removeUser(String[] users, String username) {
-        String[] newUsers = new String[users.length -1];
-        int index = 0;
+        ArrayList<String> newUsers = new ArrayList<String>();
         for (String user : users) {
 
             if (! user.equals(username)) {
                 // Keep user in the list
-                newUsers[index] = user;
+                newUsers.add(user);
             }
-            ++index;
         }
-        return newUsers;
+        return newUsers.toArray(new String[newUsers.size()]);
     }
 
     public synchronized void allowUserRead(String username) {
@@ -275,7 +280,11 @@ public class FileACL extends Properties {
         }
         // Remove user from the list
         String[] users = FileACL.removeUser(this.getCanRead(),username);
-        this.setProperty(FileACL.CAN_READ,FileACL.makeString(users));
+        if (users.length == 0) {
+            this.remove(FileACL.CAN_READ);
+        }  else {
+            this.setProperty(FileACL.CAN_READ,FileACL.makeString(users));
+        }
 
     }
 
@@ -287,7 +296,11 @@ public class FileACL extends Properties {
         }
         // Remove user from the list
         String[] users = FileACL.removeUser(this.getCanRead(),username);
-        this.setProperty(FileACL.CAN_WRITE,FileACL.makeString(users));
+        if (users.length == 0) {
+            this.remove(FileACL.CAN_WRITE);
+        }  else {
+            this.setProperty(FileACL.CAN_WRITE,FileACL.makeString(users));
+        }
 
     }
 

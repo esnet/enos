@@ -14,6 +14,9 @@ import net.es.enos.api.NonExistantUserException;
 import net.es.enos.api.UserAlreadyExistException;
 import net.es.enos.api.UserException;
 import net.es.enos.configuration.ENOSConfiguration;
+import net.es.enos.kernel.container.Container;
+import net.es.enos.kernel.container.ContainerACL;
+import net.es.enos.kernel.container.Containers;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.security.FileACL;
@@ -150,6 +153,10 @@ public final class Users {
             logger.warn("{} is unknown", user);
         }
         UserProfile userProfile = Users.getUsers().passwords.get(user);
+        if (userProfile.getPassword().equals("*")) {
+            // Disable password
+            throw new UserException("not authorized");
+        }
 
         // Local password verification here.  Check an encrypted version of the user's password
         // against what was stored in password file, a la UNIX password authentication.
@@ -260,12 +267,17 @@ public final class Users {
         String organization = newUser.getorganization();
         String email = newUser.getemail();
 
+
         // Check if fields entered contain valid characters (and don't contain colons)
-        if (! username.matches("[a-zA-Z0-9_]+") || name.contains(":")
+        /* lomax@es.net: disabling this test in order to allow users to be the name of containers, or email address.
+         * not sure if the test is really needed anyway.
+
+        if (! username.matches("[a-zA-Z0-9_/]+") || name.contains(":")
                 || organization.contains(":") || email.contains(":")
                 || ! email.contains("@") || ! email.contains(".")) {
             throw new UserException(username);
         }
+        **/
 
         // Make sure privilege value entered is valid
         if (!privArray.contains(privilege)) {
@@ -282,9 +294,12 @@ public final class Users {
             throw new UserAlreadyExistException(username);
         }
 
-        // Construct the new Profile.
-        UserProfile userProfile = new UserProfile(username,
-                crypt(password), // Let the Crypt library pick a suitable algorithm and a random salt
+        // Construct the new Profile. A null, empty or * password means that password is disable for the user.
+        UserProfile userProfile = new UserProfile(
+                username,
+                (password != null) && (!password.equals("") && (!password.equals("*"))) ?
+                        crypt(password) : // Let the Crypt library pick a suitable algorithm and a random salt
+                        "*",
                 privilege,
                 name,
                 organization,
@@ -305,6 +320,27 @@ public final class Users {
 
         // Update ENOS user file
         this.writeUserFile();
+
+        // Create the user's default container
+        try {
+            String containerName = Containers.USER_DIR + "/" + username;
+            Containers.createContainer(containerName, false);
+            // Set ACL
+            ContainerACL acl = new Container(containerName).getACL();
+            // First empty the permissions
+            String currentUser = KernelThread.currentKernelThread().getUser().getName();
+            acl.denyUserRead(currentUser);
+            acl.denyUserAdmin(currentUser);
+            acl.denyUserExecute(currentUser);
+            acl.denyUserWrite(currentUser);
+            // Adds user ACL's
+            acl.allowUserRead(username);
+            acl.allowUserExecute(username);
+            acl.allowUserAdmin(username);
+            acl.store();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -357,7 +393,7 @@ public final class Users {
         if (!this.passwords.containsKey(userName)) {
             throw new NonExistantUserException(userName);
         }
-
+        User user = new User (userName);
         UserProfile userProfile = Users.getUsers().passwords.get(userName);
         // Set name to null so writeUserFile will skip this UserProfile
         userProfile.setName(null);
@@ -373,6 +409,13 @@ public final class Users {
 
         // Save User File with removed user
         this.writeUserFile();
+
+        // Remove User's default container
+        try {
+            Containers.removeContainer(user.getContainerName(),false);
+        } catch (Exception e) {
+            logger.warn("Could not delete container " + user.getContainerName());
+        }
     }
 
 
@@ -396,9 +439,13 @@ public final class Users {
 
 			// Create proper access rights in new directory
 			FileACL fileACL = new FileACL(homeDir.toPath());
+            // First empty the permissions
+            for (String prop : fileACL.stringPropertyNames()) {
+                fileACL.remove(prop);
+            }
+            // Set user permissions
 			fileACL.allowUserRead(username);
 			fileACL.allowUserWrite(username);
-
 			// Commit ACL's
 			fileACL.store();
 

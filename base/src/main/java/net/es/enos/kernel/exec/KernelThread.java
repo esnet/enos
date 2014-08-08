@@ -198,6 +198,14 @@ public final class  KernelThread {
         } else {
             throw new SecurityException("Attempt to change the user");
         }
+        // Retrieve default Container and join it.
+        try {
+            Container userContainer = user.getContainer();
+            this.container = userContainer;
+        } catch (SecurityException e) {
+            // Container does not exist. The User does not have a default container.
+            logger.warn(user.getName() + " does not have its default container");
+        }
     }
 
     /**

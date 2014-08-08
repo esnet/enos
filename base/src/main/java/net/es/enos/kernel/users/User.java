@@ -10,6 +10,9 @@
 package net.es.enos.kernel.users;
 
 import net.es.enos.boot.BootStrap;
+import net.es.enos.kernel.container.Container;
+import net.es.enos.kernel.container.Containers;
+import org.codehaus.jackson.annotate.JsonIgnore;
 
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
@@ -86,4 +89,14 @@ public class User {
 
 	// Set the homepath to simulate changing the working directory.
 	public void setHomePath(Path newPath) { this.homePath = newPath; }
+
+    @JsonIgnore
+    public Container getContainer() {
+        return new Container(this.getContainerName());
+    }
+
+    @JsonIgnore
+    public String getContainerName() {
+        return Containers.USER_DIR + "/" + this.name;
+    }
 }

@@ -10,11 +10,13 @@
 package net.es.enos.kernel.container;
 
 import net.es.enos.api.FileUtils;
+import net.es.enos.api.Resource;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.kernel.users.User;
-import org.jgrapht.Graph;
+import net.es.enos.kernel.users.UserProfile;
+import net.es.enos.kernel.users.Users;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,8 +31,8 @@ import java.nio.file.Paths;
  */
 public class Containers {
     public static String ROOT = "/containers";
-    public static String SYSTEM_DIR = ROOT + "/sys";
-    public static String USER_DIR = ROOT + "/user";
+    public static String SYSTEM_DIR = "/sys";
+    public static String USER_DIR = "/users";
     private static Logger logger = LoggerFactory.getLogger(Containers.class);
     private static Path homePath = Paths.get(BootStrap.rootPath.toString(),
                                              ROOT).toAbsolutePath();
@@ -75,14 +77,22 @@ public class Containers {
         Method method;
 
         method = KernelThread.getSysCallMethod(Containers.class, "do_createContainer");
-        KernelThread.doSysCall(Container.class, method, name);
+        KernelThread.doSysCall(Container.class, method, name, true);
+
+    }
+
+    public static void createContainer (String name, boolean createUser) throws Exception {
+        Method method;
+
+        method = KernelThread.getSysCallMethod(Containers.class, "do_createContainer");
+        KernelThread.doSysCall(Container.class, method, name, createUser);
 
     }
 
     @SysCall(
             name="do_createContainer"
     )
-    public final static void do_createContainer (String name) throws Exception {
+    public final static void do_createContainer (String name, boolean createUser) throws Exception {
 
         boolean isPrivileged = KernelThread.currentKernelThread().getUser().isPrivileged();
         logger.info(KernelThread.currentKernelThread().getUser().getName()
@@ -121,8 +131,44 @@ public class Containers {
         acl.allowUserRead(user.getName());
         acl.allowUserExecute(user.getName());
         acl.store();
-        // Creates a Container object
+        // Creates the Container user.
+        //
+        //public UserProfile(String username, String password, String privilege, String name, String organization, String email) {
+        UserProfile profile = new UserProfile(FileUtils.normalize(containerPath.toString()),
+                                                                  "*",
+                                                                  "user",
+                                                                  containerPath.toString(),
+                                                                  "Container",
+                                                                  "none");
+        if (createUser) {
+            Users users = new Users();
+            users.createUser(profile);
+        }
+
         return;
+    }
+
+    public static void removeContainer (String name) throws Exception {
+        Method method;
+
+        method = KernelThread.getSysCallMethod(Containers.class, "do_removeContainer");
+        KernelThread.doSysCall(Container.class, method, name, true);
+
+    }
+
+    public static void removeContainer (String name, boolean removeUser) throws Exception {
+        Method method;
+
+        method = KernelThread.getSysCallMethod(Containers.class, "do_removeContainer");
+        KernelThread.doSysCall(Container.class, method, name, removeUser);
+
+    }
+
+    @SysCall(
+            name="do_removeContainer"
+    )
+    public final static void do_removeContainer (String name, boolean removeUser) throws Exception {
+        // TODO: to be implemented
     }
 
     public static ContainerACL getACL(String name)  {
@@ -141,7 +187,11 @@ public class Containers {
 
     public static boolean isSystem (String container) {
         String containerName = FileUtils.normalize(container);
-        return container.startsWith(SYSTEM_DIR);
+        return container.startsWith(ROOT + "/" + SYSTEM_DIR);
+    }
+
+    public static void do_addResource(Container container, Resource resource) {
+
     }
 
 }
