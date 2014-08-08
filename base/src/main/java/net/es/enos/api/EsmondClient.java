@@ -56,7 +56,29 @@ public class EsmondClient {
     }
 
     /**
+     * Map the name of a tool to a measurement data structure.
+     * This allows us to understand the JSON returned in metadata in a tool-specific way.
+     * @param tool
+     * @return
+     */
+    protected TypeReference measurementType(String tool) {
+        try {
+            if (tool.equalsIgnoreCase("bwctl/iperf3")) {
+                return new TypeReference<EsmondBwctlIperf3Measurement []>() {
+                };
+            } else {
+                return new TypeReference<EsmondMeasurement []>() { };
+            }
+        }
+        catch (NullPointerException e) {
+            return new TypeReference<EsmondMeasurement []>() { };
+        }
+    }
+
+    /**
      * Retrieve esmond measurement (metadata) records
+     * If specifying the type of measurement in the filter, we can try to figure out the
+     * EsmondMeasurement class that best suits the data.
      * @param base URI of esmond base
      * @param filter filter object
      * @return
@@ -74,8 +96,7 @@ public class EsmondClient {
 
         try {
             URL u = new URL(url);
-            em = mapper.readValue(u, new TypeReference<EsmondMeasurement[]>() {
-            });
+            em = mapper.readValue(u, measurementType(filter.getToolName()));
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -117,8 +138,7 @@ public class EsmondClient {
         logger.info("send GET for {}", metadataURI.toString());
 
         try {
-            em = mapper.readValue(metadataURI.toURL(), new TypeReference<EsmondMeasurement[]>() {
-            });
+            em = mapper.readValue(metadataURI.toURL(), measurementType(psm.getToolName()));
         }
         catch (Exception e) {
             e.printStackTrace();
