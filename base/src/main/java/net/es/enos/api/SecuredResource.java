@@ -81,4 +81,9 @@ public class SecuredResource extends Resource {
         return items[items.length - 1];
     }
 
+    public static String toContainerName (String name) {
+        String[] elems = name.split("/");
+        return name.substring(0, name.length() - (elems[elems.length - 1].length() +1));
+    }
+
 }

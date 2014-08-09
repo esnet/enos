@@ -248,7 +248,7 @@ public class Containers {
      * @param resource
      * @param container
      */
-    public static void unShareResource(SecuredResource resource, Container container)  {
+    public static void unShareResource(SecuredResource resource, String container)  {
         Method method;
 
         method = KernelThread.getSysCallMethod(Containers.class, "do_unShareResource");
@@ -261,7 +261,7 @@ public class Containers {
     @SysCall(
             name="do_unShareResource"
     )
-    public static void do_unShareResource(SecuredResource resource, Container container) {
+    public static void do_unShareResource(SecuredResource resource, String container) {
 
         String currentContainer = KernelThread.currentKernelThread().getCurrentContainer().getName();
         String resourceContainer = resource.getContainerName();
@@ -277,22 +277,55 @@ public class Containers {
                 // Now allowed
                 throw new SecurityException("not permitted");
             }
+            removeShare(resource,container);
         }
+
+    }
+
+    private static void removeShare(SecuredResource resource, String container) {
+
         List<String> children = resource.getChildrenResources();
         if (children == null) {
             // Nothing to do
             return;
         }
+        String cloneResourceName = container + "/" + resource.getShortName();
         ArrayList<String> newChildren = new ArrayList<String>();
         for (String child : children) {
-            if (!child.startsWith(container.getName())) {
+            if (!child.equals(cloneResourceName)) {
                 // Not from the container. Keep it
                 newChildren.add(child);
+            } else {
+                // Delete the children
+                try {
+                    PersistentObject obj = PersistentObject.newObject(cloneResourceName);
+                    obj.delete();
+                    // unshare the clone itself
+                    if (obj instanceof SecuredResource) {
+                        SecuredResource cloneResource = (SecuredResource) obj;
+                        List<String> cloneChildren = cloneResource.getChildrenResources();
+                        if (cloneChildren != null) {
+                            for (String cloneChild : cloneChildren) {
+                                removeShare(cloneResource,
+                                        SecuredResource.toContainerName(cloneResourceName));
+                            }
+                        }
+                    }
+                } catch (InstantiationException e) {
+                    // Already removed
+                    continue;
+                }
             }
         }
         resource.setChildrenResources(newChildren);
     }
 
+    /**
+     * Import a SecuredResource that is shared. A clone of the shared resource is created.
+     * @param resourceName
+     * @throws InstantiationException
+     * @throws IOException
+     */
     public static void importResource (String resourceName) throws InstantiationException, IOException {
         Method method;
         try {

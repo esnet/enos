@@ -22,6 +22,8 @@ public class PersistentObject implements Serializable {
 
     @JsonIgnore
     private boolean isNewInstance = true;
+    @JsonIgnore
+    private File file;
     private String resourceClassName;
 
     /**
@@ -68,6 +70,13 @@ public class PersistentObject implements Serializable {
         output.close();
         // No longer a new resource.
         this.isNewInstance = false;
+        this.file = file;
+    }
+
+    public void delete() {
+        if (this.file != null) {
+            file.delete();
+        }
     }
     /**
      * Creates a resource from a file specified by the provided file name. ENOS root is added
@@ -90,6 +99,7 @@ public class PersistentObject implements Serializable {
             FileInputStream input = new FileInputStream(file);
             PersistentObject obj = (PersistentObject) mapper.readValue(input, c);
             obj.isNewInstance = false;
+            obj.file = file;
             return obj;
         }
     }
