@@ -22,6 +22,7 @@ public class PersistentObject implements Serializable {
 
     @JsonIgnore
     private boolean isNewInstance = true;
+    private String resourceClassName;
 
     /**
      * Builds the correct pathname of a file, taking into account the ENOS_ROOT and the ENOS user
@@ -55,6 +56,8 @@ public class PersistentObject implements Serializable {
      * @throws IOException
      */
     public void save(File file) throws IOException {
+        // Set the classname.
+        this.resourceClassName = this.getClass().getCanonicalName();
         /* Make sure all directories exist */
         file.getParentFile().mkdirs();
         /* Write JSON */
@@ -91,6 +94,28 @@ public class PersistentObject implements Serializable {
         }
     }
 
+    private static final String getClassName (String filename) throws IOException {
+        // Without loading the file, retrieve the className
+        File file = PersistentObject.buildFile(filename);
+        if (! file.exists()) {
+            return null;
+        }
+        BufferedReader br = null;
+
+        br = new BufferedReader(new FileReader(file));
+        String line;
+        while ((line = br.readLine()) != null) {
+            String[] items = line.split(":");
+            if (items.length == 2) {
+                if (items[0].equals("resourceClassName")) {
+                    return items[1];
+                }
+            }
+        }
+        br.close();
+        return null;
+    }
+
     /**
      * Returns true if the resource did not have persistent store file. False if the resource was loaded from
      * an existing file.
@@ -114,4 +139,27 @@ public class PersistentObject implements Serializable {
         }
     }
 
+    public static final PersistentObject newObject (String fileName) throws InstantiationException {
+        PersistentObject obj = null;
+        try {
+            String className = PersistentObject.getClassName(fileName);
+            return PersistentObject.newObject(Class.forName(className),fileName);
+
+        } catch (ClassNotFoundException e) {
+            throw new InstantiationException(e.toString());
+        } catch (IOException e) {
+            throw new InstantiationException(e.toString());
+        }
+    }
+    public void setNewInstance(boolean isNewInstance) {
+        this.isNewInstance = isNewInstance;
+    }
+
+    public String getResourceClassName() {
+        return resourceClassName;
+    }
+
+    public void setResourceClassName(String resourceClassName) {
+        this.resourceClassName = resourceClassName;
+    }
 }

@@ -20,7 +20,6 @@ import java.util.List;
  */
 public class Resource extends PersistentObject {
     protected String resourceName;
-    private String resourceClassName;
     protected String description;
     private List<User> hasWriteAccess;
     private List<User> hasReadAccess;
@@ -31,8 +30,6 @@ public class Resource extends PersistentObject {
 
     public Resource() {
         this.setCreationStackTrace();
-        // Set the classname.
-        this.resourceClassName = this.getClass().getCanonicalName();
         // Create, if necessary, the capabilities List.
         if (this.capabilities == null) {
             this.capabilities = new ArrayList<String>();
@@ -84,20 +81,20 @@ public class Resource extends PersistentObject {
         this.capabilities = capabilities;
     }
 
-    public String getResourceClassName() {
-        return resourceClassName;
-    }
-
-    public void setResourceClassName(String resourceClassName) {
-        this.resourceClassName = resourceClassName;
-    }
-
     public List<String> getChildrenResources() {
         return childrenResources;
+    }
+    public List<String> getParentResources() {
+        return parentResources;
     }
 
     public void setChildrenResources(List<String> childrenResources) {
         this.childrenResources = childrenResources;
+
+    }
+
+    public void setParentResources(List<String> parentResources) {
+        this.parentResources = parentResources;
     }
 
     public synchronized void addProperties(String property) {
@@ -107,14 +104,6 @@ public class Resource extends PersistentObject {
         for (String property : properties) {
             this.capabilities.add(property);
         }
-    }
-
-    public List<String> getParentResources() {
-        return parentResources;
-    }
-
-    public void setParentResources(List<String> parentResources) {
-        this.parentResources = parentResources;
     }
 
     public Resource (Resource object) {

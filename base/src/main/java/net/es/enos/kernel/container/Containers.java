@@ -10,7 +10,9 @@
 package net.es.enos.kernel.container;
 
 import net.es.enos.api.FileUtils;
+import net.es.enos.api.PersistentObject;
 import net.es.enos.api.Resource;
+import net.es.enos.api.SecuredResource;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
@@ -21,9 +23,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -153,7 +158,6 @@ public class Containers {
 
         method = KernelThread.getSysCallMethod(Containers.class, "do_removeContainer");
         KernelThread.doSysCall(Container.class, method, name, true);
-
     }
 
     public static void removeContainer (String name, boolean removeUser) throws Exception {
@@ -190,8 +194,153 @@ public class Containers {
         return container.startsWith(ROOT + "/" + SYSTEM_DIR);
     }
 
-    public static void do_addResource(Container container, Resource resource) {
+    /**
+     * This method allows a SecuredResource to be shared with other containers. Containers then can import/clone
+     * the SecuredResource using the method importResource. This system call ensures that the list of children
+     * and parent resource is maintained. The thread invoking shareResource must either be privileged or have
+     * the ADMIN right in the container where the shared SecuredResource is.
+     * @param resource  a SecureResource to be shared
+     * @param container name of the container the resource is shared with
+     */
+    public static void shareResource(SecuredResource resource, String container) {
+        Method method;
 
+        method = KernelThread.getSysCallMethod(Containers.class, "do_shareResource");
+        try {
+            KernelThread.doSysCall(Container.class, method, resource, container);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @SysCall(
+            name="do_shareResource"
+    )
+    public static void do_shareResource(SecuredResource resource, String container) {
+
+        String currentContainer = KernelThread.currentKernelThread().getCurrentContainer().getName();
+        String resourceContainer = resource.getContainerName();
+        if (!KernelThread.currentKernelThread().getUser().isPrivileged()) {
+
+            if ((currentContainer == null) || !currentContainer.equals(resourceContainer)) {
+                // Now allowed
+                throw new SecurityException("not permitted");
+            }
+            ContainerACL acl = KernelThread.currentKernelThread().getCurrentContainer().getACL();
+
+            if ((acl == null) || !acl.canAdmin(KernelThread.currentKernelThread().getUser().getName())) {
+                // Now allowed
+                throw new SecurityException("not permitted");
+            }
+        }
+        List<String> children = resource.getChildrenResources();
+        if (children == null) {
+            children = new ArrayList<String>();
+        }
+        // Add a children to the SecuredResource
+        children.add(container + "/" + resource.getShortName());
+        resource.setChildrenResources(children);
+    }
+
+    /**
+     * Unshares a resource that was previously shared with a container. This system call removes
+     * the container from the resource's list of children, making the cloned resource invalid.
+     * @param resource
+     * @param container
+     */
+    public static void unShareResource(SecuredResource resource, Container container)  {
+        Method method;
+
+        method = KernelThread.getSysCallMethod(Containers.class, "do_unShareResource");
+        try {
+            KernelThread.doSysCall(Container.class, method, resource, container);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    @SysCall(
+            name="do_unShareResource"
+    )
+    public static void do_unShareResource(SecuredResource resource, Container container) {
+
+        String currentContainer = KernelThread.currentKernelThread().getCurrentContainer().getName();
+        String resourceContainer = resource.getContainerName();
+        if (!KernelThread.currentKernelThread().getUser().isPrivileged()) {
+
+            if ((currentContainer == null) || !currentContainer.equals(resourceContainer)) {
+                // Now allowed
+                throw new SecurityException("not permitted");
+            }
+            ContainerACL acl = KernelThread.currentKernelThread().getCurrentContainer().getACL();
+
+            if ((acl == null) || !acl.canAdmin(KernelThread.currentKernelThread().getUser().getName())) {
+                // Now allowed
+                throw new SecurityException("not permitted");
+            }
+        }
+        List<String> children = resource.getChildrenResources();
+        if (children == null) {
+            // Nothing to do
+            return;
+        }
+        ArrayList<String> newChildren = new ArrayList<String>();
+        for (String child : children) {
+            if (!child.startsWith(container.getName())) {
+                // Not from the container. Keep it
+                newChildren.add(child);
+            }
+        }
+        resource.setChildrenResources(newChildren);
+    }
+
+    public static void importResource (String resourceName) throws InstantiationException, IOException {
+        Method method;
+        try {
+            method = KernelThread.getSysCallMethod(Containers.class, "do_importResource");
+            KernelThread.doSysCall(Container.class, method, resourceName);
+        } catch (InstantiationException e) {
+            throw e;
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e)  {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @SysCall(
+            name="do_importResource"
+    )
+    public static void do_importResource (String resourceName) throws InstantiationException, IOException {
+
+        Container currentContainer = KernelThread.currentKernelThread().getCurrentContainer();
+        ContainerACL acl = currentContainer != null ?
+                currentContainer.getACL() :
+                null;
+
+        if (!KernelThread.currentKernelThread().getUser().isPrivileged()) {
+            if ((acl == null) || !acl.canAdmin(KernelThread.currentKernelThread().getUser().getName())) {
+                // Now allowed
+                throw new SecurityException("not permitted");
+            }
+        }
+
+        PersistentObject obj = Resource.newObject(resourceName);
+        if (!(obj instanceof SecuredResource)) {
+            throw new SecurityException("Only SecuredResource can be imported");
+        }
+
+        // Clone the resource and save it in the current container.
+        SecuredResource resource = (SecuredResource) obj;
+        String newResourceName = currentContainer.getName() + "/" + resource.getShortName();
+
+        List<String> parents = new ArrayList<String>();
+        parents.add(resourceName);
+        resource.setParentResources(parents);
+        resource.setChildrenResources(new ArrayList<String>());
+
+        resource.setContainerName(currentContainer.getName());
+        resource.setResourceName(newResourceName);
+        resource.save(newResourceName);
     }
 
 }
