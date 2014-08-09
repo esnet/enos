@@ -23,9 +23,17 @@ import java.util.Set;
 
 
 /**
- * This class is a Resource representation of a graph.
+ * This class is a SecuredResource representation of a graph. The typical use of this class is to
+ * add a graph into a container and keeping a secured set of parents and children graph. For instance
+ * a graph representing a virtual topology has parent graph(s) representing topologies at lower network
+ * layers (or less virtualized). Children graph reprense topologies using (virtualizes) resources of
+ * a graph.
+ *
+ * Since a GraphSecuredResource extends SecuredResource adding or removing graphs in the parent or children
+ * requires to be privileged. Typically services implementing SysCall will create and modify GraphSecuredResources
+ * instance.
  */
-public class TopologyGraph extends Resource {
+public class GraphSecuredResource extends SecuredResource {
     private String className;
     private List<NodeDesc> nodeDescs;
     private List<LinkDesc> linkDescs;
@@ -100,6 +108,11 @@ public class TopologyGraph extends Resource {
 
     }
 
+    /**
+     * GenericGraph is the class that is used to clone any Graph<Node,Link>. It is a
+     * DirectedMultigraph. It also supports get/setEdgeWeight so it can be used with Graph functions
+     * that requires a weighted graph.
+     */
     static public class GenericGraph extends DefaultListenableGraph<Node, Link> implements Graph<Node, Link> {
         public GenericGraph(Class<? extends Link> edgeClass) {
             super(new DirectedMultigraph<Node, Link>(edgeClass));
@@ -146,11 +159,16 @@ public class TopologyGraph extends Resource {
         this.className = className;
     }
 
-    public TopologyGraph() {
+    public GraphSecuredResource() {
 
     }
 
-    public TopologyGraph (Graph graph) {
+    /**
+     * Creates a GraphSecuredResource cloning the provided Graph. Each Node and
+     * Links are cloned, abstracting the original graph.
+     * @param graph
+     */
+    public GraphSecuredResource(Graph graph) {
 
         Set<Node> vertices = graph.vertexSet();
         this.nodeDescs = new ArrayList<NodeDesc>();
@@ -175,7 +193,19 @@ public class TopologyGraph extends Resource {
         }
     }
 
-    public Graph toGraph() throws InstantiationException, ClassNotFoundException, InvocationTargetException, IllegalAccessException {
+    /**
+     * Creates a Graph from GraphSecuredResource.
+     * @return
+     * @throws InstantiationException
+     * @throws ClassNotFoundException
+     * @throws InvocationTargetException
+     * @throws IllegalAccessException
+     */
+    public Graph toGraph() throws InstantiationException,
+                                  ClassNotFoundException,
+                                  InvocationTargetException,
+                                  IllegalAccessException {
+
         GenericGraph graph = new GenericGraph();
 
         // create a map of the Nodes and add them to the graph
@@ -197,9 +227,15 @@ public class TopologyGraph extends Resource {
         return graph;
     }
 
-    static public TopologyGraph getFullMesh(List<Node> nodes) {
+    /**
+     * Creates a GraphSecuredResource made of a full mesh topology
+     * between the provided list of Node
+     * @param nodes
+     * @return
+     */
+    static public GraphSecuredResource getFullMesh(List<Node> nodes) {
 
-        TopologyGraph topoGraph = new TopologyGraph();
+        GraphSecuredResource topoGraph = new GraphSecuredResource();
         topoGraph.nodeDescs = new ArrayList<NodeDesc>();
         topoGraph.linkDescs = new ArrayList<LinkDesc>();
 

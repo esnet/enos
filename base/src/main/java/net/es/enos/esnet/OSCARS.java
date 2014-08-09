@@ -55,25 +55,25 @@ public final class OSCARS {
         Containers.createContainer(ROOT_CONTAINER);
         // Create the container that contains the full OSCARS topology
         Containers.createContainer(FULL_TOPOLOGY_CONTAINER);
-        // Retrieve OSCARS topology TopologyGraph
+        // Retrieve OSCARS topology GraphSecuredResource
         TopologyFactory topologyFactory = TopologyFactory.instance();
         TopologyProvider topologyProvider = topologyFactory.retrieveTopologyProvider("localLayer2");
         Graph graph = topologyProvider.getGraph(TopologyProvider.WeightType.TrafficEngineering);
-        TopologyGraph topologyGraph = new TopologyGraph(graph);
+        GraphSecuredResource topologyGraph = new GraphSecuredResource(graph);
         // Store the graph into the container. TODO:
         topologyGraph.save(Containers.getPath(FULL_TOPOLOGY_RESOURCE).toString());
 
     }
 
     /**
-     * Creates an authorization TopologyGraph into a container. This container will then be authorized
+     * Creates an authorization GraphSecuredResource into a container. This container will then be authorized
      * to create OSCARS circuits as long as they are a subset of the authorized graph.
      * The creator of the authorized graph must join a container (source) that is already authorized
      * for the graph.
      * @param graph
      * @return
      */
-    static TopologyGraph createAuthorizedGraph (TopologyGraph graph, Container dest) {
+    static GraphSecuredResource createAuthorizedGraph (GraphSecuredResource graph, Container dest) {
         // Verify that the container in which the calling thread
 
         return null;
