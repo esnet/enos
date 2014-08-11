@@ -23,7 +23,7 @@ import java.util.Set;
 /**
  * Created by lomax on 8/7/14.
  */
-public class GraphViewer extends JFrame {
+public class GenericGraphViewer extends JFrame {
 
     private JGraphXAdapter<Node, Link> jgxAdapter;
     private Graph<Node, Link> graph;
@@ -31,12 +31,12 @@ public class GraphViewer extends JFrame {
     private boolean bidirectional = false;
     private boolean fast = true;
 
-    public GraphViewer(Graph<Node, Link> graph) {
+    public GenericGraphViewer(Graph<Node, Link> graph) {
         this.graph = graph;
         this.vertices = graph.vertexSet();
     }
 
-    public GraphViewer(Graph<Node, Link> graph, int x, int y, int width, int height) {
+    public GenericGraphViewer(Graph<Node, Link> graph, int x, int y, int width, int height) {
         this.graph = graph;
         this.vertices = graph.vertexSet();
         this.setBounds(x,y,width,height);
