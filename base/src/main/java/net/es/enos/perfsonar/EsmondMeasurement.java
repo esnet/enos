@@ -43,6 +43,8 @@ import java.net.URISyntaxException;
 /**
  * Base class for Esmond metadata items
  * Subclasses may extend this class for specific measurements by adding more fields.
+ * This includes the data members from the BaseMetadata, BaseP2PMetadata,
+ * BaseIPPacketMetaData, and BaseTimeMetadata JSON object definitions from the MA REST API.
  * Created by bmah on 8/5/14.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -51,7 +53,16 @@ public class EsmondMeasurement {
     @JsonIgnore
     static final Logger logger = LoggerFactory.getLogger(EsmondMeasurement.class);
 
-    /* Fields present in all metadata objects */
+    /* From BaseMetadata JSON object definition */
+    protected String uri;
+    @JsonProperty("metadata-key")
+    protected String metadataKey;
+    @JsonProperty("subject-type")
+    protected String subjectType;
+    @JsonProperty("event-types")
+    protected EventType eventTypes[];
+
+    /* From BaseP2PMetadata JSON object definition */
     protected String source;
     protected String destination;
     @JsonProperty("measurement-agent")
@@ -62,8 +73,26 @@ public class EsmondMeasurement {
     protected String inputDestination;
     @JsonProperty("tool-name")
     protected String toolName;
-    @JsonProperty("event-types")
-    protected EventType eventTypes[];
+
+    /* From BaseIPPacketMetaData JSON object definition */
+    @JsonProperty("ip-tos")
+    protected int ipTos;
+    @JsonProperty("ip-ttl")
+    protected int ipTtl;
+    @JsonProperty("ip-transport-protocol")
+    protected String ipTransportProtocol;
+    @JsonProperty("ip-packet-size")
+    protected int ipPacketSize;
+
+    /* From BaseTimeMetadata JSON object definition */
+    @JsonProperty("time-duration")
+    protected int timeDuration;
+    @JsonProperty("time-interval")
+    protected int timeInterval;
+    @JsonProperty("time-interval-randomization")
+    protected int timeIntervalRandomization;
+    @JsonProperty("time-probe-interval")
+    protected int timeProbeInterval;
 
     static public class EventType {
         @JsonProperty("base-uri")
@@ -149,6 +178,38 @@ public class EsmondMeasurement {
         }
     }
 
+    public String getUri() {
+        return uri;
+    }
+
+    public void setUri(String uri) {
+        this.uri = uri;
+    }
+
+    public String getMetadataKey() {
+        return metadataKey;
+    }
+
+    public void setMetadataKey(String metadataKey) {
+        this.metadataKey = metadataKey;
+    }
+
+    public String getSubjectType() {
+        return subjectType;
+    }
+
+    public void setSubjectType(String subjectType) {
+        this.subjectType = subjectType;
+    }
+
+    public EventType[] getEventTypes() {
+        return eventTypes;
+    }
+
+    public void setEventTypes(EventType[] eventTypes) {
+        this.eventTypes = eventTypes;
+    }
+
     public String getSource() {
         return source;
     }
@@ -197,12 +258,68 @@ public class EsmondMeasurement {
         this.toolName = toolName;
     }
 
-    public EventType[] getEventTypes() {
-        return eventTypes;
+    public int getIpTos() {
+        return ipTos;
     }
 
-    public void setEventTypes(EventType[] eventTypes) {
-        this.eventTypes = eventTypes;
+    public void setIpTos(int ipTos) {
+        this.ipTos = ipTos;
+    }
+
+    public int getIpTtl() {
+        return ipTtl;
+    }
+
+    public void setIpTtl(int ipTtl) {
+        this.ipTtl = ipTtl;
+    }
+
+    public String getIpTransportProtocol() {
+        return ipTransportProtocol;
+    }
+
+    public void setIpTransportProtocol(String ipTransportProtocol) {
+        this.ipTransportProtocol = ipTransportProtocol;
+    }
+
+    public int getIpPacketSize() {
+        return ipPacketSize;
+    }
+
+    public void setIpPacketSize(int ipPacketSize) {
+        this.ipPacketSize = ipPacketSize;
+    }
+
+    public int getTimeDuration() {
+        return timeDuration;
+    }
+
+    public void setTimeDuration(int timeDuration) {
+        this.timeDuration = timeDuration;
+    }
+
+    public int getTimeInterval() {
+        return timeInterval;
+    }
+
+    public void setTimeInterval(int timeInterval) {
+        this.timeInterval = timeInterval;
+    }
+
+    public int getTimeIntervalRandomization() {
+        return timeIntervalRandomization;
+    }
+
+    public void setTimeIntervalRandomization(int timeIntervalRandomization) {
+        this.timeIntervalRandomization = timeIntervalRandomization;
+    }
+
+    public int getTimeProbeInterval() {
+        return timeProbeInterval;
+    }
+
+    public void setTimeProbeInterval(int timeProbeInterval) {
+        this.timeProbeInterval = timeProbeInterval;
     }
 
     // Other stuff

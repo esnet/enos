@@ -33,30 +33,31 @@ package net.es.enos.perfsonar;
 import org.codehaus.jackson.annotate.JsonProperty;
 
 /**
+ * Class of throughput measurements' metadata.
+ * Roughly corresponds to the BaseThroughputMetaData JSON object definition
+ * from the MA REST API.
  * Created by bmah on 8/7/14.
  */
-public class EsmondBwctlIperf3Measurement extends EsmondMeasurement {
+public class EsmondThroughputMeasurement extends EsmondMeasurement {
 
-    // Metadata fields specific to bwctl/iperf3 measurements
-    @JsonProperty("bw-ignore-first-seconds")
-    protected int bwIgnoreFirstSeconds;
+    // Metadata fields specific to throughput measurements
+    @JsonProperty("bw-buffer-size")
+    protected int bwBufferSize;
     @JsonProperty("bw-parallel-streams")
     protected int bwParallelStreams;
-    @JsonProperty("ip-tos")
-    protected int ipTos;
-    @JsonProperty("ip-transport-protocol")
-    protected String ipTransportProtocol;
-    @JsonProperty("subject-type")
-    protected String subjectType;
-    @JsonProperty("time-duration")
-    protected int timeDuration;
+    @JsonProperty("bw-target-bandwidth")
+    protected int bwTargetBandwidth;
+    @JsonProperty("bw-zero-copy")
+    protected boolean bwZeroCopy;
+    @JsonProperty("bw-ignore-first-seconds")
+    protected int bwIgnoreFirstSeconds;
 
-    public int getBwIgnoreFirstSeconds() {
-        return bwIgnoreFirstSeconds;
+    public int getBwBufferSize() {
+        return bwBufferSize;
     }
 
-    public void setBwIgnoreFirstSeconds(int bwIgnoreFirstSeconds) {
-        this.bwIgnoreFirstSeconds = bwIgnoreFirstSeconds;
+    public void setBwBufferSize(int bwBufferSize) {
+        this.bwBufferSize = bwBufferSize;
     }
 
     public int getBwParallelStreams() {
@@ -67,35 +68,27 @@ public class EsmondBwctlIperf3Measurement extends EsmondMeasurement {
         this.bwParallelStreams = bwParallelStreams;
     }
 
-    public int getIpTos() {
-        return ipTos;
+    public int getBwTargetBandwidth() {
+        return bwTargetBandwidth;
     }
 
-    public void setIpTos(int ipTos) {
-        this.ipTos = ipTos;
+    public void setBwTargetBandwidth(int bwTargetBandwidth) {
+        this.bwTargetBandwidth = bwTargetBandwidth;
     }
 
-    public String getIpTransportProtocol() {
-        return ipTransportProtocol;
+    public boolean isBwZeroCopy() {
+        return bwZeroCopy;
     }
 
-    public void setIpTransportProtocol(String ipTransportProtocol) {
-        this.ipTransportProtocol = ipTransportProtocol;
+    public void setBwZeroCopy(boolean bwZeroCopy) {
+        this.bwZeroCopy = bwZeroCopy;
     }
 
-    public String getSubjectType() {
-        return subjectType;
+    public int getBwIgnoreFirstSeconds() {
+        return bwIgnoreFirstSeconds;
     }
 
-    public void setSubjectType(String subjectType) {
-        this.subjectType = subjectType;
-    }
-
-    public int getTimeDuration() {
-        return timeDuration;
-    }
-
-    public void setTimeDuration(int timeDuration) {
-        this.timeDuration = timeDuration;
+    public void setBwIgnoreFirstSeconds(int bwIgnoreFirstSeconds) {
+        this.bwIgnoreFirstSeconds = bwIgnoreFirstSeconds;
     }
 }

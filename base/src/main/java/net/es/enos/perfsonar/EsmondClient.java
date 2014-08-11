@@ -63,8 +63,10 @@ public class EsmondClient {
      */
     protected TypeReference measurementType(String tool) {
         try {
-            if (tool.equalsIgnoreCase("bwctl/iperf3")) {
-                return new TypeReference<EsmondBwctlIperf3Measurement []>() {
+            if (tool.equalsIgnoreCase("bwctl/iperf") ||
+                tool.equalsIgnoreCase("bwctl/iperf3") ||
+                tool.equalsIgnoreCase("bwctl/nuttcp")) {
+                return new TypeReference<EsmondThroughputMeasurement[]>() {
                 };
             } else {
                 return new TypeReference<EsmondMeasurement []>() { };
