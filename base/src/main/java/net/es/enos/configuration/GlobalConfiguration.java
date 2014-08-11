@@ -31,20 +31,8 @@
 package net.es.enos.configuration;
 
 import net.es.enos.api.DefaultValues;
-import net.es.enos.api.NonExistantUserException;
-import net.es.enos.api.PropertyKeys;
-import net.es.enos.api.Resource;
-import net.es.enos.kernel.exec.KernelThread;
-import net.es.enos.kernel.exec.annotations.SysCall;
 import net.es.enos.sshd.SshdIoServiceFactory;
 import org.codehaus.jackson.annotate.JsonIgnore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.util.HashMap;
 
 /**
  * ENOS global configuration object. It is intended to be used as a read-only singleton.

@@ -146,7 +146,7 @@ public final class ESnet extends NetworkProvider {
                     method,
                     path,
                     profile);
-        } catch (NonExistantUserException e) {
+        } catch (NonExistentUserException e) {
             return null;
         } catch (NoSuchMethodException e) {
             e.printStackTrace();

@@ -10,7 +10,7 @@
 package net.es.enos.kernel.users;
 
 import net.es.enos.api.FileUtils;
-import net.es.enos.api.NonExistantUserException;
+import net.es.enos.api.NonExistentUserException;
 import net.es.enos.api.UserAlreadyExistException;
 import net.es.enos.api.UserException;
 import net.es.enos.configuration.ENOSConfiguration;
@@ -99,7 +99,7 @@ public final class Users {
                     method,
                     userName,
                     password);
-        } catch (NonExistantUserException e) {
+        } catch (NonExistentUserException e) {
             return false;
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
@@ -114,7 +114,7 @@ public final class Users {
     @SysCall(
             name="do_authUser"
     )
-    public void  do_authUser (String user, String password) throws NonExistantUserException, UserException {
+    public void  do_authUser (String user, String password) throws NonExistentUserException, UserException {
         logger.info("do_authUser entry");
 
         // Read file.
@@ -189,7 +189,7 @@ public final class Users {
                                        userName,
                                        newPassword);
             }
-        } catch (NonExistantUserException e) {
+        } catch (NonExistentUserException e) {
             return false;
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
@@ -205,7 +205,7 @@ public final class Users {
     @SysCall(
             name="do_setPassword"
     )
-    public void do_setPassword(String userName, String newPassword) throws NonExistantUserException, IOException {
+    public void do_setPassword(String userName, String newPassword) throws NonExistentUserException, IOException {
         logger.info("do_setPassword entry");
 
 	    try {
@@ -216,7 +216,7 @@ public final class Users {
 
 	    // Make sure the user exists.
         if (!this.passwords.containsKey(userName)) {
-            throw new NonExistantUserException(userName);
+            throw new NonExistentUserException(userName);
         }
 
         UserProfile userProfile = Users.getUsers().passwords.get(userName);
@@ -359,7 +359,7 @@ public final class Users {
                         method,
                         userName);
             }
-        } catch (NonExistantUserException e) {
+        } catch (NonExistentUserException e) {
             return false;
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
@@ -380,7 +380,7 @@ public final class Users {
     @SysCall(
             name="do_removeUser"
     )
-    public void do_removeUser(String userName) throws NonExistantUserException, IOException {
+    public void do_removeUser(String userName) throws NonExistentUserException, IOException {
         logger.info("do_removeUser entry");
 
         // Make sure the user exists.
@@ -391,7 +391,7 @@ public final class Users {
 	    }
 
         if (!this.passwords.containsKey(userName)) {
-            throw new NonExistantUserException(userName);
+            throw new NonExistentUserException(userName);
         }
         User user = new User (userName);
         UserProfile userProfile = Users.getUsers().passwords.get(userName);

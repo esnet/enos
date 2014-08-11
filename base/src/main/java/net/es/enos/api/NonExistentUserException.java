@@ -10,8 +10,8 @@
 /**
  * Created by bmah on 3/31/14.
  */
-public class NonExistantUserException extends ENOSException {
-    public NonExistantUserException(String user) {
+public class NonExistentUserException extends ENOSException {
+    public NonExistentUserException(String user) {
         super(user);
     }
 }
