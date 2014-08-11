@@ -97,16 +97,16 @@ public class EsmondClient {
         try {
             URL u = new URL(url);
             em = mapper.readValue(u, measurementType(filter.getToolName()));
+
+            // Set the base URL for retrieving this Measurement object.  We'll need this
+            // when retrieving data because we need to remember where the Measurement object came from.
+            for (EsmondMeasurement e : em) {
+                e.setBaseUrl(url.toString());
+                e.setClient(this);
+            }
         }
         catch (Exception e) {
             e.printStackTrace();
-        }
-
-        // Set the base URL for retrieving this Measurement object.  We'll need this
-        // when retrieving data because we need to remember where the Measurement object came from.
-        for (EsmondMeasurement e : em) {
-            e.setBaseUrl(url.toString());
-            e.setClient(this);
         }
 
         return em;
@@ -139,16 +139,17 @@ public class EsmondClient {
 
         try {
             em = mapper.readValue(metadataURI.toURL(), measurementType(psm.getToolName()));
+
+
+            // Set the base URL for retrieving this Measurement object.  We'll need this
+            // when retrieving data because we need to remember where the Measurement object came from.
+            for (EsmondMeasurement e : em) {
+                e.setBaseUrl(metadataURI.toString());
+                e.setClient(this);
+            }
         }
         catch (Exception e) {
             e.printStackTrace();
-        }
-
-        // Set the base URL for retrieving this Measurement object.  We'll need this
-        // when retrieving data because we need to remember where the Measurement object came from.
-        for (EsmondMeasurement e : em) {
-            e.setBaseUrl(metadataURI.toString());
-            e.setClient(this);
         }
 
         return em;
