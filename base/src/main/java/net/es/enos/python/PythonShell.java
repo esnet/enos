@@ -174,12 +174,17 @@ public class PythonShell {
         }
         // Retrieve the python search path
 	    try {
+		    path = new File(BootStrap.rootPath.toString() + KernelThread.currentKernelThread().getCurrentDirectory() + "/" + command);
+		    if (path.exists()) {
+			    return path.toString();
+		    }
 		    path = new File(BootStrap.rootPath.resolve("bin").resolve(command).toString());
 		    if (path.exists()) {
 			    return path.toString();
 		    }
 	    } catch (SecurityException e) {
 	    }
+
 	    try {
 		    Path normalized = KernelThread.currentKernelThread().getUser().getHomePath().normalize().toRealPath();
 		    path = new File(normalized.resolve(command).toString());

@@ -24,6 +24,7 @@ import jline.console.ConsoleReader;
 import jline.console.ENOSConsoleReader;
 import jline.console.completer.ArgumentCompleter;
 import jline.console.completer.StringsCompleter;
+import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
 
 
@@ -116,7 +117,7 @@ public class Shell {
 
         // Initialize command completion with commands from modules.
         Set<String> commandNames = ShellCommandsFactory.getCommandNames();
-	    String files[] = new File(Paths.get(new File(KernelThread.currentKernelThread().getUser().getHomePath().toString()).toPath().normalize().toString()).toString()).list();
+	    String files[] = new File(Paths.get(BootStrap.rootPath.toString() + KernelThread.currentKernelThread().getCurrentDirectory()).toString()).list();
 
 	    this.stringsCompleter = new StringsCompleter(commandNames);
 	    this.fileCompleter = new StringsCompleter(files);
@@ -244,7 +245,7 @@ public class Shell {
                         // Assume static method    TODO: lomax@es.net to be revisited
                         method.invoke(null, args, this.in, this.out, this.out);
                     }
-	                files = new File(Paths.get(new File(KernelThread.currentKernelThread().getUser().getHomePath().toString()).toPath().normalize().toString()).toString()).list();
+	                files = new File(Paths.get(BootStrap.rootPath.toString() + KernelThread.currentKernelThread().getCurrentDirectory()).toString()).list();
 	                this.fileCompleter = new StringsCompleter(files);
 	                this.argCompleter = new ArgumentCompleter(stringsCompleter, fileCompleter);
                 } catch (IllegalAccessException e) {
