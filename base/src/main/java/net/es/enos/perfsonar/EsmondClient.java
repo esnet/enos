@@ -66,9 +66,16 @@ public class EsmondClient {
             if (tool.equalsIgnoreCase("bwctl/iperf") ||
                 tool.equalsIgnoreCase("bwctl/iperf3") ||
                 tool.equalsIgnoreCase("bwctl/nuttcp")) {
-                return new TypeReference<EsmondThroughputMeasurement[]>() {
-                };
-            } else {
+                return new TypeReference<EsmondThroughputMeasurement[]>() { };
+            }
+            else if (tool.equalsIgnoreCase("powstream") ||
+                     tool.equalsIgnoreCase("bwctl/ping")) {
+                return new TypeReference<EsmondPacketSampleMeasurement[]>() { };
+            }
+            else if (tool.equalsIgnoreCase("bwctl/tracepath")) {
+                return new TypeReference<EsmondPacketTraceMeasurement[]>() { };
+            }
+            else {
                 return new TypeReference<EsmondMeasurement []>() { };
             }
         }
