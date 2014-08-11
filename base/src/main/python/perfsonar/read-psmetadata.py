@@ -1,4 +1,4 @@
-from net.es.enos.api import SimpleLookupService
+from net.es.enos.perfsonar import SimpleLookupService
 from net.es.lookup.queries.Network import PSMetadataQuery
 
 # Query sls to get stuff

@@ -1,6 +1,6 @@
-from net.es.enos.api import EsmondClient
-from net.es.enos.api import EsmondMeasurementFilter
-from net.es.enos.api import EsmondDataFilter
+from net.es.enos.perfsonar import EsmondClient
+from net.es.enos.perfsonar import EsmondMeasurementFilter
+from net.es.enos.perfsonar import EsmondDataFilter
 
 # Configuration
 baseUrl = "http://lbl-pt1.es.net:9085/esmond/perfsonar/archive"

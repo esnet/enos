@@ -28,11 +28,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.api;
+package net.es.enos.perfsonar;
 
 import net.es.lookup.common.exception.RecordException;
 import net.es.lookup.records.Network.PSMetadataRecord;
-import net.es.lookup.records.Record;
 import org.codehaus.jackson.annotate.JsonIgnore;
 
 import java.net.InetAddress;

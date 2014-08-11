@@ -28,7 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.api;
+package net.es.enos.perfsonar;
 
 import org.slf4j.Logger;
 import org.codehaus.jackson.map.ObjectMapper;

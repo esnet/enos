@@ -28,7 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.api;
+package net.es.enos.perfsonar;
 
 /**
  * Encapsulation of esmond filter on data sets by time

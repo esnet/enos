@@ -28,20 +28,20 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.api;
+package net.es.enos.perfsonar;
 
 /**
- * Esmond throughput measurement data point
+ * Base class of esmond data points
  * Created by bmah on 8/6/14.
  */
-public class EsmondDoubleTimeSeriesObject extends EsmondTimeSeriesObject {
-    protected double val;
+public class EsmondTimeSeriesObject {
+    protected long ts; // Use long in places where we'd do time_t on UNIX
 
-    public double getVal() {
-        return val;
+    public long getTs() {
+        return ts;
     }
 
-    public void setVal(double val) {
-        this.val = val;
+    public void setTs(long ts) {
+        this.ts = ts;
     }
 }

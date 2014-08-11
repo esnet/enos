@@ -28,20 +28,44 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package net.es.enos.api;
+package net.es.enos.perfsonar;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 
 /**
- * Base class of esmond data points
- * Created by bmah on 8/6/14.
+ * Base class of esmond filter objects.
+ * This basically encapsulates the query string and the encoding needed
+ * to create it.
+ * Created by bmah on 8/5/14.
  */
-public class EsmondTimeSeriesObject {
-    protected long ts; // Use long in places where we'd do time_t on UNIX
+abstract public class EsmondFilter {
 
-    public long getTs() {
-        return ts;
+    /**
+     * Helper class to construct query string
+     */
+    protected class QueryString {
+
+        private String query = "";
+
+        void add(String key, String value) {
+            if (!query.isEmpty()) {
+                query += "&";
+            }
+            try {
+                query += URLEncoder.encode(key, "UTF-8");
+                query += "=";
+                query += URLEncoder.encode(value, "UTF-8");
+            }
+            catch (UnsupportedEncodingException e) {
+                throw new RuntimeException("barf");
+            }
+        }
+
+        public String getQuery() {
+            return query;
+        }
     }
 
-    public void setTs(long ts) {
-        this.ts = ts;
-    }
+    abstract public String toUrlQueryString();
 }
