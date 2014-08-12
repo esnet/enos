@@ -13,9 +13,6 @@ package net.es.enos.api;
  * Generic Node Class
  */
 public class Node extends Resource {
-    public static final String CanOpenFlow1 = "canOpenFlow1";  // OpenFlow 1.0 support
-    public static final String CanOpenFlow3 = "canOpenFlow2";  // OpenFlow 1.3 support
-    public static final String NODES_DIR = "nodes";
 
     public Node (String name) {
         super (name);

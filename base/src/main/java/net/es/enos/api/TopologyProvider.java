@@ -11,17 +11,13 @@ package net.es.enos.api;
 
 import net.es.enos.esnet.ESnetLink;
 import net.es.enos.esnet.ESnetNode;
-import org.codehaus.plexus.util.StringInputStream;
-import org.codehaus.plexus.util.StringOutputStream;
-import org.jgrapht.Graph;
+import org.codehaus.jackson.annotate.JsonIgnore;
 import org.jgrapht.graph.DefaultListenableGraph;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 
 
 /**
@@ -70,8 +66,10 @@ public abstract class TopologyProvider {
      * Returns the Node indexed by Link. When links are directional, the source Node is indexed.
      *
      * @return a Node or null if not found
+     * @param linkId
      */
-    public HashMap<String, Node> getNodeByLink() {
+    @JsonIgnore
+    public Node getNodeByLink(String linkId) {
         return null;
     }
 
@@ -79,8 +77,10 @@ public abstract class TopologyProvider {
      * Returns the Ports indexed by Link. When links are directional, the source Port is indexed.
      *
      * @return a port or null if not found.
+     * @param linkId
      */
-    public HashMap<String, Port> getPortByLink() {
+    @JsonIgnore
+    public Port getPortByLink(String linkId) {
         return null;
     }
 

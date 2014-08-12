@@ -193,6 +193,7 @@ public class GraphSecuredResource extends SecuredResource {
         }
     }
 
+
     /**
      * Creates a Graph from GraphSecuredResource.
      * @return
@@ -249,6 +250,7 @@ public class GraphSecuredResource extends SecuredResource {
         for (Node srcNode : nodes) {
             for(Node dstNode : nodes) {
                 if (srcNode.equals(dstNode)) {
+                    // Already added
                     continue;
                 }
                 LinkDesc linkDesc = new LinkDesc();
@@ -262,4 +264,7 @@ public class GraphSecuredResource extends SecuredResource {
         }
         return topoGraph;
     }
+
+
+
 }

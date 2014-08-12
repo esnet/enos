@@ -1,53 +1,31 @@
 /*
- * Copyright (c) 2014, Regents of the University of California.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its contributors
- * may be used to endorse or promote products derived from this software without
- * specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * Copyright (c) 2014, Regents of the University of California  All rights reserved.
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ * 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 package net.es.enos.esnet;
 
 import net.es.enos.api.*;
 import org.jgrapht.graph.DefaultListenableGraph;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.joda.time.DateTime;
 
-import java.io.*;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 
 
 /**
  * Created by lomax on 5/16/14.
  */
 public class ESnetTopology  extends TopologyProvider {;
-    private final Logger logger = LoggerFactory.getLogger(ESnetTopology.class);
+    public final Logger logger = LoggerFactory.getLogger(ESnetTopology.class);
 
     private HashMap<String, ESnetNode> nodes = new HashMap<String, ESnetNode>();
     private HashMap<String,Node> nodeByLink = new HashMap<String, Node>();
@@ -71,18 +49,6 @@ public class ESnetTopology  extends TopologyProvider {;
      * @return returns the indexed Map.
      */
     public HashMap<String, List<Link>> getInternalLinks() { return internalLinks; }
-
-    /**
-     * Returns a HashMap of the Nodes indexed by Link.
-     * @return
-     */
-    public HashMap<String, Node> getNodeByLink() {
-        return nodeByLink;
-    }
-
-    public HashMap<String, Port> getPortByLink() {
-        return portByLink;
-    }
 
     public HashMap<String, Link> getLinks() {
         return links;
@@ -232,13 +198,13 @@ public class ESnetTopology  extends TopologyProvider {;
                             ESnetLink l = (ESnetLink) this.links.get(link.getId());
                             continue;
                         }
-                        if ( ! this.nodeByLink.containsKey(link.getId())) {
+                        if ( ! this.nodeByLink.containsKey(idToUrn(link.getId(), 5))) {
                             // Add the node to the index per Link
-                            this.nodeByLink.put(link.getId(), node);
+                            this.nodeByLink.put(idToUrn(link.getId(), 5), node);
                         }
-                        if (! this.portByLink.containsKey(link.getId())) {
+                        if (! this.portByLink.containsKey(idToUrn(link.getId(), 5))) {
                             // Add the port to portbyLink index
-                            this.portByLink.put(link.getId(), port);
+                            this.portByLink.put(idToUrn(link.getId(), 5), port);
                         }
 
                         String localDomain = ESnetTopology.idToDomain(link.getId());
@@ -329,7 +295,7 @@ public class ESnetTopology  extends TopologyProvider {;
                     throw new RuntimeException ("Link is not an ESnetLink");
                 }
                 ESnetLink link = (ESnetLink) l;
-                Node n = this.nodeByLink.get(link.getId());
+                Node n = this.getNodeByLink(link.getId());
                 if (n == null) {
                     // This should not happen
                     throw new RuntimeException("Link without Nodes " + link.getId());
@@ -367,7 +333,7 @@ public class ESnetTopology  extends TopologyProvider {;
                     graph.setEdgeWeight(link, metric);
                 } else if (weightType == WeightType.MaxBandwidth) {
                     // Retrieve the source port of the link
-                    Port port = this.portByLink.get(link.getId());
+                    Port port = this.getPortByLink(link.getId());
                     // This is the port of the source Node connected to that Link
                     OSCARSReservations.PortReservation res = reservations.get(port);
                     if (res != null) {
@@ -406,11 +372,18 @@ public class ESnetTopology  extends TopologyProvider {;
     }
 
     static public String idToUrn (String id, int pos) {
-        int endPos=0;
-        for (int i=0; i <= pos; ++i) {
-            endPos = id.indexOf(":", endPos + 1);
+
+        int size = id.length();
+        int count = 0;
+        int cur;
+        for (cur=0; cur < size; ++cur) {
+            if (id.charAt(cur) == ':') {
+                if (count++ == pos) {
+                    break;
+                }
+            }
         }
-        return id.substring(0,endPos);
+        return id.substring(0,cur);
     }
 
     public static void registerToFactory() throws IOException {
@@ -476,29 +449,30 @@ public class ESnetTopology  extends TopologyProvider {;
         return null;
     }
     /**
-     * Search links for id matching the provided id. Search first for exact match and then for link with
-     * linkid of "*".
+     * Retrieve the Port of the provided link.
      * @param id
      * @return
      */
-    public ESnetPort searchPortByLink(String id) {
+    public ESnetPort getPortByLink(String id) {
 
-        if (this.portByLink.containsKey(id)) {
+        String normalized = idToUrn(id,5);
+        if (this.portByLink.containsKey(normalized)) {
             // Exact match
-            return (ESnetPort) this.portByLink.get(id);
-        }
-        String tmpId = id;
-        tmpId = tmpId.substring(0,tmpId.lastIndexOf(":")) + "*";
-        if (this.links.containsKey(tmpId)) {
-            // Match with "*" (any)
-            return (ESnetPort) this.portByLink.get(tmpId);
-        }
-        tmpId = tmpId.substring(0,tmpId.lastIndexOf(":")) + "0";
-        if (this.links.containsKey(tmpId)) {
-            // Match with "*" (any)
-            return (ESnetPort) this.portByLink.get(tmpId);
+            return (ESnetPort) this.portByLink.get(normalized);
         }
         return null;
     }
+    /**
+    * Retrieve the Node of the provided link.
+    * @return
+    */
+    public ESnetNode getNodeByLink(String id) {
+        String normalized = idToUrn(id,5);
+        if (this.nodeByLink.containsKey(normalized)) {
+            // Exact match
+            return (ESnetNode) this.nodeByLink.get(normalized);
+        }
+        return null;
 
+    }
 }

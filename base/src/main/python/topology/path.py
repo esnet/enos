@@ -1,6 +1,6 @@
 from org.jgrapht.alg import DijkstraShortestPath
 from net.es.enos.api import TopologyFactory,TopologyProvider
-from net.es.enos.esnet import ESnetTopology,OSCARSReservations
+from net.es.enos.esnet import OSCARSReservations
 from org.joda.time import DateTime
 import sys
 
@@ -18,8 +18,6 @@ topo = topology.retrieveTopologyProvider("localLayer2")
 graph = topo.getGraph(TopologyProvider.WeightType.TrafficEngineering)
 
 nodes = topo.getNodes()
-nodeByLink = topo.getNodeByLink()
-portByLink = topo.getPortByLink()
 
 srcNode = topo.getNode(command_args[2]);
 dstNode = topo.getNode(command_args[3]);
@@ -38,8 +36,8 @@ print "Start Node= " + srcNode.getId()
 maxReservable = -1
 
 for link in path:
-    node = nodeByLink.get(link.getId())
-    port = portByLink.get(link.getId())
+    node = topo.getNodeByLink(link.getId())
+    port = topo.getPortByLink(link.getId())
 
     portReservation = reserved.get(port)
     if portReservation == None:

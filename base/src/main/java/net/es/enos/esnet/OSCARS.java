@@ -9,10 +9,12 @@
 
 package net.es.enos.esnet;
 
-import net.es.enos.api.*;
+import net.es.enos.api.GraphSecuredResource;
+import net.es.enos.api.Link;
+import net.es.enos.api.Node;
+import net.es.enos.api.Path;
 import net.es.enos.kernel.container.Container;
 import net.es.enos.kernel.container.Containers;
-import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
 import org.joda.time.DateTime;
 
@@ -25,7 +27,6 @@ public final class OSCARS {
 
     public static String ROOT_CONTAINER = "/sys/services/oscars";
     public static String FULL_TOPOLOGY_CONTAINER = ROOT_CONTAINER + "/" + "all";
-    public static String FULL_TOPOLOGY_RESOURCE = FULL_TOPOLOGY_CONTAINER + "/" + "full.graph";
 
     /**
      * Checks if the user can provision the provided path. A user is authorized to
@@ -55,13 +56,6 @@ public final class OSCARS {
         Containers.createContainer(ROOT_CONTAINER);
         // Create the container that contains the full OSCARS topology
         Containers.createContainer(FULL_TOPOLOGY_CONTAINER);
-        // Retrieve OSCARS topology GraphSecuredResource
-        TopologyFactory topologyFactory = TopologyFactory.instance();
-        TopologyProvider topologyProvider = topologyFactory.retrieveTopologyProvider("localLayer2");
-        Graph graph = topologyProvider.getGraph(TopologyProvider.WeightType.TrafficEngineering);
-        GraphSecuredResource topologyGraph = new GraphSecuredResource(graph);
-        // Store the graph into the container. TODO:
-        topologyGraph.save(Containers.getPath(FULL_TOPOLOGY_RESOURCE).toString());
 
     }
 

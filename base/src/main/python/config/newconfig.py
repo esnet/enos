@@ -39,19 +39,19 @@ ESnet.registerToFactory()
 
 createDTN(name="bnl-diskpt1",type="10000000000",
           interfaces =
-              ["eth2","10000000000",["3609","834","3179","343","916"]],
-          links = ["eth2","10000000000","urn:ogf:network:es.net:bnl-mr3:xe-7/0/0"],
+              [["eth2","10000000000",["3609","834","3179","343","916"]]],
+          links = ["eth2","10000000000","urn:ogf:network:es.net:bnl-mr3:xe-7/3/0"],
           )
 
 createDTN(name="lbl-diskpt1",type="10000000000",
           interfaces =
-              ["eth2","10000000000",["1300","3609","246","202","916"]],
+              [["eth2","10000000000",["1300","3609","246","202","916"]]],
           links = ["eth2","10000000000","urn:ogf:network:es.net:lbl-mr2:xe-9/3/0"],
           )
 
 createDTN(name="anl-diskpt1",type="10000000000",
           interfaces =
-              ["eth2","10000000000",["1300","3609","246","202","916"]],
-          links = ["eth2","10000000000","urn:ogf:network:es.net:anl-mr2:xe-1/2/0]"],
+              [["eth2","10000000000",["1300","3609","246","202","916"]]],
+          links = ["eth2","10000000000","urn:ogf:network:es.net:anl-mr2:xe-1/2/0"],
           )
 

@@ -96,7 +96,7 @@ public class ESnetNode extends Node implements Comparable<ESnetNode> {
 
     @Override
     public String toString() {
-	    return this.getHostName();
+	    return ESnetTopology.idToName(this.getId());
     }
 
     @Override
