@@ -100,6 +100,9 @@ public class ESnetTopology  extends TopologyProvider {;
     private void parseTopology() {
         OSCARSTopologyPublisher publisher = new OSCARSTopologyPublisher();
         ESnetJSONTopology jsonTopology = publisher.toJSON();
+        if (jsonTopology == null) {
+            throw new RuntimeException ("Cannot retrieve topology");
+        }
         // Retrieve from JSON Domain, Node and Link objects and index them into the various HashMaps
         List<ESnetDomain> domains = jsonTopology.getDomains();
 	    HashMap<String, List<ESnetNode>> locationToNode = new HashMap<> ();

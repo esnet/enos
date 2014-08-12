@@ -91,6 +91,9 @@ public class OSCARSTopologyPublisher {
         // Today's topology has not yet been downloaded or there was a problem reading it from file. Download
         // from URL.
         String topology = this.loadFromUrl();
+        if (topology == null) {
+            return null;
+        }
         // Save it into the cache / archive
         try {
             this.saveTopology(topology);
@@ -138,6 +141,11 @@ public class OSCARSTopologyPublisher {
     }
 
     private void saveToFile (File file, String wireFormat) throws IOException {
+        if ((wireFormat == null) || (wireFormat.length() == 0)) {
+            // Nothing to save, just return
+            logger.warn("Topology wire format is empty or null");
+            return;
+        }
         /* Make sure all directories exist */
         file.getParentFile().mkdirs();
         OutputStream out = new FileOutputStream(file);
@@ -213,8 +221,7 @@ public class OSCARSTopologyPublisher {
             return output;
 
         } catch (Exception e) {
-
-            e.printStackTrace();
+           logger.warn("Cannot retrieve the topology");
             return null;
         }
     }
@@ -235,6 +242,10 @@ public class OSCARSTopologyPublisher {
         ObjectMapper mapper = new ObjectMapper();
 
         try {
+            String json = this.toString();
+            if ((json == null) || (json.length() == 0)) {
+                return null;
+            }
             JSONObject jsonObj = new JSONObject(this.toString());
             ESnetJSONTopology jsonTopology = mapper.readValue(jsonObj.toString(), new TypeReference<ESnetJSONTopology>()
             {
