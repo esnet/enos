@@ -271,7 +271,9 @@ public final class Users {
         // Check if fields entered contain valid characters (and don't contain colons)
         /* lomax@es.net: disabling this test in order to allow users to be the name of containers, or email address.
          * not sure if the test is really needed anyway.
-
+         * todo Revisit: dhua@es.net->lomax@es.net: if we want to be safe, we should still check if any field contains a colon (since that's how our password file fields are delimited)
+         * Username check was needed because some symbols may be invalid on certain file systems (colon, semicolon, pipe, comma, slash, etc --esp in Windows), and the directory name is created from username
+         *
         if (! username.matches("[a-zA-Z0-9_/]+") || name.contains(":")
                 || organization.contains(":") || email.contains(":")
                 || ! email.contains("@") || ! email.contains(".")) {
@@ -294,7 +296,7 @@ public final class Users {
             throw new UserAlreadyExistException(username);
         }
 
-        // Construct the new Profile. A null, empty or * password means that password is disable for the user.
+        // Construct the new Profile. A null, empty or * password means that password is disabled for the user.
         UserProfile userProfile = new UserProfile(
                 username,
                 (password != null) && (!password.equals("") && (!password.equals("*"))) ?
@@ -419,7 +421,7 @@ public final class Users {
     }
 
 
-	public boolean mkdir (File homeDir) {
+	public boolean mkdir (File homeDir) throws SecurityException{
 		try {
 			KernelThread kt = KernelThread.currentKernelThread();
 			String username = kt.getUser().getName();
@@ -432,7 +434,7 @@ public final class Users {
 			// Make sure directory doesn't already exist.
 			if (! homeDir.exists()) {
 				// Will throw exception if user does not have proper permissions to write in directory.
-				homeDir.mkdir();
+				homeDir.mkdirs();
 			} else {
 				throw new IOException();
 			}
@@ -449,7 +451,7 @@ public final class Users {
 			// Commit ACL's
 			fileACL.store();
 
-		} catch (Exception e) {
+		} catch (UserException | IOException e) {
 			e.printStackTrace();
 			return false;
 		}

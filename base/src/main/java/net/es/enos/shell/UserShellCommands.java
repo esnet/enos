@@ -227,7 +227,6 @@ public class UserShellCommands {
 		logger.info("mkdir with {} arguments", args.length);
 
 		PrintStream o = new PrintStream(out);
-		boolean mkdir = false;
 		Path dirPath = null;
 
 		// Argument checking
@@ -239,10 +238,14 @@ public class UserShellCommands {
         // Get canonical path
 		dirPath = FileUtils.toRealPath(args[1]) ;
 		File newDir = new File (dirPath.toString());
-		// Create new directory
+		// Create new directory and write ACLs
 		try {
-			newDir.mkdirs();
-            o.println(args[1] + " has been created.");
+			boolean r = Users.getUsers().mkdir(newDir);
+			if (r) {
+				o.println(args[1] + " has been created.");
+			} else {
+				o.println("mkdir failed.");
+			}
 		} catch (SecurityException e) {
 			o.println("Invalid permissions to access this directory");
 		}
@@ -285,28 +288,20 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.currentKernelThread().getUser().getHomePath().normalize().toString();
-
 		// Argument checking
 		if (args.length != 2 ) {
 			o.println("Incorrect number of args");
 			return;
 		}
 
-		String dest = args[1];
-		if (dest.startsWith("/")) {
-			dest = startsSlash(dest);
-		}
-
-		File catFile = new File (Paths.get(userPath).toString());
-
-		Path normalizedPath = catFile.toPath().normalize();
-		catFile = new File (Paths.get(normalizedPath.toString()).toString());
+		Path dirPath = null;
+		dirPath = FileUtils.toRealPath(args[1]) ;
+		File catDir = new File (dirPath.toString());
 
 		// Make sure user has permission to read this directory. If not, outputs error message.
 		try {
 			try {
-				BufferedReader read = new BufferedReader(new FileReader(Paths.get(catFile.toString(), dest).toString()));
+				BufferedReader read = new BufferedReader(new FileReader(Paths.get(catDir.toString()).toString()));
 				String print;
 				while((print = read.readLine()) != null) {
 					o.println(print);
@@ -334,32 +329,17 @@ public class UserShellCommands {
 
 		PrintStream o = new PrintStream(out);
 
-		String userPath = KernelThread.currentKernelThread().getUser().getHomePath().normalize().toString();
-
-		// Argument checking
-		if (args.length != 2 ) {
-			o.println("Incorrect number of args");
-			return;
-		}
-
-		String dest = args[1];
-		if (dest.startsWith("/")) {
-			dest = startsSlash(dest);
-		}
-
-		File rmFile = new File (Paths.get(userPath, dest).toString());
-
-		Path normalizedPath = rmFile.toPath().normalize();
-		rmFile = new File (Paths.get(normalizedPath.toString()).toString());
+		Path dirPath = null;
+		dirPath = FileUtils.toRealPath(args[1]) ;
+		File rmFile = new File (dirPath.toString());
 
 		try {
 			// Make sure user has permission to write in this directory. If not, outputs error message.
 			rmFile.canWrite();
 			if (rmFile.exists()) {
 				rmFile.delete();
-
 				// Delete acl file associated with file if it exists
-				File aclDelete = new File(Paths.get(normalizedPath.getParent().toString(), ".acl", dest).toString());
+				File aclDelete = new File(Paths.get(dirPath.getParent().toString(), ".acl", args[1]).toString());
 				aclDelete.delete();
 				logger.debug("rm success");
 			} else {
@@ -385,17 +365,6 @@ public class UserShellCommands {
 		o.println(userPath);
 	}
 
-
-	private static String startsSlash(String dest) {
-		dest = dest.substring(1);
-		String newPath = "";
-		String currentPath = KernelThread.currentKernelThread().getUser().getHomePath().normalize().toString();
-		int occur = currentPath.length() - currentPath.replace("/", "").length();
-		for (int i = 0; i < occur; i++) {
-			newPath = newPath + "../";
-		}
-		return newPath + Users.getUsers().getEnosRootPath() + "/" + dest;
-	}
 
     static private void displayACL(String fileName, InputStream in, OutputStream out, OutputStream err) {
         PrintStream o = new PrintStream(out);
