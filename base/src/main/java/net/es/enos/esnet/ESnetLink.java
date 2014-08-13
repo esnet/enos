@@ -166,10 +166,7 @@ public class ESnetLink extends Link {
         reverseLink.setType(this.getType());
         reverseLink.setVlanRangeAvailability(this.getVlanRangeAvailability());
         reverseLink.setVlanTranslation(this.isVlanTranslation());
-        reverseLink.setCapabilities(this.getCapabilities());
         reverseLink.setDescription("reverse-" + this.getDescription());
-        reverseLink.setHasReadAccess(this.getHasReadAccess());
-        reverseLink.setHasWriteAccess(this.getHasWriteAccess());
         reverseLink.setParentResources(this.getParentResources());
         return reverseLink;
     }

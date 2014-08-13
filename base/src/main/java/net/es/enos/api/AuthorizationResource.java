@@ -23,7 +23,7 @@ import java.util.List;
  * is preserved verifies that the service is authorized. Break the link in either direction means that the
  * provided service is no longer authorized.
  */
-public class AuthorizationResource extends SecuredResource {
+public class AuthorizationResource extends Resource implements SecuredResource {
     private String authorization;
 
     /**
@@ -43,11 +43,6 @@ public class AuthorizationResource extends SecuredResource {
 
     public void setAuthorization(String authorization) {
         this.authorization = authorization;
-    }
-
-    @Override
-    public final List<String> getParentResources() {
-        return null;
     }
 
     @JsonIgnore

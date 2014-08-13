@@ -9,6 +9,7 @@
 
 package net.es.enos.api;
 
+import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.users.User;
 import org.codehaus.jackson.annotate.JsonIgnore;
 
@@ -21,19 +22,12 @@ import java.util.List;
 public class Resource extends PersistentObject {
     protected String resourceName;
     protected String description;
-    private List<User> hasWriteAccess;
-    private List<User> hasReadAccess;
-    private List<String> capabilities;
     private List<String> parentResources;
     private List<String> childrenResources;
     private String creationStackTrace;
 
     public Resource() {
         this.setCreationStackTrace();
-        // Create, if necessary, the capabilities List.
-        if (this.capabilities == null) {
-            this.capabilities = new ArrayList<String>();
-        }
     }
 
     public Resource(String resourceName) {
@@ -57,79 +51,20 @@ public class Resource extends PersistentObject {
         this.description = description;
     }
 
-    public List<User> getHasWriteAccess() {
-        return hasWriteAccess;
-    }
-
-    public void setHasWriteAccess(List<User> hasWriteAccess) {
-        this.hasWriteAccess = hasWriteAccess;
-    }
-
-    public List<User> getHasReadAccess() {
-        return hasReadAccess;
-    }
-
-    public void setHasReadAccess(List<User> hasReadAccess) {
-        this.hasReadAccess = hasReadAccess;
-    }
-
-    public List<String> getCapabilities() {
-        return capabilities;
-    }
-
-    public void setCapabilities(List<String> capabilities) {
-        this.capabilities = capabilities;
-    }
-
-    public List<String> getChildrenResources() {
-        return childrenResources;
-    }
-    public List<String> getParentResources() {
-        return parentResources;
-    }
-
-    public void setChildrenResources(List<String> childrenResources) {
-        this.childrenResources = childrenResources;
-
-    }
-
-    public void setParentResources(List<String> parentResources) {
-        this.parentResources = parentResources;
-    }
-
-    public synchronized void addProperties(String property) {
-        this.capabilities.add(property);
-    }
-    public void addProperties(String[] properties) {
-        for (String property : properties) {
-            this.capabilities.add(property);
-        }
-    }
-
     public Resource (Resource object) {
         this.setCreationStackTrace();
 
+        if (object instanceof SecuredResource) {
+            // Cannot clone SecuredResource
+            throw new SecurityException("operation is not permitted");
+        }
         this.resourceName = object.getResourceName();
-        if (object.getCapabilities() !=null) {
-            this.capabilities = new ArrayList<String>();
-            this.capabilities.addAll(object.getCapabilities());
-        }
-        this.description = object.getDescription();
-        this.setResourceClassName(this.getClass().getCanonicalName());
-        if (object.getHasReadAccess() != null) {
-            this.setHasReadAccess(new ArrayList<User>());
-            this.getHasReadAccess().addAll(object.getHasReadAccess());
-        }
-        if (object.getHasWriteAccess() != null) {
-            this.setHasWriteAccess(new ArrayList<User>());
-            this.getHasWriteAccess().addAll(object.getHasWriteAccess());
-        }
+
         if (object.getParentResources() != null) {
             this.setParentResources(new ArrayList<String>());
             this.getParentResources().addAll(object.getParentResources());
         }
     }
-
 
     @Override
     public boolean equals(Object o) {
@@ -161,5 +96,51 @@ public class Resource extends PersistentObject {
     @Override
     public String toString() {
         return this.resourceName;
+    }
+
+    public final synchronized void setResourceName (List<String> parentResources) {
+        if (! (this instanceof SecuredResource) ||
+                (this.getResourceName() == null) ||
+                (KernelThread.currentKernelThread().isPrivileged())) {
+            this.setResourceName(parentResources);
+        } else {
+            throw new SecurityException("Operation not permitted");
+        }
+    }
+
+    public final synchronized void setChildrenResources(List<String> childrenResources) {
+        if (!(this instanceof SecuredResource) ||
+              (this.getChildrenResources() == null) ||
+              (KernelThread.currentKernelThread().isPrivileged())) {
+            this.setChildrenResources(childrenResources);
+        } else {
+            throw new SecurityException("Operation not permitted");
+        }
+    }
+
+    public final synchronized void setParentResources(List<String> parentResources) {
+        if (! (this instanceof SecuredResource) ||
+              (this.getParentResources() == null) ||
+              (KernelThread.currentKernelThread().isPrivileged())) {
+            this.setParentResources(parentResources);
+        } else {
+            throw new SecurityException("Operation not permitted");
+        }
+    }
+
+    public final synchronized List<String> getParentResources() {
+        if (!(this instanceof SecuredResource)) {
+            return this.parentResources;
+        }
+        // This is a secured Resource. Clone the list first.
+        return new ArrayList<String>(this.parentResources);
+    }
+
+    public final synchronized List<String> getChildrenResources() {
+        if (!(this instanceof SecuredResource)) {
+            return this.childrenResources;
+        }
+        // This is a secured Resource. Clone the list first.
+        return new ArrayList<String>(this.childrenResources);
     }
 }

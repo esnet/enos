@@ -9,30 +9,37 @@
 
 package net.es.enos.api;
 
+import net.es.enos.kernel.exec.KernelThread;
 import org.codehaus.jackson.annotate.JsonIgnore;
-import org.jgrapht.Graph;
-import org.jgrapht.WeightedGraph;
-import org.jgrapht.graph.DefaultListenableGraph;
-import org.jgrapht.graph.DirectedMultigraph;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
-
 
 /**
- * This class is a SecuredResource representation of a graph. The typical use of this class is to
- * add a graph into a container and keeping a secured set of parents and children graph. For instance
- * a graph representing a virtual topology has parent graph(s) representing topologies at lower network
- * layers (or less virtualized). Children graph reprense topologies using (virtualizes) resources of
- * a graph.
+ * A SecureResource is a Resource that belongs to a container. Its name is its path name within
+ * the Container directory i.e, a Secured Resource "myresource" in a Container /applications/myapp
+ * is named /applications/myapp/myresource.
  *
- * Since a GraphSecuredResource extends SecuredResource adding or removing graphs in the parent or children
- * requires to be privileged. Typically services implementing SysCall will create and modify GraphSecuredResources
- * instance.
+ * A SecuredResource also requires to be privileged in order to change or modify the list of children and
+ * parents.
  */
-public class GraphSecuredResource extends GraphResource implements SecuredResource {
+public class ResourceUtils extends Resource {
+    private String containerName;
+
+
+    public String getContainerName() {
+        return this.containerName;
+    }
+
+    @JsonIgnore
+    public String getShortName() {
+        String[] items = this.getResourceName().split("/");
+        return items[items.length - 1];
+    }
+
+    public static String toContainerName (String name) {
+        String[] elems = name.split("/");
+        return name.substring(0, name.length() - (elems[elems.length - 1].length() +1));
+    }
 
 }

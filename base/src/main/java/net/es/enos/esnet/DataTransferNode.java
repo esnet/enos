@@ -192,24 +192,24 @@ public class DataTransferNode extends Host {
         }
     }
 
-    public static GraphSecuredResource getAbstractFullMesh() {
+    public static GraphResource getAbstractFullMesh() {
         List<Node> dtns = DataTransferNode.getAll();
-        GraphSecuredResource graph = GraphSecuredResource.getFullMesh(dtns);
+        GraphResource graph = GraphResource.getFullMesh(dtns);
         return graph;
     }
 
-    public static GraphSecuredResource getRemoteFullMesh() {
+    public static GraphResource getRemoteFullMesh() {
         List<Node> remoteNodes = DataTransferNode.getRemoteAll();
-        GraphSecuredResource graph = GraphSecuredResource.getFullMesh(remoteNodes);
+        GraphResource graph = GraphResource.getFullMesh(remoteNodes);
         return graph;
     }
 
-    public static GraphSecuredResource getFullMesh() {
+    public static GraphResource getFullMesh() {
         TopologyProvider topo = TopologyFactory.instance().retrieveTopologyProvider(TopologyFactory.LOCAL_LAYER2);
         if (topo instanceof ESnetTopology) {
                 ESnetTopology topology = (ESnetTopology) topo;
             // First build the network full mesh graph
-            GraphSecuredResource graphResource = DataTransferNode.getRemoteFullMesh();
+            GraphResource graphResource = DataTransferNode.getRemoteFullMesh();
             // Second connect the DTN's to them
             List<Node> dtns = DataTransferNode.getAll();
             Graph graph = null;
@@ -226,8 +226,7 @@ public class DataTransferNode extends Host {
                 return null;
             }
             for (Node n : dtns) {
-                AbstractNode<Link> dtn = new AbstractNode<Link>(n,
-                                                                ((DataTransferNode) n).getRemoteLinks());
+                AbstractNode<Link> dtn = new AbstractNode<Link>(n,((DataTransferNode) n).getRemoteLinks());
                 // Add the DTN into the graph
 
                 graph.addVertex(dtn);
@@ -238,7 +237,7 @@ public class DataTransferNode extends Host {
                     graph.addEdge(dtn,node,link);
                 }
             }
-            return new GraphSecuredResource(graph);
+            return new GraphResource(graph);
         } else {
             return null;
         }

@@ -12,7 +12,7 @@ package net.es.enos.kernel.container;
 import net.es.enos.api.FileUtils;
 import net.es.enos.api.PersistentObject;
 import net.es.enos.api.Resource;
-import net.es.enos.api.SecuredResource;
+import net.es.enos.api.ResourceUtils;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
@@ -202,7 +202,7 @@ public class Containers {
      * @param resource  a SecureResource to be shared
      * @param container name of the container the resource is shared with
      */
-    public static void shareResource(SecuredResource resource, String container) {
+    public static void shareResource(ResourceUtils resource, String container) {
         Method method;
 
         method = KernelThread.getSysCallMethod(Containers.class, "do_shareResource");
@@ -216,7 +216,7 @@ public class Containers {
     @SysCall(
             name="do_shareResource"
     )
-    public static void do_shareResource(SecuredResource resource, String container) {
+    public static void do_shareResource(ResourceUtils resource, String container) {
 
         String currentContainer = KernelThread.currentKernelThread().getCurrentContainer().getName();
         String resourceContainer = resource.getContainerName();
@@ -248,7 +248,7 @@ public class Containers {
      * @param resource
      * @param container
      */
-    public static void unShareResource(SecuredResource resource, String container)  {
+    public static void unShareResource(ResourceUtils resource, String container)  {
         Method method;
 
         method = KernelThread.getSysCallMethod(Containers.class, "do_unShareResource");
@@ -261,7 +261,7 @@ public class Containers {
     @SysCall(
             name="do_unShareResource"
     )
-    public static void do_unShareResource(SecuredResource resource, String container) {
+    public static void do_unShareResource(ResourceUtils resource, String container) {
 
         String currentContainer = KernelThread.currentKernelThread().getCurrentContainer().getName();
         String resourceContainer = resource.getContainerName();
@@ -282,7 +282,7 @@ public class Containers {
 
     }
 
-    private static void removeShare(SecuredResource resource, String container) {
+    private static void removeShare(ResourceUtils resource, String container) {
 
         List<String> children = resource.getChildrenResources();
         if (children == null) {
@@ -301,13 +301,13 @@ public class Containers {
                     PersistentObject obj = PersistentObject.newObject(cloneResourceName);
                     obj.delete();
                     // unshare the clone itself
-                    if (obj instanceof SecuredResource) {
-                        SecuredResource cloneResource = (SecuredResource) obj;
+                    if (obj instanceof ResourceUtils) {
+                        ResourceUtils cloneResource = (ResourceUtils) obj;
                         List<String> cloneChildren = cloneResource.getChildrenResources();
                         if (cloneChildren != null) {
                             for (String cloneChild : cloneChildren) {
                                 removeShare(cloneResource,
-                                        SecuredResource.toContainerName(cloneResourceName));
+                                        ResourceUtils.toContainerName(cloneResourceName));
                             }
                         }
                     }
@@ -358,12 +358,12 @@ public class Containers {
         }
 
         PersistentObject obj = Resource.newObject(resourceName);
-        if (!(obj instanceof SecuredResource)) {
+        if (!(obj instanceof ResourceUtils)) {
             throw new SecurityException("Only SecuredResource can be imported");
         }
 
         // Clone the resource and save it in the current container.
-        SecuredResource resource = (SecuredResource) obj;
+        ResourceUtils resource = (ResourceUtils) obj;
         String newResourceName = currentContainer.getName() + "/" + resource.getShortName();
 
         List<String> parents = new ArrayList<String>();
@@ -371,7 +371,6 @@ public class Containers {
         resource.setParentResources(parents);
         resource.setChildrenResources(new ArrayList<String>());
 
-        resource.setContainerName(currentContainer.getName());
         resource.setResourceName(newResourceName);
         resource.save(newResourceName);
     }
