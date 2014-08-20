@@ -56,6 +56,9 @@ public final class OSCARS {
             throw new SecurityException("Cannot load AuthorizationResource " + auth + " Reason: " + e.getMessage());
         }
         Graph<Node,Link> graph = authResource.getAuthorizationGraph();
+        if (graph == null) {
+            throw new SecurityException("Cannot retrieve authorized graph");
+        }
     }
 
 
