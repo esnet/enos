@@ -17,7 +17,7 @@ topo = topology.retrieveTopologyProvider("localLayer2")
 
 graph = topo.getGraph(TopologyProvider.WeightType.TrafficEngineering)
 
-nodes = topo.getNodes()
+nodes = topo.getNodes()    1
 
 srcNode = topo.getNode(command_args[2]);
 dstNode = topo.getNode(command_args[3]);

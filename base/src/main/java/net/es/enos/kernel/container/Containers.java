@@ -9,10 +9,9 @@
 
 package net.es.enos.kernel.container;
 
+import net.es.enos.api.AuthorizationResource;
 import net.es.enos.api.FileUtils;
-import net.es.enos.api.PersistentObject;
 import net.es.enos.api.Resource;
-import net.es.enos.api.ResourceUtils;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.exec.annotations.SysCall;
@@ -195,51 +194,87 @@ public class Containers {
     }
 
     /**
-     * This method allows a SecuredResource to be shared with other containers. Containers then can import/clone
-     * the SecuredResource using the method importResource. This system call ensures that the list of children
-     * and parent resource is maintained. The thread invoking shareResource must either be privileged or have
-     * the ADMIN right in the container where the shared SecuredResource is.
-     * @param resource  a SecureResource to be shared
-     * @param container name of the container the resource is shared with
+     * The resource can be securely shared from the current container
+     *
+     * Both resources and authResource must have their resourceName set in order to be shared. Otherwise a
+     * RuntimeException is thrown.
+     * @param resource
+     * @param authResource
+     * @param destContainer
      */
-    public static void shareResource(ResourceUtils resource, String container) {
+    public static void shareResource(Resource resource,
+                                     AuthorizationResource authResource,
+                                     Container destContainer) {
         Method method;
 
         method = KernelThread.getSysCallMethod(Containers.class, "do_shareResource");
         try {
-            KernelThread.doSysCall(Container.class, method, resource, container);
+            KernelThread.doSysCall(Containers.class, method, resource,
+                                                            authResource,
+                                                            destContainer);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            }
+            throw new RuntimeException(e.getMessage());
         }
     }
 
     @SysCall(
             name="do_shareResource"
     )
-    public static void do_shareResource(ResourceUtils resource, String container) {
+    public static void do_shareResource(Resource resource,
+                                        AuthorizationResource authResource,
+                                        Container destContainer) throws IOException {
 
-        String currentContainer = KernelThread.currentKernelThread().getCurrentContainer().getName();
-        String resourceContainer = resource.getContainerName();
-        if (!KernelThread.currentKernelThread().getUser().isPrivileged()) {
-
-            if ((currentContainer == null) || !currentContainer.equals(resourceContainer)) {
+        Container currentContainer = KernelThread.currentKernelThread().getCurrentContainer();
+        ContainerACL currentContainerACL =  currentContainer.getACL();
+        User currentUser = KernelThread.currentKernelThread().getUser();
+        if (!currentUser.isPrivileged() &&
+            ((currentContainer == null) || currentContainerACL.canAdmin())) {
                 // Now allowed
                 throw new SecurityException("not permitted");
-            }
-            ContainerACL acl = KernelThread.currentKernelThread().getCurrentContainer().getACL();
-
-            if ((acl == null) || !acl.canAdmin(KernelThread.currentKernelThread().getUser().getName())) {
-                // Now allowed
-                throw new SecurityException("not permitted");
-            }
         }
-        List<String> children = resource.getChildrenResources();
+        // Build both resource and authResource resourceName so they are located into the current Container.
+        String resourceName = resource.getResourceName();
+        if ((resourceName == null) || (resourceName.length() == 0)) {
+            // Resource does not have a name. Cannot share.
+            throw new RuntimeException("Resource must have a name to be shared");
+        }
+
+        resourceName = Containers.getPath(currentContainer.getName() + "/" + resourceName).toString();
+
+        String authResourceName = authResource.getResourceName();
+        if ((authResourceName == null) || (authResourceName.length() == 0)) {
+            // AuthResource does not have a name. Cannot share.
+            throw new RuntimeException("AuthResource must have a name to be shared");
+        }
+        authResourceName = Containers.getPath(currentContainer.getName() + "/" + authResourceName).toString();
+
+        // Add destContainer as a child of the AuthorizationResource.
+        List<String> children = authResource.getChildrenResources();
         if (children == null) {
             children = new ArrayList<String>();
         }
-        // Add a children to the SecuredResource
-        children.add(container + "/" + resource.getShortName());
-        resource.setChildrenResources(children);
+        if (!children.contains(destContainer.getName())) {
+            children.add(destContainer.getName());
+        }
+        authResource.setChildrenResources(children);
+        // Add the resource to the list of resources of the AuthorizationResource
+        List<String> resources = authResource.getResources();
+
+        if (resources == null) {
+            resources = new ArrayList<String>();
+        }
+        if (!resources.contains(authResourceName)) {
+            resources.add(authResourceName);
+        }
+        authResource.setResources(resources);
+
+        // Save the two resources
+        resource.save(resourceName);
+        authResource.save(authResourceName);
+
     }
 
     /**
@@ -248,6 +283,7 @@ public class Containers {
      * @param resource
      * @param container
      */
+    /****
     public static void unShareResource(ResourceUtils resource, String container)  {
         Method method;
 
@@ -281,7 +317,9 @@ public class Containers {
         }
 
     }
+    ****/
 
+    /***
     private static void removeShare(ResourceUtils resource, String container) {
 
         List<String> children = resource.getChildrenResources();
@@ -319,6 +357,7 @@ public class Containers {
         }
         resource.setChildrenResources(newChildren);
     }
+    ****/
 
     /**
      * Import a SecuredResource that is shared. A clone of the shared resource is created.
@@ -326,6 +365,7 @@ public class Containers {
      * @throws InstantiationException
      * @throws IOException
      */
+    /****
     public static void importResource (String resourceName) throws InstantiationException, IOException {
         Method method;
         try {
@@ -339,7 +379,9 @@ public class Containers {
             throw new RuntimeException(e);
         }
     }
+    ***/
 
+    /***
     @SysCall(
             name="do_importResource"
     )
@@ -374,5 +416,5 @@ public class Containers {
         resource.setResourceName(newResourceName);
         resource.save(newResourceName);
     }
-
+    ****/
 }

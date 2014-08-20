@@ -1,10 +1,17 @@
+/*
+ * Copyright (c) 2014, Regents of the University of California  All rights reserved.
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ * 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 package net.es.enos.api;
 
 import org.codehaus.jackson.annotate.JsonIgnore;
 import org.jgrapht.Graph;
 import org.jgrapht.WeightedGraph;
-import org.jgrapht.graph.DefaultListenableGraph;
-import org.jgrapht.graph.DirectedMultigraph;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -13,7 +20,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * This class is a Resource representation of a graph.
+ * This class is a Resource representation of a topology graph.
  */
 public class GraphResource extends Resource {
     private String className;
@@ -90,32 +97,6 @@ public class GraphResource extends Resource {
 
     }
 
-    /**
-     * GenericGraph is the class that is used to clone any Graph<Node,Link>. It is a
-     * DirectedMultigraph. It also supports get/setEdgeWeight so it can be used with Graph functions
-     * that requires a weighted graph.
-     */
-    static public class GenericGraph extends DefaultListenableGraph<Node, Link> implements Graph<Node, Link> {
-        public GenericGraph(Class<? extends Link> edgeClass) {
-            super(new DirectedMultigraph<Node, Link>(edgeClass));
-        }
-
-        public GenericGraph() {
-            super(new DirectedMultigraph<Node, Link>(Link.class));
-        }
-
-        @JsonIgnore
-        @Override
-        public double getEdgeWeight(Link link) {
-            return link.getWeight();
-        }
-
-        @JsonIgnore
-        @Override
-        public void setEdgeWeight(Link link, double weight) {
-            link.setWeight(weight);
-        }
-    }
 
     public List<NodeDesc> getNodeDescs() {
         return nodeDescs;

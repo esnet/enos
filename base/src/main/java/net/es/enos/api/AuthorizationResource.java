@@ -9,8 +9,12 @@
 
 package net.es.enos.api;
 
+import net.es.enos.kernel.container.Container;
+import net.es.enos.kernel.exec.KernelThread;
 import org.codehaus.jackson.annotate.JsonIgnore;
+import org.jgrapht.Graph;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -25,33 +29,103 @@ import java.util.List;
  */
 public class AuthorizationResource extends Resource implements SecuredResource {
     private String authorization;
+    private String sourceContainer;
+    private String destinationContainer;
+    private String name;
+    private List<String> resources;
 
     /**
      * Default constructor. The authorization string can be anything. It is meant as a token. However,
      * that name will be the name of the file into where the AuthorizationResource is stored into.
      * @param authorization
      */
-    public AuthorizationResource(String authorization) {
+    public AuthorizationResource(String name,
+                                 String authorization,
+                                 Container sourceContainer,
+                                 Container destinationContainer) {
         super();
+        this.name = name;
         this.setResourceName(authorization);
         this.authorization = authorization;
+        this.sourceContainer = sourceContainer.getName();
+        this.destinationContainer = destinationContainer.getName();
     }
 
     public String getAuthorization() {
         return authorization;
     }
 
-    public void setAuthorization(String authorization) {
-        this.authorization = authorization;
+    /**
+     * The name of the authorization cannot be changed after being set
+     * @param authorization
+     */
+    public final synchronized void setAuthorization(String authorization) {
+        if (this.authorization == null) {
+            this.authorization = authorization;
+        } else {
+            throw new SecurityException("not permitted");
+        }
     }
 
-    @JsonIgnore
+    public String getDestinationContainer() {
+        return destinationContainer;
+    }
+
+    public final void setDestinationContainer(String destinationContainer) {
+        if ((this.destinationContainer != null) &&
+            !(KernelThread.currentKernelThread().isPrivileged())) {
+            throw new SecurityException("not permitted");
+        }
+        this.destinationContainer = destinationContainer;
+    }
+
+    public String getSourceContainer() {
+        return this.sourceContainer;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public final void setName(String name) {
+        if ((this.name != null) &&
+                !(KernelThread.currentKernelThread().isPrivileged())) {
+            throw new SecurityException("not permitted");
+        }
+        this.name = name;
+    }
+
+
+    public final void setSourceContainer(String sourceContainer) {
+        if ((this.sourceContainer != null) &&
+                !(KernelThread.currentKernelThread().isPrivileged())) {
+            throw new SecurityException("not permitted");
+        }
+        this.sourceContainer = sourceContainer;
+    }
+
+    public final synchronized List<String> getResources() {
+        if (this.resources == null) {
+            this.resources = new ArrayList<String> ();
+        }
+        return new ArrayList<String>(this.resources);
+    }
+
+    public final void setResources(List<String> resources) {
+        if ((this.resources != null) &&
+                !(KernelThread.currentKernelThread().isPrivileged())) {
+            throw new SecurityException("not permitted");
+        }
+        this.resources = resources;
+    }
+
     /**
      * Returns true if the provided resource is authorized by this AuthorizationResource
      * @param resource to be authorized
      * @return true if the Resource is authorized by this AuthorizationResource. False otherwise
      */
-    public boolean isAuthorized(Resource resource) {
+    @JsonIgnore
+    public final boolean isAuthorized(Resource resource) {
         if (resource == null) {
             return false;
         }
@@ -93,5 +167,70 @@ public class AuthorizationResource extends Resource implements SecuredResource {
             }
         }
         return false;
+    }
+
+    @JsonIgnore
+    public Graph<Node,Link> getAuthorizationGraph() {
+        GenericGraph graph = new GenericGraph();
+        this.buildAuthorizationGraph(graph, null);
+        return graph;
+    }
+
+    private void buildAuthorizationGraph(GenericGraph graph, Node parent) {
+        Node me = new Node();
+        me.setResourceName(this.getResourceName());
+        me.setDescription(this.getAuthorization());
+        graph.addVertex(me);
+        if (parent != null) {
+            // Link to parent
+            Link link = new Link();
+            link.setResourceName(this.getDestinationContainer());
+            graph.addEdge(parent,me,link);
+        }
+        if (this.resources != null) {
+            for (String r : this.resources) {
+                try {
+                    AuthorizationResource authResource = (AuthorizationResource) PersistentObject.newObject(r);
+                    this.buildAuthorizationGraph(graph, me);
+                } catch (InstantiationException e) {
+                    // Ignore. The authorization may have been removed
+                    continue;
+                }
+            }
+        }
+        return;
+    }
+
+    @JsonIgnore
+    public List<AuthorizationResource> fromContainer() {
+        return this.fromContainer(null,null);
+    }
+
+    @JsonIgnore
+    public List<AuthorizationResource> fromContainer(Container container) {
+        return this.fromContainer(container,null);
+    }
+
+    @JsonIgnore
+    public List<AuthorizationResource> fromContainer(Container container, Class type) {
+        ArrayList<AuthorizationResource> res = new ArrayList<AuthorizationResource>();
+        Graph<Node,Link> graph = this.getAuthorizationGraph();
+        for (Link link : graph.edgeSet()) {
+            if ((container == null) || link.getResourceName().equals(container.getName())) {
+                Node source = graph.getEdgeSource(link);
+                try {
+                    AuthorizationResource authResource =
+                            (AuthorizationResource) PersistentObject.newObject(source.getResourceClassName());
+                    if ((type == null) ||
+                        authResource.getResourceClassName().equals(type.getCanonicalName())) {
+                        res.add(authResource);
+                    }
+                } catch (InstantiationException e) {
+                    // Ignore. Invalid or removed
+                    continue;
+                }
+            }
+        }
+        return res;
     }
 }

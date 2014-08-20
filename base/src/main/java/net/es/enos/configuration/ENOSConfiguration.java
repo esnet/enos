@@ -11,7 +11,6 @@ package net.es.enos.configuration;
 
 import net.es.enos.api.PersistentObject;
 import net.es.enos.api.PropertyKeys;
-import net.es.enos.api.Resource;
 import org.codehaus.jackson.annotate.JsonIgnore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,9 +101,9 @@ public class ENOSConfiguration extends PersistentObject {
         logger.info("Master configuration file is {}", new File(configurationFilePath).getAbsolutePath());
         return enosConfiguration;
     }
-    @Override
+
     public void save(File file) throws IOException {
-        super.save(file);
+        super.save(file.getPath());
         // Can no longer be modified within ENOS
         this.canSet = false;
         this.global.readOnly();

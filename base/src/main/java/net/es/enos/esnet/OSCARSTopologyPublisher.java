@@ -172,7 +172,7 @@ public class OSCARSTopologyPublisher {
                 TopologyFactory.FACTORY_DIR,
                 CACHE_DIR,
                 fileName).toString();
-        // Get the Operating System absulute path
+        // Get the Operating System absolute path
         File file = PersistentObject.buildFile(filePath);
         return file;
     }

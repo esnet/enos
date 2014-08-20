@@ -9,12 +9,8 @@
 
 package net.es.enos.esnet;
 
-import net.es.enos.api.GraphSecuredResource;
-import net.es.enos.api.Link;
-import net.es.enos.api.Node;
-import net.es.enos.api.Path;
-import net.es.enos.kernel.container.Container;
-import net.es.enos.kernel.container.Containers;
+import net.es.enos.api.*;
+import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
 import org.joda.time.DateTime;
 
@@ -50,27 +46,16 @@ public final class OSCARS {
         return false;
     }
 
+    public static void do_createAuthorization (Graph<Node,Link> request, String auth) {
 
-    static public void install() throws Exception {
-        // Create OSCARS container
-        Containers.createContainer(ROOT_CONTAINER);
-        // Create the container that contains the full OSCARS topology
-        Containers.createContainer(FULL_TOPOLOGY_CONTAINER);
-
-    }
-
-    /**
-     * Creates an authorization GraphSecuredResource into a container. This container will then be authorized
-     * to create OSCARS circuits as long as they are a subset of the authorized graph.
-     * The creator of the authorized graph must join a container (source) that is already authorized
-     * for the graph.
-     * @param graph
-     * @return
-     */
-    static GraphSecuredResource createAuthorizedGraph (GraphSecuredResource graph, Container dest) {
-        // Verify that the container in which the calling thread
-
-        return null;
+        AuthorizationResource authResource = null;
+        try {
+            authResource = (AuthorizationResource) PersistentObject.newObject(auth);
+        } catch (Exception e) {
+            // Cannot load the AuthorizationResource.
+            throw new SecurityException("Cannot load AuthorizationResource " + auth + " Reason: " + e.getMessage());
+        }
+        Graph<Node,Link> graph = authResource.getAuthorizationGraph();
     }
 
 

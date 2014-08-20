@@ -9,6 +9,7 @@
 
 package net.es.enos.kernel.container;
 
+import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.security.FileACL;
 
 import java.io.IOException;
@@ -50,6 +51,28 @@ public class ContainerACL extends FileACL {
 
     public boolean canAdmin(String username) {
         String[] users = this.getCanAdmin();
+        for (String user : users) {
+            if (user.equals("*") || user.equals(username)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean canAdmin() {
+        String username = KernelThread.currentKernelThread().getUser().getName();
+        String[] users = this.getCanAdmin();
+        for (String user : users) {
+            if (user.equals("*") || user.equals(username)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean canExec() {
+        String username = KernelThread.currentKernelThread().getUser().getName();
+        String[] users = this.getCanExecute();
         for (String user : users) {
             if (user.equals("*") || user.equals(username)) {
                 return true;

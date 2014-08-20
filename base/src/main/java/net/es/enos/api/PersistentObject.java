@@ -32,6 +32,7 @@ public class PersistentObject implements Serializable {
      */
     public static File buildFile(String filename) {
         File file = null;
+        filename = ResourceUtils.normalizeResourceName(filename);
         if (BootStrap.rootPath == null) {
             // Not yet initialized. Assume non ENOS path
             file = new File(filename);
@@ -48,7 +49,7 @@ public class PersistentObject implements Serializable {
      * @throws java.io.IOException
      */
     public final void save(String filename) throws IOException {
-        File file = PersistentObject.buildFile(filename);
+        this.file = PersistentObject.buildFile(ResourceUtils.normalizeResourceName(filename));
         this.save(file);
     }
 
@@ -57,7 +58,8 @@ public class PersistentObject implements Serializable {
      * @param file
      * @throws IOException
      */
-    public void save(File file) throws IOException {
+    private void save(File file) throws IOException {
+        this.file = file;
         // Set the classname.
         this.resourceClassName = this.getClass().getCanonicalName();
         /* Make sure all directories exist */
@@ -70,7 +72,6 @@ public class PersistentObject implements Serializable {
         output.close();
         // No longer a new resource.
         this.isNewInstance = false;
-        this.file = file;
     }
 
     public void delete() {
@@ -171,5 +172,19 @@ public class PersistentObject implements Serializable {
 
     public void setResourceClassName(String resourceClassName) {
         this.resourceClassName = resourceClassName;
+    }
+
+    @JsonIgnore
+    public File getFile() {
+        return this.file;
+    }
+
+    @JsonIgnore
+    public String getFileName() {
+        if (this.file != null) {
+            return this.file.getName();
+        } else {
+            return null;
+        }
     }
 }

@@ -34,6 +34,6 @@ public class Host extends Node {
 
     public void setName(String name) {
         this.name = name;
-        this.resourceName = name;
+        this.setResourceName(name);
     }
 }

@@ -9,37 +9,44 @@
 
 package net.es.enos.api;
 
-import net.es.enos.kernel.exec.KernelThread;
-import org.codehaus.jackson.annotate.JsonIgnore;
-
-import java.util.ArrayList;
-import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * A SecureResource is a Resource that belongs to a container. Its name is its path name within
- * the Container directory i.e, a Secured Resource "myresource" in a Container /applications/myapp
- * is named /applications/myapp/myresource.
- *
- * A SecuredResource also requires to be privileged in order to change or modify the list of children and
- * parents.
+ * Helper methods to manipulate Resources.
  */
-public class ResourceUtils extends Resource {
-    private String containerName;
+public class ResourceUtils {
 
 
-    public String getContainerName() {
-        return this.containerName;
+    /**
+     * Verifies that a name is valid for a ResourceName. ResourceName can be used as part of an URL
+     * @param name
+     * @return
+     */
+    public static boolean isValidResourceName(String name) {
+        if (name == null) {
+            // This can happen when creating a new Resource
+            return true;
+        }
+        Pattern pattern = Pattern.compile("[<>?]");
+        Matcher matcher = pattern.matcher(name);
+        return ! matcher.find();
     }
 
-    @JsonIgnore
-    public String getShortName() {
-        String[] items = this.getResourceName().split("/");
-        return items[items.length - 1];
+    /**
+     * Special handling of characters such as *
+     * @param name
+     * @return
+     */
+    public static String normalizeResourceName (String name) {
+        String tmp = name.replace("*","_any_");
+        return tmp;
     }
 
-    public static String toContainerName (String name) {
-        String[] elems = name.split("/");
-        return name.substring(0, name.length() - (elems[elems.length - 1].length() +1));
+    public static String parseResourceName (String name) {
+        String tmp = name.replace("_any_","*");
+        return tmp;
     }
+
 
 }

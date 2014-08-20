@@ -10,7 +10,6 @@
 package net.es.enos.api;
 
 import net.es.enos.kernel.exec.KernelThread;
-import net.es.enos.kernel.users.User;
 import org.codehaus.jackson.annotate.JsonIgnore;
 
 import java.util.ArrayList;
@@ -20,10 +19,11 @@ import java.util.List;
  * Created by lomax on 5/21/14.
  */
 public class Resource extends PersistentObject {
-    protected String resourceName;
-    protected String description;
+    private String resourceName;
+    private String description;
     private List<String> parentResources;
     private List<String> childrenResources;
+    @JsonIgnore
     private String creationStackTrace;
 
     public Resource() {
@@ -31,16 +31,13 @@ public class Resource extends PersistentObject {
     }
 
     public Resource(String resourceName) {
+        this.checkValidResourceName(resourceName);
         this.setCreationStackTrace();
         this.resourceName = resourceName;
     }
 
     public String getResourceName() {
         return resourceName;
-    }
-
-    public void setResourceName(String resourceName) {
-        this.resourceName = resourceName;
     }
 
     public String getDescription() {
@@ -98,11 +95,12 @@ public class Resource extends PersistentObject {
         return this.resourceName;
     }
 
-    public final synchronized void setResourceName (List<String> parentResources) {
+    public final synchronized void setResourceName (String resourceName) {
+        this.checkValidResourceName(resourceName);
         if (! (this instanceof SecuredResource) ||
-                (this.getResourceName() == null) ||
+                (this.resourceName == null) ||
                 (KernelThread.currentKernelThread().isPrivileged())) {
-            this.setResourceName(parentResources);
+            this.resourceName = resourceName;
         } else {
             throw new SecurityException("Operation not permitted");
         }
@@ -110,9 +108,9 @@ public class Resource extends PersistentObject {
 
     public final synchronized void setChildrenResources(List<String> childrenResources) {
         if (!(this instanceof SecuredResource) ||
-              (this.getChildrenResources() == null) ||
+              (this.childrenResources == null) ||
               (KernelThread.currentKernelThread().isPrivileged())) {
-            this.setChildrenResources(childrenResources);
+            this.childrenResources = childrenResources;
         } else {
             throw new SecurityException("Operation not permitted");
         }
@@ -120,15 +118,18 @@ public class Resource extends PersistentObject {
 
     public final synchronized void setParentResources(List<String> parentResources) {
         if (! (this instanceof SecuredResource) ||
-              (this.getParentResources() == null) ||
+              (this.parentResources == null) ||
               (KernelThread.currentKernelThread().isPrivileged())) {
-            this.setParentResources(parentResources);
+            this.parentResources = parentResources;
         } else {
             throw new SecurityException("Operation not permitted");
         }
     }
 
     public final synchronized List<String> getParentResources() {
+        if (this.parentResources == null) {
+            return null;
+        }
         if (!(this instanceof SecuredResource)) {
             return this.parentResources;
         }
@@ -137,10 +138,23 @@ public class Resource extends PersistentObject {
     }
 
     public final synchronized List<String> getChildrenResources() {
+        if (this.childrenResources == null) {
+            return null;
+        }
         if (!(this instanceof SecuredResource)) {
             return this.childrenResources;
         }
         // This is a secured Resource. Clone the list first.
         return new ArrayList<String>(this.childrenResources);
     }
+
+    private void checkValidResourceName(String name) {
+        if (ResourceUtils.isValidResourceName(name)) {
+            return;
+        }
+        throw new RuntimeException(name + " is invalid");
+    }
+
+
+
 }

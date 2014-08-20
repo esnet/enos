@@ -9,30 +9,35 @@
 
 package net.es.enos.api;
 
+import org.codehaus.jackson.annotate.JsonIgnore;
+import org.jgrapht.Graph;
+import org.jgrapht.graph.DefaultListenableGraph;
+import org.jgrapht.graph.DirectedMultigraph;
+
 /**
- * Generic Link class
+ * GenericGraph is the class that is used to clone any Graph<Node,Link>. It is a
+ * DirectedMultigraph. It also supports get/setEdgeWeight so it can be used with Graph functions
+ * that requires a weighted graph.
  */
-
-public class Link extends  Resource {
-    public enum Types {SITE,PEERING,INTERNAL}
-    public static final String LINKS_DIR = "links";
-    protected double  weight;
-
-    public double getWeight() {
-        return weight;
+public class GenericGraph extends DefaultListenableGraph<Node, Link> implements Graph<Node, Link> {
+    public GenericGraph(Class<? extends Link> edgeClass) {
+        super(new DirectedMultigraph<Node, Link>(edgeClass));
     }
 
-    public void setWeight(double weight) {
-        this.weight = weight;
+    public GenericGraph() {
+        super(new DirectedMultigraph<Node, Link>(Link.class));
     }
 
-    public Link(Link link) {
-        super(link);
+    @JsonIgnore
+    @Override
+    public double getEdgeWeight(Link link) {
+        return link.getWeight();
     }
 
-    public Link() {
-        super();
+    @JsonIgnore
+    @Override
+    public void setEdgeWeight(Link link, double weight) {
+        link.setWeight(weight);
     }
-
 }
 
