@@ -18,35 +18,35 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * An Authorization Resource is a special SecuredResource that can not have parent resources. Their role is
- * represent an authorization token to their children Resource. If such resource is in a given container, all
- * its children Resources can be traced back to the container that shared them. This is typical of applications
- * that provides services to other applications, such as the provisioning service for instance. The delivery
- * of the service is a Resource that has an AuthorizationResource as a parent, in the container that provided
- * it, and the AuthorizationResource itself has the provided Resource as a child. Checking that double link
- * is preserved verifies that the service is authorized. Break the link in either direction means that the
- * provided service is no longer authorized.
+ * An AuthorizationResource is an abstract class that implements authorization for a given container to use
+ * resources that are shared or controlled by another container. Typically, an ENOS application that brokers
+ * resources for other application, such as network provisioning for instance, extends AuthorizationResource
+ * to describe what a container has the right to do, by overwriting  the isAuthorized(Resource) method.
+ *
+ * AuthorizationResource can also be used to implement delegation: like any Resource, an AuthorizationResource
+ * can have parents and children, forming an authorization graph. The authorization graph is secured by
+ * forbidding un-privileged thread to change the parents or children. In other words, management of the
+ * authorization must be made within a SysCall implemented by the resource broker (ENOS application).
  */
-public class AuthorizationResource extends Resource implements SecuredResource {
+public abstract class AuthorizationResource extends Resource implements SecuredResource {
     private String authorization;
     private String sourceContainer;
     private String destinationContainer;
-    private String name;
     private List<String> resources;
 
     /**
-     * Default constructor. The authorization string can be anything. It is meant as a token. However,
-     * that name will be the name of the file into where the AuthorizationResource is stored into.
+     * Default constructor. The authorization string can b
      * @param authorization
      */
     public AuthorizationResource(String name,
                                  String authorization,
+                                 List<String> resources,
                                  Container sourceContainer,
                                  Container destinationContainer) {
         super();
-        this.name = name;
-        this.setResourceName(authorization);
+        this.setResourceName(name);
         this.authorization = authorization;
+        this.resources = resources;
         this.sourceContainer = sourceContainer.getName();
         this.destinationContainer = destinationContainer.getName();
     }
@@ -83,19 +83,6 @@ public class AuthorizationResource extends Resource implements SecuredResource {
         return this.sourceContainer;
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public final void setName(String name) {
-        if ((this.name != null) &&
-                !(KernelThread.currentKernelThread().isPrivileged())) {
-            throw new SecurityException("not permitted");
-        }
-        this.name = name;
-    }
-
-
     public final void setSourceContainer(String sourceContainer) {
         if ((this.sourceContainer != null) &&
                 !(KernelThread.currentKernelThread().isPrivileged())) {
@@ -120,57 +107,65 @@ public class AuthorizationResource extends Resource implements SecuredResource {
     }
 
     /**
-     * Returns true if the provided resource is authorized by this AuthorizationResource
-     * @param resource to be authorized
-     * @return true if the Resource is authorized by this AuthorizationResource. False otherwise
+     * This method is intended to be overwritten by the implementing class. isAuthorized is
+     * @param resource that is requested
+     * @return true if the AuthorizationResource allows the container that is requesting to
+     * use all or part of the resource. Returns false otherwise.
      */
     @JsonIgnore
-    public final boolean isAuthorized(Resource resource) {
-        if (resource == null) {
-            return false;
+    protected boolean isAuthorized(Resource resource) {
+        throw new SecurityException("not permitted");
+    }
+
+    /**
+     * Check if the resource is allowed to be used. This method will walk the graph
+     * of AuthorizationResource, invoking isAuthorized() on each parent AuthorizationResource
+     * graph. A SecurityException is thrown if at least one of them denies the access to the resource.
+     * @param resource
+     */
+    public final void checkPermission(Resource resource) {
+        Graph<Node, Link> authGraph = this.getAuthorizationGraph();
+        if (authGraph == null) {
+            throw new SecurityException("no authorization graph");
         }
-        // Checks that the parent / children link between the resource and this AuthorizationResource
-        // is not broken.
-        List<String> parents = resource.getParentResources();
-        for (String parent : parents) {
-            try {
-                PersistentObject obj = PersistentObject.newObject(parent);
-                if ( ! (obj instanceof Resource)) {
-                    return false;
-                }
-                Resource parentResource = (Resource) obj;
-                // Checks that the parent's children contains the resource
-                List<String> children = parentResource.getChildrenResources();
-                if ((children == null) || (children.size() == 0)) {
-                    // The parent does not have children. Link is broken
-                    return false;
-                }
-                if (!children.contains(resource)) {
-                    // The parent children does not contain this resource, the link is broken
-                    return false;
-                }
-                // Check if the ParentResource is this AuthorizationResource
-                if (parentResource instanceof AuthorizationResource) {
-                    if (this.getAuthorization().equals(
-                            ((AuthorizationResource) parentResource).getAuthorization())) {
-                        return true;
-                    } else {
-                        return false;
-                    }
-                }
-                boolean isAuthorized = this.isAuthorized(parentResource);
-                if (isAuthorized) {
-                    return true;
-                }
-            } catch (InstantiationException e) {
-                return false;
+        this.checkPermission(resource, authGraph);
+    }
+
+    private void checkPermission(Resource resource, Graph<Node,Link> authGraph) {
+        if (! this.isAuthorized(resource)) {
+            throw new SecurityException("not authorized");
+        }
+        // Find the Node of this AuthorizationResource. Relies on file name to check
+        // if a node in the graph is the same as the current.
+        Node currentNode = null;
+        for (Node n : authGraph.vertexSet()) {
+            if (n.getResourceName().equals(this.getFileName())) {
+                currentNode = n;
+                break;
             }
         }
-        return false;
+        if (currentNode == null) {
+            throw new SecurityException("invalid authorization graph");
+        }
+        for (Link link : authGraph.edgesOf(currentNode)) {
+            Node srcNode = authGraph.getEdgeSource(link);
+            if (srcNode.equals(currentNode)) {
+                // This a link to a children. No need to check permission
+                continue;
+            }
+            // Retrieve the AuthorizationResource
+            try {
+                AuthorizationResource parent =
+                        (AuthorizationResource) PersistentObject.newObject(srcNode.getResourceName());
+                parent.checkPermission(resource,authGraph);
+            } catch (InstantiationException e) {
+                throw new SecurityException("cannot access AuthorizationResource " + srcNode.getResourceName());
+            }
+        }
     }
 
     @JsonIgnore
-    public Graph<Node,Link> getAuthorizationGraph() {
+    public final Graph<Node,Link> getAuthorizationGraph() {
         GenericGraph graph = new GenericGraph();
         this.buildAuthorizationGraph(graph, null);
         return graph;
@@ -178,7 +173,8 @@ public class AuthorizationResource extends Resource implements SecuredResource {
 
     private void buildAuthorizationGraph(GenericGraph graph, Node parent) {
         Node me = new Node();
-        me.setResourceName(this.getResourceName());
+        // Set the resourceName to the file name of the authorization resource
+        me.setResourceName(this.getFileName());
         me.setDescription(this.getAuthorization());
         graph.addVertex(me);
         if (parent != null) {
@@ -202,17 +198,17 @@ public class AuthorizationResource extends Resource implements SecuredResource {
     }
 
     @JsonIgnore
-    public List<AuthorizationResource> fromContainer() {
+    public final List<AuthorizationResource> fromContainer() {
         return this.fromContainer(null,null);
     }
 
     @JsonIgnore
-    public List<AuthorizationResource> fromContainer(Container container) {
+    public final List<AuthorizationResource> fromContainer(Container container) {
         return this.fromContainer(container,null);
     }
 
     @JsonIgnore
-    public List<AuthorizationResource> fromContainer(Container container, Class type) {
+    public final List<AuthorizationResource> fromContainer(Container container, Class type) {
         ArrayList<AuthorizationResource> res = new ArrayList<AuthorizationResource>();
         Graph<Node,Link> graph = this.getAuthorizationGraph();
         for (Link link : graph.edgeSet()) {
