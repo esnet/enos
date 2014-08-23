@@ -10,7 +10,7 @@
 package net.es.enos.api;
 
 import org.codehaus.jackson.annotate.JsonIgnore;
-import org.jgrapht.Graph;
+import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.DefaultListenableGraph;
 import org.jgrapht.graph.DirectedMultigraph;
 
@@ -19,7 +19,7 @@ import org.jgrapht.graph.DirectedMultigraph;
  * DirectedMultigraph. It also supports get/setEdgeWeight so it can be used with Graph functions
  * that requires a weighted graph.
  */
-public class GenericGraph extends DefaultListenableGraph<Node, Link> implements Graph<Node, Link> {
+public class GenericGraph extends DefaultListenableGraph<Node, Link> implements DirectedGraph<Node, Link> {
     public GenericGraph(Class<? extends Link> edgeClass) {
         super(new DirectedMultigraph<Node, Link>(edgeClass));
     }

@@ -10,8 +10,10 @@
 package net.es.enos.api;
 
 import org.codehaus.jackson.annotate.JsonIgnore;
+import org.jgrapht.DirectedGraph;
 import org.jgrapht.Graph;
 import org.jgrapht.WeightedGraph;
+import org.jgrapht.alg.ConnectivityInspector;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -26,6 +28,8 @@ public class GraphResource extends Resource {
     private String className;
     private List<NodeDesc> nodeDescs;
     private List<LinkDesc> linkDescs;
+    @JsonIgnore
+    private Graph<Node,Link> cachedGraph = null;
 
     static public class NodeDesc {
         private String id;
@@ -133,6 +137,8 @@ public class GraphResource extends Resource {
      */
     public GraphResource(Graph graph) {
 
+        this.cachedGraph = graph;
+
         Set<Node> vertices = graph.vertexSet();
         this.nodeDescs = new ArrayList<NodeDesc>();
         this.linkDescs = new ArrayList<LinkDesc>();
@@ -165,10 +171,14 @@ public class GraphResource extends Resource {
      * @throws java.lang.reflect.InvocationTargetException
      * @throws IllegalAccessException
      */
-    public Graph toGraph() throws InstantiationException,
+    public Graph<Node,Link> toGraph() throws InstantiationException,
             ClassNotFoundException,
             InvocationTargetException,
             IllegalAccessException {
+
+        if (this.cachedGraph != null) {
+            return this.cachedGraph;
+        }
 
         GenericGraph graph = new GenericGraph();
 
@@ -188,6 +198,7 @@ public class GraphResource extends Resource {
                 ((WeightedGraph) graph).setEdgeWeight(link,link.getWeight());
             }
         }
+        this.cachedGraph = graph;
         return graph;
     }
 
@@ -226,6 +237,60 @@ public class GraphResource extends Resource {
             }
         }
         return topoGraph;
+    }
+
+    /**
+     * Checks if a Graph<Node,Link> is a super set of this graph.
+     * A graph G1<Node,Link> is a super set of graph G2<Node,Link> if each of the links of G2 are
+     * included in G1.
+     * @param targetGraph the superset graph
+     * @return true if targetGraph is a superset of this graph.
+     */
+    public boolean isSubGraphOf (Graph<Node,Link> targetGraph) {
+        Graph<Node,Link> thisGraph;
+        try {
+            thisGraph = this.toGraph();
+
+        } catch (InstantiationException e) {
+            return false;
+        } catch (ClassNotFoundException e) {
+            return false;
+        } catch (InvocationTargetException e) {
+            return false;
+        } catch (IllegalAccessException e) {
+            return false;
+        }
+
+        for (Link link : thisGraph.edgeSet()) {
+            if ( ! targetGraph.containsEdge(link)) {
+                // This link does not exist in targetGraph. targetGraph is not a super set of this graph
+                return false;
+            }
+        }
+        // All links of this graph are contained in targetGraph. It is a super set of this graph
+        return true;
+    }
+    /**
+     * Checks if a Graph<Node,Link> is a super set of this graph.
+     * A graph G1<Node,Link> is a super set of graph G2<Node,Link> if each of the links of G2 are
+     * included in G1. This method invokes isSubGraphOf (Graph<Node,Link> targetGraph) and is provided
+     * for convenience.
+     * @param targetGraph the superset graph
+     * @return true if targetGraph is a superset of this graph.
+     */
+    public boolean isSubGraphOf (GraphResource targetGraph) {
+        try {
+            return this.isSubGraphOf(targetGraph.toGraph());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @JsonIgnore
+    public boolean pathExists(Node srcNode, Node dstNode) {
+        ConnectivityInspector<Node,Link> inspector =
+                new ConnectivityInspector<Node,Link>((DirectedGraph) this.cachedGraph);
+        return inspector.pathExists(srcNode,dstNode);
     }
 }
 

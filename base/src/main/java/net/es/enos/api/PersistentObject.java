@@ -14,6 +14,8 @@ import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by lomax on 6/24/14.
@@ -40,6 +42,21 @@ public class PersistentObject implements Serializable {
             file = new File(FileUtils.toRealPath(filename).toString());
         }
         return file;
+    }
+
+    public boolean exists() {
+        if (this.file == null) {
+            return false;
+        }
+        return this.file.exists();
+    }
+
+    public static boolean exists(String name) {
+        File f = buildFile(name);
+        if (f == null) {
+            return false;
+        }
+        return f.exists();
     }
 
     /**
@@ -186,5 +203,24 @@ public class PersistentObject implements Serializable {
         } else {
             return null;
         }
+    }
+
+    @JsonIgnore
+    public  List<PersistentObject> getObjects(String directory, Class filteredClass) throws IOException {
+        File directoryFile = PersistentObject.buildFile(directory);
+        if ( ! directoryFile.exists() || ! directoryFile.isDirectory()) {
+            return null;
+        }
+        ArrayList<PersistentObject> objects = new ArrayList<PersistentObject>();
+        for (File file : directoryFile.listFiles()) {
+            if (PersistentObject.getClassName(file.getPath()).equals(filteredClass.getCanonicalName())) {
+                try {
+                    objects.add(PersistentObject.newObject(filteredClass, file.getPath()));
+                } catch (InstantiationException e) {
+                    continue;
+                }
+            }
+        }
+        return objects;
     }
 }

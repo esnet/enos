@@ -29,42 +29,16 @@ import java.util.List;
  * authorization must be made within a SysCall implemented by the resource broker (ENOS application).
  */
 public abstract class AuthorizationResource extends Resource implements SecuredResource {
-    private String authorization;
-    private String sourceContainer;
+
     private String destinationContainer;
-    private List<String> resources;
 
     /**
      * Default constructor. The authorization string can b
-     * @param authorization
      */
-    public AuthorizationResource(String name,
-                                 String authorization,
-                                 List<String> resources,
-                                 Container sourceContainer,
-                                 Container destinationContainer) {
+    public AuthorizationResource(String name, Container destinationContainer) {
         super();
         this.setResourceName(name);
-        this.authorization = authorization;
-        this.resources = resources;
-        this.sourceContainer = sourceContainer.getName();
         this.destinationContainer = destinationContainer.getName();
-    }
-
-    public String getAuthorization() {
-        return authorization;
-    }
-
-    /**
-     * The name of the authorization cannot be changed after being set
-     * @param authorization
-     */
-    public final synchronized void setAuthorization(String authorization) {
-        if (this.authorization == null) {
-            this.authorization = authorization;
-        } else {
-            throw new SecurityException("not permitted");
-        }
     }
 
     public String getDestinationContainer() {
@@ -77,33 +51,6 @@ public abstract class AuthorizationResource extends Resource implements SecuredR
             throw new SecurityException("not permitted");
         }
         this.destinationContainer = destinationContainer;
-    }
-
-    public String getSourceContainer() {
-        return this.sourceContainer;
-    }
-
-    public final void setSourceContainer(String sourceContainer) {
-        if ((this.sourceContainer != null) &&
-                !(KernelThread.currentKernelThread().isPrivileged())) {
-            throw new SecurityException("not permitted");
-        }
-        this.sourceContainer = sourceContainer;
-    }
-
-    public final synchronized List<String> getResources() {
-        if (this.resources == null) {
-            this.resources = new ArrayList<String> ();
-        }
-        return new ArrayList<String>(this.resources);
-    }
-
-    public final void setResources(List<String> resources) {
-        if ((this.resources != null) &&
-                !(KernelThread.currentKernelThread().isPrivileged())) {
-            throw new SecurityException("not permitted");
-        }
-        this.resources = resources;
     }
 
     /**
@@ -171,20 +118,18 @@ public abstract class AuthorizationResource extends Resource implements SecuredR
         return graph;
     }
 
-    private void buildAuthorizationGraph(GenericGraph graph, Node parent) {
+    private void buildAuthorizationGraph(GenericGraph graph, Node current) {
         Node me = new Node();
         // Set the resourceName to the file name of the authorization resource
         me.setResourceName(this.getFileName());
-        me.setDescription(this.getAuthorization());
         graph.addVertex(me);
-        if (parent != null) {
-            // Link to parent
+        if (current != null) {
             Link link = new Link();
-            link.setResourceName(this.getDestinationContainer());
-            graph.addEdge(parent,me,link);
+            link.setResourceName(current.getResourceName());
+            graph.addEdge(current,me,link);
         }
-        if (this.resources != null) {
-            for (String r : this.resources) {
+        if (this.getParentResources() != null) {
+            for (String r : this.getParentResources()) {
                 try {
                     AuthorizationResource authResource = (AuthorizationResource) PersistentObject.newObject(r);
                     this.buildAuthorizationGraph(graph, me);

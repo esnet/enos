@@ -10,10 +10,14 @@
 package net.es.enos.esnet;
 
 import net.es.enos.api.*;
-import org.jgrapht.Graph;
+import net.es.enos.kernel.container.Container;
+import net.es.enos.kernel.exec.KernelThread;
+import org.codehaus.jackson.annotate.JsonIgnore;
 import org.jgrapht.GraphPath;
 import org.joda.time.DateTime;
 
+import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.List;
 
 /**
@@ -21,8 +25,7 @@ import java.util.List;
  */
 public final class OSCARS {
 
-    public static String ROOT_CONTAINER = "/sys/services/oscars";
-    public static String FULL_TOPOLOGY_CONTAINER = ROOT_CONTAINER + "/" + "all";
+    public static String OSCARS_CONTAINER = "/sys/services/oscars";
 
     /**
      * Checks if the user can provision the provided path. A user is authorized to
@@ -33,9 +36,7 @@ public final class OSCARS {
      * @return
      */
     public boolean canProvision (Path path) {
-        OSCARSUser oscarsUser = null;
-        // Check if the current user is an authorized user to use OSCARS
-        // TODO
+
         GraphPath<Node,Link> graphPath = path.getGraphPath();
         DateTime start = path.getStart();
         DateTime end = path.getEnd();
@@ -43,23 +44,89 @@ public final class OSCARS {
         Node endNode = graphPath.getEndVertex();
         List<Link> links = graphPath.getEdgeList();
 
+        Container currentContainer = KernelThread.currentKernelThread().getCurrentContainer();
+        String authName = OSCARS.getAuthorizationName(currentContainer);
+        try {
+            OSCARSAuthorizationResource oscarsAuth =
+                    (OSCARSAuthorizationResource) PersistentObject.newObject(OSCARSAuthorizationResource.class,
+                                                                             authName);
+            oscarsAuth.getAuthorizedGraph().pathExists(startNode, endNode);
+        } catch (IOException e) {
+            return false;
+        } catch (InstantiationException e) {
+            return false;
+        }
+
         return false;
     }
 
-    public static void do_createAuthorization (Graph<Node,Link> request, String auth) {
+    /**
+     * Creates an OSCARSAuthorizationResource for a list of GraphResources. Those GraphResource describes the
+     * topologies that the container will be allowed to provision. This SysCall will throw a SecurityException
+     * when:
+     *
+     *     - the current thread does not have ADMIN access to the current container.
+     *     - there is a least one Link in the list of GraphResources that the current container does not have
+     *     the right to provision.
+     *
+     * Upon creation, a new container is created within the OSCARS container and the requester container is set
+     * to be able to join but not administrate. The authorized resources are stored in that new container and a
+     * OSCARSAuthorizationResource is created for the authorized GraphResource. Once done, the container will be
+     * able to provision OSCARS circuits within the GraphResources.
+     *
+     * @param container
+     * @param graphResource
+     * @throws IOException
+     */
+    public static void createAuthorization (Container container, GraphResource graphResource) throws IOException {
+        Method method;
 
-        AuthorizationResource authResource = null;
+        method = KernelThread.getSysCallMethod(OSCARS.class, "do_shareResource");
         try {
-            authResource = (AuthorizationResource) PersistentObject.newObject(auth);
+            KernelThread.doSysCall(OSCARS.class, method, container,graphResource);
+
         } catch (Exception e) {
-            // Cannot load the AuthorizationResource.
-            throw new SecurityException("Cannot load AuthorizationResource " + auth + " Reason: " + e.getMessage());
-        }
-        Graph<Node,Link> graph = authResource.getAuthorizationGraph();
-        if (graph == null) {
-            throw new SecurityException("Cannot retrieve authorized graph");
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            }
+            throw new RuntimeException(e.getMessage());
         }
     }
+
+    public static void do_createAuthorization (Container container, GraphResource graphResource) throws IOException {
+
+        Container currentContainer = KernelThread.currentKernelThread().getCurrentContainer();
+        Container oscarsContainer = new Container(OSCARS_CONTAINER);
+
+        boolean authorized = false;
+
+        if (oscarsContainer.getName().equals(currentContainer.getName())) {
+            // The thread runs within the OSCARS container, therefore it is authorized to create an Authorization
+            authorized = true;
+        } else {
+            // TODO: lomax@es.net to be implemented
+            throw new RuntimeException("not yet implemenged");
+        }
+        if (! authorized) {
+            throw new SecurityException("not authorized");
+        }
+        String authName = OSCARS.getAuthorizationName(currentContainer);
+        if (PersistentObject.exists(authName)) {
+            throw new SecurityException("Already exists");
+        }
+        OSCARSAuthorizationResource authResource = new OSCARSAuthorizationResource(container.getName(),
+                                                                                   graphResource,
+                                                                                   container);
+
+        authResource.save(authName);
+    }
+
+    @JsonIgnore
+    public static String getAuthorizationName(Container container) {
+        String name = OSCARS_CONTAINER + "/" + container.getName().replace("/",".");
+        return name;
+    }
+
 
 
 }
