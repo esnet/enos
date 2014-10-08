@@ -9,27 +9,24 @@
 
 package net.es.enos.shell;
 
-import java.io.File;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.String;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Set;
-
 import jline.console.ConsoleReader;
 import jline.console.ENOSConsoleReader;
 import jline.console.completer.ArgumentCompleter;
 import jline.console.completer.StringsCompleter;
 import net.es.enos.boot.BootStrap;
 import net.es.enos.kernel.exec.KernelThread;
-
-
 import net.es.enos.python.PythonShell;
 import net.es.enos.shell.annotations.ShellCommand;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Set;
 
 public class Shell {
 
@@ -38,7 +35,6 @@ public class Shell {
 	private boolean completedCommand = false;
     private OutputStream out = null;
     private ConsoleReader consoleReader = null;
-    private ENOSConsoleReader ENOSConsoleReader = null;
     private StringsCompleter stringsCompleter = null;
 	private ArgumentCompleter argCompleter = null;
 	private StringsCompleter fileCompleter = null;
@@ -111,11 +107,11 @@ public class Shell {
 
         try {
                 this.consoleReader = new ConsoleReader(this.in, this.out, new ENOSTerminal());
-                this.ENOSConsoleReader = new ENOSConsoleReader(this.in, this.out, new ENOSTerminal());
+                this.consoleReader = new ENOSConsoleReader(this.in, this.out, new ENOSTerminal());
         } catch (Exception e) {
             e.printStackTrace();
         }
-        this.in = new ShellInputStream(this.in, this.consoleReader,this.ENOSConsoleReader);
+        this.in = new ShellInputStream(this.in, this.consoleReader);
 
         // Initialize command completion with commands from modules.
         Set<String> commandNames = ShellCommandsFactory.getCommandNames();

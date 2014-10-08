@@ -48,11 +48,9 @@ public class ShellInputStream extends InputStream {
     }
 
     public ShellInputStream(InputStream in,
-                            ConsoleReader     consoleReader,
-                            ENOSConsoleReader enosConsoleReader) {
+                            ConsoleReader     consoleReader) {
         this.in = in;
         this.consoleReader = consoleReader;
-        this.ENOSConsoleReader = enosConsoleReader;
     }
 
     public int read() throws IOException {
