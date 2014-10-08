@@ -36,19 +36,19 @@ public abstract class TopologyProvider {
      * @return
      * @throws IOException
      */
-    public DefaultListenableGraph<ESnetNode, ESnetLink> getGraph(WeightType weight) throws IOException {
+    public DefaultListenableGraph<Node, Link> getGraph(WeightType weight) throws IOException {
         DateTime start = DateTime.now();
         DateTime end = start.plusMinutes(1);
         return this.getGraph(start, end,weight);
     }
 
-    public DefaultListenableGraph<ESnetNode, ESnetLink> getGraph(DateTime start,
-                                                                          DateTime end,
-                                                                          WeightType weightType) throws IOException {
+    public DefaultListenableGraph<Node, Link> getGraph(DateTime start,
+                                                       DateTime end,
+                                                       WeightType weightType) throws IOException {
         return null;
     }
 
-    public HashMap<String, ESnetNode> getNodes() {
+    public HashMap<String, Node> getNodes() {
         return null;
     }
 

@@ -39,8 +39,14 @@ public class ESnetTopology  extends TopologyProvider {;
         this.parseTopology();
     }
 
-    public HashMap<String, ESnetNode> getNodes() {
-        return nodes;
+    public HashMap<String, Node> getNodes() {
+
+        HashMap<String, Node> returnedMap = new HashMap<String, Node> ();
+        for (String nodeName : this.nodes.keySet()) {
+            Node node = this.nodes.get(nodeName);
+            returnedMap.put(nodeName,node);
+        }
+        return returnedMap;
     }
 
     /**
@@ -273,9 +279,9 @@ public class ESnetTopology  extends TopologyProvider {;
      * @return
      */
     @Override
-	public DefaultListenableGraph<ESnetNode, ESnetLink> getGraph (DateTime start,
-                                                                           DateTime end,
-                                                                           WeightType weightType) throws IOException {
+	public DefaultListenableGraph<Node, Link> getGraph (DateTime start,
+                                                        DateTime end,
+                                                        WeightType weightType) throws IOException {
 
         HashMap<ESnetPort, OSCARSReservations.PortReservation> reservations = null;
         if (weightType == WeightType.MaxBandwidth) {
@@ -283,7 +289,7 @@ public class ESnetTopology  extends TopologyProvider {;
             reservations = (new OSCARSReservations(this)).getReserved(start, end);
         }
 
-		DefaultListenableGraph<ESnetNode,ESnetLink> graph =
+		DefaultListenableGraph<Node,Link> graph =
                 new ESnetTopologyWeightedGraph(ESnetLink.class);
 
         // First, add all Vertices
