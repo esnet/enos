@@ -26,7 +26,6 @@ public class ShellInputStream extends InputStream {
     private InputStream in = null;
     private OutputStream echoOut = null;
     private boolean last = false;
-    private int lastRead = 0;
     private boolean doEcho = false;
     private ConsoleReader consoleReader = null;
     private ENOSConsoleReader ENOSConsoleReader = null;
@@ -57,10 +56,12 @@ public class ShellInputStream extends InputStream {
     }
 
     public int read() throws IOException {
-        logger.debug("last = {}, lastRead = {}", this.last, this.lastRead);
+        if (this.last) {
+            this.last = false;
+            return -1;
+        }
         int c = this.in.read();
         logger.debug("c = {}", c);
-        this.lastRead += 1;
         if (this.doEcho && this.echoOut != null) {
             this.echoOut.write(c);
             this.echoOut.flush();
@@ -72,11 +73,6 @@ public class ShellInputStream extends InputStream {
                     this.echoOut.flush();
                 }
                 this.last = true;
-                if (this.lastRead == 1) {
-                    this.lastRead = 0;
-                    return 10;
-                }
-                this.lastRead = 0;
                 return 10;
         }
         return c;
@@ -153,5 +149,9 @@ public class ShellInputStream extends InputStream {
     public boolean markSupported() {
         logger.debug("markSupported");
         return this.in.markSupported();
+    }
+
+    public InputStream getSourceInputStream() {
+        return this.in;
     }
 }

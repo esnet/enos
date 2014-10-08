@@ -14,6 +14,7 @@ import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.security.ExitSecurityException;
 import net.es.enos.kernel.users.User;
 import net.es.enos.shell.ShellInputStream;;
+import net.es.enos.shell.TabFilteringInputStream;
 import net.es.enos.shell.annotations.ShellCommand;
 
 
@@ -48,7 +49,9 @@ public class PythonShell {
 
         final Logger logger = LoggerFactory.getLogger(PythonShell.class);
         if (in instanceof ShellInputStream) {
-            ((ShellInputStream) in).setDoCompletion(false);
+            if (((ShellInputStream) in).getSourceInputStream() instanceof TabFilteringInputStream) {
+                ((TabFilteringInputStream) ((ShellInputStream) in).getSourceInputStream()).setFilters(true);
+            }
         }
         PyDictionary sessionLocals;
         boolean isFirstSession = true;
@@ -140,7 +143,9 @@ public class PythonShell {
             e.printStackTrace();
         }
         if (in instanceof ShellInputStream) {
-            ((ShellInputStream) in).setDoCompletion(true);
+            if (((ShellInputStream) in).getSourceInputStream() instanceof TabFilteringInputStream) {
+                ((TabFilteringInputStream) ((ShellInputStream) in).getSourceInputStream()).setFilters(false);
+            }
         }
 
         logger.debug("Exiting Python");

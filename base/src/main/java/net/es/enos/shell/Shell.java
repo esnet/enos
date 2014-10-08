@@ -107,6 +107,8 @@ public class Shell {
             e.printStackTrace();
         }
 
+        this.in = new TabFilteringInputStream(this.in);
+
         try {
                 this.consoleReader = new ConsoleReader(this.in, this.out, new ENOSTerminal());
                 this.ENOSConsoleReader = new ENOSConsoleReader(this.in, this.out, new ENOSTerminal());
