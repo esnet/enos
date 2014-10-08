@@ -17,14 +17,14 @@ topo = topology.retrieveTopologyProvider("localLayer2")
 
 graph = topo.getGraph(TopologyProvider.WeightType.TrafficEngineering)
 
-nodes = topo.getNodes()    1
+nodes = topo.getNodes()
 
 srcNode = topo.getNode(command_args[2]);
 dstNode = topo.getNode(command_args[3]);
 
 path = DijkstraShortestPath.findPathBetween(graph, srcNode, dstNode)
 if path == None:
-        print "No path betwen " + srcNode.getId() + " and " + dstNode.getId()
+        print "No path between " + srcNode.getId() + " and " + dstNode.getId()
         sys.exit()
 
 start = DateTime.now()
