@@ -10,7 +10,6 @@
 package net.es.enos.shell;
 
 import jline.console.ConsoleReader;
-import jline.console.ENOSConsoleReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +27,6 @@ public class ShellInputStream extends InputStream {
     private boolean last = false;
     private boolean doEcho = false;
     private ConsoleReader consoleReader = null;
-    private ENOSConsoleReader ENOSConsoleReader = null;
 
     public boolean isDoCompletion() {
         return doCompletion;
@@ -104,8 +102,8 @@ public class ShellInputStream extends InputStream {
             prompt = consoleReader.getPrompt();
             line = consoleReader.readLine("\000\000\000\000");
         } else {
-            prompt = ENOSConsoleReader.getPrompt();
-            line = ENOSConsoleReader.readLine("\000\000\000\000");
+            prompt = consoleReader.getPrompt();
+            line = consoleReader.readLine("\000\000\000\000");
         }
         if (line == null) return -1;
         for (int i=0; i < line.length(); ++i) {
@@ -115,7 +113,7 @@ public class ShellInputStream extends InputStream {
         if (this.doCompletion) {
             consoleReader.setPrompt(prompt);
         } else {
-            ENOSConsoleReader.setPrompt(prompt);
+            consoleReader.setPrompt(prompt);
         }
         return line.length() + 1;
     }

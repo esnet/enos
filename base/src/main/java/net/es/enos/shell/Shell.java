@@ -10,7 +10,7 @@
 package net.es.enos.shell;
 
 import jline.console.ConsoleReader;
-import jline.console.ENOSConsoleReader;
+
 import jline.console.completer.ArgumentCompleter;
 import jline.console.completer.StringsCompleter;
 import net.es.enos.boot.BootStrap;
@@ -107,7 +107,6 @@ public class Shell {
 
         try {
                 this.consoleReader = new ConsoleReader(this.in, this.out, new ENOSTerminal());
-                this.consoleReader = new ENOSConsoleReader(this.in, this.out, new ENOSTerminal());
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -9,7 +9,7 @@
 
 package net.es.enos.shell;
 
-import jline.console.ENOSConsoleReader;
+import jline.console.ConsoleReader;
 import net.es.enos.api.FileUtils;
 import net.es.enos.kernel.exec.KernelThread;
 import net.es.enos.kernel.security.FileACL;
@@ -63,9 +63,9 @@ public class UserShellCommands {
 
         PrintStream o = new PrintStream(out);
 
-        ENOSConsoleReader consoleReader = null;
+        ConsoleReader consoleReader = null;
         try {
-            consoleReader = new ENOSConsoleReader(in, out, new ENOSTerminal());
+            consoleReader = new ConsoleReader(in, out, new ENOSTerminal());
         } catch (Exception e) {
             e.printStackTrace();
             return;
@@ -134,9 +134,9 @@ public class UserShellCommands {
 	        return;
         }
 
-        ENOSConsoleReader consoleReader = null;
+        ConsoleReader consoleReader = null;
         try {
-            consoleReader = new ENOSConsoleReader(in, out, new ENOSTerminal());
+            consoleReader = new ConsoleReader(in, out, new ENOSTerminal());
         } catch (Exception e) {
             e.printStackTrace();
             return;
