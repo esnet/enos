@@ -28,7 +28,7 @@
         <!-- ActiveMQ JAr has many optional dependencies.  Which of these do we need? -->
         <bundle>wrap:mvn:org.apache.activemq/activemq-all/5.9.1</bundle>
 
-        <bundle>mvn.net.es/enos-perfsonar/1.0-SNAPSHOT</bundle>
+        <bundle>mvn:net.es/enos-perfsonar/1.0-SNAPSHOT</bundle>
     </feature>
 
 </features>
