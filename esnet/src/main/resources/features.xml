@@ -22,7 +22,7 @@
         <!-- sLS client and stuff it depends on -->
         <bundle>wrap:mvn:org.apache.httpcomponents/httpcore/4.2.5</bundle>
         <bundle>wrap:mvn:org.apache.httpcomponents/httpclient/4.2.6</bundle>
-        <bundle>wrap:mvn:net.es.lookup/simple-lookup-service-client</bundle>
+        <bundle>wrap:mvn:net.es.lookup/simple-lookup-service-client/1.1-SNAPSHOT</bundle>
         <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.oro</bundle>
         <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.json-lib</bundle>
         <!-- ActiveMQ JAr has many optional dependencies.  Which of these do we need? -->
