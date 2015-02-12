@@ -79,7 +79,6 @@
                         <Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
                         <Bundle-Name>ESnet ENOS perfSONAR Bundle</Bundle-Name>
                         <Bundle-Version>1.0-SNAPSHOT</Bundle-Version>
-                        <!-- <Bundle-Activator>net.es.netshell.python.PythonActivator</Bundle-Activator>-->
                         <Export-Package>net.es.enos.perfsonar</Export-Package>
                         <Import-Package>*</Import-Package>
                     </instructions>
