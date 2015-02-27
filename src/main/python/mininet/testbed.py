@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import sys
+from random import randrange
 
 from mininet.net import Mininet
 from mininet.node import Controller, OVSKernelSwitch, RemoteController
@@ -16,7 +17,7 @@ from mininet.topo import Topo
 
 vpn1=["vpn1",[
     ["s1_1",["h1_1","h1_2"],"lbl",1,11],
-    ["s1_2",["h1_3"],"star",1,12]
+    ["s1_2",["h1_3"],"denv",1,12]
   ]
 ]
 
@@ -35,6 +36,8 @@ amst=["amst","cr5",8]
 
 
 locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
+#locations=[lbl,atla,denv]
+#locations=[denv]
 #
 # OpenFlow controller IP and ports
 #
@@ -72,6 +75,9 @@ class ESnetTestbedTopo(Topo):
         return realName
 
 
+    def makeDpid(self):
+	return str(randrange(1,999999999999))
+
     #
     # Creates nodes and links of a location
     #
@@ -84,9 +90,9 @@ class ESnetTestbedTopo(Topo):
         nbOfLinks = location[2]
 
         # creates nodes
-        routerNode = self.addSwitch(self.makeMininetName(routerName))
-        switchNode = self.addSwitch(self.makeMininetName(switchName), listenPort=6634)
-        ovsNode = self.addSwitch(self.makeMininetName(ovsName), listenPort=6634)
+        routerNode = self.addSwitch(self.makeMininetName(routerName),listenPort=6634,dpid=self.makeDpid())
+        switchNode = self.addSwitch(self.makeMininetName(switchName), listenPort=6634,dpid=self.makeDpid())
+        ovsNode = self.addSwitch(self.makeMininetName(ovsName), listenPort=6634,dpid=self.makeDpid())
 
         # creates links between router and switch and between switch and ovs. Assume same number
         # of links
@@ -119,19 +125,19 @@ class ESnetTestbedTopo(Topo):
             if viewAll:
                 net.getNodeByName(self.testbedNodes[loc[0]][0]).start([net.ctrl])
 		self.displayDot()
-                for vpnName in self.vpnInstances:
-                    vpn = self.vpnInstances[vpnName]
-                    for siteName in vpn:
-                        site = vpn[siteName]
-                        switch = site[0]
-                        net.getNodeByName(switch).start([net.ctrl])
-			self.displayDot()
 
             net.getNodeByName(self.testbedNodes[loc[0]][1]).start([net.ctrl])
 	    self.displayDot()
             net.getNodeByName(self.testbedNodes[loc[0]][2]).start([net.ctrl])
             self.displayDot()
-
+	if viewAll:
+        	for vpnName in self.vpnInstances:
+                    vpn = self.vpnInstances[vpnName]
+                    for siteName in vpn:
+                        site = vpn[siteName]
+                        switch = net.getNodeByName(site[0])
+			switch.start([net.ctrl])
+                        self.displayDot()
 
     def displayNodes(self):
         global locations
@@ -155,9 +161,9 @@ class ESnetTestbedTopo(Topo):
 	swSwitch =  self.testbedNodes[site[2]][1]
 	# find the hardware switch associated to this router
         vlan = site[3]
-        switchName = self.makeMininetName(siteName)
+        switchName = self.makeMininetName(siteName, host=False)
 	# Create the site border router/switch
-        switch = self.addSwitch(switchName)
+        switch = self.addSwitch(switchName,listenPort=6634,dpid=self.makeDpid())
         self.addLink(switch, borderRouter)
         siteHosts=[]
         for host in hostNames:
@@ -178,21 +184,7 @@ class ESnetTestbedTopo(Topo):
 	self.setOpenFlow(net)
 	print
 
-    def __init__(self):
-	self.mininetIndex = 0  # Mininet seems to requires node names to end with a number that is incrementely increased
-        self.hostIndex = 0
-        self.nodeMap={} # Map matching real node name with the mininet name
-        self.testbedNodes={} # Map of all nodes indexed by location name. The entroes are lists [router,switch,ovs]
-        self.vpnInstances={}
-        Topo.__init__(self)
-        print("building SDN locations")
-        for loc in locations:
-            locationNodes = self.buildLocation(location=loc)
-            self.testbedNodes[loc[0]] = locationNodes
-        print
-        print"building network"
-        self.buildRoutersLinks()
-        print
+    def buildVpns(self):
         for vpn in vpns:
             vpnName = vpn[0]
             sites = vpn[1]
@@ -203,6 +195,22 @@ class ESnetTestbedTopo(Topo):
                 allSiteNodes[site[0]] = siteNodes
             self.vpnInstances[vpnName] = allSiteNodes
             print
+
+    def __init__(self):
+	self.mininetIndex = 1  # Mininet seems to requires node names to end with a number that is incrementely increased
+        self.hostIndex = 1
+        self.nodeMap={} # Map matching real node name with the mininet name
+        self.testbedNodes={} # Map of all nodes indexed by location name. The entroes are lists [router,switch,ovs]
+        self.vpnInstances={}
+        Topo.__init__(self)
+        print("building SDN locations")
+        for loc in locations:
+            locationNodes = self.buildLocation(location=loc)
+            self.testbedNodes[loc[0]] = locationNodes
+        self.buildVpns()
+        print"building network"
+        self.buildRoutersLinks()
+        print
         self.displayNodes()
 
 class ESnetMininet(Mininet):
