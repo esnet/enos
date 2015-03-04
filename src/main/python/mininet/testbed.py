@@ -8,8 +8,11 @@ from mininet.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.topo import Topo
 
+
+
+
 #
-# VPN instances
+# Default VPN instances
 # Each VPN instance is made of an array containing its name and an array of sites
 # Each site  is an array of [hostnames,border router, VLAN] where hostnames is
 # an array of hostnames of the site.
@@ -22,7 +25,7 @@ vpn1=["vpn1",[
 ]
 
 vpns=[vpn1]
-# Locations with hardware openflow switch
+# Default Locations with hardware openflow switch
 # name,rt,nb of links
 #
 lbl=["lbl","mr2",2]
@@ -34,7 +37,7 @@ star=["star","cr5",8]
 cern=["cern","cr5",5]
 amst=["amst","cr5",8]
 
-
+# Default locations
 locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
 #locations=[lbl,atla,denv]
 #locations=[denv]
@@ -50,6 +53,41 @@ controllerPort=6633
 viewAll = True
 
 class ESnetTestbedTopo(Topo):
+
+    def defaultConfiguration(self):
+        format={}
+        locs =[]
+        for location in locations:
+            loc = {}
+            loc['locationName'] = location[0]
+            loc['coreRouterName'] = location[1]
+            loc['nbOfLinks'] = location[2]
+            locs = locs +[loc]
+        instances = []
+        for vpn in vpns:
+            sites=[]
+            instance = {}
+            instance['vpnName'] = vpn[0]
+            for s in vpn[1]:
+                site = {}
+                site['siteName'] = s[0]
+                hosts = []
+                for h in s[1]:
+                    host={}
+                    host['hostName'] = h[0]
+                    hosts = hosts + [host]
+                site['connectedTo'] = s[2]
+                site['vlanLocation'] = s[4]
+                site['dhcpVmVlan'] = s[3]
+                sites = sites + [site]
+            instance['sites'] = sites
+            instances = instances + [instance]
+
+        format['topology'] = locs
+        format['vpns'] = instances
+
+        return format
+
 
     #
     # Returns node name that will be acceptable for Mininet. Binding between real name and mininet name is added in nodeMap
@@ -82,12 +120,12 @@ class ESnetTestbedTopo(Topo):
     # Creates nodes and links of a location
     #
     def buildLocation(self,location):
-        locationName = location[0]
+        locationName = location['locationName']
         routerName = locationName + "_R"
         switchName = locationName + "_S"
         ovsName = locationName + "_O"
 
-        nbOfLinks = location[2]
+        nbOfLinks = location['nbOfLinks']
 
         # creates nodes
         routerNode = self.addSwitch(self.makeMininetName(routerName),listenPort=6634,dpid=self.makeDpid())
@@ -196,6 +234,19 @@ class ESnetTestbedTopo(Topo):
             self.vpnInstances[vpnName] = allSiteNodes
             print
 
+    def loadConfiguration(self,fileName):
+        """
+        loads the topology Mininet needs to create as described in a file. The format is a dictionary with
+        the following structure:
+
+
+        :param fileName:
+        :return:
+        """
+        f = open(fileName,"r")
+        return eval (f.read())
+	
+
     def __init__(self):
 	self.mininetIndex = 1  # Mininet seems to requires node names to end with a number that is incrementely increased
         self.hostIndex = 1
@@ -204,14 +255,16 @@ class ESnetTestbedTopo(Topo):
         self.vpnInstances={}
         Topo.__init__(self)
         print("building SDN locations")
+        self.config = self.loadConfiguration("/tmp/config")
+	print self.config
+	locations=self.config['topology']
         for loc in locations:
             locationNodes = self.buildLocation(location=loc)
-            self.testbedNodes[loc[0]] = locationNodes
+            self.testbedNodes[loc['locationName']] = locationNodes
         self.buildVpns()
         print"building network"
         self.buildRoutersLinks()
         print
-        self.displayNodes()
 
 class ESnetMininet(Mininet):
 
@@ -234,6 +287,9 @@ class ESnetMininet(Mininet):
 
 if __name__ == '__main__':
     setLogLevel( 'info' )
+    # todo: real argument parsing.
+    if len(sys.args) > 1:
+	self.loadConfiguration(sys.args[1])
     net = ESnetMininet()
     print "Starts network"
     net.start()
