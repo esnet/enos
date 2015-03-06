@@ -1,16 +1,4 @@
 #!/usr/bin/python
-import sys
-from random import randrange
-
-from mininet.net import Mininet
-from mininet.node import Controller, OVSKernelSwitch, RemoteController
-from mininet.cli import CLI
-from mininet.log import setLogLevel, info
-from mininet.topo import Topo
-
-
-
-
 #
 # Default VPN instances
 # Each VPN instance is made of an array containing its name and an array of sites
@@ -19,8 +7,8 @@ from mininet.topo import Topo
 #
 
 vpn1=["vpn1",[
-    ["s1_1",["h1_1","h1_2"],"lbl",1,11],
-    ["s1_2",["h1_3"],"denv",1,12]
+    ["site1",["site1-host-1","site1-host-2"],"lbl",1,11],
+    ["site2",["site2-host-3"],"denv",1,12]
   ]
 ]
 
@@ -28,211 +16,122 @@ vpns=[vpn1]
 # Default Locations with hardware openflow switch
 # name,rt,nb of links
 #
-lbl=["lbl","mr2",2]
-atla=["atla","cr5",4]
-denv=["denv","cr5",2]
-wash=["wash","cr5",2]
-aofa=["aofa","cr5",2]
-star=["star","cr5",8]
-cern=["cern","cr5",5]
-amst=["amst","cr5",8]
+lbl=["lbl",'lbl-tb-of-1',"lbl-mr2",2]
+atla=["atla",'atla-tb-of-1',"atla-cr5",4]
+denv=["denv",'denv-tb-of-1',"denv-cr5",2]
+wash=["wash",'wash-tb-of-1',"wash-cr5",2]
+aofa=["aofa",'aofa-tb-of-1',"aofa-cr5",2]
+star=["star",'star-tb-of-4',"star-cr5",8]
+cern=["cern",'cern-tb-of-1',"cern-cr5",5]
+amst=["amst",'amst-tb-of-1',"amst-cr5",8]
 
 # Default locations
 locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
-#locations=[lbl,atla,denv]
-#locations=[denv]
-#
-# OpenFlow controller IP and ports
-#
-controllerIp='192.168.56.1'
-controllerPort=6633
 
-#
-# if viewAll is set to True, router will be made openflow and then will appear in the controller's topology.
-#
-viewAll = True
+class TopoBuilder ():
 
-class ESnetTestbedTopo(Topo):
+    def __init__(self, fileName = None):
+        self.hostIndex = 1
+        self.switchIndex = 1
+        self.dpidIndex = 1
+        self.dpidToMininetName = {}
+        self.mininetToDpid = {}
+        self.realNameToMininetName = {}
+        self.mininetNameToRealName = {}
+        if fileName != None:
+            self.loadConfiguration(fileName)
+        else:
+            self.locations = [atla,lbl,denv,wash,aofa,star,cern,amst]
+            self.vpns = vpns=[vpn1]
+            self.loadDefault()
 
-    def defaultConfiguration(self):
+    def loadDefault(self):
         format={}
         locs =[]
-        for location in locations:
+
+        for location in self.locations:
             loc = {}
-            loc['locationName'] = location[0]
-            loc['coreRouterName'] = location[1]
-            loc['nbOfLinks'] = location[2]
+            loc['name'] = location[0]
+            loc["hwSwitch"] = self.makeMininetSwitch(location[1])
+            mininetSwitch = self.makeMininetSwitch(location[2])
+            loc['coreRouter'] = self.makeMininetSwitch(location[2])
+            loc['nbOfLinks'] = location[3]
+            # Creates the OVS switch
+            switchName = location[0] + "-" "ovs"
+            loc['swSwitch'] = self.makeMininetSwitch(switchName)
             locs = locs +[loc]
+
         instances = []
-        for vpn in vpns:
+        network = "192.168"
+        networkIndex = 1
+        for vpn in self.vpns:
             sites=[]
             instance = {}
-            instance['vpnName'] = vpn[0]
+            instance['name'] = vpn[0]
             for s in vpn[1]:
                 site = {}
-                site['siteName'] = s[0]
+                site['name'] = s[0]
                 hosts = []
                 for h in s[1]:
                     host={}
-                    host['hostName'] = h[0]
+                    net = network + "." + str(networkIndex)
+                    mininetHost = self.makeMininetHost(realName=h[0],network=net)
+                    host= self.makeMininetHost(realName=h[0],network=net)
+                    host['vlan'] = s[4]
                     hosts = hosts + [host]
+                site['hosts'] = hosts
+                site['vlan'] = s[4]
+                # Create border router
+                siteRouterName = s[0] + "-" + s[2] + "-site"
+                switch  = self.makeMininetSwitch(realName=siteRouterName)
+                site['siteRouter'] = switch
                 site['connectedTo'] = s[2]
-                site['vlanLocation'] = s[4]
-                site['dhcpVmVlan'] = s[3]
+                # Creates service vm
+                host={}
+                net = network + "." + str(networkIndex+1)
+                host = self.makeMininetHost(realName = s[0] + "-" + s[2] + "-vm", network = net)
+                host['vlan'] = s[3]
+                site['serviceVm'] = host
                 sites = sites + [site]
+                networkIndex = networkIndex + 2
             instance['sites'] = sites
             instances = instances + [instance]
 
         format['topology'] = locs
         format['vpns'] = instances
 
-        return format
+        self.config = format
 
 
-    #
-    # Returns node name that will be acceptable for Mininet. Binding between real name and mininet name is added in nodeMap
-    # Mininet's name are made by appending a - and the index
-    #
-    def makeMininetName(self,realName,host=False):
-        index = 0
-        if (host):
-            index = self.hostIndex
-            self.hostIndex = self.hostIndex + 1
-        else:
-            index = self.mininetIndex
-            self.mininetIndex = self.mininetIndex + 1
+    def makeMininetHost(self,realName, network="192.168.1"):
+        index = self.hostIndex
+        self.hostIndex = self.hostIndex + 1
 
-        mininetName = realName + "_" + str(index)
-        self.nodeMap[realName] = mininetName
-        return mininetName
-    #
-    # Returns the real name of Mininet name
-    #
-    def makeRealName(self,mininetName):
-        realName = "_".join(mininetName.split("_")[0:-1])
-        return realName
+        mininetName = "h" + str(index)
 
+        self.realNameToMininetName[realName] = mininetName
+        self.mininetNameToRealName[mininetName] = realName
+        ip = network + "." + str(index)
+        return {'name' : mininetName, 'ip' : ip}
 
-    def makeDpid(self):
-	return str(randrange(1,999999999999))
+    def makeMininetSwitch(self,realName):
+        index = self.switchIndex
+        self.switchIndex = self.switchIndex + 1
 
-    #
-    # Creates nodes and links of a location
-    #
-    def buildLocation(self,location):
-        locationName = location['locationName']
-        routerName = locationName + "_R"
-        switchName = locationName + "_S"
-        ovsName = locationName + "_O"
+        mininetName = "s" + str(index)
 
-        nbOfLinks = location['nbOfLinks']
+        self.realNameToMininetName[realName] = mininetName
+        self.mininetNameToRealName[mininetName] = realName
 
-        # creates nodes
-        routerNode = self.addSwitch(self.makeMininetName(routerName),listenPort=6634,dpid=self.makeDpid())
-        switchNode = self.addSwitch(self.makeMininetName(switchName), listenPort=6634,dpid=self.makeDpid())
-        ovsNode = self.addSwitch(self.makeMininetName(ovsName), listenPort=6634,dpid=self.makeDpid())
+        # Create dpid
+        index = self.dpidIndex
+        self.dpidIndex = self.dpidIndex + 1
+        dpid = str(index)
+        self.dpidToMininetName[dpid] = realName
+        self.mininetToDpid[realName] = dpid
 
-        # creates links between router and switch and between switch and ovs. Assume same number
-        # of links
-        while nbOfLinks > 0:
-            self.addLink(routerNode,switchNode)
-            self.addLink(switchNode,ovsNode)
-            nbOfLinks = nbOfLinks - 1
-        self.displayDot()
-        return [routerNode,switchNode,ovsNode]
+        return {"name" : mininetName, "dpid" : dpid}
 
-    def buildRoutersLinks(self):
-            global locations
-            index = 0
-            for fromLoc in locations:
-                    fromNode = self.testbedNodes[fromLoc[0]][0] # router
-                    if (index + 1) == len(locations):
-                            break
-                    for toLoc in locations[index+1:]:
-                            toNode = self.testbedNodes[toLoc[0]][0]
-                            # two links between routers. one best effort no cap, the other bandwidth limited to low.
-                            self.addLink(fromNode,toNode)
-                            self.addLink(fromNode,toNode)
-                    index = index + 1
-            self.displayDot()
-
-    def setOpenFlow(self,net):
-        global locations, viewAll
-
-        for loc in locations:
-            if viewAll:
-                net.getNodeByName(self.testbedNodes[loc[0]][0]).start([net.ctrl])
-		self.displayDot()
-
-            net.getNodeByName(self.testbedNodes[loc[0]][1]).start([net.ctrl])
-	    self.displayDot()
-            net.getNodeByName(self.testbedNodes[loc[0]][2]).start([net.ctrl])
-            self.displayDot()
-	if viewAll:
-        	for vpnName in self.vpnInstances:
-                    vpn = self.vpnInstances[vpnName]
-                    for siteName in vpn:
-                        site = vpn[siteName]
-                        switch = net.getNodeByName(site[0])
-			switch.start([net.ctrl])
-                        self.displayDot()
-
-    def displayNodes(self):
-        global locations
-        print "Mininet nodes:"
-        for loc in locations:
-            name = loc[0]
-            router = self.testbedNodes[name][0]
-            switch = self.testbedNodes[name][1]
-            ovs = self.testbedNodes[name][2]
-            print name + " router= " + str(router) + " switch= " + str(switch) + " ovs= " + str(ovs)
-        print
-
-    def displayDot(self):
-        sys.stdout.write('.')
-        sys.stdout.flush()
-
-    def buildSite(self,site):
-        siteName = site[0]
-        hostNames = site[1]
-        borderRouter = self.testbedNodes[site[2]][0]
-	swSwitch =  self.testbedNodes[site[2]][1]
-	# find the hardware switch associated to this router
-        vlan = site[3]
-        switchName = self.makeMininetName(siteName, host=False)
-	# Create the site border router/switch
-        switch = self.addSwitch(switchName,listenPort=6634,dpid=self.makeDpid())
-        self.addLink(switch, borderRouter)
-        siteHosts=[]
-        for host in hostNames:
-            h = self.addHost(self.makeMininetName(host, host=True))
-            siteHosts.append(h)
-            self.addLink(h,switch)
-	# create VPN for the VPN instance and for that site
-	vmName = siteName + "_V"
-	vm = self.addHost(self.makeMininetName (vmName, host=True))
-	# create a link to the software switch
-	self.addLink(swSwitch,vm)
-
-        self.displayDot()
-        return [switch,siteHosts,vm]
-
-    def start(self,net):
-	print "Set OpenFlow controller"
-	self.setOpenFlow(net)
-	print
-
-    def buildVpns(self):
-        for vpn in vpns:
-            vpnName = vpn[0]
-            sites = vpn[1]
-            allSiteNodes = {};
-            print "building VPN " + vpnName
-            for site in sites:
-                siteNodes = self.buildSite(site=site)
-                allSiteNodes[site[0]] = siteNodes
-            self.vpnInstances[vpnName] = allSiteNodes
-            print
 
     def loadConfiguration(self,fileName):
         """
@@ -244,54 +143,10 @@ class ESnetTestbedTopo(Topo):
         :return:
         """
         f = open(fileName,"r")
-        return eval (f.read())
-	
-
-    def __init__(self):
-	self.mininetIndex = 1  # Mininet seems to requires node names to end with a number that is incrementely increased
-        self.hostIndex = 1
-        self.nodeMap={} # Map matching real node name with the mininet name
-        self.testbedNodes={} # Map of all nodes indexed by location name. The entroes are lists [router,switch,ovs]
-        self.vpnInstances={}
-        Topo.__init__(self)
-        print("building SDN locations")
-        self.config = self.loadConfiguration("/tmp/config")
-	print self.config
-	locations=self.config['topology']
-        for loc in locations:
-            locationNodes = self.buildLocation(location=loc)
-            self.testbedNodes[loc['locationName']] = locationNodes
-        self.buildVpns()
-        print"building network"
-        self.buildRoutersLinks()
-        print
-
-class ESnetMininet(Mininet):
-
-    def __init__(self, **args):
-	global controllerIp, controllerPort
-        self.topo = ESnetTestbedTopo()
-        args['topo'] = self.topo 
-        args['switch'] = OVSKernelSwitch
-        args['controller'] = RemoteController
-        args['build'] = False
-	Mininet.__init__(self, **args)
-        self.ctrl = self.addController( 'c0', controller=RemoteController, ip=controllerIp, port=controllerPort) 
- 
-    def start(self):
-        "Start controller and switches."
-        if not self.built:
-            self.build()
- 
-        self.topo.start(self)
+        self.config = eval (f.read())
+        f.close()
 
 if __name__ == '__main__':
-    setLogLevel( 'info' )
-    # todo: real argument parsing.
-    if len(sys.args) > 1:
-	self.loadConfiguration(sys.args[1])
-    net = ESnetMininet()
-    print "Starts network"
-    net.start()
-    CLI(net)
-    net.stop()
+    topo = TopoBuilder()
+    print topo.config
+	
