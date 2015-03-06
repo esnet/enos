@@ -49,7 +49,7 @@ class TestbedTopo(Topo):
             fromNode = fromLoc['coreRouter']
             for toLoc in locations:
                 toNode = toLoc['coreRouter']
-                if toNode == fromLoc:
+                if toNode['name'] == fromNode['name']:
                     continue
                 self.addLink(fromNode['name'],toNode['name'])
             self.displayDot()
