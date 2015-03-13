@@ -2,19 +2,22 @@
 import sys
 
 from testbed import TopoBuilder
-from net.es.netshell.api import GenericTopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
+from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
 
 testbedNodes = {}
 
 class TestbedNode (GenericNode):
-    def __init__(self):
+    def __init__(self, name):
+        self.setResourceName(name)
         self.portIndex = 1
         global testbedNodes
-        testbedNodes[self.getResourceName] = self
+        testbedNodes[name] = self
 
     def newPort(self):
         portName = "p" + str(self.portIndex)
-        return GenericPort(portName)
+        port = GenericPort()
+        port.setResourceName(portName)
+        return port
 
 
 
@@ -25,9 +28,9 @@ class TestbedTopology (GenericTopologyProvider):
     #
     def buildLocation(self,location):
         locationName = location['name']
-        router = self.builder.mininetNameToRealName(location['coreRouter'])
-        switch = self.builder.mininetNameToRealName(location['hwSwitch'])
-        ovs = self.builder.mininetNameToRealName(location['swSwitch'])
+        router = self.builder.mininetNameToRealName[location['coreRouter']['name']]
+        switch = self.builder.mininetNameToRealName[location['hwSwitch']['name']]
+        ovs = self.builder.mininetNameToRealName[location['swSwitch']['name']]
         nbOfLinks = location['nbOfLinks']
 
         # creates nodes
@@ -43,13 +46,13 @@ class TestbedTopology (GenericTopologyProvider):
         # of links
         while nbOfLinks > 0:
             # Creates ports
-            srcPort = router.newPort()
+            srcPort = routerNode.newPort()
             dstPort = switchNode.newPort()
-            link = GenericLink(srcNode=routerNode,srcPort=srcPort,dstNode=switchNode,dstPort=dstPort)
+            link = GenericLink(routerNode,srcPort,switchNode,dstPort)
             self.addLink (link)
             srcPort = switchNode.newPort()
             dstPort = ovsNode.newPort()
-            link = GenericLink(srcNode=switchNode,srcPort=srcPort,dstNode=ovsNode,dstPort=dstPort)
+            link = GenericLink(switchNode,srcPort,ovsNode,dstPort)
             self.addLink(link)
             nbOfLinks = nbOfLinks - 1
         self.displayDot()
@@ -64,11 +67,11 @@ class TestbedTopology (GenericTopologyProvider):
                 toNode = toLoc['coreRouter']
                 if toNode['name'] == fromNode['name']:
                     continue
-                srcNode = TestbedNode(self.builder.mininetNameToRealName(fromNode))
-                dstNode = TestbedNode(self.builder.mininetNameToRealName(toNode))
+                srcNode = TestbedNode(self.builder.mininetNameToRealName[fromNode['name']])
+                dstNode = TestbedNode(self.builder.mininetNameToRealName[toNode['name']])
                 srcPort = srcNode.newPort()
                 dstPort = dstNode.newPort()
-                link = GenericLink(srcNode=srcNode,srcPort=srcPort,dstNode=dstNode,dstPort=dstPort)
+                link = GenericLink(srcNode,srcPort,dstNode,dstPort)
                 self.addLink(link)
             self.displayDot()
 
@@ -85,38 +88,38 @@ class TestbedTopology (GenericTopologyProvider):
     def buildSite(self,site):
         siteName = site['name']
         hosts = site['hosts']
-        siteRouter = self.builder.mininetNameToRealName(site['siteRouter'])
+        siteRouter = self.builder.mininetNameToRealName[site['siteRouter']['name']]
         serviceVm = site['serviceVm']
-        borderRouter = self.builder.mininetNameToRealName(self.getLocation(site['connectedTo'])['coreRouter'])
-        swSwitch =  self.builder.mininetNameToRealName(self.getLocation(site['connectedTo'])['swSwitch'])
+        borderRouter = self.builder.mininetNameToRealName[self.getLocation(site['connectedTo'])['coreRouter']['name']]
+        swSwitch =  self.builder.mininetNameToRealName[self.getLocation(site['connectedTo'])['swSwitch']['name']]
         # find the hardware switch associated to this router
         vlan = site['vlan']
         # Create the site border router/switch
         siteRouterNode = TestbedNode(siteRouter)
         switch = TestbedNode(siteRouter)
         self.addNode (switch)
-        global testbedNodes
+        global testbedoNodes
         router = testbedNodes[borderRouter]
         srcPort = switch.newPort()
         dstPort = router.newPort()
-        link = GenericLink(srcNode=switch,srcPort=srcPort,dstNode=router,dstPort=dstPort)
+        link = GenericLink(switch,srcPort,router,dstPort)
         self.addLink(link)
         siteHosts=[]
         for host in hosts:
-            h = TestbedHost(host['name'])
-            self.addHost(h)
+            h = TestbedNode(host['name'])
+            self.addNode(h)
             siteHosts.append(h)
             dstPort = switch.newPort()
             srcPort = h.newPort()
-            link = GenericLink(srcNode=h,srcPort=srcPort,dstNode=switch,dstPort=dstPort)
+            link = GenericLink(h,srcPort,switch,dstPort)
 
         # create VPN for the VPN instance and for that site
         vm = TestbedNode(serviceVm['name'])
-        self.addHost(vm)
+        self.addNode(vm)
         siteHosts.append(h)
         dstPort = switch.newPort()
         srcPort = vm.newPort()
-        link = GenericLink(srcNode=vm,srcPort=srcPort,dstNode=switch,dstPort=dstPort)
+        link = GenericLink(vm,srcPort,switch,dstPort)
         self.displayDot()
 
 
@@ -131,7 +134,6 @@ class TestbedTopology (GenericTopologyProvider):
             print
 
     def __init__(self, fileName = None):
-        Topo.__init__(self)
         # Build topology
         self.builder = TopoBuilder(fileName)
         self.vpnInstances = {}
@@ -146,12 +148,13 @@ class TestbedTopology (GenericTopologyProvider):
 
 
 if __name__ == '__main__':
-    setLogLevel( 'info' )
     # todo: real argument parsing.
     configFileName = None
+    net=None
     if len(sys.argv) > 1:
         configFileName = sys.argv[1]
         net = TestbedTopology(fileName=configFileName)
     else:
         net = TestbedTopology()
+    graph = net.getGraphViewer(TopologyProvider.WeightType.TrafficEngineering)
 
