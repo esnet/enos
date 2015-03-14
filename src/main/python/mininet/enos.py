@@ -6,6 +6,24 @@ from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, Gener
 
 testbedNodes = {}
 
+def configureVpn(topology):
+    graph = topology.getGraph(TopologyProvider.WeightType.TrafficEngineering)
+
+
+    for vpn in topology.builder.config['vpns']:
+        vpnName = vpn['name']
+        sites = vpn['sites']
+        for site in sites:
+            siteName = site['name']
+            hosts = site['hosts']
+            siteRouter = site['siteRouter']['name']
+            serviceVm = site['serviceVm']
+            borderRouter = topology.getLocation(site['connectedTo'])['coreRouter']['name']
+            swSwitch =  topology.getLocation(site['connectedTo'])['swSwitch']['name']
+            vlan = site['vlan']
+
+
+
 class TestbedNode (GenericNode):
     def __init__(self, name):
         self.setResourceName(name)
@@ -17,6 +35,7 @@ class TestbedNode (GenericNode):
         portName = "p" + str(self.portIndex)
         port = GenericPort()
         port.setResourceName(portName)
+        self.portIndex = self.portIndex + 1
         return port
 
 
@@ -156,5 +175,8 @@ if __name__ == '__main__':
         net = TestbedTopology(fileName=configFileName)
     else:
         net = TestbedTopology()
-    graph = net.getGraphViewer(TopologyProvider.WeightType.TrafficEngineering)
+    # viewer = net.getGraphViewer(TopologyProvider.WeightType.TrafficEngineering)
+    graph = net.getGraph(TopologyProvider.WeightType.TrafficEngineering)
+
+    configureVpn(net)
 

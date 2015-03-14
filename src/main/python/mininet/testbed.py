@@ -35,7 +35,7 @@ class TopoBuilder ():
         self.switchIndex = 1
         self.dpidIndex = 1
         self.dpidToMininetName = {}
-        self.mininetToDpid = {}
+        self.mininetNameToDpid = {}
         self.realNameToMininetName = {}
         self.mininetNameToRealName = {}
         if fileName != None:
@@ -128,7 +128,7 @@ class TopoBuilder ():
         self.dpidIndex = self.dpidIndex + 1
         dpid = str(index)
         self.dpidToMininetName[dpid] = realName
-        self.mininetToDpid[realName] = dpid
+        self.mininetNameToDpid[realName] = dpid
 
         return {"name" : mininetName, "dpid" : dpid}
 
