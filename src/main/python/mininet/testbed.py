@@ -127,8 +127,8 @@ class TopoBuilder ():
         index = self.dpidIndex
         self.dpidIndex = self.dpidIndex + 1
         dpid = str(index)
-        self.dpidToMininetName[dpid] = realName
-        self.mininetNameToDpid[realName] = dpid
+        self.dpidToMininetName[dpid] = mininetName
+        self.mininetNameToDpid[mininetName] = dpid
 
         return {"name" : mininetName, "dpid" : dpid}
 
