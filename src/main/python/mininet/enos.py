@@ -6,6 +6,8 @@ from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, Gener
 
 testbedNodes = {}
 
+
+
 def configureVpn(topology):
     graph = topology.getGraph(TopologyProvider.WeightType.TrafficEngineering)
 
