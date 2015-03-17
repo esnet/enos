@@ -1,6 +1,7 @@
 from net.es.netshell.api import GenericGraph,GenericHost, GenericLink,GenericPort
 
 __author__ = 'lomax'
+from intent.py import ProvisioningIntent,
 
 class VPN:
     """VPN provides the generic API to any VPN implementation.
@@ -8,35 +9,28 @@ class VPN:
     The topology itself is logical: the links are logical links and do not represent the real path.
     """
 
-    def __init__(self, graph):
+    def __init__(self, intent):
         """
-        :param graph: net.es.netshell.api.GenericGraph. Graph representing the logical VPN topology                                                                                           Crdate
+        :param intent: intended VPN (ProvisioningIntent)
         :return:
         """
-        self.graph = graph
+        self.intent = intent
 
     def setUp(self):
         """ set up (activate) the VPN
 
         :return:
         """
+        print "not implemented"
 
 
 
     def tearDown(self):
-         """  tear down (shutdown) the VPN
+        """  tear down (shutdown) the VPN
 
-         :return:
-         """
-
-
-
-
-
-
-
-
-
+        :return:
+        """
+        print "not implemented"
 
 
 if __name__ == '__main__':
@@ -50,10 +44,6 @@ if __name__ == '__main__':
     graph.addVertex(h1)
     graph.addVertex(h2)
     graph.addEdge(h1,h2,link)
-
-
-
-    vpn = VPN(graph=graph)
 
 
 
