@@ -1,6 +1,6 @@
-from intent import ProvisioningIntent
+from intent import ProvisioningRenderer
 
-class SiteRenderer(ProvisioningIntent):
+class SiteRenderer(ProvisioningRenderer):
     """
     Implements the rendering of provisioning intents on the Site. This class is responsible for pushing the proper
     flowMods that will forward packets between the hosts and the ESnet border router. Typically the topology is
