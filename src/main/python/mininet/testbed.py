@@ -7,8 +7,8 @@
 #
 
 vpn1=["vpn1",[
-    ["site1",["site1-host-1","site1-host-2"],"lbl",1,11],
-    ["site2",["site2-host-3"],"denv",1,12]
+    ["lbl.gov",["dtn-1","dtn-2"],"lbl",1,11],
+    ["anl.gov",["dtn-1"],"star",1,12]
   ]
 ]
 
@@ -28,109 +28,189 @@ amst=["amst",'amst-tb-of-1',"amst-cr5",8]
 # Default locations
 locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
 
+class TopoProp:
+    def __init__(self, name,props={}):
+        self.name = name
+        self.props = props.copy()
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+class TopoPort(TopoProp):
+    def __init__(self,name,props={}):
+        TopoProp.__init__(self,name,props)
+
+class TopoNode(TopoProp):
+    def __init__(self, name,builder,props={}):
+        """
+
+        :type builder: TopoBuilder
+        """
+        TopoProp.__init__(self,name,props)
+        self.props['ports'] = {}
+        self.interfaceIndex = 1
+        builder.nodes[name] = self
+
+    def newPort(self,props={}):
+        port = TopoPort(name= "eth" + str(self.interfaceIndex),props=props)
+        self.props['ports'][port.name] = port
+        port.props['node'] = self.name
+        self.interfaceIndex += 1
+        return port
+
+class TopoPOP(TopoProp):
+    def __init__(self,name,props={}):
+        TopoProp.__init__(self,name,props)
+
+class TopoVPN(TopoProp):
+    def __init__(self,name,props={}):
+        TopoProp.__init__(self,name,props)
+        self.props['sites'] = {}
+
+class TopoSite(TopoProp):
+    def __init__(self,name,props={}):
+        TopoProp.__init__(self,name,props)
+        self.props['hosts'] = {}
+        self.props['links'] = {}
+
+class TopoLink(TopoProp):
+    def __init__(self,name,props={}):
+        TopoProp.__init__(self,name,props)
+        self.props['endpoints'] = []
+
+
 class TopoBuilder ():
 
-    def __init__(self, fileName = None):
+    def __init__(self, fileName = None,network={'ip':'192.168.1.','netmask':'/24'}):
         self.hostIndex = 1
         self.switchIndex = 1
         self.dpidIndex = 1
-        self.dpidToMininetName = {}
-        self.mininetNameToDpid = {}
-        self.realNameToMininetName = {}
-        self.mininetNameToRealName = {}
+        self.nodes = {}
+        self.pops = {}
+        self.coreLinks = {}
+        self.coreRouters = {}
+        self.hwSwitches = {}
+        self.swSwitches = {}
+        self.vpns = {}
+        self.network = network
+        self.dpidToName = {}
+        self.mininetToRealNames = {}
+
         if fileName != None:
             self.loadConfiguration(fileName)
         else:
             self.locations = [atla,lbl,denv,wash,aofa,star,cern,amst]
-            self.vpns = vpns=[vpn1]
-            self.loadDefault()
+            self.vpnInstances = [vpn1]
+        self.loadDefault()
+
+    def createLink(self,endpoints,suffix=""):
+        link = TopoLink(name=endpoints[0].name+":"+endpoints[1].name+suffix)
+        port1 = endpoints[0].newPort({'link':link.name})
+        port2 = endpoints[1].newPort({'link':link.name})
+        link.props['endpoints'].append(port1)
+        link.props['endpoints'].append(port2)
+        return link
+
 
     def loadDefault(self):
-        format={}
-        locs =[]
 
         for location in self.locations:
-            loc = {}
-            loc['name'] = location[0]
-            loc["hwSwitch"] = self.makeMininetSwitch(location[1])
-            mininetSwitch = self.makeMininetSwitch(location[2])
-            loc['coreRouter'] = self.makeMininetSwitch(location[2])
-            loc['nbOfLinks'] = location[3]
-            # Creates the OVS switch
+
+            name = location[0]
+            pop = TopoPOP(name)
+            hwSwitch = TopoNode(name=location[1],props=self.getSwitchParams(location[1]),builder=self)
+            pop.props['hwSwitch'] = hwSwitch
+            self.hwSwitches[hwSwitch.name] = hwSwitch
+            coreRouter = TopoNode(name=location[2],props=self.getSwitchParams(location[2]),builder=self)
+            pop.props['coreRouter'] = coreRouter
+            self.coreRouters[coreRouter.name] = coreRouter
+            pop.props['nbOfLinks'] = nbOfLinks = location[3]
             switchName = location[0] + "-" "ovs"
-            loc['swSwitch'] = self.makeMininetSwitch(switchName)
-            locs = locs +[loc]
+            swSwitch = TopoNode(name=switchName, props=self.getSwitchParams(switchName),builder=self)
+            pop.props['swSwitch'] = swSwitch
+            self.swSwitches[swSwitch.name] = swSwitch
 
-        instances = []
-        network = "192.168"
-        networkIndex = 1
-        for vpn in self.vpns:
-            sites=[]
-            instance = {}
-            instance['name'] = vpn[0]
-            for s in vpn[1]:
-                site = {}
-                site['name'] = s[0]
-                hosts = []
+            while (nbOfLinks > 0):
+                # create links between the core router and the hardware SDN switch
+                link = self.createLink(endpoints=[hwSwitch,coreRouter],suffix=str(nbOfLinks))
+                self.coreLinks[link.name] = link
+                # create links between the sotfware SDN switch and the hardware SDN switch
+                link = self.createLink(endpoints=[hwSwitch,swSwitch],suffix='-' + str(nbOfLinks))
+                self.coreLinks[link.name] = link
+                nbOfLinks -= 1
+
+            self.pops[name] = pop
+
+        # create mesh between core routers
+        # two links are created between any core router, each of them with a different QoS (TBD)
+        # one best effort no cap, the other bandwidth limited to low.
+        targets = self.coreRouters.items()
+        for fromNode in self.coreRouters.items():
+            targets = targets[1:]
+            for toNode in targets:
+                link = self.createLink(endpoints=[fromNode[1],toNode[1]],suffix=":best-effort")
+                self.coreLinks[link.name] = link
+                link = self.createLink(endpoints=[fromNode[1],toNode[1]],suffix=":slow")
+                self.coreLinks[link.name] = link
+
+        for v in self.vpnInstances:
+            vpn = TopoVPN (v[0])
+            self.vpns[vpn.name] = vpn
+            for s in v[1]:
+                site = TopoSite(s[0])
+                vpn.props['sites'][site.name] = site
+                name = s[0]
+                siteRouter = TopoNode(name=name, props = self.getSwitchParams(name=name),builder=self)
+                site.props['siteRouter'] = siteRouter
+                pop = self.pops[s[2]]
+                coreRouter = pop.props['coreRouter']
+                site.props['connectedTo'] = coreRouter.name
                 for h in s[1]:
-                    host={}
-                    net = network + "." + str(networkIndex)
-                    mininetHost = self.makeMininetHost(realName=h[0],network=net)
-                    host= self.makeMininetHost(realName=h[0],network=net)
-                    host['vlan'] = s[4]
-                    hosts = hosts + [host]
-                site['hosts'] = hosts
-                site['vlan'] = s[4]
-                # Create border router
-                siteRouterName = s[0] + "-" + s[2] + "-site"
-                switch  = self.makeMininetSwitch(realName=siteRouterName)
-                site['siteRouter'] = switch
-                site['connectedTo'] = s[2]
+                    name = h + "@" + site.name
+                    host = TopoNode (name=name, props=self.getHostParams(name=h),builder=self)
+                    host.props['vlan'] = s[4]
+                    site.props['hosts'][host.name] = host
+                    link = self.createLink(endpoints=[siteRouter,host],suffix="-" + vpn.name)
+                    site.props['links'][link.name] = link
+
+                site.props['vlan'] = s[4]
                 # Creates service vm
-                host={}
-                net = network + "." + str(networkIndex+1)
-                host = self.makeMininetHost(realName = s[0] + "-" + s[2] + "-vm", network = net)
-                host['vlan'] = s[3]
-                site['serviceVm'] = host
-                sites = sites + [site]
-                networkIndex = networkIndex + 2
-            instance['sites'] = sites
-            instances = instances + [instance]
+                name = v[0] + "-" + s[2] + "-vm"
+                host = TopoNode(name=name, props=self.getHostParams(name = name),builder=self)
+                host.props['vlan'] = s[3]
+                if not site.props.has_key('serviceVm'):
+                    site.props['serviceVm'] = host
+                link = self.createLink(endpoints=[siteRouter,coreRouter],suffix="-" + vpn.name)
+                serviceVm = site.props['serviceVm']
+                site.props['links'][link.name] = link
+                link = self.createLink(endpoints=[siteRouter,serviceVm],suffix="-" + vpn.name)
+                site.props['links'][link.name] = link
 
-        format['topology'] = locs
-        format['vpns'] = instances
-
-        self.config = format
+            self.vpns [vpn.name] = vpn
 
 
-    def makeMininetHost(self,realName, network="192.168.1"):
+    def getHostParams(self,name):
         index = self.hostIndex
-        self.hostIndex = self.hostIndex + 1
-
+        self.hostIndex +=  1
         mininetName = "h" + str(index)
+        self.mininetToRealNames[mininetName] = name
+        ip = self.network['ip'] + "." + str(index) + self.network['netmask']
+        return {'mininetName' : mininetName, 'ip' : ip}
 
-        self.realNameToMininetName[realName] = mininetName
-        self.mininetNameToRealName[mininetName] = realName
-        ip = network + "." + str(index)
-        return {'name' : mininetName, 'ip' : ip}
-
-    def makeMininetSwitch(self,realName):
+    def getSwitchParams(self,name):
         index = self.switchIndex
-        self.switchIndex = self.switchIndex + 1
-
+        self.switchIndex += 1
         mininetName = "s" + str(index)
-
-        self.realNameToMininetName[realName] = mininetName
-        self.mininetNameToRealName[mininetName] = realName
-
+        self.mininetToRealNames[mininetName] = name
         # Create dpid
         index = self.dpidIndex
         self.dpidIndex = self.dpidIndex + 1
         dpid = str(index)
-        self.dpidToMininetName[dpid] = mininetName
-        self.mininetNameToDpid[mininetName] = dpid
-
-        return {"name" : mininetName, "dpid" : dpid}
+        self.dpidToName[dpid] = name
+        return {"mininetName" : mininetName, "dpid" : dpid}
 
 
     def loadConfiguration(self,fileName):
@@ -148,5 +228,6 @@ class TopoBuilder ():
 
 if __name__ == '__main__':
     topo = TopoBuilder()
-    print topo.config
+    vpns = topo.vpns
+
 	

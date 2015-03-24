@@ -2,15 +2,12 @@
 import sys
 
 from testbed import TopoBuilder
-from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
+from net.es.netshell.api import GenericGraph, GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
 
 testbedNodes = {}
 
-
-
-def configureVpn(topology):
+def configureVpns(topology):
     graph = topology.getGraph(TopologyProvider.WeightType.TrafficEngineering)
-
 
     for vpn in topology.builder.config['vpns']:
         vpnName = vpn['name']
@@ -18,32 +15,46 @@ def configureVpn(topology):
         for site in sites:
             siteName = site['name']
             hosts = site['hosts']
-            siteRouter = site['siteRouter']['name']
-            serviceVm = site['serviceVm']
-            borderRouter = topology.getLocation(site['connectedTo'])['coreRouter']['name']
-            swSwitch =  topology.getLocation(site['connectedTo'])['swSwitch']['name']
+            siteRouter = topology.builder.mininetNameToRealName[site['siteRouter']['name']]
+            serviceVm = topology.builder.mininetNameToRealName[site['serviceVm']['name']]
+            borderRouter = topology.builder.mininetNameToRealName[topology.getLocation(site['connectedTo'])['coreRouter']['name']]
+            swSwitch =  topology.builder.mininetNameToRealName[topology.getLocation(site['connectedTo'])['swSwitch']['name']]
             vlan = site['vlan']
+            # Create a graph of the site topology
+            siteRouterNode = TestbedNode(siteRouter)
+            serviceVmHost = TestbedNode(serviceVm)
+            borderRouterNode = TestbedNode(borderRouter)
+            swSwitchNode = TestbedNode(swSwitch)
+            graph = GenericGraph()
+            srcPort = GenericPort("p1")
+            dstPort = GenericPort("p1")
+            link = GenericLink(siteRouterNode,srcPort,borderRouterNode,dstPort)
+            graph.addVertex(siteRouterNode)
+            graph.addVertex(borderRouterNode)
+            graph.addEdge(siteRouterNode,borderRouterNode,link)
+            srcPort = GenericPort("p-" + vpnName)
+            dstPort = GenericPort("eth0")
+            link = GenericLink(swSwitchNode,srcPort,serviceVmHost,dstPort)
+            graph.addVertex(swSwitchNode)
+            graph.addVertex(serviceVmHost)
+            graph.addEdge(swSwitchNode,serviceVmHost,link)
+            portIndex = 2
+            for host in hosts:
+                hostNode = GenericHost(topology.builder.mininetNameToRealName[host['name']])
+                srcPort = GenericPort("p" + str(portIndex))
+                portIndex = portIndex + 1
+                link = GenericLink(siteRouterNode,srcPort,hostNode,dstPort)
+                graph.addVertex(hostNode)
+                graph.addEdge(siteRouterNode,hostNode,link)
 
 
-
-class TestbedNode (GenericNode):
-    def __init__(self, name):
-        self.setResourceName(name)
-        self.portIndex = 1
+class TestbedNode(GenericNode):
+    def __init__(self,name):
+        GenericPort.__init__(self,name)
         global testbedNodes
         testbedNodes[name] = self
 
-    def newPort(self):
-        portName = "p" + str(self.portIndex)
-        port = GenericPort()
-        port.setResourceName(portName)
-        self.portIndex = self.portIndex + 1
-        return port
-
-
-
 class TestbedTopology (GenericTopologyProvider):
-
     #
     # Creates nodes and links of a location
     #
@@ -67,12 +78,16 @@ class TestbedTopology (GenericTopologyProvider):
         # of links
         while nbOfLinks > 0:
             # Creates ports
-            srcPort = routerNode.newPort()
-            dstPort = switchNode.newPort()
+            srcPort = GenericPort(location['coreRouter']['name'] + "-eth" + str(100 + nbOfLinks))
+            dstPort = GenericPort(location['hwSwitch']['name'] + "-eth" + str(100 + nbOfLinks))
+            self.addPort(routerNode,srcPort)
+            self.addPort(switchNode,dstPort)
             link = GenericLink(routerNode,srcPort,switchNode,dstPort)
             self.addLink (link)
-            srcPort = switchNode.newPort()
-            dstPort = ovsNode.newPort()
+            srcPort = GenericPort(location['hwSwitch']['name'] + "-eth" + str(200 + nbOfLinks))
+            dstPort = GenericPort(location['swSwitch']['name'] + "-eth" + str(200 + nbOfLinks))
+            self.addPort(switchNode,srcPort)
+            self.addPort(ovsNode,dstPort)
             link = GenericLink(switchNode,srcPort,ovsNode,dstPort)
             self.addLink(link)
             nbOfLinks = nbOfLinks - 1
@@ -90,8 +105,10 @@ class TestbedTopology (GenericTopologyProvider):
                     continue
                 srcNode = TestbedNode(self.builder.mininetNameToRealName[fromNode['name']])
                 dstNode = TestbedNode(self.builder.mininetNameToRealName[toNode['name']])
-                srcPort = srcNode.newPort()
-                dstPort = dstNode.newPort()
+                srcPort = GenericPort(fromNode['name'] + "-eth" + str(501))
+                dstPort = GenericPort(toNode['name'] + "-eth" + str(502))
+                self.addPort(srcNode,srcPort)
+                self.addPort(dstNode,dstPort)
                 link = GenericLink(srcNode,srcPort,dstNode,dstPort)
                 self.addLink(link)
             self.displayDot()
@@ -119,27 +136,35 @@ class TestbedTopology (GenericTopologyProvider):
         siteRouterNode = TestbedNode(siteRouter)
         switch = TestbedNode(siteRouter)
         self.addNode (switch)
-        global testbedoNodes
+        global testbedNodes
         router = testbedNodes[borderRouter]
-        srcPort = switch.newPort()
-        dstPort = router.newPort()
+        srcPort = GenericPort(site['siteRouter']['name']  + "-eth" + str(300))
+        dstPort = GenericPort(self.getLocation(site['connectedTo'])['coreRouter']['name'] + "-eth" + str(300))
+        self.addPort(swSwitch,srcPort)
+        self.addPort(router,dstPort)
         link = GenericLink(switch,srcPort,router,dstPort)
         self.addLink(link)
         siteHosts=[]
+        hostIndex = 1
         for host in hosts:
-            h = TestbedNode(host['name'])
+            h = TestbedNode(self.builder.mininetNameToRealName[host['name']])
             self.addNode(h)
             siteHosts.append(h)
-            dstPort = switch.newPort()
-            srcPort = h.newPort()
+            dstPort = GenericPort(site['siteRouter']['name']  + "-eth" + str(hostIndex))
+            srcPort = GenericPort(host['name'] + "-eth" + str(hostIndex))
+            self.addPort(h,srcPort)
+            self.addPort(switch,dstPort)
             link = GenericLink(h,srcPort,switch,dstPort)
+            hostIndex = hostIndex + 1
 
         # create VPN for the VPN instance and for that site
-        vm = TestbedNode(serviceVm['name'])
+        vm = TestbedNode(self.builder.mininetNameToRealName[serviceVm['name']])
         self.addNode(vm)
         siteHosts.append(h)
-        dstPort = switch.newPort()
-        srcPort = vm.newPort()
+        dstPort = GenericPort(site['siteRouter']['name']  + "-eth400")
+        srcPort = GenericHost(serviceVm['name'] + "-eth400")
+        self.addPort(vm,srcPort)
+        self.addPort(switch,dstPort)
         link = GenericLink(vm,srcPort,switch,dstPort)
         self.displayDot()
 
@@ -180,5 +205,5 @@ if __name__ == '__main__':
     # viewer = net.getGraphViewer(TopologyProvider.WeightType.TrafficEngineering)
     graph = net.getGraph(TopologyProvider.WeightType.TrafficEngineering)
 
-    configureVpn(net)
+    configureVpns(net)
 
