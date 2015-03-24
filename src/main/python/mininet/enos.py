@@ -8,7 +8,7 @@ testbedNodes = {}
 
 def configureVpns(topology):
     graph = topology.getGraph(TopologyProvider.WeightType.TrafficEngineering)
-
+    """
     for vpn in topology.builder.config['vpns']:
         vpnName = vpn['name']
         sites = vpn['sites']
@@ -46,6 +46,7 @@ def configureVpns(topology):
                 link = GenericLink(siteRouterNode,srcPort,hostNode,dstPort)
                 graph.addVertex(hostNode)
                 graph.addEdge(siteRouterNode,hostNode,link)
+    """
 
 
 class TestbedNode(GenericNode):
@@ -55,143 +56,75 @@ class TestbedNode(GenericNode):
         testbedNodes[name] = self
 
 class TestbedTopology (GenericTopologyProvider):
-    #
-    # Creates nodes and links of a location
-    #
-    def buildLocation(self,location):
-        locationName = location['name']
-        router = self.builder.mininetNameToRealName[location['coreRouter']['name']]
-        switch = self.builder.mininetNameToRealName[location['hwSwitch']['name']]
-        ovs = self.builder.mininetNameToRealName[location['swSwitch']['name']]
-        nbOfLinks = location['nbOfLinks']
-
-        # creates nodes
-        routerNode = TestbedNode(router)
-        switchNode = TestbedNode(switch)
-        ovsNode = TestbedNode(ovs)
-
-        self.addNode(routerNode)
-        self.addNode(switchNode)
-        self.addNode(ovsNode)
-
-        # creates links between router and switch and between switch and ovs. Assume same number
-        # of links
-        while nbOfLinks > 0:
-            # Creates ports
-            srcPort = GenericPort(location['coreRouter']['name'] + "-eth" + str(100 + nbOfLinks))
-            dstPort = GenericPort(location['hwSwitch']['name'] + "-eth" + str(100 + nbOfLinks))
-            self.addPort(routerNode,srcPort)
-            self.addPort(switchNode,dstPort)
-            link = GenericLink(routerNode,srcPort,switchNode,dstPort)
-            self.addLink (link)
-            srcPort = GenericPort(location['hwSwitch']['name'] + "-eth" + str(200 + nbOfLinks))
-            dstPort = GenericPort(location['swSwitch']['name'] + "-eth" + str(200 + nbOfLinks))
-            self.addPort(switchNode,srcPort)
-            self.addPort(ovsNode,dstPort)
-            link = GenericLink(switchNode,srcPort,ovsNode,dstPort)
-            self.addLink(link)
-            nbOfLinks = nbOfLinks - 1
-        self.displayDot()
-
-    def buildRoutersLinks(self):
-        # two links are created between any core router, each of them with a different QoS (TBD)
-        # one best effort no cap, the other bandwidth limited to low.
-        locations = self.builder.config['topology']
-        for fromLoc in locations:
-            fromNode = fromLoc['coreRouter']
-            for toLoc in locations:
-                toNode = toLoc['coreRouter']
-                if toNode['name'] == fromNode['name']:
-                    continue
-                srcNode = TestbedNode(self.builder.mininetNameToRealName[fromNode['name']])
-                dstNode = TestbedNode(self.builder.mininetNameToRealName[toNode['name']])
-                srcPort = GenericPort(fromNode['name'] + "-eth" + str(501))
-                dstPort = GenericPort(toNode['name'] + "-eth" + str(502))
-                self.addPort(srcNode,srcPort)
-                self.addPort(dstNode,dstPort)
-                link = GenericLink(srcNode,srcPort,dstNode,dstPort)
-                self.addLink(link)
-            self.displayDot()
 
     def displayDot(self):
         sys.stdout.write('.')
         sys.stdout.flush()
 
-    def getLocation(self, location):
-        for loc in self.builder.config['topology']:
-            if loc['name'] == location:
-                return loc
-        return None
+    def buildSwitch(self,switch):
+        sw = TestbedNode(switch.name)
+        self.addNode(sw)
+        switch.props['enosNode'] = sw
 
-    def buildSite(self,site):
-        siteName = site['name']
-        hosts = site['hosts']
-        siteRouter = self.builder.mininetNameToRealName[site['siteRouter']['name']]
-        serviceVm = site['serviceVm']
-        borderRouter = self.builder.mininetNameToRealName[self.getLocation(site['connectedTo'])['coreRouter']['name']]
-        swSwitch =  self.builder.mininetNameToRealName[self.getLocation(site['connectedTo'])['swSwitch']['name']]
-        # find the hardware switch associated to this router
-        vlan = site['vlan']
-        # Create the site border router/switch
-        siteRouterNode = TestbedNode(siteRouter)
-        switch = TestbedNode(siteRouter)
-        self.addNode (switch)
-        global testbedNodes
-        router = testbedNodes[borderRouter]
-        srcPort = GenericPort(site['siteRouter']['name']  + "-eth" + str(300))
-        dstPort = GenericPort(self.getLocation(site['connectedTo'])['coreRouter']['name'] + "-eth" + str(300))
-        self.addPort(swSwitch,srcPort)
-        self.addPort(router,dstPort)
-        link = GenericLink(switch,srcPort,router,dstPort)
+    def buildHost(self,host):
+        h = GenericHost(host.name)
+        self.addNode(h)
+        host.props['enosNode'] = h
+
+    def buildLink(self,link):
+        p1 = link.props['endpoints'][0]
+        p2 = link.props['endpoints'][1]
+        port1 = GenericPort(p1.name)
+        p1.props['enosPort'] = port1
+        port2 = GenericPort(p2.name)
+        p2.props['enosPort'] = port2
+        node1 = self.builder.nodes[p1.props['node']].props['enosNode']
+        node2 = self.builder.nodes[p2.props['node']].props['enosNode']
+        self.addPort (node1,port1)
+        self.addPort (node2,port2)
+        link = GenericLink(node1,port1,node2,port2)
         self.addLink(link)
-        siteHosts=[]
-        hostIndex = 1
-        for host in hosts:
-            h = TestbedNode(self.builder.mininetNameToRealName[host['name']])
-            self.addNode(h)
-            siteHosts.append(h)
-            dstPort = GenericPort(site['siteRouter']['name']  + "-eth" + str(hostIndex))
-            srcPort = GenericPort(host['name'] + "-eth" + str(hostIndex))
-            self.addPort(h,srcPort)
-            self.addPort(switch,dstPort)
-            link = GenericLink(h,srcPort,switch,dstPort)
-            hostIndex = hostIndex + 1
 
-        # create VPN for the VPN instance and for that site
-        vm = TestbedNode(self.builder.mininetNameToRealName[serviceVm['name']])
-        self.addNode(vm)
-        siteHosts.append(h)
-        dstPort = GenericPort(site['siteRouter']['name']  + "-eth400")
-        srcPort = GenericHost(serviceVm['name'] + "-eth400")
-        self.addPort(vm,srcPort)
-        self.addPort(switch,dstPort)
-        link = GenericLink(vm,srcPort,switch,dstPort)
-        self.displayDot()
+    def buildCore(self):
+        for coreRouter in self.builder.coreRouters.items():
+            self.buildSwitch(coreRouter[1])
+        for hwSwitch in self.builder.hwSwitches.items():
+            self.buildSwitch(hwSwitch[1])
+        for swSwitch in self.builder.swSwitches.items():
+            self.buildSwitch(swSwitch[1])
+        for link in self.builder.coreLinks.items():
+            self.buildLink(link[1])
 
+    def buildVpn(self,vpn):
+        """
+
+        :param vpn: TopoVPN
+        :return:
+        """
+        for s in vpn.props['sites']:
+            site = vpn.props['sites'][s]
+            siteRouter = site.props['siteRouter']
+            self.buildSwitch(siteRouter)
+            for h in site.props['hosts']:
+                host = site.props['hosts'][h]
+                self.buildHost(host)
+
+            self.buildHost(site.props['serviceVm'])
+
+            for l in site.props['links']:
+                link = site.props['links'][l]
+                self.buildLink(link)
 
     def buildVpns(self):
-        for vpn in self.builder.config['vpns']:
-            vpnName = vpn['name']
-            sites = vpn['sites']
-            allSiteNodes = {};
-            print "building VPN " + vpnName
-            for site in sites:
-                siteNodes = self.buildSite(site=site)
-            print
+        for vpnName in self.builder.vpns:
+            vpn = self.builder.vpns[vpnName]
+            self.buildVpn(vpn)
 
     def __init__(self, fileName = None):
         # Build topology
         self.builder = TopoBuilder(fileName)
-        self.vpnInstances = {}
-        print("building SDN locations")
-        locations=self.builder.config['topology']
-        for loc in locations:
-            self.buildLocation(location=loc)
+        self.buildCore()
         self.buildVpns()
-        print"building network"
-        self.buildRoutersLinks()
-        print
-
 
 if __name__ == '__main__':
     # todo: real argument parsing.
@@ -204,6 +137,4 @@ if __name__ == '__main__':
         net = TestbedTopology()
     # viewer = net.getGraphViewer(TopologyProvider.WeightType.TrafficEngineering)
     graph = net.getGraph(TopologyProvider.WeightType.TrafficEngineering)
-
-    configureVpns(net)
 
