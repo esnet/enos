@@ -108,7 +108,6 @@ class TestbedTopology (GenericTopologyProvider):
             for h in site.props['hosts']:
                 host = site.props['hosts'][h]
                 self.buildHost(host)
-
             self.buildHost(site.props['serviceVm'])
 
             for l in site.props['links']:

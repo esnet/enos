@@ -183,10 +183,10 @@ class TopoBuilder ():
                 host.props['vlan'] = s[3]
                 if not site.props.has_key('serviceVm'):
                     site.props['serviceVm'] = host
+                    link = self.createLink(endpoints=[coreRouter,serviceVm],suffix="-" + vpn.name)
+                    site.props['links'][link.name] = link
                 link = self.createLink(endpoints=[siteRouter,coreRouter],suffix="-" + vpn.name)
                 serviceVm = site.props['serviceVm']
-                site.props['links'][link.name] = link
-                link = self.createLink(endpoints=[siteRouter,serviceVm],suffix="-" + vpn.name)
                 site.props['links'][link.name] = link
 
             self.vpns [vpn.name] = vpn
