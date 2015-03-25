@@ -6,6 +6,8 @@
 # an array of hostnames of the site.
 #
 
+from api import  Node, SDNPop,Link,Port,Site,VPN
+
 vpn1=["vpn1",[
     ["lbl.gov",["dtn-1","dtn-2"],"lbl",1,11],
     ["anl.gov",["dtn-1"],"star",1,12]
@@ -27,60 +29,6 @@ amst=["amst",'amst-tb-of-1',"amst-cr5",8]
 
 # Default locations
 locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
-
-class TopoProp:
-    def __init__(self, name,props={}):
-        self.name = name
-        self.props = props.copy()
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return self.name
-
-class TopoPort(TopoProp):
-    def __init__(self,name,props={}):
-        TopoProp.__init__(self,name,props)
-
-class TopoNode(TopoProp):
-    def __init__(self, name,builder,props={}):
-        """
-
-        :type builder: TopoBuilder
-        """
-        TopoProp.__init__(self,name,props)
-        self.props['ports'] = {}
-        self.interfaceIndex = 1
-        builder.nodes[name] = self
-
-    def newPort(self,props={}):
-        port = TopoPort(name= "eth" + str(self.interfaceIndex),props=props)
-        self.props['ports'][port.name] = port
-        port.props['node'] = self.name
-        self.interfaceIndex += 1
-        return port
-
-class TopoPOP(TopoProp):
-    def __init__(self,name,props={}):
-        TopoProp.__init__(self,name,props)
-
-class TopoVPN(TopoProp):
-    def __init__(self,name,props={}):
-        TopoProp.__init__(self,name,props)
-        self.props['sites'] = {}
-
-class TopoSite(TopoProp):
-    def __init__(self,name,props={}):
-        TopoProp.__init__(self,name,props)
-        self.props['hosts'] = {}
-        self.props['links'] = {}
-
-class TopoLink(TopoProp):
-    def __init__(self,name,props={}):
-        TopoProp.__init__(self,name,props)
-        self.props['endpoints'] = []
-
 
 class TopoBuilder ():
 
@@ -107,7 +55,7 @@ class TopoBuilder ():
         self.loadDefault()
 
     def createLink(self,endpoints,suffix=""):
-        link = TopoLink(name=endpoints[0].name+":"+endpoints[1].name+suffix)
+        link = Link(name=endpoints[0].name+":"+endpoints[1].name+suffix)
         port1 = endpoints[0].newPort({'link':link.name})
         port2 = endpoints[1].newPort({'link':link.name})
         link.props['endpoints'].append(port1)
@@ -120,16 +68,16 @@ class TopoBuilder ():
         for location in self.locations:
 
             name = location[0]
-            pop = TopoPOP(name)
-            hwSwitch = TopoNode(name=location[1],props=self.getSwitchParams(location[1]),builder=self)
+            pop = SDNPop(name)
+            hwSwitch = Node(name=location[1],props=self.getSwitchParams(location[1]),builder=self)
             pop.props['hwSwitch'] = hwSwitch
             self.hwSwitches[hwSwitch.name] = hwSwitch
-            coreRouter = TopoNode(name=location[2],props=self.getSwitchParams(location[2]),builder=self)
+            coreRouter = Node(name=location[2],props=self.getSwitchParams(location[2]),builder=self)
             pop.props['coreRouter'] = coreRouter
             self.coreRouters[coreRouter.name] = coreRouter
             pop.props['nbOfLinks'] = nbOfLinks = location[3]
             switchName = location[0] + "-" "ovs"
-            swSwitch = TopoNode(name=switchName, props=self.getSwitchParams(switchName),builder=self)
+            swSwitch = Node(name=switchName, props=self.getSwitchParams(switchName),builder=self)
             pop.props['swSwitch'] = swSwitch
             self.swSwitches[swSwitch.name] = swSwitch
 
@@ -157,20 +105,20 @@ class TopoBuilder ():
                 self.coreLinks[link.name] = link
 
         for v in self.vpnInstances:
-            vpn = TopoVPN (v[0])
+            vpn = VPN (v[0])
             self.vpns[vpn.name] = vpn
             for s in v[1]:
-                site = TopoSite(s[0])
+                site = Site(s[0])
                 vpn.props['sites'][site.name] = site
                 name = s[0]
-                siteRouter = TopoNode(name=name, props = self.getSwitchParams(name=name),builder=self)
+                siteRouter = Node(name=name, props = self.getSwitchParams(name=name),builder=self)
                 site.props['siteRouter'] = siteRouter
                 pop = self.pops[s[2]]
                 coreRouter = pop.props['coreRouter']
                 site.props['connectedTo'] = coreRouter.name
                 for h in s[1]:
                     name = h + "@" + site.name
-                    host = TopoNode (name=name, props=self.getHostParams(name=h),builder=self)
+                    host = Node (name=name, props=self.getHostParams(name=h),builder=self)
                     host.props['vlan'] = s[4]
                     site.props['hosts'][host.name] = host
                     link = self.createLink(endpoints=[siteRouter,host],suffix="-" + vpn.name)
@@ -179,11 +127,11 @@ class TopoBuilder ():
                 site.props['vlan'] = s[4]
                 # Creates service vm
                 name = v[0] + "-" + s[2] + "-vm"
-                host = TopoNode(name=name, props=self.getHostParams(name = name),builder=self)
+                host = Node(name=name, props=self.getHostParams(name = name),builder=self)
                 host.props['vlan'] = s[3]
                 if not site.props.has_key('serviceVm'):
                     site.props['serviceVm'] = host
-                    link = self.createLink(endpoints=[coreRouter,serviceVm],suffix="-" + vpn.name)
+                    link = self.createLink(endpoints=[coreRouter,host],suffix="-" + vpn.name)
                     site.props['links'][link.name] = link
                 link = self.createLink(endpoints=[siteRouter,coreRouter],suffix="-" + vpn.name)
                 serviceVm = site.props['serviceVm']

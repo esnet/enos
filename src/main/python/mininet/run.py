@@ -7,7 +7,8 @@ from mininet.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.topo import Topo
 
-from testbed import TopoBuilder, TopoNode, TopoPOP,TopoLink,TopoPort,TopoSite,TopoVPN
+from api import Node, SDNPop,Link,Port,Site,VPN
+from testbed import TopoBuilder
 
 #
 # OpenFlow controller IP and ports

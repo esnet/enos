@@ -6,48 +6,6 @@ from net.es.netshell.api import GenericGraph, GenericTopologyProvider, TopologyP
 
 testbedNodes = {}
 
-def configureVpns(topology):
-    graph = topology.getGraph(TopologyProvider.WeightType.TrafficEngineering)
-    """
-    for vpn in topology.builder.config['vpns']:
-        vpnName = vpn['name']
-        sites = vpn['sites']
-        for site in sites:
-            siteName = site['name']
-            hosts = site['hosts']
-            siteRouter = topology.builder.mininetNameToRealName[site['siteRouter']['name']]
-            serviceVm = topology.builder.mininetNameToRealName[site['serviceVm']['name']]
-            borderRouter = topology.builder.mininetNameToRealName[topology.getLocation(site['connectedTo'])['coreRouter']['name']]
-            swSwitch =  topology.builder.mininetNameToRealName[topology.getLocation(site['connectedTo'])['swSwitch']['name']]
-            vlan = site['vlan']
-            # Create a graph of the site topology
-            siteRouterNode = TestbedNode(siteRouter)
-            serviceVmHost = TestbedNode(serviceVm)
-            borderRouterNode = TestbedNode(borderRouter)
-            swSwitchNode = TestbedNode(swSwitch)
-            graph = GenericGraph()
-            srcPort = GenericPort("p1")
-            dstPort = GenericPort("p1")
-            link = GenericLink(siteRouterNode,srcPort,borderRouterNode,dstPort)
-            graph.addVertex(siteRouterNode)
-            graph.addVertex(borderRouterNode)
-            graph.addEdge(siteRouterNode,borderRouterNode,link)
-            srcPort = GenericPort("p-" + vpnName)
-            dstPort = GenericPort("eth0")
-            link = GenericLink(swSwitchNode,srcPort,serviceVmHost,dstPort)
-            graph.addVertex(swSwitchNode)
-            graph.addVertex(serviceVmHost)
-            graph.addEdge(swSwitchNode,serviceVmHost,link)
-            portIndex = 2
-            for host in hosts:
-                hostNode = GenericHost(topology.builder.mininetNameToRealName[host['name']])
-                srcPort = GenericPort("p" + str(portIndex))
-                portIndex = portIndex + 1
-                link = GenericLink(siteRouterNode,srcPort,hostNode,dstPort)
-                graph.addVertex(hostNode)
-                graph.addEdge(siteRouterNode,hostNode,link)
-    """
-
 
 class TestbedNode(GenericNode):
     def __init__(self,name):
