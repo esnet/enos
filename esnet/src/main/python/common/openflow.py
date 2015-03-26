@@ -3,7 +3,7 @@ __author__ = 'lomax'
     This package provides generic type and basic implementation of OpenFlow support. Note tha it currently
     does not provide any level of security, nor it is thread safe. This will have to be addressed in the future.
 """
-from utils import generateId
+from src.main.python.common.utils import generateId
 
 class FlowMod:
     """

@@ -1,8 +1,8 @@
 #!/usr/bin/python
 import sys
 
-from testbed import TopoBuilder
-from net.es.netshell.api import GenericGraph, GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
+from src.main.python.mininet.testbed import TopoBuilder
+from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
 
 testbedNodes = {}
 

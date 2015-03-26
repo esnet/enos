@@ -1,4 +1,4 @@
-from intent import ProvisioningRenderer
+from src.main.python.common.intent import ProvisioningRenderer
 
 class SiteRenderer(ProvisioningRenderer):
     """

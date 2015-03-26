@@ -1,4 +1,4 @@
-from utils import generateId
+from src.main.python.common.utils import generateId
 
 class Intent:
     """
