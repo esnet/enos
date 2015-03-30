@@ -6,7 +6,7 @@
 # an array of hostnames of the site.
 #
 
-from api import  Node, SDNPop,Link,Port,Site,VPN
+from common.api import  Node, SDNPop,Link,Port,Site,VPN
 
 vpn1=["vpn1",[
     ["lbl.gov",["dtn-1","dtn-2"],"lbl",1,11],

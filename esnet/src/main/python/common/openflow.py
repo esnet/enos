@@ -3,7 +3,7 @@ __author__ = 'lomax'
     This package provides generic type and basic implementation of OpenFlow support. Note tha it currently
     does not provide any level of security, nor it is thread safe. This will have to be addressed in the future.
 """
-from src.main.python.common.utils import generateId
+from utils import generateId
 
 class FlowMod:
     """
@@ -55,18 +55,19 @@ class Controller:
     This class defined the generic API of the client of an OpenFlow controller.
     API for packet in and out not yet defined.
     """
-    def __init__(self,dpid):
+    def __init__(self):
         """
         All implementation of Controller must call this.
-        :param dpid:
         :return:
         """
-        self.dpid = dpid
 
     def addFlowMod(self, flowMod):
         print "not implemented"
 
     def delFlowMod(self, flowMod):
         print "not implemented"
+
+
+
 
 

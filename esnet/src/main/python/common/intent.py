@@ -1,4 +1,4 @@
-from src.main.python.common.utils import generateId
+from utils import generateId
 
 class Intent:
     """
@@ -33,7 +33,7 @@ class Renderer:
         :return:
         """
 
-    def render(self):
+    def execute(self):
         """
         Renders the intent.
         :return: Expectation when succcessful, None otherwise
@@ -58,7 +58,7 @@ class ProvisioningIntent(Intent):
         Creates a provisioning intent providing a GenericGraph of the logical view of the
         topology that is intended to be created.
         """
-        Intent.__init__()
+        Intent.__init__(self)
         self.description['topology'] = graph
 
 
@@ -67,6 +67,6 @@ class ProvisioningRenderer(Renderer):
     A Generic Renderer that knows how to render provisioning intents
     """
     def __init__(self):
-        Renderer.__init__()
+        Renderer.__init__(self)
 
 

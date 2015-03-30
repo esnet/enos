@@ -1,17 +1,21 @@
 #!/usr/bin/python
 import sys
 
-from src.main.python.mininet.testbed import TopoBuilder
-from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
+from testbed import TopoBuilder
+from net.es.netshell.api import GenericGraph, GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
 
-testbedNodes = {}
+nodes = {}
 
 
 class TestbedNode(GenericNode):
+
     def __init__(self,name):
         GenericPort.__init__(self,name)
-        global testbedNodes
-        testbedNodes[name] = self
+        global nodes
+        nodes[name] = self
+        self.name = name
+    def getName(self):
+        return self.name
 
 class TestbedTopology (GenericTopologyProvider):
 
@@ -40,8 +44,9 @@ class TestbedTopology (GenericTopologyProvider):
         node2 = self.builder.nodes[p2.props['node']].props['enosNode']
         self.addPort (node1,port1)
         self.addPort (node2,port2)
-        link = GenericLink(node1,port1,node2,port2)
-        self.addLink(link)
+        l = GenericLink(node1,port1,node2,port2)
+        link.props['enosLink'] = l
+        self.addLink(l)
 
     def buildCore(self):
         for coreRouter in self.builder.coreRouters.items():
