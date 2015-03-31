@@ -2,20 +2,29 @@
 import sys
 
 from testbed import TopoBuilder
-from net.es.netshell.api import GenericGraph, GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
+from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
+from common.api import Properties
 
 nodes = {}
 
 
-class TestbedNode(GenericNode):
-
-    def __init__(self,name):
+class TestbedNode(GenericNode,Properties):
+    def __init__(self,name,props={}):
         GenericPort.__init__(self,name)
         global nodes
         nodes[name] = self
-        self.name = name
-    def getName(self):
-        return self.name
+        Properties.__init__(self,name=self.getResourceName(),props=props)
+
+class TestbedLink(GenericLink,Properties):
+    def __init__(self,node1,port1,node2,port2,props={}):
+        GenericLink.__init__(self,node1,port1,node2,port2)
+        Properties.__init__(self,self.getResourceName(),props)
+
+class TestbedHost(GenericHost,Properties):
+    def __init__(self,name,props={}):
+        GenericHost.__init__(self,name)
+        Properties.__init__(self,self.getResourceName(),props)
+
 
 class TestbedTopology (GenericTopologyProvider):
 
@@ -29,7 +38,7 @@ class TestbedTopology (GenericTopologyProvider):
         switch.props['enosNode'] = sw
 
     def buildHost(self,host):
-        h = GenericHost(host.name)
+        h = TestbedHost(host.name,host.props)
         self.addNode(h)
         host.props['enosNode'] = h
 
@@ -44,7 +53,7 @@ class TestbedTopology (GenericTopologyProvider):
         node2 = self.builder.nodes[p2.props['node']].props['enosNode']
         self.addPort (node1,port1)
         self.addPort (node2,port2)
-        l = GenericLink(node1,port1,node2,port2)
+        l = TestbedLink(node1,port1,node2,port2)
         link.props['enosLink'] = l
         self.addLink(l)
 
