@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import sys
 
-from testbed import TopoBuilder
+from mininet.testbed import TopoBuilder
 from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
 from common.api import Properties
 
@@ -10,7 +10,7 @@ nodes = {}
 
 class TestbedNode(GenericNode,Properties):
     def __init__(self,name,props={}):
-        GenericPort.__init__(self,name)
+        GenericNode.__init__(self,name)
         global nodes
         nodes[name] = self
         Properties.__init__(self,name=self.getResourceName(),props=props)
