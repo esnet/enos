@@ -35,8 +35,9 @@ class Layer2(object):
             remoteNode = link.getDstNode()
         else:
             remoteNode = link.getSrcNode()
+        """
         if issubclass(remoteNode.__class__,GenericHost):
             # Remote node is a host. All traffic coming from this port/vlan must be forwarded to the
             # border router
-
+        """
 
