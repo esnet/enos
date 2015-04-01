@@ -11,8 +11,9 @@ class FlowMod:
     """
     This class uniquely represent a flow mod.
     """
-    def __init__(self,scope,matches,actions):
+    def __init__(self,scope,switch,matches,actions):
         self.scope =  scope
+        self.switch = switch
         self.matches = matches
         self.actions = actions
         self.id = generateId()
@@ -22,16 +23,15 @@ class Scope(Properties):
     This class is a Properties wrapper. The key/value pairs in the property is used to define the scope of control
     an application wishes to have on a given network element.
     """
-    def __init__(self,name,switch,owner,props={}):
+    def __init__(self,name,owner,props={}):
         """
         :param name: str human readable name of the scope
-        :param switch: OpenFlowSwitch target switch
         :param owner: ScopeController controller that owns this scope
         :param props: dict optional properties of the scope, such as ports, vlan, etc. See Layer2Scope for example.
         """
         Properties.__init__(self,name,props)
-        self.switch = switch
         self.owner = owner
+        self.id = generateId()
 
     def overlaps(self, scope):
         """
@@ -84,7 +84,7 @@ class ScopeController():
         """
 
 
-class Layer2Scope(Scope):
+class L2SwitchScope(Scope):
     """
     This class is the base class of any Scope that defines a layer 2 switch
     """
@@ -94,12 +94,35 @@ class Layer2Scope(Scope):
         to be (port,vlans), where port is a string and vlans is a list of integers. The following are valid examples:
             ("eth10",[12]) port eth10, VLAN 12
             ("eth10,[])  the whole eth10 port (any VLAN)
-            ("eth10,[1,2,3]) VLAN 1, 2 and 3 on port eth10
-            ("eth10, [range(1000,2000)] all VLAN from 1000 to 1999 on port eth10
+            ("eth10,[1,2,10]) VLAN 1, 2 and 10 on port eth10
         If no endpoint is provided, then the scope represents all VLAN on all ports
         """
         Scope.__init__(self,name,switch,owner,props)
         self.props['endpoints'] = endpoints
+
+    def overlaps(self, scope):
+        endpoints1 = self.props['endpoints']
+        if not 'endpoints' in scope.props:
+            # not a L2SwitchScope
+            return False
+        endpoints2 = self.props['endpoints']
+        for endpoint1 in endpoints1:
+            port1 = endpoint1[0]
+            vlans1 = endpoint1[1]
+            for endpoint2 in endpoints2:
+                port2 = endpoint2[0]
+                vlans2 = endpoint2[1]
+                if port1 != port2:
+                    # not same port, therefore no overlap
+                    continue
+                # check vlans
+                for vlan1 in vlans1:
+                    for vlan2 in vlans2
+                        if vlan1 == vlan2:
+                            # overlap
+                            return True
+        return False
+
 
 
 
@@ -215,9 +238,19 @@ class SimpleController(Controller):
         print "not implemented yet"
 
     def addFlowMod(self, flowMod):
+        """
+        Implementation of SimpleController must implement this method
+        :param flowMod:
+        :return:
+        """
         print "[" + str(scope.switch) + "] adding flowMod " + str(flowMod)
 
     def delFlowMod(self, flowMod):
+        """
+        Implementation of SimpleController must implement this method
+        :param flowMod:
+        :return:
+        """
         print "[" + str(scope.switch) + "] removing flowMod " + str(flowMod)
 
 
