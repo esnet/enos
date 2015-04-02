@@ -7,6 +7,41 @@ from commom.utils import generateId
 from common.api import Properties
 
 
+class Match(Properties):
+    """
+    This is the class defining an OpenFlow match. It is a wrapper of Properties.
+    The base class defines the following key / values:
+
+    Layer2:
+        "in_port": str name of the ingress port on the swith
+        "dl_src" : str source MAC
+        "dl_dst" : str destination MAC
+        "vlan"   : int VLAN
+
+    Other layers are TBD
+
+    """
+    def __init__(self,name="Unknown",props={}):
+        Properties.__init__(self,name,props)
+
+class Action(Properties):
+    """
+    This class is the class defining an OpenFlow action. It is a wrapper of Properties.
+    The base class defines the following key / values:
+
+    Layer 2:
+        "dl_src": str rewrite the source MAC with the provided MAC
+        "dl_dst": str rewrite the destination MAC with the provided MAC
+        "vlan": int rewrite the VLAN with the provided vlan
+        "out_port": [str] list of egress ports
+
+    Other layers are TBD
+    """
+    def __init__(self,name="Unknown",props={}):
+        Properties.__init__(self,name,props)
+
+
+
 class FlowMod:
     """
     This class uniquely represent a flow mod.
@@ -67,6 +102,32 @@ class ScopeEvent(Properties):
         """
         Properties.__init__(self,name,props={})
         self.id = generateId()
+
+class PacketInEvent(ScopeEvent):
+    """
+    This class defines a PACKET_IN event. It adds the following key / value's to the ScopeEvent
+
+        "in_port": str ingress port
+        "payload": str payload of the packet
+    Layer 2
+        "dl_src": str source MAC
+        "dl_dst": str destination MAC
+        "vlan" ": int VLAN
+
+     Other layers are TBD
+    """
+
+    def __init__(self,name="unknown",inPort,srcMac,dstMac,vlan=None,payload=None):
+        Properties.__init__(self,name)
+        self.props['in_port'] = inPort
+        self.props['dl_src'] = srcMac
+        self.props['dl_dst'] = dstMac
+        if vlan:
+            self.props['vlan'] = vlan
+        if payload:
+            self.props['payload'] = payload
+
+
 
 
 class ScopeController():
