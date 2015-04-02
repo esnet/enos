@@ -4,7 +4,7 @@ __author__ = 'lomax'
     does not provide any level of security, nor it is thread safe. This will have to be addressed in the future.
 """
 from commom.utils import generateId
-from common.api import Properties
+from common.api import Properties, Node
 
 
 class Match(Properties):
@@ -42,15 +42,21 @@ class Action(Properties):
 
 
 
-class FlowMod:
+class FlowMod(Properties):
     """
     This class uniquely represent a flow mod.
     """
-    def __init__(self,scope,switch,matches,actions):
-        self.scope =  scope
+    def __init__(self,scope,switch,match,actions):
+        """
+        :param scope: Scope where the flowMod belongs
+        :param switch: common.api.Node
+        :param match: Match
+        :param actions: [Actions]
+        """
+        self.scope = scope
         self.switch = switch
-        self.matches = matches
-        self.actions = actions
+        self.props['match'] = match
+        self.props['actions'] = actions
         self.id = generateId()
 
 class Scope(Properties):
@@ -184,6 +190,27 @@ class L2SwitchScope(Scope):
                             return True
         return False
 
+    def isValidFlowMod(self, flowMod):
+        endpoints = self.props['endpoints']
+        if not 'endpoints' in scope.props:
+            # not a L2SwitchScope
+            return False
+
+        # checks match
+
+        for endpoint in endpoints1:
+            port = endpoint1[0]
+            if
+            vlans = endpoint1[1]
+
+                for vlan1 in vlans1:
+                    for vlan2 in vlans2
+                        if vlan1 == vlan2:
+                            # overlap
+                            return True
+        return False
+
+
 
 
 
@@ -227,6 +254,7 @@ class Controller:
 class SimpleController(Controller):
     """
     This class implements a simple controller. It implements some basic controller function but does not
+    implement the actual interaction with the switch or controller.
     """
     _instance = None
 
@@ -297,6 +325,10 @@ class SimpleController(Controller):
         :return:
         """
         print "not implemented yet"
+
+    def isWithinBoundary(self,scope, flowMod):
+
+
 
     def addFlowMod(self, flowMod):
         """
