@@ -143,7 +143,7 @@ class PacketInEvent(ScopeEvent):
 
 
 
-class ScopeController():
+class ScopeOwner():
     """
     This class must be extended by any application that controls a scope.
     """
