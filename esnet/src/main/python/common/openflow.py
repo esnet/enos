@@ -3,7 +3,7 @@ __author__ = 'lomax'
     This package provides generic type and basic implementation of OpenFlow support. Note tha it currently
     does not provide any level of security, nor it is thread safe. This will have to be addressed in the future.
 """
-from commom.utils import generateId
+from common.utils import generateId
 from common.api import Properties, Node
 
 
@@ -51,7 +51,7 @@ class FlowMod(Properties):
         :param scope: Scope where the flowMod belongs
         :param switch: common.api.Node
         :param match: Match
-        :param actions: [Actions]
+        :param actions: [Action]
         """
         self.scope = scope
         self.switch = switch
@@ -82,6 +82,13 @@ class Scope(Properties):
         :returns True if scopes overlap, False otherwise
         """
         return True
+
+    def isValidFlowMod(self, flowMod):
+        """
+        Verifies if a flowMod is valid within the scope
+        :param flowMod: FlowMod
+        """
+        return False
 
 
 
@@ -123,7 +130,7 @@ class PacketInEvent(ScopeEvent):
      Other layers are TBD
     """
 
-    def __init__(self,name="unknown",inPort,srcMac,dstMac,vlan=None,payload=None):
+    def __init__(self,inPort,srcMac,dstMac,vlan=None,payload=None,name="unknown",):
         Properties.__init__(self,name)
         self.props['in_port'] = inPort
         self.props['dl_src'] = srcMac
@@ -184,51 +191,55 @@ class L2SwitchScope(Scope):
                     continue
                 # check vlans
                 for vlan1 in vlans1:
-                    for vlan2 in vlans2
+                    for vlan2 in vlans2:
                         if vlan1 == vlan2:
                             # overlap
                             return True
         return False
 
     def isValidFlowMod(self, flowMod):
+
+        match = flowMod.props['match']
+        actions = flowMod.props['actions']
         endpoints = self.props['endpoints']
-        if not 'endpoints' in scope.props:
-            # not a L2SwitchScope
-            return False
 
         # checks match
+        for endpoint in endpoints:
+            port = endpoint[0]
+            if not 'in_port' in match.props:
+                # This controller rejects matchs that do not include an in_port
+                return False
+            in_port = flowMod.props['in_port']
+            if port != in_port:
+                continue
+            if not 'vlans' in flowMod.props:
+                # this scope allows any match on this port
+                return True
+            in_vlan = flowMod.props['vlan']
+            vlans = endpoint[1]
+            for vlan in vlans:
+                if vlan == in_vlan:
+                    # authorized vlan
+                    return True
 
-        for endpoint in endpoints1:
-            port = endpoint1[0]
-            if
-            vlans = endpoint1[1]
-
-                for vlan1 in vlans1:
-                    for vlan2 in vlans2
-                        if vlan1 == vlan2:
-                            # overlap
-                            return True
         return False
 
 
-
-
-
-class OpenFlowSwitch:
+class OpenFlowSwitch(Node):
     """
     This class represents an OpenFlowSwitch. It contains the list of flowmods that is set on the switch.
     """
-    def __init__(self, controller):
+    def __init__(self, name, dpid,controller=None,pros={}):
         """
         Creates an OpenFlowSwitch instance.
         :param controller (Controller) of this switch
         :return:
         """
+        Node.__init__(self,name,props={})
+        self.dpid = dpid
         self.controller = controller
         self.flowMods = {}
         self.scopes = {}
-
-
 
 
 class Controller:
@@ -326,17 +337,13 @@ class SimpleController(Controller):
         """
         print "not implemented yet"
 
-    def isWithinBoundary(self,scope, flowMod):
-
-
-
     def addFlowMod(self, flowMod):
         """
         Implementation of SimpleController must implement this method
         :param flowMod:
         :return:
         """
-        print "[" + str(scope.switch) + "] adding flowMod " + str(flowMod)
+        print "[" + flowMod.switch.name (dpid= " + ") + flowMod.switch.dpid + "] adding flowMod id " + str(flowMod.id)
 
     def delFlowMod(self, flowMod):
         """
@@ -344,7 +351,11 @@ class SimpleController(Controller):
         :param flowMod:
         :return:
         """
-        print "[" + str(scope.switch) + "] removing flowMod " + str(flowMod)
+        print "[" + flowMod.switch.name (dpid= " + ") + flowMod.switch.dpid + "] removing flowMod id " + str(flowMod.id)
+
+
+if __name__ == '__main__':
+    print "testing"
 
 
 

@@ -15,7 +15,7 @@ class Port(Properties):
         Properties.__init__(self,name,props)
 
 class Node(Properties):
-    def __init__(self, name,builder,props={}):
+    def __init__(self, name,builder=None,props={}):
         """
 
         :type builder: TopoBuilder
@@ -23,7 +23,8 @@ class Node(Properties):
         Properties.__init__(self,name,props)
         self.props['ports'] = {}
         self.interfaceIndex = 1
-        builder.nodes[name] = self
+        if builder:
+            builder.nodes[name] = self
 
     def newPort(self,props={}):
         port = Port(name= "eth" + str(self.interfaceIndex),props=props)
