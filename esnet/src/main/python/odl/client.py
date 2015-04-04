@@ -39,6 +39,59 @@ class ODLClient(SimpleController):
         SimpleController.__init__(self)
         self.odlController = net.es.netshell.odl.Controller.getInstance()
 
+    def makeODLFlowEntry(self, flowMod):
+        """
+        Given a FlowMod object, turn it into a Flow suitable for passing to ODL
+
+        Encapsulates a bunch of common sense about the order in which flow actions
+        should be applied.
+
+        :param flowMod:
+        :return:
+        """
+
+        # Compose match object
+        match = org.opendaylight.controller.sal.match.Match()
+
+        val = flowMod.props['match'].props['in_port']
+        if val != None:
+            match.setField(MatchType.IN_PORT, val[3:])
+        val = flowMod.props['match'].props['dl_src']
+        if val != None:
+            match.setField(MatchType.DL_SRC, val)
+        val = flowMod.props['match'].props['dl_dst']
+        if val != None:
+            match.setField(MatchType.DL_DST, val)
+        val = flowMod.props['match'].props['vlan']
+        if val != None:
+            match.setField(MatchType.DL_VLAN, val)
+
+        # Compose action.
+        # We do the data-link and VLAN translations first.  Other types of
+        # translations would happen here as well.  Then any action to forward
+        # packets.
+        actionList = LinkedList()
+
+        val = flowMod.props['actions'].props['dl_dst']
+        if val != None:
+            actionList.add(SetDlDst(val))
+        val = flowMod.props['actions'].props['dl_src']
+        if val != None:
+            actionList.add(SetDlSrc(val))
+        val = flowMod.props['actions'].props['vlan']
+        if val != None:
+            actionList.add(PopVlan())
+            actionList.add(PushVlan(val))
+        val = flowMod.props['actions'].props['out_port']
+        if val != None:
+            for p in val:
+                actionList.add(Output(p[3:]))
+
+        # compose flow
+        flow = org.opendaylight.controller.sal.flowprogrammer.Flow(match, actionList)
+
+        return flow
+
     def addFlowMod(self, flowMod):
         """
         Implementation of addFlowMod for use with OpenDaylight.
@@ -63,44 +116,7 @@ class ODLClient(SimpleController):
             if sw == None:
                 return False
 
-            # Compose match object
-            match = Match()
-
-            val = flowMod.props['match'].props['in_port']
-            if val != None:
-                match.setField(MatchType.IN_PORT, val)
-            val = flowMod.props['match'].props['dl_src']
-            if val != None:
-                match.setField(MatchType.DL_SRC, val)
-            val = flowMod.props['match'].props['dl_dst']
-            if val != None:
-                match.setField(MatchType.DL_DST, val)
-            val = flowMod.props['match'].props['vlan']
-            if val != None:
-                match.setField(MatchType.DL_VLAN, val)
-
-            # Compose action.
-            # We do the data-link and VLAN translations first.  Other types of
-            # translations would happen here as well.  Then any action to forward
-            # packets.
-            actionList = LinkedList()
-
-            val = flowMod.props['actions'].props['dl_dst']
-            if val != None:
-                actionList.add(SetDlDst(val))
-            val = flowMod.props['actions'].props['dl_src']
-            if val != None:
-                actionList.add(SetDlSrc(val))
-            val = flowMod.props['actions'].props['vlan']
-            if val != None:
-                actionList.add(PopVlan())
-                actionList.add(PushVlan(val))
-            val = flowMod.props['actions'].props['out_port'] # how to parse this
-            if val != None:
-                # Iterate over out_port values and add to actionList
-
-            # compose flow
-            flow = Flow(match, actionList)
+            flow = self.makeODLFlowEntry(self, flowMod)
 
             # go to the controller
             self.odlController.addFlow(sw.node, flow)
