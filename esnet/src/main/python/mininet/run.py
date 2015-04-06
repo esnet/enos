@@ -7,7 +7,7 @@ from mininet.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.topo import Topo
 
-from api import Node, SDNPop,Link,Port,Site,VPN
+from common.api import Node, SDNPop,Link,Port,Site,VPN
 from testbed import TopoBuilder
 
 #
