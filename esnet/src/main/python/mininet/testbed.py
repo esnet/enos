@@ -54,12 +54,14 @@ class TopoBuilder ():
             self.vpnInstances = [vpn1]
         self.loadDefault()
 
-    def createLink(self,endpoints,suffix=""):
+    def createLink(self,endpoints,suffix="",vlan=None):
         link = Link(name=endpoints[0].name+":"+endpoints[1].name+suffix)
         port1 = endpoints[0].newPort({'link':link.name})
         port2 = endpoints[1].newPort({'link':link.name})
         link.props['endpoints'].append(port1)
         link.props['endpoints'].append(port2)
+        if vlan:
+            link.props['vlan'] = vlan
         return link
 
 
@@ -99,9 +101,9 @@ class TopoBuilder ():
         for fromNode in self.coreRouters.items():
             targets = targets[1:]
             for toNode in targets:
-                link = self.createLink(endpoints=[fromNode[1],toNode[1]],suffix=":best-effort")
+                link = self.createLink(endpoints=[fromNode[1],toNode[1]],suffix=":best-effort",vlan=1)
                 self.coreLinks[link.name] = link
-                link = self.createLink(endpoints=[fromNode[1],toNode[1]],suffix=":slow")
+                link = self.createLink(endpoints=[fromNode[1],toNode[1]],suffix=":slow",vlan=2)
                 self.coreLinks[link.name] = link
 
         for v in self.vpnInstances:
@@ -116,15 +118,16 @@ class TopoBuilder ():
                 pop = self.pops[s[2]]
                 coreRouter = pop.props['coreRouter']
                 site.props['connectedTo'] = coreRouter.name
+                vlan = s[4]
                 for h in s[1]:
                     name = h + "@" + site.name
                     host = Node (name=name, props=self.getHostParams(name=h),builder=self)
-                    host.props['vlan'] = s[4]
+                    host.props['vlan'] = vlan
                     site.props['hosts'][host.name] = host
-                    link = self.createLink(endpoints=[siteRouter,host],suffix="-" + vpn.name)
+                    link = self.createLink(endpoints=[siteRouter,host],suffix="-" + vpn.name,vlan=vlan)
                     site.props['links'][link.name] = link
 
-                site.props['vlan'] = s[4]
+                site.props['vlan'] = vlan
                 # Creates service vm
                 name = v[0] + "-" + s[2] + "-vm"
                 host = Node(name=name, props=self.getHostParams(name = name),builder=self)

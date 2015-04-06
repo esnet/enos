@@ -1,6 +1,6 @@
 from common.intent import ProvisioningRenderer, ProvisioningIntent
 from common.api import Site
-from common.openflow import ScopeOwner
+from common.openflow import ScopeOwner,PacketInEvent
 
 from mininet.enos import TestbedTopology
 
@@ -25,13 +25,47 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         """
         self.intent = intent
         graph = intent.graph
-        print graph
+        self.siteRouter = self.intent.siteRouter
+        self.borderRouter = self.intent.borderRouter
+        ports = siteRouter.getPorts()
+        self.wanPort=None
+        self.hostPorts = {}
+        self.hosts = {}
+        self.macTable = {}
+        self.ports = {}
+        for port in ports:
+            self.ports[port.getResourceName()] = port
+            links = port.getLinks()
+            for link in links:
+                vlan = link.props['vlan']
+                port.props['vlan'] = vlan
+                print port.props
+                dstNode = link.getDstNode()
+                srcNode = link.getSrcNode()
+                if borderRouter in [dstNode,srcNode]:
+                    # this is the link to the WAN border router
+                    self.wanPort = port
+                else:
+                    if siteRouter == dstNode:
+                        self.hostPorts[port.getResourceName()] = srcNode
+                    else:
+                        self.hostPorts[port.getResourceName()] = dstNode
 
-    def setConnectivity(self):
+    def eventListener(self,event):
         """
-        Sets the OpenFlow flowmods necessary to estrablish connectivity in the graph.
-        :return:
+        The implementation of this class is expected to overwrite this method if it desires
+        to receive events from the controller such as PACKET_IN
+        :param event: ScopeEvent
         """
+        if event.__class__ == PacketInEvent:
+            # This is a PACKET_IN. Learn the source MAC address
+            in_port = event.props['in_port']
+            port = self.ports[in_port]
+            dl_src = event.props['dl_src']
+            self.macTable[dl_src] = port
+
+
+
 
     def executeHost(self,host,link):
         print "HOST " + host.getResourceName()
@@ -42,25 +76,13 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         for port in ports:
             links = port.getLinks()
             if link in links:
-
+                  print "."
 
     def execute(self):
         """
         Renders the intent.
         :return: Expectation when succcessful, None otherwise
         """
-        vs = self.intent.graph.vertexSet()
-        nodes={}
-        for v in vs:
-            nodes[v.getResourceName()] = v
-        for link in self.intent.links:
-            endpoints = [link.getSrcNode(),link.getDstNode()]
-            for node in endpoints:
-                if issubclass(node.__class__, GenericHost):
-                    self.executeHost(node,link)
-                else:
-                    self.executeNode(node,link)
-
         return None
 
 
