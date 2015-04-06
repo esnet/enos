@@ -1,12 +1,13 @@
 from common.intent import ProvisioningRenderer, ProvisioningIntent
 from common.api import Site
+from common.openflow import ScopeOwner
+
 from mininet.enos import TestbedTopology
-from mininet.layer2 import Layer2
 
 from net.es.netshell.api import GenericGraph, GenericHost
 
 
-class SiteRenderer(ProvisioningRenderer):
+class SiteRenderer(ProvisioningRenderer,ScopeOwner):
     """
     Implements the rendering of provisioning intents on the Site. This class is responsible for pushing the proper
     flowMods that will forward packets between the hosts and the ESnet border router. Typically the topology is
@@ -19,10 +20,12 @@ class SiteRenderer(ProvisioningRenderer):
     def __init__(self, intent):
         """
         Generic constructor. Translate the intent
-        :param intent:
+        :param intent: SiteIntent
         :return:
         """
         self.intent = intent
+        graph = intent.graph
+        print graph
 
     def setConnectivity(self):
         """
@@ -39,7 +42,6 @@ class SiteRenderer(ProvisioningRenderer):
         for port in ports:
             links = port.getLinks()
             if link in links:
-                Layer2().setupLink(node=node,port=port,link=link)
 
 
     def execute(self):
@@ -59,9 +61,8 @@ class SiteRenderer(ProvisioningRenderer):
                 else:
                     self.executeNode(node,link)
 
-
-
         return None
+
 
     def destroy(self):
         """
