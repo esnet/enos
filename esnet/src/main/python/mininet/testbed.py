@@ -44,6 +44,8 @@ class TopoBuilder ():
         self.swSwitches = {}
         self.vpns = {}
         self.network = network
+        if net.builder.network['ip'][-1] == '.':
+            net.builder.network['ip'] = net.builder.network['ip'][:-1]
         self.dpidToName = {}
         self.mininetToRealNames = {}
 
