@@ -54,8 +54,9 @@ class TopoBuilder ():
             self.vpnInstances = [vpn1]
         self.loadDefault()
 
-    def createLink(self,endpoints,suffix="",vlan=None):
+    def createLink(self,endpoints,vlan,suffix=""):
         link = Link(name=endpoints[0].name+":"+endpoints[1].name+suffix)
+        print ">>> link= " + link.name + "  vlan= " + str(vlan) + "   ID= " + str(id(link))
         port1 = endpoints[0].newPort({'link':link.name})
         port2 = endpoints[1].newPort({'link':link.name})
         link.props['endpoints'].append(port1)
@@ -85,10 +86,10 @@ class TopoBuilder ():
 
             while (nbOfLinks > 0):
                 # create links between the core router and the hardware SDN switch
-                link = self.createLink(endpoints=[hwSwitch,coreRouter],suffix=str(nbOfLinks))
+                link = self.createLink(endpoints=[hwSwitch,coreRouter],vlan=nbOfLinks,suffix=str(nbOfLinks))
                 self.coreLinks[link.name] = link
                 # create links between the sotfware SDN switch and the hardware SDN switch
-                link = self.createLink(endpoints=[hwSwitch,swSwitch],suffix='-' + str(nbOfLinks))
+                link = self.createLink(endpoints=[hwSwitch,swSwitch],vlan=nbOfLinks,suffix='-' + str(nbOfLinks))
                 self.coreLinks[link.name] = link
                 nbOfLinks -= 1
 
@@ -128,19 +129,31 @@ class TopoBuilder ():
                     site.props['links'][link.name] = link
 
                 site.props['vlan'] = vlan
-                # Creates service vm
-                name = v[0] + "-" + s[2] + "-vm"
-                host = Node(name=name, props=self.getHostParams(name = name),builder=self)
-                host.props['vlan'] = s[3]
                 if not site.props.has_key('serviceVm'):
+                    # Creates service vm
+                    name = v[0] + "-" + s[2] + "-vm"
+                    host = Node(name=name, props=self.getHostParams(name = name),builder=self)
+                    vlan = s[3]
+                    host.props['vlan'] = vlan
                     site.props['serviceVm'] = host
-                    link = self.createLink(endpoints=[coreRouter,host],suffix="-" + vpn.name)
+                    hwSwitch = self.coreRouterToHwSwitch(coreRouter.name)
+                    link = self.createLink(endpoints=[hwSwitch,host],vlan=host.props['vlan'],suffix="-" + vpn.name)
                     site.props['links'][link.name] = link
-                link = self.createLink(endpoints=[siteRouter,coreRouter],suffix="-" + vpn.name)
+                link = self.createLink(endpoints=[siteRouter,coreRouter],vlan=host.props['vlan'],suffix="-" + vpn.name)
                 serviceVm = site.props['serviceVm']
                 site.props['links'][link.name] = link
 
             self.vpns [vpn.name] = vpn
+
+    def coreRouterToHwSwitch(self,coreRouter):
+        """
+        Returns the hardware SDN switch connected to this core router.
+        :param coreRouter: str name of the router
+        :return:
+        """
+        for (x,pop) in self.pops.items():
+            if pop.props['coreRouter'].name == coreRouter:
+                return pop.props['hwSwitch']
 
 
     def getHostParams(self,name):

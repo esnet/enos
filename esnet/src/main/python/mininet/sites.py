@@ -1,11 +1,15 @@
 from common.intent import ProvisioningRenderer, ProvisioningIntent
-from common.api import Site
+from common.api import Site, Properties
 from common.openflow import ScopeOwner,PacketInEvent
 
 from mininet.enos import TestbedTopology
 
 from net.es.netshell.api import GenericGraph, GenericHost
 
+class VirtualPort(Properties):
+    def __init__(self,port,props={}):
+        Properties.__init__(self,port.getResourceName(),props)
+        self.props['enosPort'] = port
 
 class SiteRenderer(ProvisioningRenderer,ScopeOwner):
     """
@@ -32,19 +36,20 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.hostPorts = {}
         self.hosts = {}
         self.macTable = {}
-        self.ports = {}
+        self.virtualPorts = {}
+
         for port in ports:
-            self.ports[port.getResourceName()] = port
+            self.virtualPorts[port.name] = VirtualPort(port)
             links = port.getLinks()
+
             for link in links:
+                print link.name + "  ID= " + str(id(link)) + " " + link.__class__.__name__
                 vlan = link.props['vlan']
-                port.props['vlan'] = vlan
-                print port.props
                 dstNode = link.getDstNode()
                 srcNode = link.getSrcNode()
                 if borderRouter in [dstNode,srcNode]:
                     # this is the link to the WAN border router
-                    self.wanPort = port
+                    self.wanPort = VirtualPort(port)
                 else:
                     if siteRouter == dstNode:
                         self.hostPorts[port.getResourceName()] = srcNode
@@ -63,6 +68,14 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             port = self.ports[in_port]
             dl_src = event.props['dl_src']
             self.macTable[dl_src] = port
+            # set the flow entry to forward packet to that MAC to this port
+
+
+    def setDestination(self,port,mac):
+        vlan = port.props['vlan']
+        controller = port.props['controller']
+        print controller
+
 
 
 
