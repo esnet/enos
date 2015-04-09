@@ -58,7 +58,6 @@ class TopoBuilder ():
 
     def createLink(self,endpoints,vlan,suffix=""):
         link = Link(name=endpoints[0].name+":"+endpoints[1].name+suffix)
-        print ">>> link= " + link.name + "  vlan= " + str(vlan) + "   ID= " + str(id(link))
         port1 = endpoints[0].newPort({'link':link.name})
         port2 = endpoints[1].newPort({'link':link.name})
         link.props['endpoints'].append(port1)
@@ -142,7 +141,6 @@ class TopoBuilder ():
                     link = self.createLink(endpoints=[hwSwitch,host],vlan=host.props['vlan'],suffix="-" + vpn.name)
                     site.props['links'][link.name] = link
                 link = self.createLink(endpoints=[siteRouter,coreRouter],vlan=host.props['vlan'],suffix="-" + vpn.name)
-                serviceVm = site.props['serviceVm']
                 site.props['links'][link.name] = link
 
             self.vpns [vpn.name] = vpn

@@ -43,7 +43,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             links = port.getLinks()
 
             for link in links:
-                print link.name + "  ID= " + str(id(link)) + " " + link.__class__.__name__
                 vlan = link.props['vlan']
                 dstNode = link.getDstNode()
                 srcNode = link.getSrcNode()
