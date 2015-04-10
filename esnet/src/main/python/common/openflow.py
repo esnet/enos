@@ -21,7 +21,7 @@ class Match(Properties):
     Other layers are TBD
 
     """
-    def __init__(self,name="Unknown",props={}):
+    def __init__(self,name=None,props={}):
         Properties.__init__(self,name,props)
 
 class Action(Properties):
@@ -37,7 +37,7 @@ class Action(Properties):
 
     Other layers are TBD
     """
-    def __init__(self,name="Unknown",props={}):
+    def __init__(self,name=None,props={}):
         Properties.__init__(self,name,props)
 
 
@@ -46,7 +46,7 @@ class FlowMod(Properties):
     """
     This class uniquely represent a flow mod.
     """
-    def __init__(self,scope,switch,match,actions):
+    def __init__(self,name,scope,switch,match=None,actions=[]):
         """
         :param scope: Scope where the flowMod belongs
         :param switch: common.api.Node
@@ -55,9 +55,10 @@ class FlowMod(Properties):
         """
         self.scope = scope
         self.switch = switch
-        self.props['match'] = match
-        self.props['actions'] = actions
+        self.actions = actions
+        self.match = match
         self.id = generateId()
+
 
 class Scope(Properties):
     """

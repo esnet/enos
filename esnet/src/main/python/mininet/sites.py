@@ -1,15 +1,10 @@
 from common.intent import ProvisioningRenderer, ProvisioningIntent
 from common.api import Site, Properties
-from common.openflow import ScopeOwner,PacketInEvent
+from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope
 
 from mininet.enos import TestbedTopology
 
 from net.es.netshell.api import GenericGraph, GenericHost
-
-class VirtualPort(Properties):
-    def __init__(self,port,props={}):
-        Properties.__init__(self,port.getResourceName(),props)
-        self.props['enosPort'] = port
 
 class SiteRenderer(ProvisioningRenderer,ScopeOwner):
     """
@@ -31,29 +26,54 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         graph = intent.graph
         self.siteRouter = self.intent.siteRouter
         self.borderRouter = self.intent.borderRouter
+        self.macs = {}
+        self.active = False
+        self.activePorts = {}
+        self.flowmods = []
+
         ports = siteRouter.getPorts()
-        self.wanPort=None
-        self.hostPorts = {}
-        self.hosts = {}
-        self.macTable = {}
-        self.virtualPorts = {}
+        wanLink = None
 
         for port in ports:
-            self.virtualPorts[port.name] = VirtualPort(port)
+            endpoints = []
+            scope = L2SwitchScope(name=intent.name,switch=siteRouter,owner=self)
+            scope.endpoints = endpoints
+            scope['intent'] = self.intent
+            port.props['scope'] = scope
             links = port.getLinks()
-
+            self.activePorts[port.name] = port
+            port.props['macs'] = []
             for link in links:
+                port.props['switch'] = siteRouter
                 vlan = link.props['vlan']
+                port.props['vlan'] = vlan
                 dstNode = link.getDstNode()
                 srcNode = link.getSrcNode()
+                endpoints.append( (port.name,[vlan]))
                 if borderRouter in [dstNode,srcNode]:
                     # this is the link to the WAN border router
-                    self.wanPort = VirtualPort(port)
+                    wanLink = link
+                    port.props['type'] = "WAN"
                 else:
-                    if siteRouter == dstNode:
-                        self.hostPorts[port.getResourceName()] = srcNode
-                    else:
-                        self.hostPorts[port.getResourceName()] = dstNode
+                    port.props['type'] = "LAN"
+
+        ports = borderRouter.getPorts()
+        for port in ports:
+            endpoints = []
+            scope = L2SwitchScope(name=intent.name,switch=borderRouter,owner=self)
+            scope.endpoints = endpoints
+            scope['intent'] = self.intent
+            port.props['scope'] = scope
+            links = port.getLinks()
+            for link in links:
+                if link == wanLink:
+                    # this is the port connected to the site router
+                    self.activePorts[port.name] = port
+                    port.props['switch'] = borderRouter
+                    port.props['vlan'] = vlan = link.props['vlan']
+                    endpoints.append( (port.name,[vlan]))
+
+
 
     def eventListener(self,event):
         """
@@ -63,60 +83,86 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         """
         if event.__class__ == PacketInEvent:
             # This is a PACKET_IN. Learn the source MAC address
-            in_port = event.props['in_port']
-            port = self.ports[in_port]
-            dl_src = event.props['dl_src']
-            self.macTable[dl_src] = port
+            in_port = self.activePorts[event.props['in_port']]
+            dl_dst = event.props['dl_dst'].upper()
+            dl_src = event.props['dl_src'].upper()
+            vlan = event.props['vlan']
+            self.macs[dl_src] = in_port
+            in_port.props['macs'].append(dl_src)
             # set the flow entry to forward packet to that MAC to this port
+            success = self.setMAC(port=in_port,vlan=vlan,mac=dl_src)
+            if not success:
+                print "Cannot set",dl_src,"on",in_port,".",vlan
+
+            if dl_dst == "FF:FF:FF:FF:FF:FF":
+                success = self.broadcast(event)
+                if not success:
+                    print  "Cannot send packet"
+
+    def broadcast(self,event) :
+        return
 
 
-    def setDestination(self,port,mac):
-        vlan = port.props['vlan']
-        controller = port.props['controller']
-        print controller
+
+    def setMAC(self,port,vlan, mac):
+        switch = port.props['switch']
+        controller = switch.props['controller']
+        name = port + "." + vlan + ":" + mac
+        mod = FlowMod(name=name,scope=self.scope,switch=switch)
+        mod.props['renderer'] = self
+        match = Match(name=name)
+        match.props['dl_dst'] = mac
+        action = Action(name=name)
+        action.props['out_port'] = port.name
+        action.props['vlan'] = vlan
+        mod.match = match
+        mod.actions = [action]
+        scope = port.props['scope']
+        self.flowmods.append(mod)
+        return controller.addFlowMod(mod)
 
 
 
 
 
-    def executeHost(self,host,link):
-        print "HOST " + host.getResourceName()
 
-    def executeNode(self,node,link):
-        print  "SWITCH " + node.getResourceName()
-        ports = node.getPorts()
-        for port in ports:
-            links = port.getLinks()
-            if link in links:
-                  print "."
+    def removeFlowEntries(self):
+        return False
+
 
     def execute(self):
         """
         Renders the intent.
         :return: Expectation when succcessful, None otherwise
         """
-        return None
+        # Request the scope to the controller
+
+        self.active = True
+        return True
 
 
     def destroy(self):
         """
         Destroys or stop the rendering of the intent.
+        :return: True if successful
         """
+        self.active = False
+        return self.removeFlowEntries()
 
 class SiteIntent(ProvisioningIntent):
-    def __init__(self,hosts,siteRouter,borderRouter,links):
+    def __init__(self,name,hosts,siteRouter,borderRouter,links):
         """
         Creates a provisioning intent providing a GenericGraph of the logical view of the
         topology that is intended to be created.
         :param topology: TestbedTopology
         :param site: Site
         """
+        ProvisioningIntent.__init__(self,graph=graph,name=name)
         self.hosts = hosts
         self.siteRouter = siteRouter
         self.borderRouter = borderRouter
         self.links = links
         self.graph = self.buildGraph()
-        ProvisioningIntent.__init__(self,self.graph)
 
 
     def buildGraph(self):
@@ -173,10 +219,13 @@ if __name__ == '__main__':
                 dstNode = link.getDstNode()
                 if srcNode in siteNodes and dstNode in siteNodes:
                     enosLinks.append(link)
-            intent = SiteIntent(hosts=enosHosts,borderRouter=borderRouter,siteRouter=siteRouter,links=enosLinks)
-
-
+            intent = SiteIntent(name=site.name,hosts=enosHosts,borderRouter=borderRouter,siteRouter=siteRouter,links=enosLinks)
 
     renderer = SiteRenderer(intent)
-    renderer.execute()
+    err = renderer.execute()
+    # Simulates a PacketIn from a host
+    packetIn = PacketInEvent(inPort = "eth2",srcMac="00:00:00:00:00:01",dstMac="FF:FF:FF:FF:FF:FF",vlan=11,payload="ARP REQUEST")
+    renderer.eventListener(packetIn)
+
+
 

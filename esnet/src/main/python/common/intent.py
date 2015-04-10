@@ -1,6 +1,7 @@
 from utils import generateId
+from api import Property
 
-class Intent:
+class Intent(Property):
     """
     An intent is the description of what is needed to be done, the intention of the caller, rather than the
     prescription, or telling what to do. Intents are rendered by renderer that know how to implement the intent,
@@ -9,16 +10,23 @@ class Intent:
     is a dictionary of "description". A description is a key/value pair where the key is the generic name (or type)
     of the description, and the value is an object holding the description.
     """
-    def __init__(self):
+    def __init__(self,name,props={}):
+        Property.__init__(self,name=name,props=props)
         self.id = generateId()
-        self.description = {}
+        self.name = name
+        self.props = props
 
 
-class Expectation:
+class Expectation(Property):
     """
     An expectation is the expression of the current state of the rendering of an intent.
     TBD.
     """
+    def __init__(self,name,props={}):
+        Property.__init__(self,name=name,props=props)
+        self.id = generateId()
+        self.name = name
+        self.props = props
 
 
 class Renderer:
@@ -53,20 +61,22 @@ class ProvisioningIntent(Intent):
         "topology": (net.es.netshell.api.GenericGraph) describing the logical topology of the intended
                     provisioning.
     """
-    def __init__(self,graph):
+    def __init__(self,name,graph,props={}):
         """
         Creates a provisioning intent providing a GenericGraph of the logical view of the
         topology that is intended to be created.
         """
-        Intent.__init__(self)
-        self.description['topology'] = graph
+        Intent.__init__(self,name,props)
+        self.props['topology'] = graph
 
 
 class ProvisioningRenderer(Renderer):
     """
     A Generic Renderer that knows how to render provisioning intents
     """
-    def __init__(self):
-        Renderer.__init__(self)
+    def __init__(self,name,props={}):
+        Renderer.__init__(self,name,props)
+
+
 
 
