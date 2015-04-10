@@ -6,7 +6,8 @@
 # an array of hostnames of the site.
 #
 
-from common.api import  Node, SDNPop,Link,Port,Site,VPN
+from common.api import  Node, SDNPop, Link, Port, Site, VPN
+from common.openflow import OpenFlowSwitch
 
 vpn1=["vpn1",[
     ["lbl.gov",["dtn-1","dtn-2"],"lbl",1,11],
@@ -32,7 +33,14 @@ locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
 
 class TopoBuilder ():
 
-    def __init__(self, fileName = None,network={'ip':'192.168.1.','netmask':'/24'}):
+    def __init__(self, fileName = None, network={'ip':'192.168.1.','netmask':'/24'}, controller = None):
+        """
+        Create a testbed topology
+        :param fileName: filename for configuration (None for hard-coded default)
+        :param network: Hash of ip, netmask for host IPv4 address assignment
+        :param controller: Controller object (or subclass thereof)
+        :return:
+        """
         self.hostIndex = 1
         self.switchIndex = 1
         self.dpidIndex = 1
@@ -48,6 +56,7 @@ class TopoBuilder ():
             self.network['ip'] = self.network['ip'][:-1]
         self.dpidToName = {}
         self.mininetToRealNames = {}
+        self.controller = controller
 
         if fileName != None:
             self.loadConfiguration(fileName)
@@ -68,20 +77,36 @@ class TopoBuilder ():
 
 
     def loadDefault(self):
-
+        """
+            We make several simplifying assumptions here:
+            1.  All POPs have roughly the same "shape", with a hardware switch, a software switch,
+                and a core router.
+            2.  The router is simulated by an OpenFlow switch.
+            3.  All OpenFlow switches have the same controller object used to access them.
+            4.  All OpenFlow switches can be represented by the same object class.
+        """
         for location in self.locations:
 
             name = location[0]
             pop = SDNPop(name)
-            hwSwitch = Node(name=location[1],props=self.getSwitchParams(location[1]),builder=self)
+#            hwSwitch = Node(name=location[1],props=self.getSwitchParams(location[1]),builder=self)
+            # dpid, controller
+            swprops = self.getSwitchParams(location[1])
+            hwSwitch = OpenFlowSwitch(name = location[1], dpid = swprops['dpid'], controller = self.controller, props = swprops, builder = self)
             pop.props['hwSwitch'] = hwSwitch
             self.hwSwitches[hwSwitch.name] = hwSwitch
-            coreRouter = Node(name=location[2],props=self.getSwitchParams(location[2]),builder=self)
+#            coreRouter = Node(name=location[2],props=self.getSwitchParams(location[2]),builder=self)
+            # dpid, controller
+            swprops = self.getSwitchParams(location[2])
+            coreRouter = OpenFlowSwitch(name = location[2], dpid = swprops['dpid'], controller = self.controller, props = swprops, builder = self)
             pop.props['coreRouter'] = coreRouter
             self.coreRouters[coreRouter.name] = coreRouter
             pop.props['nbOfLinks'] = nbOfLinks = location[3]
             switchName = location[0] + "-" "ovs"
-            swSwitch = Node(name=switchName, props=self.getSwitchParams(switchName),builder=self)
+#            swSwitch = Node(name=switchName, props=self.getSwitchParams(switchName),builder=self)
+            # dpid, controller
+            swprops = self.getSwitchParams(switchName)
+            swSwitch = OpenFlowSwitch(name = switchName, dpid = swprops['dpid'], controller = self.controller, props = swprops, builder = self)
             pop.props['swSwitch'] = swSwitch
             self.swSwitches[swSwitch.name] = swSwitch
 
@@ -89,7 +114,7 @@ class TopoBuilder ():
                 # create links between the core router and the hardware SDN switch
                 link = self.createLink(endpoints=[hwSwitch,coreRouter],vlan=nbOfLinks,suffix=str(nbOfLinks))
                 self.coreLinks[link.name] = link
-                # create links between the sotfware SDN switch and the hardware SDN switch
+                # create links between the software SDN switch and the hardware SDN switch
                 link = self.createLink(endpoints=[hwSwitch,swSwitch],vlan=nbOfLinks,suffix='-' + str(nbOfLinks))
                 self.coreLinks[link.name] = link
                 nbOfLinks -= 1

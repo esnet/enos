@@ -202,9 +202,9 @@ class TestbedTopology (GenericTopologyProvider):
 
         self.makeCircuit(controller, scope, startTarget, routers, endTarget, vlan)
 
-    def __init__(self, fileName = None):
+    def __init__(self, fileName = None, controller = None):
         # Build topology
-        self.builder = TopoBuilder(fileName)
+        self.builder = TopoBuilder(fileName = fileName, controller = controller)
         self.buildCore()
         self.buildVpns()
 

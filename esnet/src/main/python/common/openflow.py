@@ -46,15 +46,15 @@ class FlowMod(Properties):
     """
     This class uniquely represent a flow mod.
     """
-    def __init__(self,name,scope,switch,match=None,actions=[]):
+    def __init__(self,name,scopeowner,switch,match=None,actions=[]):
         """
-        :param scope: Scope where the flowMod belongs
+        :param scopeowner: Scope owner
         :param switch: common.api.Node
         :param match: Match
         :param actions: [Action]
         """
         Properties.__init__(self,name)
-        self.scope = scope
+        self.scopeowner = scopeowner
         self.switch = switch
         self.actions = actions
         self.match = match
@@ -69,6 +69,7 @@ class Scope(Properties):
     def __init__(self,name,switch,owner,props={}):
         """
         :param name: str human readable name of the scope
+        :param switch: common.api.Node
         :param owner: ScopeController controller that owns this scope
         :param props: dict optional properties of the scope, such as ports, vlan, etc. See Layer2Scope for example.
         """
@@ -170,8 +171,8 @@ class L2SwitchScope(Scope):
         Creates a Layer2Scope. The optional endpoint parameter is a list that contains tuples. Tuples are expected
         to be (port,vlans), where port is a string and vlans is a list of integers. The following are valid examples:
             ("eth10",[12]) port eth10, VLAN 12
-            ("eth10,[])  the whole eth10 port (any VLAN)
-            ("eth10,[1,2,10]) VLAN 1, 2 and 10 on port eth10
+            ("eth10",[])  the whole eth10 port (any VLAN)
+            ("eth10",[1,2,10]) VLAN 1, 2 and 10 on port eth10
         If no endpoint is provided, then the scope represents all VLAN on all ports
         """
         Scope.__init__(self,name,switch,owner,props)
@@ -182,7 +183,13 @@ class L2SwitchScope(Scope):
         if not 'endpoints' in scope.props:
             # not a L2SwitchScope
             return False
-        endpoints2 = self.props['endpoints']
+        endpoints2 = scope.props['endpoints']
+        # If not the same switch, they don't overlap
+        if self.switch != scope.switch:
+            return False
+        # If either set of endpoints is empty, they trivially overlap
+        if len(endpoints1) == 0 or len(endpoints2) == 0:
+            return True
         for endpoint1 in endpoints1:
             port1 = endpoint1[0]
             vlans1 = endpoint1[1]
@@ -201,17 +208,27 @@ class L2SwitchScope(Scope):
         return False
 
     def isValidFlowMod(self, flowMod):
+        """
+        Check to see if a flow is contained within this scope
+        """
 
         match = flowMod.props['match']
         actions = flowMod.props['actions']
+        switch = flowMod.switch
+
         endpoints = self.props['endpoints']
+
+        # See if it's for the same switch.  If not, it can't be valid.
+        if switch != self.switch:
+            return False
+
+        if not 'in_port' in match.props:
+            # This controller rejects matches that do not include an in_port
+            return False
 
         # checks match
         for endpoint in endpoints:
             port = endpoint[0]
-            if not 'in_port' in match.props:
-                # This controller rejects matchs that do not include an in_port
-                return False
             in_port = flowMod.props['in_port']
             if port != in_port:
                 continue
@@ -232,13 +249,13 @@ class OpenFlowSwitch(Node):
     """
     This class represents an OpenFlowSwitch. It contains the list of flowmods that is set on the switch.
     """
-    def __init__(self, name, dpid,controller=None,pros={}):
+    def __init__(self, name, dpid, controller = None, builder = None, props = {}):
         """
         Creates an OpenFlowSwitch instance.
         :param controller (Controller) of this switch
         :return:
         """
-        Node.__init__(self,name,props={})
+        Node.__init__(self, name, builder, props)
         self.dpid = dpid
         self.controller = controller
         self.flowMods = {}
@@ -300,10 +317,10 @@ class SimpleController(Controller):
         :param scope:
         :return:
         """
-        for (x,s) in self.forbiddenScopes.elems():
+        for (x,s) in self.forbiddenScopes.iteritems():
             if s.overlaps(scope):
                 return False
-        for (x,s) in self.scopes:
+        for (x,s) in self.scopes.iteritems():
             if s.overlaps(scope) and id(s.owner) != id(scope.owner):
                 return False
         if scope.id in self.scopes.keys():
@@ -315,7 +332,7 @@ class SimpleController(Controller):
         self.scopes.pop(scope)
 
 
-    def addForbidenScope(self,scope):
+    def addForbiddenScope(self,scope):
         """
         Adds a scope that is forbidden to authorize any request
         :param scope:
@@ -323,7 +340,7 @@ class SimpleController(Controller):
         """
         print "not implemented yet"
 
-    def removeForbidenScope(self,scope):
+    def removeForbiddenScope(self,scope):
         """
         Adds a scope that is forbidden scope
         :param scope:
