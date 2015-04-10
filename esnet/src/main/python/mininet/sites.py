@@ -38,7 +38,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             endpoints = []
             scope = L2SwitchScope(name=intent.name,switch=siteRouter,owner=self)
             scope.endpoints = endpoints
-            scope['intent'] = self.intent
+            scope.props['intent'] = self.intent
             port.props['scope'] = scope
             links = port.getLinks()
             self.activePorts[port.name] = port
@@ -62,7 +62,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             endpoints = []
             scope = L2SwitchScope(name=intent.name,switch=borderRouter,owner=self)
             scope.endpoints = endpoints
-            scope['intent'] = self.intent
+            scope.props['intent'] = self.intent
             port.props['scope'] = scope
             links = port.getLinks()
             for link in links:
@@ -107,8 +107,9 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
     def setMAC(self,port,vlan, mac):
         switch = port.props['switch']
         controller = switch.props['controller']
-        name = port + "." + vlan + ":" + mac
-        mod = FlowMod(name=name,scope=self.scope,switch=switch)
+        name = port.name + "." + str(vlan) + ":" + mac
+        mod = FlowMod(name=name,scope=port.props['scope'],switch=switch)
+        print mod.props
         mod.props['renderer'] = self
         match = Match(name=name)
         match.props['dl_dst'] = mac

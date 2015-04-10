@@ -53,6 +53,7 @@ class FlowMod(Properties):
         :param match: Match
         :param actions: [Action]
         """
+        Properties.__init__(self,name)
         self.scope = scope
         self.switch = switch
         self.actions = actions
@@ -345,7 +346,7 @@ class SimpleController(Controller):
         :param flowMod:
         :return:
         """
-        print "[" + flowMod.switch.name (dpid= " + ") + flowMod.switch.dpid + "] adding flowMod id " + str(flowMod.id)
+        return False
 
     def delFlowMod(self, flowMod):
         """
@@ -353,7 +354,7 @@ class SimpleController(Controller):
         :param flowMod:
         :return:
         """
-        print "[" + flowMod.switch.name (dpid= " + ") + flowMod.switch.dpid + "] removing flowMod id " + str(flowMod.id)
+        return False
 
     @staticmethod
     def makeL2FlowMod(scope, switch, inPort, inVlan, outPort, outVlan):
