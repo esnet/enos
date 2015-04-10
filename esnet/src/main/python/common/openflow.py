@@ -46,15 +46,16 @@ class FlowMod(Properties):
     """
     This class uniquely represent a flow mod.
     """
-    def __init__(self,name,scopeowner,switch,match=None,actions=[]):
+    def __init__(self,scope,switch,match=None,name="",actions=[]):
         """
-        :param scopeowner: Scope owner
+        :param scope: Scope owner
         :param switch: common.api.Node
         :param match: Match
         :param actions: [Action]
         """
         Properties.__init__(self,name)
-        self.scopeowner = scopeowner
+        self.scope = scope
+        self.scopeowner = scope.owner
         self.switch = switch
         self.actions = actions
         self.match = match
@@ -134,7 +135,7 @@ class PacketInEvent(ScopeEvent):
      Other layers are TBD
     """
 
-    def __init__(self,inPort,srcMac,dstMac,vlan=None,payload=None,name="unknown",):
+    def __init__(self,inPort,srcMac,dstMac,vlan=None,payload=None,name="",):
         Properties.__init__(self,name)
         self.props['in_port'] = inPort
         self.props['dl_src'] = srcMac
@@ -212,8 +213,8 @@ class L2SwitchScope(Scope):
         Check to see if a flow is contained within this scope
         """
 
-        match = flowMod.props['match']
-        actions = flowMod.props['actions']
+        match = flowMod.match
+        actions = flowMod.actions
         switch = flowMod.switch
 
         endpoints = self.props['endpoints']
@@ -226,21 +227,44 @@ class L2SwitchScope(Scope):
             # This controller rejects matches that do not include an in_port
             return False
 
+        in_port = match.props['in_port']
+        in_vlan = match.props['vlan']
+        valid = False
         # checks match
         for endpoint in endpoints:
             port = endpoint[0]
-            in_port = flowMod.props['in_port']
             if port != in_port:
                 continue
-            if not 'vlans' in flowMod.props:
+            if not 'vlans' in port.props:
                 # this scope allows any match on this port
-                return True
-            in_vlan = flowMod.props['vlan']
+                valid = True
+                break
             vlans = endpoint[1]
             for vlan in vlans:
                 if vlan == in_vlan:
                     # authorized vlan
+                    valid = True
+                    break
+        if not valid:
+            return False
+
+        valid = False
+        # check actions
+        for action in flowMod.actions:
+            out_port = action.props['out_port']
+            out_vlan = action.props['vlan']
+            for endpoint in endpoints:
+                port = endpoint[0]
+                if port != in_port:
+                    continue
+                if not 'vlans' in port.props:
+                    # this scope allows any match on this port
                     return True
+                vlans = endpoint[1]
+                for vlan in vlans:
+                    if vlan == in_vlan:
+                        # authorized vlan
+                        return True
 
         return False
 
@@ -386,7 +410,7 @@ class SimpleController(Controller):
         actions.props['vlan'] = outVlan
         actions.props['out_port'] = { outPort }
 
-        flow = FlowMod(scope, switch, match, actions)
+        flow = FlowMod(scope=scope, swicth=switch, match=match, actions=actions)
         return flow
 
 
