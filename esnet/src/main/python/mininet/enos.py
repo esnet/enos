@@ -48,7 +48,7 @@ class TestbedTopology (GenericTopologyProvider):
         sw = TestbedNode(switch.name,props=switch.props)
         self.addNode(sw)
         switch.props['enosNode'] = sw
-        sw.props['controller'] = SimpleController()
+        sw.props['controller'] = ODLClient()
 
     def buildHost(self,host):
         h = TestbedHost(host.name,props=host.props)

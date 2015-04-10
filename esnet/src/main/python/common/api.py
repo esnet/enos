@@ -1,5 +1,5 @@
 
-class Properties:
+class Properties():
     def __init__(self, name,props={}):
         self.name = name
         self.props = props.copy()

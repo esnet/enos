@@ -270,15 +270,6 @@ class SimpleController(Controller):
     This class implements a simple controller. It implements some basic controller function but does not
     implement the actual interaction with the switch or controller.
     """
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        """
-        Implements a singleton
-        """
-        if not cls._instance:
-            cls._instance = super(SimpleController, cls).__new__(cls, *args, **kwargs)
-        return cls._instance
 
     def __init__(self):
         self.scopes = {}
@@ -382,8 +373,6 @@ class SimpleController(Controller):
         return flow
 
 
-if __name__ == '__main__':
-    print "testing"
 
 
 

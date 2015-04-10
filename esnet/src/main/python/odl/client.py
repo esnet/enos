@@ -1,6 +1,7 @@
 from java.util import LinkedList
 
 from common.openflow import SimpleController
+from common.utils import singleton
 
 from org.opendaylight.controller.sal.core import Node
 
@@ -17,7 +18,7 @@ from org.opendaylight.controller.sal.action import Output
 
 from org.opendaylight.controller.sal.flowprogrammer import Flow
 
-
+@singleton
 class ODLClient(SimpleController):
     """
     Class that is an interface to the ENOS OpenDaylight client.
@@ -25,7 +26,6 @@ class ODLClient(SimpleController):
     class (in Java).
     """
     def __init__(self):
-        print "INIT"
         #SimpleController.__init__(self)
         self.odlController = net.es.netshell.odl.Controller.getInstance()
 
