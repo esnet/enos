@@ -1,7 +1,7 @@
-from utils import generateId
-from api import Property
+from common.utils import generateId
+from common.api import Properties
 
-class Intent(Property):
+class Intent(Properties):
     """
     An intent is the description of what is needed to be done, the intention of the caller, rather than the
     prescription, or telling what to do. Intents are rendered by renderer that know how to implement the intent,
@@ -11,19 +11,19 @@ class Intent(Property):
     of the description, and the value is an object holding the description.
     """
     def __init__(self,name,props={}):
-        Property.__init__(self,name=name,props=props)
+        Properties.__init__(self,name=name,props=props)
         self.id = generateId()
         self.name = name
         self.props = props
 
 
-class Expectation(Property):
+class Expectation(Properties):
     """
     An expectation is the expression of the current state of the rendering of an intent.
     TBD.
     """
     def __init__(self,name,props={}):
-        Property.__init__(self,name=name,props=props)
+        Properties.__init__(self,name=name,props=props)
         self.id = generateId()
         self.name = name
         self.props = props

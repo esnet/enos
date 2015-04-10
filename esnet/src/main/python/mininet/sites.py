@@ -157,12 +157,12 @@ class SiteIntent(ProvisioningIntent):
         :param topology: TestbedTopology
         :param site: Site
         """
-        ProvisioningIntent.__init__(self,graph=graph,name=name)
         self.hosts = hosts
         self.siteRouter = siteRouter
         self.borderRouter = borderRouter
         self.links = links
         self.graph = self.buildGraph()
+        ProvisioningIntent.__init__(self,name=name,graph=self.graph)
 
 
     def buildGraph(self):

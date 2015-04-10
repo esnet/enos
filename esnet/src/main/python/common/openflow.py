@@ -65,7 +65,7 @@ class Scope(Properties):
     This class is a Properties wrapper. The key/value pairs in the property is used to define the scope of control
     an application wishes to have on a given network element.
     """
-    def __init__(self,name,owner,props={}):
+    def __init__(self,name,switch,owner,props={}):
         """
         :param name: str human readable name of the scope
         :param owner: ScopeController controller that owns this scope
@@ -74,6 +74,7 @@ class Scope(Properties):
         Properties.__init__(self,name,props)
         self.owner = owner
         self.id = generateId()
+        self.switch = switch
 
     def overlaps(self, scope):
         """

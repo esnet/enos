@@ -4,7 +4,7 @@ import sys
 from mininet.testbed import TopoBuilder
 from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
 from common.api import Properties
-from common.openflow import Match, Action, FlowMod, Scope
+from common.openflow import Match, Action, FlowMod, Scope, SimpleController
 from odl.client import ODLClient
 
 nodes = {}
@@ -48,7 +48,7 @@ class TestbedTopology (GenericTopologyProvider):
         sw = TestbedNode(switch.name,props=switch.props)
         self.addNode(sw)
         switch.props['enosNode'] = sw
-        sw.props['controller'] = ODLClient()
+        sw.props['controller'] = SimpleController()
 
     def buildHost(self,host):
         h = TestbedHost(host.name,props=host.props)
