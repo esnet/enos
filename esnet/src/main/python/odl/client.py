@@ -24,19 +24,9 @@ class ODLClient(SimpleController):
     The real client functionality is the net.es.netshell.odl.Controller
     class (in Java).
     """
-
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        """
-        Implements a singleton
-        """
-        if not cls._instance:
-            cls._instance = super(ODLClient, cls).__new__(cls, *args, **kwargs)
-        return cls._instance
-
     def __init__(self):
-        SimpleController.__init__(self)
+        print "INIT"
+        #SimpleController.__init__(self)
         self.odlController = net.es.netshell.odl.Controller.getInstance()
 
     def makeODLFlowEntry(self, flowMod):
@@ -53,16 +43,16 @@ class ODLClient(SimpleController):
         # Compose match object
         match = org.opendaylight.controller.sal.match.Match()
 
-        val = flowMod.props['match'].props['in_port']
+        val = flowMod.match.props['in_port']
         if val != None:
             match.setField(MatchType.IN_PORT, val[3:])
-        val = flowMod.props['match'].props['dl_src']
+        val = flowMod.match.props['dl_src']
         if val != None:
             match.setField(MatchType.DL_SRC, val)
-        val = flowMod.props['match'].props['dl_dst']
+        val = flowMod.match.props['dl_dst']
         if val != None:
             match.setField(MatchType.DL_DST, val)
-        val = flowMod.props['match'].props['vlan']
+        val = flowMod.match.props['vlan']
         if val != None:
             match.setField(MatchType.DL_VLAN, val)
 
@@ -72,17 +62,17 @@ class ODLClient(SimpleController):
         # packets.
         actionList = LinkedList()
 
-        val = flowMod.props['actions'].props['dl_dst']
+        val = flowMod.actions.props['dl_dst']
         if val != None:
             actionList.add(SetDlDst(val))
-        val = flowMod.props['actions'].props['dl_src']
+        val = flowMod.actions.props['dl_src']
         if val != None:
             actionList.add(SetDlSrc(val))
-        val = flowMod.props['actions'].props['vlan']
+        val = flowMod.actions.props['vlan']
         if val != None:
             actionList.add(PopVlan())
             actionList.add(PushVlan(val))
-        val = flowMod.props['actions'].props['out_port']
+        val = flowMod.actions.props['out_port']
         if val != None:
             for p in val:
                 actionList.add(Output(p[3:]))
@@ -129,3 +119,4 @@ class ODLClient(SimpleController):
     def delFlowMod(self, flowMod):
 
         return False
+
