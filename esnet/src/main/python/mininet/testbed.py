@@ -89,13 +89,11 @@ class TopoBuilder ():
 
             name = location[0]
             pop = SDNPop(name)
-#            hwSwitch = Node(name=location[1],props=self.getSwitchParams(location[1]),builder=self)
             # dpid, controller
             swprops = self.getSwitchParams(location[1])
             hwSwitch = OpenFlowSwitch(name = location[1], dpid = swprops['dpid'], controller = self.controller, props = swprops, builder = self)
             pop.props['hwSwitch'] = hwSwitch
             self.hwSwitches[hwSwitch.name] = hwSwitch
-#            coreRouter = Node(name=location[2],props=self.getSwitchParams(location[2]),builder=self)
             # dpid, controller
             swprops = self.getSwitchParams(location[2])
             coreRouter = OpenFlowSwitch(name = location[2], dpid = swprops['dpid'], controller = self.controller, props = swprops, builder = self)
@@ -103,7 +101,6 @@ class TopoBuilder ():
             self.coreRouters[coreRouter.name] = coreRouter
             pop.props['nbOfLinks'] = nbOfLinks = location[3]
             switchName = location[0] + "-" "ovs"
-#            swSwitch = Node(name=switchName, props=self.getSwitchParams(switchName),builder=self)
             # dpid, controller
             swprops = self.getSwitchParams(switchName)
             swSwitch = OpenFlowSwitch(name = switchName, dpid = swprops['dpid'], controller = self.controller, props = swprops, builder = self)

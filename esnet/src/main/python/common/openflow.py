@@ -212,7 +212,6 @@ class L2SwitchScope(Scope):
         """
         Check to see if a flow is contained within this scope
         """
-
         match = flowMod.match
         actions = flowMod.actions
         switch = flowMod.switch
@@ -235,10 +234,6 @@ class L2SwitchScope(Scope):
             port = endpoint[0]
             if port != in_port:
                 continue
-            if not 'vlans' in port.props:
-                # this scope allows any match on this port
-                valid = True
-                break
             vlans = endpoint[1]
             for vlan in vlans:
                 if vlan == in_vlan:
@@ -257,9 +252,6 @@ class L2SwitchScope(Scope):
                 port = endpoint[0]
                 if port != in_port:
                     continue
-                if not 'vlans' in port.props:
-                    # this scope allows any match on this port
-                    return True
                 vlans = endpoint[1]
                 for vlan in vlans:
                     if vlan == in_vlan:
@@ -286,11 +278,14 @@ class OpenFlowSwitch(Node):
         self.scopes = {}
 
 
-class Controller:
+class Controller(object):
     """
     This class defined the generic API of the client of an OpenFlow controller.
     API for packet in and out not yet defined.
     """
+    def __init__(self):
+        return
+
     def requestControl(self,scope):
         """
         Request the control over the specified scope.
@@ -313,6 +308,7 @@ class SimpleController(Controller):
     """
 
     def __init__(self):
+        super(SimpleController,self).__init__()
         self.scopes = {}
         self.forbiddenScopes = {}
         self.switches = {}
@@ -372,6 +368,13 @@ class SimpleController(Controller):
         """
         print "not implemented yet"
 
+    def isFlowModValid(self, flowMod):
+        scopeId = flowMod.scope.id
+        if not scopeId in self.scopes:
+            return False
+        scope = self.scopes[scopeId]
+        return scope.isValidFlowMod(flowMod)
+
     def addFlowMod(self, flowMod):
         """
         Implementation of SimpleController must implement this method
@@ -410,7 +413,7 @@ class SimpleController(Controller):
         actions.props['vlan'] = outVlan
         actions.props['out_port'] = { outPort }
 
-        flow = FlowMod(scope=scope, swicth=switch, match=match, actions=actions)
+        flow = FlowMod(scope=scope, switch=switch, match=match, actions=actions)
         return flow
 
 

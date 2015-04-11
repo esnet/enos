@@ -33,12 +33,11 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
 
         ports = siteRouter.getPorts()
         wanLink = None
-
+        scope = L2SwitchScope(name=intent.name,switch=siteRouter,owner=self)
+        scope.props['endpoints'] = []
+        scope.props['intent'] = self.intent
+        siteRouter.props['controller'].addScope(scope)
         for port in ports:
-            endpoints = []
-            scope = L2SwitchScope(name=intent.name,switch=siteRouter,owner=self)
-            scope.endpoints = endpoints
-            scope.props['intent'] = self.intent
             port.props['scope'] = scope
             links = port.getLinks()
             self.activePorts[port.name] = port
@@ -49,7 +48,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 port.props['vlan'] = vlan
                 dstNode = link.getDstNode()
                 srcNode = link.getSrcNode()
-                endpoints.append( (port.name,[vlan]))
+                scope.props['endpoints'].append( (port.name,[vlan]))
                 if borderRouter in [dstNode,srcNode]:
                     # this is the link to the WAN border router
                     wanLink = link
@@ -57,13 +56,13 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 else:
                     port.props['type'] = "LAN"
 
+        scope2 = L2SwitchScope(name=intent.name,switch=borderRouter,owner=self)
+        scope2.props['endpoints'] = []
+        scope2.props['intent'] = self.intent
+        borderRouter.props['controller'].addScope(scope)
         ports = borderRouter.getPorts()
         for port in ports:
-            endpoints = []
-            scope = L2SwitchScope(name=intent.name,switch=borderRouter,owner=self)
-            scope.endpoints = endpoints
-            scope.props['intent'] = self.intent
-            port.props['scope'] = scope
+            port.props['scope'] = scope2
             links = port.getLinks()
             for link in links:
                 if link == wanLink:
@@ -71,7 +70,8 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                     self.activePorts[port.name] = port
                     port.props['switch'] = borderRouter
                     port.props['vlan'] = vlan = link.props['vlan']
-                    endpoints.append( (port.name,[vlan]))
+                    scope2.props['endpoints'].append( (port.name,[vlan]))
+
 
 
 
@@ -97,10 +97,10 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             if dl_dst == "FF:FF:FF:FF:FF:FF":
                 success = self.broadcast(event)
                 if not success:
-                    print  "Cannot send packet"
+                    print  "Cannot send broadcast packet"
 
     def broadcast(self,event) :
-        return
+        return False
 
 
 
@@ -109,16 +109,16 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         controller = switch.props['controller']
         name = port.name + "." + str(vlan) + ":" + mac
         mod = FlowMod(name=name,scope=port.props['scope'],switch=switch)
-        print mod.props
         mod.props['renderer'] = self
         match = Match(name=name)
         match.props['dl_dst'] = mac
+        match.props['in_port'] = port.name
+        match.props['vlan'] = vlan
         action = Action(name=name)
         action.props['out_port'] = port.name
         action.props['vlan'] = vlan
         mod.match = match
         mod.actions = [action]
-        scope = port.props['scope']
         self.flowmods.append(mod)
         return controller.addFlowMod(mod)
 

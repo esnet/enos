@@ -18,15 +18,19 @@ from org.opendaylight.controller.sal.action import Output
 
 from org.opendaylight.controller.sal.flowprogrammer import Flow
 
-@singleton
+
 class ODLClient(SimpleController):
     """
     Class that is an interface to the ENOS OpenDaylight client.
     The real client functionality is the net.es.netshell.odl.Controller
     class (in Java).
     """
+
     def __init__(self):
-        #SimpleController.__init__(self)
+        self.__class__ = SimpleController
+        #super(ODLClient,self).__init__()
+        SimpleController.__init__(self)
+        self.__class__ = ODLClient
         self.odlController = net.es.netshell.odl.Controller.getInstance()
 
     def makeODLFlowEntry(self, flowMod):
@@ -90,7 +94,7 @@ class ODLClient(SimpleController):
         :return:
         """
         # check scope
-        if flowMod.scope.isValidFlowMod(flowMod):
+        if self.isFlowModValid(flowMod):
 
             # Find switch
             # XXX I bet this operation is expensive.  Maybe we should think about putting in
@@ -107,16 +111,18 @@ class ODLClient(SimpleController):
                 return False
 
             flow = self.makeODLFlowEntry(self, flowMod)
-
             # go to the controller
             self.odlController.addFlow(sw.node, flow)
 
             # get result
             return True
-
         return False
 
     def delFlowMod(self, flowMod):
 
         return False
 
+# Creates an instance of ODLClient
+instance = ODLClient()
+def getODLClient():
+    return instance
