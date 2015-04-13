@@ -51,7 +51,7 @@ class FlowMod(Properties):
         :param scope: Scope owner
         :param switch: common.api.Node
         :param match: Match
-        :param actions: [Action]
+        :param actions: Action
         """
         Properties.__init__(self,name)
         self.scope = scope
@@ -245,18 +245,18 @@ class L2SwitchScope(Scope):
 
         valid = False
         # check actions
-        for action in flowMod.actions:
-            out_port = action.props['out_port']
-            out_vlan = action.props['vlan']
-            for endpoint in endpoints:
-                port = endpoint[0]
-                if port != in_port:
-                    continue
-                vlans = endpoint[1]
-                for vlan in vlans:
-                    if vlan == in_vlan:
-                        # authorized vlan
-                        return True
+        action = flowMod.actions
+        out_port = action.props['out_port']
+        out_vlan = action.props['vlan']
+        for endpoint in endpoints:
+            port = endpoint[0]
+            if port != in_port:
+                continue
+            vlans = endpoint[1]
+            for vlan in vlans:
+                if vlan == in_vlan:
+                    # authorized vlan
+                    return True
 
         return False
 

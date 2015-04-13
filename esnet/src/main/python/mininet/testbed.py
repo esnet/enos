@@ -5,6 +5,8 @@
 # Each site  is an array of [hostnames,border router, VLAN] where hostnames is
 # an array of hostnames of the site.
 #
+import struct
+from array import array
 
 from common.api import  Node, SDNPop, Link, Port, Site, VPN
 from common.openflow import OpenFlowSwitch
@@ -194,8 +196,8 @@ class TopoBuilder ():
         # Create dpid
         index = self.dpidIndex
         self.dpidIndex = self.dpidIndex + 1
-        dpid = str(index)
-        self.dpidToName[dpid] = name
+        dpid = array('b',struct.unpack("8b", struct.pack("!Q", index)))
+        self.dpidToName[str(dpid)] = name
         return {"mininetName" : mininetName, "dpid" : dpid}
 
 

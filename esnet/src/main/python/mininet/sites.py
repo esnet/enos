@@ -118,7 +118,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         action.props['out_port'] = port.name
         action.props['vlan'] = vlan
         mod.match = match
-        mod.actions = [action]
+        mod.actions = action
         self.flowmods.append(mod)
         return controller.addFlowMod(mod)
 
