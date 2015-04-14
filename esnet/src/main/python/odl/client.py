@@ -8,9 +8,20 @@ from org.opendaylight.controller.sal.core import Node
 
 import net.es.netshell.odl.Controller
 
-import org.opendaylight.controller.sal.match
-import org.opendaylight.controller.sal.action
-import org.opendaylight.controller.sal.flowprogrammer
+from org.opendaylight.controller.sal.match import Match
+from org.opendaylight.controller.sal.match.MatchType import DL_DST
+from org.opendaylight.controller.sal.match.MatchType import DL_SRC
+from org.opendaylight.controller.sal.match.MatchType import DL_VLAN
+from org.opendaylight.controller.sal.match.MatchType import IN_PORT
+
+
+from org.opendaylight.controller.sal.action import Output
+from org.opendaylight.controller.sal.action import SetDlDst
+from org.opendaylight.controller.sal.action import SetDlSrc
+from org.opendaylight.controller.sal.action import PopVlan
+from org.opendaylight.controller.sal.action import PushVlan
+
+from org.opendaylight.controller.sal.flowprogrammer import Flow
 
 class ODLClient(SimpleController):
     """
@@ -38,15 +49,15 @@ class ODLClient(SimpleController):
         """
 
         # Compose match object                                                     `
-        match = org.opendaylight.controller.sal.match.Match()
+        match = Match()
         if 'in_port' in flowMod.match.props:
-            match.setField(org.opendaylight.controller.sal.match.MatchType.IN_PORT, flowMod.match.props['in_port'][3:])
+            match.setField(IN_PORT, flowMod.match.props['in_port'][3:])
         if 'dl_src' in flowMod.match.props:
-            match.setField(org.opendaylight.controller.sal.match.MatchType.DL_SRC, flowMod.match.props['dl_src'])
+            match.setField(DL_SRC, flowMod.match.props['dl_src'])
         if 'dl_dst' in flowMod.match.props:
-            match.setField(org.opendaylight.controller.sal.match.MatchType.DL_DST, flowMod.match.props['dl_dst'])
+            match.setField(DL_DST, flowMod.match.props['dl_dst'])
         if 'vlan' in flowMod.match.props:
-            match.setField(org.opendaylight.controller.sal.match.MatchType.DL_VLAN, flowMod.match.props['vlan'])
+            match.setField(DL_VLAN, flowMod.match.props['vlan'])
 
         # Compose action.
         # We do the data-link and VLAN translations first.  Other types of
@@ -55,12 +66,12 @@ class ODLClient(SimpleController):
         actionList = LinkedList()
 
         if 'dl_dst' in flowMod.actions.props:
-            actionList.add(org.opendaylight.controller.sal.actionSetDlDst(flowMod.actions.props['dl_dst']))
+            actionList.add(SetDlDst(flowMod.actions.props['dl_dst']))
         if 'dl_src' in flowMod.actions.props:
-            actionList.add(org.opendaylight.controller.sal.actionSetDlSrc(flowMod.actions.props['dl_src']))
+            actionList.add(SetDlSrc(flowMod.actions.props['dl_src']))
         if 'vlan'in flowMod.actions.props:
-            actionList.add(org.opendaylight.controller.sal.actionPopVlan())
-            actionList.add(org.opendaylight.controller.sal.actionPushVlan(flowMod.actions.props['vlan']))
+            actionList.add(PopVlan())
+            actionList.add(PushVlan(flowMod.actions.props['vlan']))
         if 'out_port' in flowMod.actions.props:
             val = flowMod.actions.props['out_port']
             if val != None:
@@ -68,7 +79,7 @@ class ODLClient(SimpleController):
                     actionList.add(Output(p[3:]))
 
         # compose flow
-        flow = org.opendaylight.controller.sal.flowprogrammer.Flow(match, actionList)
+        flow = Flow(match, actionList)
 
         return flow
 
