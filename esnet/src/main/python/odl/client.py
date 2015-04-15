@@ -54,7 +54,7 @@ class ODLClient(SimpleController):
         match = Match()
         if 'in_port' in flowMod.match.props:
             # Compose the port name
-            portname = flowMod.switch.props['mininetName'] + '-' + flowMod.match.props['in_port'].name
+            portName = flowMod.switch.props['mininetName'] + '-' + flowMod.match.props['in_port'].name
             nodeconn = self.odlController.getNodeConnector(odlNode, portName)
             match.setField(IN_PORT, nodeconn)
         if 'dl_src' in flowMod.match.props:
