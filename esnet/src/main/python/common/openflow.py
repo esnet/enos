@@ -252,6 +252,10 @@ class L2SwitchScope(Scope):
         if switch != self.switch:
             return False
 
+        # If no endpoints, then the scope covers all VLANs and ports and the flow must be valid.
+        if len(endpoints) == 0:
+            return True
+
         if not 'in_port' in match.props:
             # This controller rejects matches that do not include an in_port
             return False
