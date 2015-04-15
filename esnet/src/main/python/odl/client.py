@@ -1,4 +1,5 @@
 import struct
+from java.lang import Short
 from java.util import LinkedList
 
 from common.openflow import SimpleController
@@ -37,26 +38,31 @@ class ODLClient(SimpleController):
         self.__class__ = ODLClient
         self.odlController = net.es.netshell.odl.Controller.getInstance()
 
-    def makeODLFlowEntry(self, flowMod):
+    def makeODLFlowEntry(self, flowMod, odlNode):
         """
-        Given a FlowMod object, turn it into a Flow suitable for passing to ODL
+        Given a FlowMod object, turn it into a Flow suitable for passing to ODL.
 
         Encapsulates a bunch of common sense about the order in which flow actions
         should be applied.
 
-        :param flowMod:
+        :param flowMod: ENOS FlowMod
+        :param odlNode: OpenDaylight Node object
         :return:
         """
+
         # Compose match object                                                     `
         match = Match()
         if 'in_port' in flowMod.match.props:
-            match.setField(IN_PORT, flowMod.match.props['in_port'].name[3:])
+            # Compose the port name
+            portname = flowMod.switch.props['mininetName'] + '-' + flowMod.match.props['in_port'].name
+            nodeconn = self.odlController.getNodeConnector(odlNode, portName)
+            match.setField(IN_PORT, nodeconn)
         if 'dl_src' in flowMod.match.props:
             match.setField(DL_SRC, flowMod.match.props['dl_src'])
         if 'dl_dst' in flowMod.match.props:
             match.setField(DL_DST, flowMod.match.props['dl_dst'])
         if 'vlan' in flowMod.match.props:
-            match.setField(DL_VLAN, flowMod.match.props['vlan'])
+            match.setField(DL_VLAN, Short(flowMod.match.props['vlan']))
 
         # Compose action.
         # We do the data-link and VLAN translations first.  Other types of
@@ -69,14 +75,19 @@ class ODLClient(SimpleController):
         if 'dl_dst' in action.props:
             actionList.add(SetDlDst(action.props['dl_dst']))
         if 'dl_src' in action.props:
-            actionList.add(SetDlSrc(faction.props['dl_src']))
-        if 'vlan'in action.props:
-            actionList.add(PopVlan())
+            actionList.add(SetDlSrc(action.props['dl_src']))
+        if 'vlan' in action.props:
             actionList.add(PushVlan(action.props['vlan']))
         if 'out_port' in action.props:
-            port = action.props['out_port'].name
-            # Following line causes a TypeError
-            # actionList.add(Output(port[3:]))
+            val = action.props['out_port']
+            if val != None:
+                for p in val:
+                    # Compose the port name, which comes from the mininet switch name ("s2") and our
+                    # port name ("eth1").  We then need to look this up in the ODL SwitchManager,
+                    # but that requires a pointer to the ODL Node.
+                    portName = flowMod.switch.props['mininetName'] + "-" + p.name
+                    nodeconn = self.odlController.getNodeConnector(odlNode, portName)
+                    actionList.add(Output(nodeconn))
 
         # compose flow
         flow = Flow(match, actionList)
@@ -91,7 +102,11 @@ class ODLClient(SimpleController):
         """
         # check scope
         if self.isFlowModValid(flowMod):
-            # Find switch
+            # Given the switch in the ENOS (Python) world, find the switch in the
+            # ODL (Java) world.  We basically have to iterate over all of the switches
+            # the controller knows about and match on the DPID.  This stupidity is
+            # because there's apparently no way in the SwitchManager API to search for a
+            # switch by its name or DPID.
             # XXX I bet this operation is expensive.  Maybe we should think about putting in
             # a one-deep cache of the switch lookup.
             switches = self.odlController.getNetworkDevices()
@@ -107,7 +122,7 @@ class ODLClient(SimpleController):
             if sw == None:
                 return False
 
-            flow = self.makeODLFlowEntry(flowMod)
+            flow = self.makeODLFlowEntry(flowMod, sw.node)
             # go to the controller
             self.odlController.addFlow(sw.node, flow)
 
