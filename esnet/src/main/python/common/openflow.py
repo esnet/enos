@@ -13,9 +13,9 @@ class Match(Properties):
     The base class defines the following key / values:
 
     Layer2:
-        "in_port": str name of the ingress port on the swith
-        "dl_src" : str source MAC
-        "dl_dst" : str destination MAC
+        "in_port": Port ingress port on the swith
+        "dl_src" : array('B') source MAC
+        "dl_dst" : array('B') destination MAC
         "vlan"   : int VLAN
 
     Other layers are TBD
@@ -30,10 +30,10 @@ class Action(Properties):
     The base class defines the following key / values:
 
     Layer 2:
-        "dl_src": str rewrite the source MAC with the provided MAC
-        "dl_dst": str rewrite the destination MAC with the provided MAC
+        "dl_src": array('B') rewrite the source MAC with the provided MAC
+        "dl_dst": array('B') rewrite the destination MAC with the provided MAC
         "vlan": int rewrite the VLAN with the provided vlan
-        "out_port": [str] list of egress ports
+        "out_port": Port list of egress ports
 
     Other layers are TBD
     """
