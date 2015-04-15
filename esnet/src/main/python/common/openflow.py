@@ -146,7 +146,28 @@ class PacketInEvent(ScopeEvent):
             self.props['payload'] = payload
 
 
+class PacketOut(Properties):
+    """
+    This class implements a packet out.
+    """
+    def __init__(self,scope,port,vlan,payload,name=""):
+        """
+        :param scope: Scope
+        :param port: Port
+        :param vlan: int
+        :param payload: array('B')
+        """
+        Properties.__init__(self,name)
+        self.scope = scope
+        self.port = port
+        self.vlan = vlan
+        self.payload = payload
 
+    def __str__(self):
+        return self.port.name + "/" + str(self.vlan) + " " + str(self.payload)
+
+    def __repr__(self):
+        return self.__str__()
 
 class ScopeOwner():
     """
@@ -208,6 +229,16 @@ class L2SwitchScope(Scope):
                             return True
         return False
 
+    def isValidPacketOut(self,packet):
+
+        endpoints = self.props['endpoints']
+        for port,vlans in endpoints:
+            if port != packet.port.name:
+                continue
+            if packet.vlan in vlans:
+                return True
+        return False
+
     def isValidFlowMod(self, flowMod):
         """
         Check to see if a flow is contained within this scope
@@ -217,7 +248,6 @@ class L2SwitchScope(Scope):
         switch = flowMod.switch
 
         endpoints = self.props['endpoints']
-
         # See if it's for the same switch.  If not, it can't be valid.
         if switch != self.switch:
             return False
@@ -226,7 +256,7 @@ class L2SwitchScope(Scope):
             # This controller rejects matches that do not include an in_port
             return False
 
-        in_port = match.props['in_port']
+        in_port = match.props['in_port'].name
         in_vlan = match.props['vlan']
         valid = False
         # checks match
@@ -242,23 +272,24 @@ class L2SwitchScope(Scope):
                     break
         if not valid:
             return False
-
-        valid = False
         # check actions
-        action = flowMod.actions
-        out_port = action.props['out_port']
-        out_vlan = action.props['vlan']
-        for endpoint in endpoints:
-            port = endpoint[0]
-            if port != in_port:
-                continue
-            vlans = endpoint[1]
-            for vlan in vlans:
-                if vlan == in_vlan:
-                    # authorized vlan
-                    return True
-
-        return False
+        for action in actions:
+            out_port = action.props['out_port'].name
+            out_vlan = action.props['vlan']
+            valid = False
+            for endpoint in endpoints:
+                port = endpoint[0]
+                if port != out_port:
+                    continue
+                vlans = endpoint[1]
+                if not out_vlan in vlans:
+                    return False
+                else:
+                    valid = True
+                    break
+            if not valid:
+                return False
+        return True
 
 
 class OpenFlowSwitch(Node):
@@ -299,6 +330,11 @@ class Controller(object):
 
     def delFlowMod(self, flowMod):
         print "not implemented"
+
+    def send(selfs,packet):
+        """
+        :param packet: PacketOut
+        """
 
 
 class SimpleController(Controller):
@@ -375,6 +411,13 @@ class SimpleController(Controller):
         scope = self.scopes[scopeId]
         return scope.isValidFlowMod(flowMod)
 
+    def isPacketOutValid(self,packet):
+        scopeId = packet.scope.id
+        if not scopeId in self.scopes:
+            return False
+        scope = self.scopes[scopeId]
+        return scope.isValidPacketOut(packet)
+
     def addFlowMod(self, flowMod):
         """
         Implementation of SimpleController must implement this method
@@ -387,6 +430,15 @@ class SimpleController(Controller):
         """
         Implementation of SimpleController must implement this method
         :param flowMod:
+        :return:
+        """
+        return False
+
+    def send(self,packet):
+        """
+        Implementation of SimpleController must implement this method
+        :param self:
+        :param packet:
         :return:
         """
         return False

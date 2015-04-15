@@ -2,7 +2,7 @@ from array import array
 
 from common.intent import ProvisioningRenderer, ProvisioningIntent
 from common.api import Site, Properties
-from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope
+from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut
 
 from mininet.enos import TestbedTopology
 
@@ -74,6 +74,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                     self.activePorts[port.name] = port
                     port.props['switch'] = borderRouter
                     port.props['vlan'] = vlan = link.props['vlan']
+                    port.props['type'] = "WAN"
                     scope2.props['endpoints'].append( (port.name,[vlan]))
 
 
@@ -100,12 +101,22 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
 
             global broadcastAddress
             if dl_dst == broadcastAddress:
-                success = self.broadcast(event)
+                success = self.broadcast(inPort=in_port,srcMac=dl_src,payload=event.props['payload'])
                 if not success:
                     print  "Cannot send broadcast packet"
 
-    def broadcast(self,event) :
-        return False
+    def broadcast(self,inPort,srcMac,payload) :
+        switchController = self.siteRouter.props['controller']
+
+        for (x,port) in self.activePorts.items():
+            if port.props['type'] == "LAN":
+                if port == inPort:
+                    continue
+                scope = port.props['scope']
+                vlan = port.props['vlan']
+                packet = PacketOut(port=inPort,vlan=vlan,scope=scope,payload=payload)
+                return switchController.send(packet)
+
 
 
     def setMAC(self,port,vlan, mac):
@@ -116,19 +127,15 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         mod.props['renderer'] = self
         match = Match(name=name)
         match.props['dl_dst'] = mac
-        match.props['in_port'] = port.name
+        match.props['in_port'] = port
         match.props['vlan'] = vlan
         action = Action(name=name)
-        action.props['out_port'] = port.name
+        action.props['out_port'] = port
         action.props['vlan'] = vlan
         mod.match = match
-        mod.actions = action
+        mod.actions = [action]
         self.flowmods.append(mod)
         return controller.addFlowMod(mod)
-
-
-
-
 
 
     def removeFlowEntries(self):
@@ -229,7 +236,8 @@ if __name__ == '__main__':
     renderer = SiteRenderer(intent)
     err = renderer.execute()
     # Simulates a PacketIn from a host
-    packetIn = PacketInEvent(inPort = "eth2",srcMac=array('B',[0,0,0,0,0,1]),dstMac=broadcastAddress,vlan=11,payload="ARP REQUEST")
+    payload = array('B',"ARP REQUEST")
+    packetIn = PacketInEvent(inPort = "eth2",srcMac=array('B',[0,0,0,0,0,1]),dstMac=broadcastAddress,vlan=11,payload=payload)
     renderer.eventListener(packetIn)
 
 

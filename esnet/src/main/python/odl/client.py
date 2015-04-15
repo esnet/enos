@@ -47,11 +47,10 @@ class ODLClient(SimpleController):
         :param flowMod:
         :return:
         """
-        print "IN HERE"
         # Compose match object                                                     `
         match = Match()
         if 'in_port' in flowMod.match.props:
-            match.setField(IN_PORT, flowMod.match.props['in_port'][3:])
+            match.setField(IN_PORT, flowMod.match.props['in_port'].name[3:])
         if 'dl_src' in flowMod.match.props:
             match.setField(DL_SRC, flowMod.match.props['dl_src'])
         if 'dl_dst' in flowMod.match.props:
@@ -65,22 +64,22 @@ class ODLClient(SimpleController):
         # packets.
         actionList = LinkedList()
 
-        if 'dl_dst' in flowMod.actions.props:
-            actionList.add(SetDlDst(flowMod.actions.props['dl_dst']))
-        if 'dl_src' in flowMod.actions.props:
-            actionList.add(SetDlSrc(flowMod.actions.props['dl_src']))
-        if 'vlan'in flowMod.actions.props:
+        # Current code assumes there is only one action
+        action = flowMod.actions[0]
+        if 'dl_dst' in action.props:
+            actionList.add(SetDlDst(action.props['dl_dst']))
+        if 'dl_src' in action.props:
+            actionList.add(SetDlSrc(faction.props['dl_src']))
+        if 'vlan'in action.props:
             actionList.add(PopVlan())
-            actionList.add(PushVlan(flowMod.actions.props['vlan']))
-        if 'out_port' in flowMod.actions.props:
-            val = flowMod.actions.props['out_port']
-            if val != None:
-                for p in val:
-                    actionList.add(Output(p[3:]))
+            actionList.add(PushVlan(action.props['vlan']))
+        if 'out_port' in action.props:
+            port = action.props['out_port'].name
+            # Following line causes a TypeError
+            # actionList.add(Output(port[3:]))
 
         # compose flow
         flow = Flow(match, actionList)
-
         return flow
 
     def addFlowMod(self, flowMod):
@@ -92,7 +91,6 @@ class ODLClient(SimpleController):
         """
         # check scope
         if self.isFlowModValid(flowMod):
-            print "Flowmod is valid"
             # Find switch
             # XXX I bet this operation is expensive.  Maybe we should think about putting in
             # a one-deep cache of the switch lookup.
@@ -105,7 +103,6 @@ class ODLClient(SimpleController):
                 # Note that we also have the mininet switch name in flowMod.switch.props['mininetName']
                 if s.dataLayerAddress == dpid: # Representation of DPID?
                     sw = s
-                    print "Found Switch"
                     break
             if sw == None:
                 return False
@@ -119,7 +116,12 @@ class ODLClient(SimpleController):
         return False
 
 
-
+    def send(self,packet):
+        # to be implemented
+        if self.isPacketOutValid(packet):
+            print "PACKET_OUT:",packet
+            return True
+        return False
 
     def delFlowMod(self, flowMod):
 
