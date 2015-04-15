@@ -33,7 +33,7 @@ class Action(Properties):
         "dl_src": array('B') rewrite the source MAC with the provided MAC
         "dl_dst": array('B') rewrite the destination MAC with the provided MAC
         "vlan": int rewrite the VLAN with the provided vlan
-        "out_port": Port list of egress ports
+        "out_port": Port egress ports
 
     Other layers are TBD
     """
@@ -232,6 +232,7 @@ class L2SwitchScope(Scope):
     def isValidPacketOut(self,packet):
 
         endpoints = self.props['endpoints']
+        print endpoints,packet.port.props['switch'],packet.port,packet.vlan
         for port,vlans in endpoints:
             if port != packet.port.name:
                 continue

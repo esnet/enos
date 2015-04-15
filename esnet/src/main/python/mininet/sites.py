@@ -56,7 +56,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 if borderRouter in [dstNode,srcNode]:
                     # this is the link to the WAN border router
                     wanLink = link
-                    port.props['type'] = "WAN"
+                    port.props['type'] = "TOWAN"
                 else:
                     port.props['type'] = "LAN"
 
@@ -72,12 +72,11 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 if link == wanLink:
                     # this is the port connected to the site router
                     self.activePorts[port.name] = port
+                    vlan = link.props['vlan']
                     port.props['switch'] = borderRouter
-                    port.props['vlan'] = vlan = link.props['vlan']
+                    port.props['vlan'] = vlan
                     port.props['type'] = "WAN"
                     scope2.props['endpoints'].append( (port.name,[vlan]))
-
-
 
 
     def eventListener(self,event):
@@ -109,7 +108,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         switchController = self.siteRouter.props['controller']
 
         for (x,port) in self.activePorts.items():
-            if port.props['type'] == "LAN":
+            if port.props['type'] != "WAN":
                 if port == inPort:
                     continue
                 scope = port.props['scope']
@@ -137,6 +136,43 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.flowmods.append(mod)
         return controller.addFlowMod(mod)
 
+    def setBorderRouterBroadcast(self):
+        inPort = None
+        inVlan = None
+        for (x,port) in self.activePorts.items():
+            if port.props['type'] == "WAN":
+                inPort = port
+                inVlan = port.props['vlan']
+                break
+        if inPort == None:
+            return False
+        # chose a link to the hwSwitch of the SDNPop
+        toHwSwitch = borderRouter.props['toHwSwitch']
+        # always get the first link in the list
+        link = toHwSwitch[0]
+        outPort = None
+        outVlan = link.props['vlan']
+        endpoints = link.props['endpoints']
+        if endpoints[0].props['switch'] == borderRouter:
+            outPort = endpoints[0]
+        else:
+            outPort = endpoints[1]
+
+        controller = borderRouter.props['controller']
+        name = ""
+        mod = FlowMod(name=name,scope=port.props['scope'],switch=borderRouter)
+        mod.props['renderer'] = self
+        match = Match(name=name)
+        match.props['dl_dst'] = broadcastAddress
+        match.props['in_port'] = inPort
+        match.props['vlan'] = inVlan
+        action = Action(name=name)
+        action.props['out_port'] = outPort
+        action.props['vlan'] = outVlan
+        mod.match = match
+        mod.actions = [action]
+        self.flowmods.append(mod)
+        return controller.addFlowMod(mod)
 
     def removeFlowEntries(self):
         return False
@@ -148,9 +184,11 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         :return: Expectation when succcessful, None otherwise
         """
         # Request the scope to the controller
-
         self.active = True
-        return True
+        # set broadcast flow entry
+        success = self.setBorderRouterBroadcast()
+
+        return success
 
 
     def destroy(self):

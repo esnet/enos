@@ -95,11 +95,15 @@ class TopoBuilder ():
             swprops = self.getSwitchParams(location[1])
             hwSwitch = OpenFlowSwitch(name = location[1], dpid = swprops['dpid'], controller = self.controller, props = swprops, builder = self)
             pop.props['hwSwitch'] = hwSwitch
+            hwSwitch.props['role'] = "HwSwitch"
+            hwSwitch.props['pop'] = pop
             self.hwSwitches[hwSwitch.name] = hwSwitch
             # dpid, controller
             swprops = self.getSwitchParams(location[2])
             coreRouter = OpenFlowSwitch(name = location[2], dpid = swprops['dpid'], controller = self.controller, props = swprops, builder = self)
             pop.props['coreRouter'] = coreRouter
+            coreRouter.props['role'] = "CoreRouter"
+            coreRouter.props['pop'] = pop
             self.coreRouters[coreRouter.name] = coreRouter
             pop.props['nbOfLinks'] = nbOfLinks = location[3]
             switchName = location[0] + "-" "ovs"
@@ -107,30 +111,44 @@ class TopoBuilder ():
             swprops = self.getSwitchParams(switchName)
             swSwitch = OpenFlowSwitch(name = switchName, dpid = swprops['dpid'], controller = self.controller, props = swprops, builder = self)
             pop.props['swSwitch'] = swSwitch
+            swSwitch.props['role'] = "SwSwitch"
+            swSwitch.props['pop'] = pop
             self.swSwitches[swSwitch.name] = swSwitch
 
+            links1 = []
+            links2 = []
             while (nbOfLinks > 0):
                 # create links between the core router and the hardware SDN switch
                 link = self.createLink(endpoints=[hwSwitch,coreRouter],vlan=nbOfLinks,suffix=str(nbOfLinks))
                 self.coreLinks[link.name] = link
+                links1.append(link)
                 # create links between the software SDN switch and the hardware SDN switch
                 link = self.createLink(endpoints=[hwSwitch,swSwitch],vlan=nbOfLinks,suffix='-' + str(nbOfLinks))
                 self.coreLinks[link.name] = link
+                links2.append(link)
                 nbOfLinks -= 1
-
+            coreRouter.props['toHwSwitch'] = links1
+            hwSwitch.props['toCoreRouter'] = links1
+            hwSwitch.props['toSwSwitch'] = links2
+            swSwitch.props['toHwSwitch'] = links2
             self.pops[name] = pop
 
         # create mesh between core routers
         # two links are created between any core router, each of them with a different QoS (TBD)
         # one best effort no cap, the other bandwidth limited to low.
         targets = self.coreRouters.items()
-        for fromNode in self.coreRouters.items():
+        for (x,fromNode) in self.coreRouters.items():
             targets = targets[1:]
-            for toNode in targets:
-                link = self.createLink(endpoints=[fromNode[1],toNode[1]],suffix=":best-effort",vlan=1)
+            for (z,toNode) in targets:
+                links = []
+                link = self.createLink(endpoints=[fromNode,toNode],suffix=":best-effort",vlan=1)
                 self.coreLinks[link.name] = link
-                link = self.createLink(endpoints=[fromNode[1],toNode[1]],suffix=":slow",vlan=2)
+                links.append(link)
+                link = self.createLink(endpoints=[fromNode,toNode],suffix=":slow",vlan=2)
                 self.coreLinks[link.name] = link
+                links.append(link)
+                toNode.props['WAN-Circuit'] = links
+                fromNode.props['WAN-Circuit'] = links
 
         for v in self.vpnInstances:
             vpn = VPN (v[0])

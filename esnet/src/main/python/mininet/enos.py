@@ -66,6 +66,8 @@ class TestbedTopology (GenericTopologyProvider):
         node2 = self.builder.nodes[p2.props['node']].props['enosNode']
         self.addPort (node1,port1)
         self.addPort (node2,port2)
+        p1.props['switch'] = node1
+        p2.props['switch'] = node2
         l = TestbedLink(node1,port1,node2,port2,props=link.props)
         link.props['enosLink'] = l
         self.addLink(l)
