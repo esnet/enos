@@ -1,3 +1,5 @@
+from array import array
+
 from common.intent import ProvisioningRenderer, ProvisioningIntent
 from common.api import Site, Properties
 from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope
@@ -5,6 +7,8 @@ from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2
 from mininet.enos import TestbedTopology
 
 from net.es.netshell.api import GenericGraph, GenericHost
+
+broadcastAddress = array('B',[0xFF,0xFF,0xFF,0xFF,0xFF,0xFF])
 
 class SiteRenderer(ProvisioningRenderer,ScopeOwner):
     """
@@ -84,17 +88,18 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         if event.__class__ == PacketInEvent:
             # This is a PACKET_IN. Learn the source MAC address
             in_port = self.activePorts[event.props['in_port']]
-            dl_dst = event.props['dl_dst'].upper()
-            dl_src = event.props['dl_src'].upper()
+            dl_dst = event.props['dl_dst']
+            dl_src = event.props['dl_src']
             vlan = event.props['vlan']
             self.macs[dl_src] = in_port
-            in_port.props['macs'].append(dl_src)
+            in_port.props['macs'].append(str(dl_src))
             # set the flow entry to forward packet to that MAC to this port
             success = self.setMAC(port=in_port,vlan=vlan,mac=dl_src)
             if not success:
                 print "Cannot set",dl_src,"on",in_port,".",vlan
 
-            if dl_dst == "FF:FF:FF:FF:FF:FF":
+            global broadcastAddress
+            if dl_dst == broadcastAddress:
                 success = self.broadcast(event)
                 if not success:
                     print  "Cannot send broadcast packet"
@@ -103,11 +108,10 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         return False
 
 
-
     def setMAC(self,port,vlan, mac):
         switch = port.props['switch']
         controller = switch.props['controller']
-        name = port.name + "." + str(vlan) + ":" + mac
+        name = port.name + "." + str(vlan) + ":" + str(mac)
         mod = FlowMod(name=name,scope=port.props['scope'],switch=switch)
         mod.props['renderer'] = self
         match = Match(name=name)
@@ -225,7 +229,7 @@ if __name__ == '__main__':
     renderer = SiteRenderer(intent)
     err = renderer.execute()
     # Simulates a PacketIn from a host
-    packetIn = PacketInEvent(inPort = "eth2",srcMac="00:00:00:00:00:01",dstMac="FF:FF:FF:FF:FF:FF",vlan=11,payload="ARP REQUEST")
+    packetIn = PacketInEvent(inPort = "eth2",srcMac=array('B',[0,0,0,0,0,1]),dstMac=broadcastAddress,vlan=11,payload="ARP REQUEST")
     renderer.eventListener(packetIn)
 
 

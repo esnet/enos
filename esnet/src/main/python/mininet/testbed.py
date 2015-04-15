@@ -196,7 +196,7 @@ class TopoBuilder ():
         # Create dpid
         index = self.dpidIndex
         self.dpidIndex = self.dpidIndex + 1
-        dpid = array('b',struct.unpack("8b", struct.pack("!Q", index)))
+        dpid = array('B',struct.unpack("8B", struct.pack("!Q", index)))
         self.dpidToName[str(dpid)] = name
         return {"mininetName" : mininetName, "dpid" : dpid}
 

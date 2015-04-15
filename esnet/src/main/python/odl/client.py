@@ -47,7 +47,7 @@ class ODLClient(SimpleController):
         :param flowMod:
         :return:
         """
-
+        print "IN HERE"
         # Compose match object                                                     `
         match = Match()
         if 'in_port' in flowMod.match.props:
@@ -92,7 +92,7 @@ class ODLClient(SimpleController):
         """
         # check scope
         if self.isFlowModValid(flowMod):
-
+            print "Flowmod is valid"
             # Find switch
             # XXX I bet this operation is expensive.  Maybe we should think about putting in
             # a one-deep cache of the switch lookup.
@@ -105,6 +105,7 @@ class ODLClient(SimpleController):
                 # Note that we also have the mininet switch name in flowMod.switch.props['mininetName']
                 if s.dataLayerAddress == dpid: # Representation of DPID?
                     sw = s
+                    print "Found Switch"
                     break
             if sw == None:
                 return False
