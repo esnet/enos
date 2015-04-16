@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import sys, struct
+import sys, binascii
 
 from mininet.net import Mininet
 from mininet.node import Controller, OVSKernelSwitch, RemoteController
@@ -35,7 +35,8 @@ class TestbedTopo(Topo):
         self.setOpenFlow(net)
 
     def buildSwitch(self,switch):
-        dpid = str(struct.unpack('!Q',switch.props['dpid'])[0])
+        dpid = binascii.hexlify(switch.props['dpid'])
+        #dpid = binascii.hexlify(switch.props['dpid'])[0]))
         sw = self.addSwitch(switch.props['mininetName'],listenPort=6634,dpid=dpid)
         switch.props['mininetSwitch'] = sw
         self.openflowSwitches.append(switch)
