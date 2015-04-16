@@ -26,6 +26,8 @@ from org.opendaylight.controller.sal.action import SetDlSrc
 from org.opendaylight.controller.sal.action import PopVlan
 from org.opendaylight.controller.sal.action import PushVlan
 
+from org.opendaylight.controller.sal.packet import Ethernet
+from org.opendaylight.controller.sal.packet import IEEE8021Q
 from org.opendaylight.controller.sal.packet import RawPacket
 from org.opendaylight.controller.sal.packet import PacketResult
 
@@ -44,6 +46,7 @@ class ODLClientPacketInCallback(net.es.netshell.odl.PacketHandler.Callback):
         """
         self.odlClient = odlClient
         self.odlController = odlClient.odlController
+        self.odlPacketHandler = odlClient.packetHandler
         self.testbed = testbed
 
     def callback(self, rawPacket):
@@ -86,6 +89,32 @@ class ODLClientPacketInCallback(net.es.netshell.odl.PacketHandler.Callback):
             sw = self.testbed.builder.nodes[switchName]
 
             print "  DPID " + dpidkey + " (" + sw.name + ")"
+
+            # This part is harder.  Need to figure out the ENOS port from the
+            # NodeConnector object.  We also have the ENOS switch.
+            #
+            # This is very difficult because ODL does not let us retrieve the name of
+            # a node connector (the last argument that would be passed to
+            # SwitchManager.getNodeConnector().  The ID of a node connector appears to
+            # be a small integer X that corresponds to the "ethX" port name in ENOS
+            # (and sY-ethX in mininet)
+            portno = ingressConnector.getNodeConnectorIDString()
+            p = sw.props['ports']['eth' + portno]
+
+            print "  Port " + p.name + " -> Link " + p.props['link']
+
+            # Try to decode the packet.
+            l2pkt = self.odlPacketHandler.decodeDataPacket(rawPacket)
+
+            if l2pkt.__class__  == Ethernet:
+                srcMac = l2pkt.getSourceMACAddress()
+                destMac = l2pkt.getDestinationMACAddress()
+                etherType = l2pkt.getEtherType()
+                print "Ethernet frame " + str(srcMac) + " -> " + str(destMac) + ": " + str(etherType)
+
+                # org.opendaylight.controller.sal.packet.IEEE8021Q
+            else:
+                print "unknown frame type"
 
             return PacketResult.KEEP_PROCESSING
 
