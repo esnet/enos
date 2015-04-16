@@ -1,5 +1,6 @@
 import struct
 from java.lang import Short
+from java.lang import Long
 from java.util import LinkedList
 from java.nio import ByteBuffer
 
@@ -61,25 +62,30 @@ class ODLClientPacketInCallback(net.es.netshell.odl.PacketHandler.Callback):
         ingressConnector = rawPacket.getIncomingNodeConnector()
         ingressNode = ingressConnector.getNode()
 
-        print "  from node type " + ingressNode.getType()
-
         # Make sure this is an OpenFlow switch.  If not, ignore the packet.
         if ingressNode.getType() == Node.NodeIDType.OPENFLOW:
             print "  OpenFlow"
 
-            print "  ID is of type " + ingressNode.getID().__class__
-
             # Get the dpid of the switch
             bb = ByteBuffer.allocate(8)
-            dpid = bb.putLong(ingressNode.getID()).array()
+            dpid = bb.putLong(Long(ingressNode.getID())).array()
 
-            print "  OpenFlow DPID " + dpid
+            # This is a complete hack.  We need the string representation of an array
+            # of unsigned bytes in Python to hold the DPID, but we can't build that
+            # from Java because the byte type is signed by definition.  So once we
+            # get the string representation of the array, hack the string to make
+            # it be unsigned.  This is vaguely palatable only because we only need
+            # the string representation as the key into a hash.
+            dpidkey = str(dpid).replace("'b'", "'B'")
 
             # Need to get the ENOS/Python switch that corresponds to this DPID.
             # mininet.testbed.TopoBuilder.dpidToName can get us the switch name.
-            switchName = testbed.builder.dpidToName[str(dpid)]
+            switchName = self.testbed.builder.dpidToName[dpidkey]
 
-            print "(" + switchName + ")"
+            # Now get the switch from the switch name
+            sw = self.testbed.builder.nodes[switchName]
+
+            print "  DPID " + dpidkey + " (" + sw.name + ")"
 
             return PacketResult.KEEP_PROCESSING
 
