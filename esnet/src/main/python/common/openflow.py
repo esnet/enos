@@ -232,7 +232,6 @@ class L2SwitchScope(Scope):
     def isValidPacketOut(self,packet):
 
         endpoints = self.props['endpoints']
-        print endpoints,packet.port.props['switch'],packet.port,packet.vlan
         for port,vlans in endpoints:
             if port != packet.port.name:
                 continue
@@ -253,12 +252,12 @@ class L2SwitchScope(Scope):
         if switch != self.switch:
             return False
 
-        # If no endpoints, then the scope covers all VLANs and ports and the flow must be valid.
+        # If no endpoints, then the scope includes all VLANs and ports and the flow must be valid.
         if len(endpoints) == 0:
             return True
 
         if not 'in_port' in match.props:
-            # This controller rejects matches that do not include an in_port
+            # This controller rejects matches that do not include an in_port"
             return False
 
         in_port = match.props['in_port'].name
@@ -277,6 +276,7 @@ class L2SwitchScope(Scope):
                     break
         if not valid:
             return False
+
         # check actions
         for action in actions:
             out_port = action.props['out_port'].name

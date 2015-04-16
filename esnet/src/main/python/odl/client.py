@@ -189,13 +189,14 @@ class ODLClient(SimpleController):
             for s in switches:
                 # Find the switch that has the same DPID as the one we want to talk to.
                 # Note that we also have the mininet switch name in flowMod.switch.props['mininetName']
+
                 if s.dataLayerAddress == dpid: # Representation of DPID?
                     sw = s
                     break
             if sw == None:
                 return False
 
-            flow = self.makeODLFlowEntry(flowMod, sw.node)
+            flow = self.makeODLFlowEntry(flowMod=flowMod, odlNode=sw.node)
             # go to the controller
             self.odlController.addFlow(sw.node, flow)
 
