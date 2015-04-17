@@ -1,4 +1,5 @@
 from array import array
+import binascii
 
 from common.intent import ProvisioningRenderer, ProvisioningIntent
 from common.api import Site, Properties
@@ -92,11 +93,11 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             dl_src = event.props['dl_src']
             vlan = event.props['vlan']
             self.macs[dl_src] = in_port
-            in_port.props['macs'].append(str(dl_src))
+            in_port.props['macs'].append(dl_src)
             # set the flow entry to forward packet to that MAC to this port
             success = self.setMAC(port=in_port,vlan=vlan,mac=dl_src)
             if not success:
-                print "Cannot set",dl_src,"on",in_port,".",vlan
+                print "Cannot set MAC",binascii.hexlify(dl_src),"on",in_port.props['switch'].name + ":" +in_port.name + "." + str(vlan)
 
             global broadcastAddress
             if dl_dst == broadcastAddress:

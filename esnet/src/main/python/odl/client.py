@@ -173,6 +173,10 @@ class ODLClient(SimpleController):
         actionList = LinkedList()
 
         # Current code assumes there is only one action
+        if len(flowMod.actions) != 1:
+            # This implementation only supports a single action
+            return False
+
         action = flowMod.actions[0]
         if 'dl_dst' in action.props:
             actionList.add(SetDlDst(action.props['dl_dst']))
@@ -181,18 +185,20 @@ class ODLClient(SimpleController):
         if 'vlan' in action.props:
             actionList.add(PushVlan(action.props['vlan']))
         if 'out_port' in action.props:
-            val = action.props['out_port']
-            if val != None:
-                for p in val:
-                    # Compose the port name, which comes from the mininet switch name ("s2") and our
-                    # port name ("eth1").  We then need to look this up in the ODL SwitchManager,
-                    # but that requires a pointer to the ODL Node.
-                    portName = flowMod.switch.props['mininetName'] + "-" + p.name
-                    nodeconn = self.odlController.getNodeConnector(odlNode, portName)
-                    actionList.add(Output(nodeconn))
+            p = action.props['out_port']
+            # Compose the port name, which comes from the mininet switch name ("s2") and our
+            # port name ("eth1").  We then need to look this up in the ODL SwitchManager,
+            # but that requires a pointer to the ODL Node.
+            portName = flowMod.switch.props['mininetName'] + "-" + p.name
+            nodeconn = self.odlController.getNodeConnector(odlNode, portName)
+            actionList.add(Output(nodeconn))
+        else:
+            # This implementation requires all actions to contain a port_out
+            return False
 
         # compose flow
         flow = Flow(match, actionList)
+        print "Made flowmod",flowMod.switch
         return flow
 
     def addFlowMod(self, flowMod):
@@ -223,14 +229,19 @@ class ODLClient(SimpleController):
                     sw = s
                     break
             if sw == None:
+                print flowMod,"cannot be pushed because the switch is not in inventory"
                 return False
 
             flow = self.makeODLFlowEntry(flowMod=flowMod, odlNode=sw.node)
+            if not flow:
+                print "Cannot push flowmond onto",flowMod.switch
             # go to the controller
-            self.odlController.addFlow(sw.node, flow)
-
+            success = self.odlController.addFlow(sw.node, flow)
+            print success
             # get result
             return True
+        else:
+            print flowMod,"is not valid"
         return False
 
 
