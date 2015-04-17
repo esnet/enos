@@ -1,4 +1,6 @@
 import struct
+import array
+
 from java.lang import Short
 from java.lang import Long
 from java.util import LinkedList
@@ -48,6 +50,28 @@ class ODLClientPacketInCallback(net.es.netshell.odl.PacketHandler.Callback):
         self.odlController = odlClient.odlController
         self.odlPacketHandler = odlClient.packetHandler
         self.testbed = testbed
+        self.debug = 0
+
+    def unsignedByteArray(self, a):
+        """
+        Make an unsigned byte array from a signed byte array.
+        Useful for getting arrays of bytes from Java, which doesn't have an unsigned byte
+        type.
+        :param a: array of signed bytes
+        :return: array of unsigned bytes
+        """
+        b = array.array('B')
+        for i in a:
+            b.append(i & 0xff)
+        return b
+
+    def strByteArray(self, a):
+        """
+        Return a colon-separated string representation of a byte array
+        :param a: array of unsigned bytes
+        :return: string representation
+        """
+        return str.join(":", ("%02x" % i for i in a))
 
     def callback(self, rawPacket):
         """
@@ -58,8 +82,6 @@ class ODLClientPacketInCallback(net.es.netshell.odl.PacketHandler.Callback):
         :param rawPacket an instance of org.opendaylight.controller.sal.packet.RawPacket
         """
 
-        print "Callback PACKET_IN"
-
         # Find out where the packet came from (ingress port).  First find the node and connector
         # in the ODL/Java world.
         ingressConnector = rawPacket.getIncomingNodeConnector()
@@ -67,19 +89,11 @@ class ODLClientPacketInCallback(net.es.netshell.odl.PacketHandler.Callback):
 
         # Make sure this is an OpenFlow switch.  If not, ignore the packet.
         if ingressNode.getType() == Node.NodeIDType.OPENFLOW:
-            print "  OpenFlow"
 
-            # Get the dpid of the switch
+            # Get the dpid of the switch, as an array of unsigned bytes
             bb = ByteBuffer.allocate(8)
-            dpid = bb.putLong(Long(ingressNode.getID())).array()
-
-            # This is a complete hack.  We need the string representation of an array
-            # of unsigned bytes in Python to hold the DPID, but we can't build that
-            # from Java because the byte type is signed by definition.  So once we
-            # get the string representation of the array, hack the string to make
-            # it be unsigned.  This is vaguely palatable only because we only need
-            # the string representation as the key into a hash.
-            dpidkey = str(dpid).replace("'b'", "'B'")
+            dpid = self.unsignedByteArray(bb.putLong(Long(ingressNode.getID())).array())
+            dpidkey = str(dpid)
 
             # Need to get the ENOS/Python switch that corresponds to this DPID.
             # mininet.testbed.TopoBuilder.dpidToName can get us the switch name.
@@ -88,7 +102,8 @@ class ODLClientPacketInCallback(net.es.netshell.odl.PacketHandler.Callback):
             # Now get the switch from the switch name
             sw = self.testbed.builder.nodes[switchName]
 
-            print "  DPID " + dpidkey + " (" + sw.name + ")"
+            if self.debug:
+                print "PACKET_IN from DPID " + self.strByteArray(dpid) + " (" + sw.name + ")"
 
             # This part is harder.  Need to figure out the ENOS port from the
             # NodeConnector object.  We also have the ENOS switch.
@@ -100,30 +115,44 @@ class ODLClientPacketInCallback(net.es.netshell.odl.PacketHandler.Callback):
             # (and sY-ethX in mininet)
             portno = ingressConnector.getNodeConnectorIDString()
             p = sw.props['ports']['eth' + portno]
-
-            print "  Port " + p.name + " -> Link " + p.props['link']
+            if self.debug:
+                print "  Port " + p.name + " -> Link " + p.props['link']
 
             # Try to decode the packet.
             l2pkt = self.odlPacketHandler.decodeDataPacket(rawPacket)
 
             if l2pkt.__class__  == Ethernet:
-                srcMac = l2pkt.getSourceMACAddress()
-                destMac = l2pkt.getDestinationMACAddress()
-                etherType = l2pkt.getEtherType()
-                print "Ethernet frame " + str(srcMac) + " -> " + str(destMac) + ": " + str(etherType)
+                srcMac = self.unsignedByteArray(l2pkt.getSourceMACAddress())
+                destMac = self.unsignedByteArray(l2pkt.getDestinationMACAddress())
+                etherType = l2pkt.getEtherType() & 0xffff # convert to unsigned type
 
-                # org.opendaylight.controller.sal.packet.IEEE8021Q
+                if self.debug:
+                    print "  Ethernet frame " + self.strByteArray(srcMac) + " -> " + self.strByteArray(destMac) + " of type " + "%04x" % etherType
+
+                # XXX additional packet processing here
+                # use sw, p, srcMac, dstMac, etherType
+
+                return PacketResult.KEEP_PROCESSING
+
+            elif l2pkt.__class__ == IEEE8021Q:
+
+                if self.debug:
+                    print "  IEEE 802.1q frame, not parsed yet"
+
+                # XXX need to figure out how to parse this, if we even see these
+
+                return PacketResult.IGNORED
+
             else:
-                print "unknown frame type"
+                if self.debug:
+                    print "  Unknown frame type"
 
-            return PacketResult.KEEP_PROCESSING
+                return PacketResult.IGNORED
 
         else:
-            print "  Non-OpenFlow"
+            if self.debug:
+                print "PACKET_IN from Non-OpenFlow Switch"
             return PacketResult.IGNORED
-
-        return PacketResult.KEEP_PROCESSING
-
 
 class ODLClient(SimpleController):
     """
