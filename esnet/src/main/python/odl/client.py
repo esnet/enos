@@ -30,6 +30,7 @@ from org.opendaylight.controller.sal.action import PushVlan
 
 from org.opendaylight.controller.sal.packet import Ethernet
 from org.opendaylight.controller.sal.packet import IEEE8021Q
+from org.opendaylight.controller.sal.packet.LinkEncap import ETHERNET
 from org.opendaylight.controller.sal.packet import RawPacket
 from org.opendaylight.controller.sal.packet import PacketResult
 
@@ -169,6 +170,32 @@ class ODLClient(SimpleController):
         self.odlController = net.es.netshell.odl.Controller.getInstance()
         self.packetHandler = net.es.netshell.odl.PacketHandler.getInstance()
 
+    def findODLSwitch(self, enosSwitch):
+        """
+        Given the switch in the ENOS (Python) world, find the switch in the
+        ODL (Java) world.  We basically have to iterate over all of the switches
+        the controller knows about and match on the DPID.  This stupidity is
+        because there's apparently no way in the SwitchManager API to search for a
+        switch by its name or DPID.
+        XXX I bet this operation is expensive.  Maybe we should think about putting in
+        a cache of the switch lookup.
+
+        :param enosSwitch: common.api.Node
+        :return: org.opendaylight.controller.switchmanager.Switch (None if not found)
+        """
+        switches = self.odlController.getNetworkDevices()
+        sw = None
+        # Its seems that ODL returns 6 bytes DPID instead of 8.
+        dpid = enosSwitch.props['dpid'][-6:]
+        for s in switches:
+            # Find the switch that has the same DPID as the one we want to talk to.
+            # Note that we also have the mininet switch name in flowMod.switch.props['mininetName']
+
+            if s.dataLayerAddress == dpid: # Representation of DPID?
+                sw = s
+                break
+        return sw
+
     def makeODLFlowEntry(self, flowMod, odlNode):
         """
         Given a FlowMod object, turn it into a Flow suitable for passing to ODL.
@@ -235,28 +262,11 @@ class ODLClient(SimpleController):
         Implementation of addFlowMod for use with OpenDaylight.
         Uses the net.es.netshell.odl.Controller.
         :param flowMod:
-        :return:
+        :return: True if successful, False if not
         """
         # check scope
         if self.isFlowModValid(flowMod):
-            # Given the switch in the ENOS (Python) world, find the switch in the
-            # ODL (Java) world.  We basically have to iterate over all of the switches
-            # the controller knows about and match on the DPID.  This stupidity is
-            # because there's apparently no way in the SwitchManager API to search for a
-            # switch by its name or DPID.
-            # XXX I bet this operation is expensive.  Maybe we should think about putting in
-            # a one-deep cache of the switch lookup.
-            switches = self.odlController.getNetworkDevices()
-            sw = None
-            # Its seems that ODL returns 6 bytes DPID instead of 8.
-            dpid = flowMod.switch.props['dpid'][-6:]
-            for s in switches:
-                # Find the switch that has the same DPID as the one we want to talk to.
-                # Note that we also have the mininet switch name in flowMod.switch.props['mininetName']
-
-                if s.dataLayerAddress == dpid: # Representation of DPID?
-                    sw = s
-                    break
+            sw = self.findODLSwitch(flowMod.switch)
             if sw == None:
                 print flowMod,"cannot be pushed because the switch is not in inventory"
                 return False
@@ -275,14 +285,49 @@ class ODLClient(SimpleController):
 
 
     def send(self,packet):
-        # to be implemented
+        """
+        Send a packet via a PACKET_OUT OpenFlow message
+
+        :param packet: common.openflow.PacketOut
+        :return:  True if successful, False if not
+        """
         if self.isPacketOutValid(packet):
+            sw = self.findODLSwitch(packet.scope.switch)
+            if sw == None:
+                print packet, "cannot be sent because the switch is not in inventory"
+                return False
+            rp = RawPacket(packet.payload, ETHERNET)
+            # rp.setOutgoingNodeConnector()
+            success = self.packetHandler.transmitDataPacket(rp)
+
+            print success
             print "PACKET_OUT:",packet
             return True
         return False
 
     def delFlowMod(self, flowMod):
+        """
+        Implementation of delFlowMod for use with OpenDaylight.
+        :param flowMod:
+        :return: True if successful, False if not
+        """
+        # check scope
+        if self.isFlowModValid(flowMod):
+            sw = self.findODLSwitch(flowMod.switch)
+            if sw == None:
+                print flowMod,"cannot be removed because the switch is not in inventory"
+                return False
 
+            flow = self.makeODLFlowEntry(flowMod=flowMod, odlNode=sw.node)
+            if not flow:
+                print "Cannot remove flowmod from",flowMod.switch
+            # go to the controller
+            success = self.odlController.removeFlow(sw.node, flow)
+            print success
+            # get result
+            return True
+        else:
+            print flowMod,"is not valid"
         return False
 
 # Creates an instance of ODLClient
