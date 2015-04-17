@@ -19,12 +19,6 @@ controllerPort=6633
 
 class TestbedTopo(Topo):
 
-    def displaySwitches(self):
-        print "\nName\t\t\tDPID\t\tMininet Name\n"
-        for sw in self.openflowSwitches:
-            print sw.name,"\t",binascii.hexlify(sw.props['dpid']),"\topenflow:" + str(sw.props['dpid'][7])
-        print "\n\n"
-
     def setOpenFlow(self,net):
         global locations, viewAll
 
@@ -132,6 +126,6 @@ if __name__ == '__main__':
         net = ESnetMininet()
 
     net.start()
-    net.topo.displaySwitches()
+    net.topo.builder.displaySwitches()
     CLI(net)
     net.stop()

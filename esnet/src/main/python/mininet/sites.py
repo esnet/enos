@@ -27,6 +27,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         :param intent: SiteIntent
         :return:
         """
+        ScopeOwner.__init__(self,name=intent.name)
         self.intent = intent
         graph = intent.graph
         self.siteRouter = self.intent.siteRouter
@@ -135,6 +136,8 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         mod.match = match
         mod.actions = [action]
         self.flowmods.append(mod)
+        print mod
+        print str(port.props['scope'])
         return controller.addFlowMod(mod)
 
     def setBorderRouterBroadcast(self):

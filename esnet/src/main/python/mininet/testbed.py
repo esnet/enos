@@ -5,7 +5,7 @@
 # Each site  is an array of [hostnames,border router, VLAN] where hostnames is
 # an array of hostnames of the site.
 #
-import struct
+import struct,binascii
 from array import array
 
 from common.api import  Node, SDNPop, Link, Port, Site, VPN
@@ -66,6 +66,13 @@ class TopoBuilder ():
             self.locations = [atla,lbl,denv,wash,aofa,star,cern,amst]
             self.vpnInstances = [vpn1]
         self.loadDefault()
+
+    def displaySwitches(self):
+        print "\nName\t\t\tDPID\t\tODL Name\tMininet Name\n"
+        for (x,sw) in self.nodes.items():
+            if 'dpid' in sw.props:
+                print sw.name,"\t",binascii.hexlify(sw.props['dpid']),"\topenflow:" + str(sw.props['dpid'][7]),"\t",sw.props['mininetName']
+        print "\n\n"
 
     def createLink(self,endpoints,vlan,suffix=""):
         link = Link(name=endpoints[0].name+":"+endpoints[1].name+suffix)
@@ -234,6 +241,6 @@ class TopoBuilder ():
 
 if __name__ == '__main__':
     topo = TopoBuilder()
-    vpns = topo.vpns
+    topo.displaySwitches()
 
 	

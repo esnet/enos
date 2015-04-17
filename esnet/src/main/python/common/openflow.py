@@ -6,6 +6,7 @@ __author__ = 'lomax'
 from common.utils import generateId
 from common.api import Properties, Node
 
+import binascii
 
 class Match(Properties):
     """
@@ -24,6 +25,21 @@ class Match(Properties):
     def __init__(self,name=None,props={}):
         Properties.__init__(self,name,props)
 
+    def __str__(self):
+        desc = "Match: "
+        if 'in_port' in self.props:
+            desc += " in_port= " + self.props['in_port'].name
+        if 'dl_src' in self.props:
+            desc += " dl_src= " + binascii.hexlify(self.props['dl_src'])
+        if 'dl_dst' in self.props:
+            desc += " dl_dst= " + binascii.hexlify(self.props['dl_dst'])
+        if 'vlan' in self.props:
+            desc += " vlan= " + str(self.props['vlan'])
+        return desc
+
+    def __repr__(self):
+        return self.str()
+
 class Action(Properties):
     """
     This class is the class defining an OpenFlow action. It is a wrapper of Properties.
@@ -39,6 +55,22 @@ class Action(Properties):
     """
     def __init__(self,name=None,props={}):
         Properties.__init__(self,name,props)
+
+    def __str__(self):
+        desc = "action " + self.name
+        if 'out_port' in self.props:
+            desc += " out_port= " + self.props['out_port'].name
+        if 'dl_src' in self.props:
+            desc += " dl_src= " + binascii.hexlify(self.props['dl_src'])
+        if 'dl_dst' in self.props:
+            desc += " dl_dst= " + binascii.hexlify(self.props['dl_dst'])
+        if 'vlan' in self.props:
+            desc += " vlan= " + str(self.props['vlan'])
+        desc += "\n"
+        return desc
+
+    def __repr__(self):
+        return self.str()
 
 
 
@@ -61,6 +93,17 @@ class FlowMod(Properties):
         self.match = match
         self.id = generateId()
 
+    def __str__(self):
+        desc = "id= " + str(self.id) + " scope= " + self.scope.name + " switch= " + self.switch.name
+        desc += "\n\t" + str(self.match)
+        desc += "\n\tActions:\n"
+        for action in self.actions:
+            desc += "\t\t" + str(action)
+        desc += "\n"
+        return desc
+
+    def __repr__(self):
+        return self.str()
 
 class Scope(Properties):
     """
@@ -94,6 +137,13 @@ class Scope(Properties):
         :param flowMod: FlowMod
         """
         return False
+
+    def __str__(self):
+        desc = self.name + " id= " + str(self.id) + " switch= " + self.switch.name + " owner= " + str(self.owner)
+        return desc
+
+    def __repr__(self):
+        return self.str()
 
 
 
@@ -169,11 +219,12 @@ class PacketOut(Properties):
     def __repr__(self):
         return self.__str__()
 
-class ScopeOwner():
+class ScopeOwner(Properties):
     """
     This class must be extended by any application that controls a scope.
     """
-    def __init__(self):
+    def __init__(self,name="",props={}):
+        Properties.__init__(self,name,props)
         self.controller = None # The controller will set it ip
 
     def eventListener(self,event):
@@ -182,7 +233,11 @@ class ScopeOwner():
         to receive events from the controller such as PACKET_IN
         :param event: ScopeEvent
         """
+    def __str__(self):
+        return self.name
 
+    def __repr__(self):
+        return self.__str__()
 
 class L2SwitchScope(Scope):
     """
@@ -199,6 +254,19 @@ class L2SwitchScope(Scope):
         """
         Scope.__init__(self,name,switch,owner,props)
         self.props['endpoints'] = endpoints
+
+    def __str__(self):
+        desc = Scope.__str__(self)
+        desc += "\n\tEndpoints:"
+        for endpoint in self.props['endpoints']:
+            desc += "\n\t\t" + endpoint[0] + " vlans= "
+            for vlan in endpoint[1]:
+                desc += str(vlan)
+        desc += "\n"
+        return desc
+
+    def __repr__(self):
+        return self.str()
 
     def overlaps(self, scope):
         endpoints1 = self.props['endpoints']
@@ -250,6 +318,7 @@ class L2SwitchScope(Scope):
         endpoints = self.props['endpoints']
         # See if it's for the same switch.  If not, it can't be valid.
         if switch != self.switch:
+            print flowMod,"flowmod is for a different switch than this scope's switch",self.switch
             return False
 
         # If no endpoints, then the scope includes all VLANs and ports and the flow must be valid.
@@ -258,6 +327,7 @@ class L2SwitchScope(Scope):
 
         if not 'in_port' in match.props:
             # This controller rejects matches that do not include an in_port"
+            print flowMod,"does not include an in_port in the macth. Not supported."
             return False
 
         in_port = match.props['in_port'].name
@@ -275,6 +345,7 @@ class L2SwitchScope(Scope):
                     valid = True
                     break
         if not valid:
+            print flowMod,"contains at least one match in_port/vlan that is not contained in this scope"
             return False
 
         # check actions
@@ -288,11 +359,13 @@ class L2SwitchScope(Scope):
                     continue
                 vlans = endpoint[1]
                 if not out_vlan in vlans:
+                    print flowMod,"VLAN is not included in this scope"
                     return False
                 else:
                     valid = True
                     break
             if not valid:
+                print flowMod,"contains at least one match out_port/vlan that is not contained in this scope"
                 return False
         return True
 
@@ -412,6 +485,7 @@ class SimpleController(Controller):
     def isFlowModValid(self, flowMod):
         scopeId = flowMod.scope.id
         if not scopeId in self.scopes:
+            print "Provided scope is not authorized"
             return False
         scope = self.scopes[scopeId]
         return scope.isValidFlowMod(flowMod)
