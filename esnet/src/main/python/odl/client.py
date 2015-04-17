@@ -161,7 +161,6 @@ class ODLClient(SimpleController):
     The real client functionality is the net.es.netshell.odl.Controller
     class (in Java).
     """
-
     def __init__(self):
         self.__class__ = SimpleController
         #super(ODLClient,self).__init__()
@@ -329,9 +328,3 @@ class ODLClient(SimpleController):
         else:
             print flowMod,"is not valid"
         return False
-
-# Creates an instance of ODLClient
-instance = ODLClient()
-def getODLClient():
-    return instance
-

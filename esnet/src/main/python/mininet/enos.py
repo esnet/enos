@@ -5,7 +5,7 @@ from mininet.testbed import TopoBuilder
 from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
 from common.api import Properties
 from common.openflow import Match, Action, FlowMod, Scope, SimpleController
-from odl.client import ODLClient, getODLClient
+from odl.client import ODLClient
 
 nodes = {}
 
@@ -206,7 +206,7 @@ class TestbedTopology (GenericTopologyProvider):
 
     def __init__(self, fileName = None, controller = None):
         if not controller:
-            self.controller = getODLClient()
+            self.controller = ODLClient()
         # Build topology
         self.builder = TopoBuilder(fileName = fileName, controller = controller)
         self.buildCore()

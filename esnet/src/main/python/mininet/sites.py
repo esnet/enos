@@ -3,7 +3,8 @@ import binascii
 
 from common.intent import ProvisioningRenderer, ProvisioningIntent
 from common.api import Site, Properties
-from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut
+from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut, SimpleController
+from odl.client import ODLClient
 
 from mininet.enos import TestbedTopology
 
@@ -65,7 +66,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         scope2 = L2SwitchScope(name=intent.name,switch=borderRouter,owner=self)
         scope2.props['endpoints'] = []
         scope2.props['intent'] = self.intent
-        borderRouter.props['controller'].addScope(scope)
+        borderRouter.props['controller'].addScope(scope2)
         ports = borderRouter.getPorts()
         for port in ports:
             port.props['scope'] = scope2
@@ -136,8 +137,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         mod.match = match
         mod.actions = [action]
         self.flowmods.append(mod)
-        print mod
-        print str(port.props['scope'])
         return controller.addFlowMod(mod)
 
     def setBorderRouterBroadcast(self):
@@ -161,10 +160,13 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             outPort = endpoints[0]
         else:
             outPort = endpoints[1]
-
+        # add outPort into the scope
+        scope = port.props['scope']
+        endpoints = scope.props['endpoints']
+        endpoints.append([outPort.name,[outVlan]])
         controller = borderRouter.props['controller']
         name = ""
-        mod = FlowMod(name=name,scope=port.props['scope'],switch=borderRouter)
+        mod = FlowMod(name=name,scope=scope,switch=borderRouter)
         mod.props['renderer'] = self
         match = Match(name=name)
         match.props['dl_dst'] = broadcastAddress
@@ -247,6 +249,9 @@ if __name__ == '__main__':
         net = TestbedTopology(fileName=configFileName)
     else:
         net = TestbedTopology()
+
+    # clean up the Controller's scope
+    SimpleController.scopes = {}
 
     enosHosts = []
     for (x,vpn) in net.builder.vpns.items():

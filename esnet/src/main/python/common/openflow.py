@@ -421,12 +421,18 @@ class SimpleController(Controller):
     implement the actual interaction with the switch or controller.
     """
 
+    scope ={}
+    forbiddenScopes = {}
+    switches = {}
+    id = generateId()
+
     def __init__(self):
         super(SimpleController,self).__init__()
-        self.scopes = {}
-        self.forbiddenScopes = {}
-        self.switches = {}
-        self.id = generateId()
+        SimpleController.scopes ={}
+        SimpleController.forbiddenScopes = {}
+        SimpleController.switches = {}
+        SimpleController.id = generateId()
+
 
     def addSwitch(self,switch):
         """
@@ -434,14 +440,14 @@ class SimpleController(Controller):
         :param switch: OpenFlowSwitch
         :return:
         """
-        self.switches[switch.dpid] = switch
+        SimpleController.switches[switch.dpid] = switch
 
     def removeSwitch(self,switch):
         self.switches.pop(switch)
         # Remove all flow mods on that switch
-        self.scopes = {}
+        SimpleController.scopes = {}
         for flowMod in switch.flowMods():
-            self.delFlowMod(flowMod)
+            SimpleController.delFlowMod(flowMod)
 
     def addScope(self,scope):
         """
@@ -451,19 +457,19 @@ class SimpleController(Controller):
         :param scope:
         :return:
         """
-        for (x,s) in self.forbiddenScopes.iteritems():
+        for (x,s) in SimpleController.forbiddenScopes.items():
             if s.overlaps(scope):
                 return False
-        for (x,s) in self.scopes.iteritems():
+        for (x,s) in SimpleController.scopes.items():
             if s.overlaps(scope) and id(s.owner) != id(scope.owner):
                 return False
-        if scope.id in self.scopes.keys():
+        if scope.id in SimpleController.scopes.keys():
             return False
-        self.scopes[scope.id] = scope
+        SimpleController.scopes[scope.id] = scope
         return  True
 
     def removeScope(self,scope):
-        self.scopes.pop(scope)
+        SimpleController.scopes.pop(scope)
 
 
     def addForbiddenScope(self,scope):
@@ -484,17 +490,20 @@ class SimpleController(Controller):
 
     def isFlowModValid(self, flowMod):
         scopeId = flowMod.scope.id
-        if not scopeId in self.scopes:
+        if not scopeId in SimpleController.scopes:
             print "Provided scope is not authorized"
+            print "Authorized scopes are"
+            for sid in SimpleController.scopes:
+                print "\t" + str(sid)
             return False
-        scope = self.scopes[scopeId]
+        scope = SimpleController.scopes[scopeId]
         return scope.isValidFlowMod(flowMod)
 
     def isPacketOutValid(self,packet):
         scopeId = packet.scope.id
-        if not scopeId in self.scopes:
+        if not scopeId in SimpleController.scopes:
             return False
-        scope = self.scopes[scopeId]
+        scope = SimpleController.scopes[scopeId]
         return scope.isValidPacketOut(packet)
 
     def addFlowMod(self, flowMod):
