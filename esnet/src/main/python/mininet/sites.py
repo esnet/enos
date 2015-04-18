@@ -116,7 +116,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                     continue
                 scope = port.props['scope']
                 vlan = port.props['vlan']
-                packet = PacketOut(port=inPort,vlan=vlan,scope=scope,payload=payload)
+                packet = PacketOut(port=port,vlan=vlan,scope=scope,payload=payload)
                 return switchController.send(packet)
 
 

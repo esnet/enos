@@ -139,7 +139,7 @@ class Scope(Properties):
         return False
 
     def __str__(self):
-        desc = self.name + " id= " + str(self.id) + " switch= " + self.switch.name + " owner= " + str(self.owner)
+        desc = "Scope: " + self.name + " id= " + str(self.id) + " switch= " + self.switch.name + " owner= " + str(self.owner)
         return desc
 
     def __repr__(self):
@@ -214,10 +214,15 @@ class PacketOut(Properties):
         self.payload = payload
 
     def __str__(self):
-        return self.port.name + "/" + str(self.vlan) + " " + str(self.payload)
+        desc = "PacketOut: " + self.name + "switch= " + self.port.props['switch'].name + " port= " + self.port.name + " vlan= " + str(self.vlan)
+        desc += "\n\tScope: " + str(self.scope) + "\n"
+        desc += "\tPayload:\n\t\t"
+        desc += binascii.hexlify(self.payload)
+        desc += "\n"
+        return desc
 
     def __repr__(self):
-        return self.__str__()
+        return self.__str()
 
 class ScopeOwner(Properties):
     """
@@ -305,6 +310,7 @@ class L2SwitchScope(Scope):
                 continue
             if packet.vlan in vlans:
                 return True
+        print  packet,"is not within this scope:",self
         return False
 
     def isValidFlowMod(self, flowMod):
@@ -502,6 +508,7 @@ class SimpleController(Controller):
     def isPacketOutValid(self,packet):
         scopeId = packet.scope.id
         if not scopeId in SimpleController.scopes:
+            print "PacketOut",packet,"scope is not authorized"
             return False
         scope = SimpleController.scopes[scopeId]
         return scope.isValidPacketOut(packet)

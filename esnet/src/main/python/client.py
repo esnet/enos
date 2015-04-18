@@ -169,6 +169,7 @@ class ODLClient(SimpleController):
         self.odlController = net.es.netshell.odl.Controller.getInstance()
         self.packetHandler = net.es.netshell.odl.PacketHandler.getInstance()
 
+
     def findODLSwitch(self, enosSwitch):
         """
         Given the switch in the ENOS (Python) world, find the switch in the
@@ -302,8 +303,6 @@ class ODLClient(SimpleController):
             print success
             print "PACKET_OUT:",packet
             return True
-        else:
-            print packet,"is not valid"
         return False
 
     def delFlowMod(self, flowMod):
