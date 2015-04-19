@@ -295,6 +295,7 @@ class ODLClient(SimpleController):
             if sw == None:
                 print packet, "cannot be sent because the switch is not in inventory"
                 return False
+            print packet.payload,packet.payload.__class__.__name__
             rp = RawPacket(packet.payload, ETHERNET)
             # rp.setOutgoingNodeConnector()
             success = self.packetHandler.transmitDataPacket(rp)
