@@ -188,12 +188,21 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         :return:  True if successful, False if not
         """
         if self.isPacketOutValid(packet):
+            # Get the switch (Node in the ODL world) and port (NodeConnector in the ODL world)
             sw = self.findODLSwitch(packet.scope.switch)
             if sw == None:
                 print packet, "cannot be sent because the switch is not in inventory"
                 return False
+            portName = packet.scope.switch.props['mininetName'] + '-' + packet.port.name
+            nodeconn = self.odlController.getNodeConnector(sw, portName)
+            if nodeconn == None:
+                print packet, "cannot be sent because the port is invalid"
+                return False
 
+            # Create the outgoing packet in ODL land.  The outgoing node connector must be set.
             rp = RawPacket(packet.payload.tolist(), ETHERNET)
+            rp.setOutgoingNodeConnector(nodeconn)
+
             success = self.odlPacketHandler.transmitDataPacket(rp)
 
             print success
