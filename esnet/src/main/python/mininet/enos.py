@@ -206,7 +206,7 @@ class TestbedTopology (GenericTopologyProvider):
 
     def __init__(self, fileName = None, controller = None):
         if not controller:
-            self.controller = ODLClient()
+            self.controller = ODLClient(topology=self)
         # Build topology
         self.builder = TopoBuilder(fileName = fileName, controller = controller)
         self.buildCore()
