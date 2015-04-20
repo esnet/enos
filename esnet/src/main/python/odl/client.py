@@ -8,7 +8,6 @@ from java.nio import ByteBuffer
 
 from common.openflow import SimpleController, PacketInEvent
 
-
 from org.opendaylight.controller.sal.core import Node
 
 import net.es.netshell.odl.Controller
@@ -41,6 +40,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
     Class that is an interface to the ENOS OpenDaylight client.
     The real client functionality is the net.es.netshell.odl.Controller
     class (in Java).
+    :param topology mininet.enos.TestbedTopology
     """
     topology = None
 
@@ -55,15 +55,16 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         SimpleController.__init__(self)
         self.__class__ = ODLClient
         self.odlController = net.es.netshell.odl.Controller.getInstance()
-        self.packetHandler = net.es.netshell.odl.PacketHandler.getInstance()
+        self.odlPacketHandler = net.es.netshell.odl.PacketHandler.getInstance()
         ODLClient.topology = topology
         self.debug = 0
+        self.odlPacketHandler.setPacketInCallback(self)
 
     def startCallback(self):
-        self.packetHandler.setPacketInCallback(self)
+        self.odlPacketHandler.setPacketInCallback(self)
 
     def stopCallback(self):
-        self.packetHandler.setPacketInCallback(None)
+        self.odlPacketHandler.setPacketInCallback(None)
 
     def findODLSwitch(self, enosSwitch):
         """
@@ -193,7 +194,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
                 return False
 
             rp = RawPacket(packet.payload.tolist(), ETHERNET)
-            success = self.packetHandler.transmitDataPacket(rp)
+            success = self.odlPacketHandler.transmitDataPacket(rp)
 
             print success
             print "PACKET_OUT:",packet
