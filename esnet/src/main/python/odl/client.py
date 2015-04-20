@@ -58,6 +58,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         self.odlPacketHandler = net.es.netshell.odl.PacketHandler.getInstance()
         ODLClient.topology = topology
         self.debug = 0
+        self.dropLLDP = True
         self.odlPacketHandler.setPacketInCallback(self)
 
     def startCallback(self):
@@ -288,7 +289,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             # Now get the switch from the switch name
             sw = ODLClient.topology.builder.nodes[switchName]
 
-            if self.debug:
+            if self.debug and not self.dropLLDP:
                 print "PACKET_IN from DPID " + self.strByteArray(dpid) + " (" + sw.name + ")"
 
             # This part is harder.  Need to figure out the ENOS port from the
@@ -301,19 +302,23 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             # (and sY-ethX in mininet)
             portno = ingressConnector.getNodeConnectorIDString()
             p = sw.props['ports']['eth' + portno]
-            if self.debug:
+            if self.debug and not self.dropLLDP:
                 print "  Port " + p.name + " -> Link " + p.props['link']
 
             # Try to decode the packet.
             l2pkt = self.odlPacketHandler.decodeDataPacket(rawPacket)
-
 
             if l2pkt.__class__  == Ethernet:
                 srcMac = self.unsignedByteArray(l2pkt.getSourceMACAddress())
                 destMac = self.unsignedByteArray(l2pkt.getDestinationMACAddress())
                 etherType = l2pkt.getEtherType() & 0xffff # convert to unsigned type
 
+                if self.dropLLDP:
+                    if etherType == 0x88cc:
+                        return PacketResult.KEEP_PROCESSING
+
                 packetIn = PacketInEvent(inPort = p,srcMac=srcMac,dstMac=destMac,vlan=0,payload=l2pkt)
+                packetIn.packetIn.props['ethertype'] = etherType
 
                 if self.debug:
                     print "  Ethernet frame " + self.strByteArray(srcMac) + " -> " + self.strByteArray(destMac) + " of type " + "%04x" % etherType

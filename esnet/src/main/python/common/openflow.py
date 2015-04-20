@@ -211,13 +211,7 @@ class PacketInEvent(ScopeEvent):
         desc += "\tdl_dst:\n" + str(self.props['dl_dst'])
         if 'vlan' in self.props:
             desc += "\tvlan:\n" + str(self.props['vlan'])
-        if 'payload' in self.props:
-            # desc += "\tpayload:\n\t\t" + binascii.hexlify(self.props['payload'])
-            payload = self.props['payload']
-            print payload
         desc += "\n"
-        print "--"
-        print desc
         return desc
 
     def __repr__(self):
