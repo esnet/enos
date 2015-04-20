@@ -138,6 +138,15 @@ class Scope(Properties):
         """
         return False
 
+    def includes(self,port):
+        """
+        Returns True if the provided port is within the Scope. False otherwise
+        :param port: Port
+        :returns boolean
+        """
+        return False
+
+
     def __str__(self):
         desc = "Scope: " + self.name + " id= " + str(self.id) + " switch= " + self.switch.name + " owner= " + str(self.owner)
         return desc
@@ -272,6 +281,19 @@ class L2SwitchScope(Scope):
 
     def __repr__(self):
         return self.str()
+
+    def includes(self,port):
+        endpoints = self.props['endpoints']
+        name = port.name
+        vlan = port.props['vlan']
+        for endpoint in endpoints:
+            p = endpoint[0]
+            vlans = endpoint[1]
+            if p == name:
+                for v in vlans:
+                    if v == vlan:
+                        return True
+        return False
 
     def overlaps(self, scope):
         endpoints1 = self.props['endpoints']
@@ -427,7 +449,7 @@ class SimpleController(Controller):
     implement the actual interaction with the switch or controller.
     """
 
-    scope ={}
+    scopes ={}
     forbiddenScopes = {}
     switches = {}
     id = generateId()
@@ -458,8 +480,7 @@ class SimpleController(Controller):
     def addScope(self,scope):
         """
         Adds the scopes to the authorized set of scopes. In order to be accepted, a scope must not overlap
-        with any of the forbiden scopes, and not overlap with any of existing, authorized, scopes, unless it
-        has the same owner than the provided owner.
+        with any of the forbiden scopes, and not overlap with any of existing, authorized, scopes.
         :param scope:
         :return:
         """
@@ -467,7 +488,7 @@ class SimpleController(Controller):
             if s.overlaps(scope):
                 return False
         for (x,s) in SimpleController.scopes.items():
-            if s.overlaps(scope) and id(s.owner) != id(scope.owner):
+            if s.overlaps(scope):
                 return False
         if scope.id in SimpleController.scopes.keys():
             return False
@@ -545,6 +566,12 @@ class SimpleController(Controller):
         :return:
         """
         print packetIn
+        port = packetIn.props['in_port']
+        switch = port.props['switch']
+        # Finds the scope, if any, that is managing this packet_in
+        for (x,scope) in SimpleController.scopes.items():
+            if scope.switch == switch and scope.includes(port):
+                scope.owner.eventListener(packetIn)
 
 
     @staticmethod
