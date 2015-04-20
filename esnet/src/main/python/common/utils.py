@@ -3,7 +3,7 @@ import uuid
 """
 This method is used to implement a singleton. In order to make a singleton class:
 
-from common.api import singleton
+from common.utils import singleton
 
 @singleton
 class singletonClass:

@@ -6,6 +6,7 @@ from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, Gener
 from common.api import Properties
 from common.openflow import Match, Action, FlowMod, Scope, SimpleController
 from odl.client import ODLClient
+from common.utils import singleton
 
 nodes = {}
 
@@ -37,7 +38,7 @@ class TestbedPort(GenericPort,Properties):
         Properties.__init__(self,name=port.name,props=port.props)
 
 
-
+@singleton
 class TestbedTopology (GenericTopologyProvider):
 
     def displayDot(self):

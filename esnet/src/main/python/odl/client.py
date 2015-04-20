@@ -6,8 +6,8 @@ from java.lang import Long
 from java.util import LinkedList
 from java.nio import ByteBuffer
 
-from common.openflow import SimpleController
-from common.utils import singleton
+from common.openflow import SimpleController, PacketInEvent
+
 
 from org.opendaylight.controller.sal.core import Node
 
@@ -58,7 +58,12 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         self.packetHandler = net.es.netshell.odl.PacketHandler.getInstance()
         ODLClient.topology = topology
         self.debug = 0
+
+    def startCallback(self):
         self.packetHandler.setPacketInCallback(self)
+
+    def stopCallback(self):
+        self.packetHandler.setPacketInCallback(None)
 
     def findODLSwitch(self, enosSwitch):
         """
@@ -292,14 +297,18 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             # Try to decode the packet.
             l2pkt = self.odlPacketHandler.decodeDataPacket(rawPacket)
 
+
             if l2pkt.__class__  == Ethernet:
                 srcMac = self.unsignedByteArray(l2pkt.getSourceMACAddress())
                 destMac = self.unsignedByteArray(l2pkt.getDestinationMACAddress())
                 etherType = l2pkt.getEtherType() & 0xffff # convert to unsigned type
 
+                packetIn = PacketInEvent(inPort = p,srcMac=srcMac,dstMac=destMac,vlan=0,payload=l2pkt)
+
                 if self.debug:
                     print "  Ethernet frame " + self.strByteArray(srcMac) + " -> " + self.strByteArray(destMac) + " of type " + "%04x" % etherType
 
+                self.dispatchPacketIn(packetIn)
                 # XXX additional packet processing here
                 # use sw, p, srcMac, dstMac, etherType
 

@@ -185,7 +185,7 @@ class PacketInEvent(ScopeEvent):
      Other layers are TBD
     """
 
-    def __init__(self,inPort,srcMac,dstMac,vlan=None,payload=None,name="",):
+    def __init__(self,inPort=None,srcMac=None,dstMac=None,vlan=None,payload=None,name="",):
         Properties.__init__(self,name)
         self.props['in_port'] = inPort
         self.props['dl_src'] = srcMac
@@ -537,6 +537,15 @@ class SimpleController(Controller):
         :return:
         """
         return False
+
+    def dispatchPacketIn(self,packetIn):
+        """
+
+        :param packetIn:  PacketIn
+        :return:
+        """
+        print packetIn
+
 
     @staticmethod
     def makeL2FlowMod(scope, switch, inPort, inVlan, outPort, outVlan):
