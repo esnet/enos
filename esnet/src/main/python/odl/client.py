@@ -195,7 +195,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
                 print packet, "cannot be sent because the switch is not in inventory"
                 return False
             portName = packet.scope.switch.props['mininetName'] + '-' + packet.port.name
-            nodeconn = self.odlController.getNodeConnector(sw, portName)
+            nodeconn = self.odlController.getNodeConnector(sw.getNode(), portName)
             if nodeconn == None:
                 print packet, "cannot be sent because the port is invalid"
                 return False
@@ -318,7 +318,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
                         return PacketResult.KEEP_PROCESSING
 
                 packetIn = PacketInEvent(inPort = p,srcMac=srcMac,dstMac=destMac,vlan=0,payload=l2pkt)
-                packetIn.packetIn.props['ethertype'] = etherType
+                packetIn.props['ethertype'] = etherType
 
                 if self.debug:
                     print "  Ethernet frame " + self.strByteArray(srcMac) + " -> " + self.strByteArray(destMac) + " of type " + "%04x" % etherType
