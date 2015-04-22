@@ -3,6 +3,8 @@ __author__ = 'lomax'
     This package provides generic type and basic implementation of OpenFlow support. Note tha it currently
     does not provide any level of security, nor it is thread safe. This will have to be addressed in the future.
 """
+from array import array
+
 from common.utils import generateId
 from common.api import Properties, Node
 
@@ -191,6 +193,10 @@ class PacketInEvent(ScopeEvent):
         "dl_dst": str destination MAC
         "vlan" ": int VLAN
 
+    Although the payload is an opaque object, it is (in the common case) an object of a subclass of
+    org.opendaylight.controller.sal.packet.Packet or (if the higher layers cannot be parsed) an array
+    of unsigned bytes.
+
      Other layers are TBD
     """
 
@@ -231,6 +237,9 @@ class PacketOut(Properties):
         :param port: Port
         :param vlan: int
         :param payload: opaque type, contents starting from the Ethernet frame payload (not including Ethernet or 802.1q headers)
+
+        In reality, payload is either an array of unsigned bytes or a subclass of
+        org.opendaylight.controller.sal.packet.Packet.
         """
         Properties.__init__(self,name)
         self.scope = scope
@@ -245,7 +254,10 @@ class PacketOut(Properties):
         desc = "PacketOut: " + self.name + "switch= " + self.port.props['switch'].name + " port= " + self.port.name + " vlan= " + str(self.vlan)
         desc += "\n\tScope: " + str(self.scope) + "\n"
         desc += "\tPayload:\n\t\t"
-        desc += binascii.hexlify(self.payload)
+        if isinstance(self.payload, array):
+            desc += binascii.hexlify(self.payload)
+        else:
+            desc += str(self.payload.__class__)
         desc += "\n"
         return desc
 

@@ -109,7 +109,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                     print  "Cannot send broadcast packet"
 
     def broadcast(self,inPort,srcMac,etherType,payload) :
-        return False
         switchController = self.siteRouter.props['controller']
 
         for (x,port) in self.activePorts.items():

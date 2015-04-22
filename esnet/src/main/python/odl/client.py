@@ -27,6 +27,7 @@ from org.opendaylight.controller.sal.action import SetDlSrc
 from org.opendaylight.controller.sal.action import PopVlan
 from org.opendaylight.controller.sal.action import PushVlan
 
+from org.opendaylight.controller.sal.packet import Packet
 from org.opendaylight.controller.sal.packet import Ethernet
 from org.opendaylight.controller.sal.packet import IEEE8021Q
 from org.opendaylight.controller.sal.packet.LinkEncap import ETHERNET
@@ -208,14 +209,20 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             cp.setDestinationMACAddress(self.javaByteArray(packet.dl_dst))
             if packet.vlan == 0:
                 cp.setEtherType(packet.etherType)
-                cp.setPayload(packet.payload)
+                if isinstance(packet.payload, Packet):
+                    cp.setPayload(packet.payload)
+                else:
+                    cp.setRawPayload(self.javaByteArray(packet.payload))
             else:
                 cvp = IEEE8021Q()
                 cvp.setEtherType(packet.etherType)
-                cvp.setPayload(packet.payload)
+                if isinstance(packet.payload, Packet):
+                    cvp.setPayload(packet.payload)
+                else:
+                    cvp.setRawPayload(self.javaByteArray(packet.payload))
                 cp.setPayload(cvp)
-                cp.setEtherType(EtherTypes.VLANTAGGED)
-            rp = self.odlPacketHandler.encode(cp, ETHERNET)
+                cp.setEtherType(EtherTypes.VLANTAGGED.shortValue())
+            rp = self.odlPacketHandler.encodeDataPacket(cp)
             rp.setOutgoingNodeConnector(nodeconn)
 
             success = self.odlPacketHandler.transmitDataPacket(rp)
@@ -273,11 +280,9 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         :param a:
         :return:
         """
-        #b = jarray.array(a.tolist(), 'b')
-        b = jarray.zero(len(a), 'b')
-        # XXX FIX THIS PART
-        # for i in a:
-        #    b.()
+        b = jarray.zeros(len(a), 'b')
+        for i in range(len(a)):
+            b[i] = struct.unpack('b', struct.pack('B', a[i]))[0]
         return b
 
     def strByteArray(self, a):
@@ -341,7 +346,10 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
                 destMac = self.unsignedByteArray(l2pkt.getDestinationMACAddress())
                 etherType = l2pkt.getEtherType() & 0xffff # convert to unsigned type
                 vlanTag = 0
-                payloadBytes = l2pkt.getPayload();
+                if l2pkt.getPayload():
+                    payload = l2pkt.getPayload()
+                else:
+                    payload = l2pkt.getRawPayload()
 
                 # Possibly drop LLDP frames
                 if self.dropLLDP:
@@ -352,11 +360,15 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
                 if etherType == EtherTypes.VLANTAGGED.shortValue() & 0xffff:
                     # If we get here, then l2pkt.payload is an object of type
                     # org.opendaylight.controller.sal.packet.IEEE8021Q
-                    vlanTag = l2pkt.getPayload().getVid()
-                    etherType = l2pkt.getPayload().getEtherType() & 0xffff # convert to unsigned
-                    payloadBytes = l2pkt.getPayload().getPayload()
+                    vlanPacket = l2pkt.getPayload()
+                    vlanTag = vlanPacket.getVid()
+                    etherType = vlanPacket.getEtherType() & 0xffff # convert to unsigned
+                    if vlanPacket.getPayload():
+                        payload = vlanPacket.getPayload()
+                    else:
+                        payload = vlanPacket.getRawPayload()
 
-                packetIn = PacketInEvent(inPort = p,srcMac=srcMac,dstMac=destMac,vlan=vlanTag,payload=payloadBytes)
+                packetIn = PacketInEvent(inPort = p,srcMac=srcMac,dstMac=destMac,vlan=vlanTag,payload=payload)
                 packetIn.props['ethertype'] = etherType
 
                 if self.debug:
