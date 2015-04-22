@@ -205,12 +205,15 @@ class PacketInEvent(ScopeEvent):
             self.props['payload'] = payload
 
     def __str__(self):
-        desc = "PacketIn: " + self.name
-        desc += "\tin_port:\n" + str(self.props['in_port'])
-        desc += "\tdl_src:\n" + str(self.props['dl_src'])
-        desc += "\tdl_dst:\n" + str(self.props['dl_dst'])
+        desc = "PacketIn: " + self.name + "\n"
+        desc += "\tin_port:" + str(self.props['in_port']) + "\n"
+        desc += "\tdl_src: " + binascii.hexlify(self.props['dl_src']) + "\n"
+        desc += "\tdl_dst: " + binascii.hexlify(self.props['dl_dst']) + "\n"
+        print desc
         if 'vlan' in self.props:
-            desc += "\tvlan:\n" + str(self.props['vlan'])
+            desc += "\tvlan: " + str(self.props['vlan']) + "\n"
+        if 'payload' in self.props:
+            desc += "\tpayload: " + str(self.props['payload'])
         desc += "\n"
         return desc
 
@@ -581,7 +584,7 @@ class SimpleController(Controller):
         :param packetIn:  PacketIn
         :return:
         """
-        print str(packetIn)
+        print packetIn
         port = packetIn.props['in_port']
         switch = port.props['switch']
         # Finds the scope, if any, that is managing this packet_in

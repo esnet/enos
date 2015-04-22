@@ -13,6 +13,13 @@ class Properties(object):
 class Port(Properties):
     def __init__(self,name,props={}):
         Properties.__init__(self,name,props)
+    def __str__(self):
+        desc = Properties.__str__(self)
+        if 'vlan' in self.props:
+            desc += " vlan= " + self.props['vlan']
+        return desc
+    def __repr__(self):
+        return self.name
 
 class Node(Properties):
     def __init__(self, name,builder=None,props={}):
