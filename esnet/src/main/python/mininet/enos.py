@@ -208,8 +208,10 @@ class TestbedTopology (GenericTopologyProvider):
     def __init__(self, fileName = None, controller = None):
         if not controller:
             self.controller = ODLClient(topology=self)
+        else:
+            self.controller = controller
         # Build topology
-        self.builder = TopoBuilder(fileName = fileName, controller = controller)
+        self.builder = TopoBuilder(fileName = fileName, controller = self.controller)
         self.buildCore()
         self.buildVpns()
 

@@ -185,7 +185,7 @@ class PacketInEvent(ScopeEvent):
     This class defines a PACKET_IN event. It adds the following key / value's to the ScopeEvent
 
         "in_port": str ingress port
-        "payload": str payload of the packet
+        "payload": opaque type, payload of the packet (Ethernet payload, minus Ethernet and 802.1q headers)
     Layer 2
         "dl_src": str source MAC
         "dl_dst": str destination MAC
@@ -222,16 +222,19 @@ class PacketOut(Properties):
     """
     This class implements a packet out.
     """
-    def __init__(self,scope,port,vlan,payload,name=""):
+    def __init__(self, scope, port, dl_src, dl_dst, etherType, vlan, payload, name=""):
         """
         :param scope: Scope
         :param port: Port
         :param vlan: int
-        :param payload: array('B')
+        :param payload: opaque type, contents starting from the Ethernet frame payload (not including Ethernet or 802.1q headers)
         """
         Properties.__init__(self,name)
         self.scope = scope
         self.port = port
+        self.dl_src = dl_src
+        self.dl_dst = dl_dst
+        self.etherType = etherType
         self.vlan = vlan
         self.payload = payload
 

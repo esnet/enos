@@ -94,6 +94,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             dl_dst = event.props['dl_dst']
             dl_src = event.props['dl_src']
             vlan = event.props['vlan']
+            etherType = event.props['ethertype']
             self.macs[dl_src] = in_port
             in_port.props['macs'].append(dl_src)
             # set the flow entry to forward packet to that MAC to this port
@@ -103,11 +104,11 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
 
             global broadcastAddress
             if dl_dst == broadcastAddress:
-                success = self.broadcast(inPort=in_port,srcMac=dl_src,payload=event.props['payload'])
+                success = self.broadcast(inPort=in_port,srcMac=dl_src,etherType=etherType,payload=event.props['payload'])
                 if not success:
                     print  "Cannot send broadcast packet"
 
-    def broadcast(self,inPort,srcMac,payload) :
+    def broadcast(self,inPort,srcMac,etherType,payload) :
         switchController = self.siteRouter.props['controller']
 
         for (x,port) in self.activePorts.items():
@@ -116,7 +117,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                     continue
                 scope = port.props['scope']
                 vlan = port.props['vlan']
-                packet = PacketOut(port=port,vlan=vlan,scope=scope,payload=payload)
+                packet = PacketOut(port=port,dl_src=srcMac,dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
                 return switchController.send(packet)
 
 
@@ -285,6 +286,7 @@ if __name__ == '__main__':
     # Simulates a PacketIn from a host
     payload = array('B',"ARP REQUEST")
     packetIn = PacketInEvent(inPort = "eth2",srcMac=array('B',[0,0,0,0,0,1]),dstMac=broadcastAddress,vlan=11,payload=payload)
+    packetIn.props['ethertype'] = 0x0806
     renderer.eventListener(packetIn)
 
 

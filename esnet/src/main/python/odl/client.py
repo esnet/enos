@@ -35,6 +35,8 @@ from org.opendaylight.controller.sal.packet import PacketResult
 
 from org.opendaylight.controller.sal.flowprogrammer import Flow
 
+from org.opendaylight.controller.sal.utils import EtherTypes;
+
 class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
     """
     Class that is an interface to the ENOS OpenDaylight client.
@@ -201,7 +203,19 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
                 return False
 
             # Create the outgoing packet in ODL land.  The outgoing node connector must be set.
-            rp = RawPacket(packet.payload.tolist(), ETHERNET)
+            cp = Ethernet()
+            cp.setSourceMACAddress(self.javaByteArray(packet.dl_src))
+            cp.setDestinationMACAddress(self.javaByteArray(packet.dl_dst))
+            if packet.vlan == 0:
+                cp.setEtherType(packet.etherType)
+                cp.setPayload(packet.payload)
+            else:
+                cvp = IEEE8021Q()
+                cvp.setEtherType(packet.etherType)
+                cvp.setPayload(packet.payload)
+                cp.setPayload(cvp)
+                cp.setEtherType(EtherTypes.VLANTAGGED)
+            rp = self.odlPacketHandler.encode(cp, ETHERNET)
             rp.setOutgoingNodeConnector(nodeconn)
 
             success = self.odlPacketHandler.transmitDataPacket(rp)
@@ -250,6 +264,20 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         b = array.array('B')
         for i in a:
             b.append(i & 0xff)
+        return b
+
+    def javaByteArray(self, a):
+        """
+        Make a Java array of bytes from unsigned bytes in Python.  Note that Java
+        bytes are signed, whereas in Python they may be either signed or unsigned.
+        :param a:
+        :return:
+        """
+        #b = jarray.array(a.tolist(), 'b')
+        b = jarray.zero(len(a), 'b')
+        # XXX FIX THIS PART
+        # for i in a:
+        #    b.()
         return b
 
     def strByteArray(self, a):
@@ -312,31 +340,31 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
                 srcMac = self.unsignedByteArray(l2pkt.getSourceMACAddress())
                 destMac = self.unsignedByteArray(l2pkt.getDestinationMACAddress())
                 etherType = l2pkt.getEtherType() & 0xffff # convert to unsigned type
+                vlanTag = 0
+                payloadBytes = l2pkt.getPayload();
 
+                # Possibly drop LLDP frames
                 if self.dropLLDP:
-                    if etherType == 0x88cc:
+                    if etherType == EtherTypes.LLDP.shortValue() & 0xffff:
                         return PacketResult.KEEP_PROCESSING
 
-                packetIn = PacketInEvent(inPort = p,srcMac=srcMac,dstMac=destMac,vlan=0,payload=l2pkt)
+                # Strip off IEEE 802.1q VLAN and set VLAN if present
+                if etherType == EtherTypes.VLANTAGGED.shortValue() & 0xffff:
+                    # If we get here, then l2pkt.payload is an object of type
+                    # org.opendaylight.controller.sal.packet.IEEE8021Q
+                    vlanTag = l2pkt.getPayload().getVid()
+                    etherType = l2pkt.getPayload().getEtherType() & 0xffff # convert to unsigned
+                    payloadBytes = l2pkt.getPayload().getPayload()
+
+                packetIn = PacketInEvent(inPort = p,srcMac=srcMac,dstMac=destMac,vlan=vlanTag,payload=payloadBytes)
                 packetIn.props['ethertype'] = etherType
 
                 if self.debug:
-                    print "  Ethernet frame " + self.strByteArray(srcMac) + " -> " + self.strByteArray(destMac) + " of type " + "%04x" % etherType
+                    print "  Ethernet frame " + self.strByteArray(srcMac) + " -> " + self.strByteArray(destMac) + " Ethertype " + "%04x" % etherType + " VLAN " + "%04x" % vlanTag
 
                 self.dispatchPacketIn(packetIn)
-                # XXX additional packet processing here
-                # use sw, p, srcMac, dstMac, etherType
 
                 return PacketResult.KEEP_PROCESSING
-
-            elif l2pkt.__class__ == IEEE8021Q:
-
-                if self.debug:
-                    print "  IEEE 802.1q frame, not parsed yet"
-
-                # XXX need to figure out how to parse this, if we even see these
-
-                return PacketResult.IGNORED
 
             else:
                 if self.debug:
