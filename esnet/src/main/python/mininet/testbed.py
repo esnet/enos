@@ -12,8 +12,8 @@ from common.api import  Node, SDNPop, Link, Port, Site, VPN
 from common.openflow import OpenFlowSwitch
 
 vpn1=["vpn1",[
-    ["lbl.gov",["dtn-1","dtn-2"],"lbl",1,11],
-    ["anl.gov",["dtn-1"],"star",1,12]
+    ["lbl.gov",["dtn-1","dtn-2"],"lbl",10,11],
+    ["anl.gov",["dtn-1"],"star",10,12]
   ]
 ]
 
@@ -148,10 +148,10 @@ class TopoBuilder ():
             targets = targets[1:]
             for (z,toNode) in targets:
                 links = []
-                link = self.createLink(endpoints=[fromNode,toNode],suffix=":best-effort",vlan=1)
+                link = self.createLink(endpoints=[fromNode,toNode],suffix=":best-effort",vlan=1001)
                 self.coreLinks[link.name] = link
                 links.append(link)
-                link = self.createLink(endpoints=[fromNode,toNode],suffix=":slow",vlan=2)
+                link = self.createLink(endpoints=[fromNode,toNode],suffix=":slow",vlan=1002)
                 self.coreLinks[link.name] = link
                 links.append(link)
                 toNode.props['WAN-Circuit'] = links
