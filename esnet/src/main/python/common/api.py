@@ -14,7 +14,10 @@ class Port(Properties):
     def __init__(self,name,props={}):
         Properties.__init__(self,name,props)
     def __str__(self):
-        desc = Properties.__str__(self)
+        desc = ""
+        if 'switch'in self.props:
+            desc += self.props['switch'].name + "/"
+        desc += Properties.__str__(self)
         if 'vlan' in self.props:
             desc += " vlan= " + self.props['vlan']
         return desc

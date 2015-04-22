@@ -207,6 +207,8 @@ class PacketInEvent(ScopeEvent):
         self.props['dl_dst'] = dstMac
         if vlan:
             self.props['vlan'] = vlan
+        else:
+            self.props['vlan'] = 0
         if payload:
             self.props['payload'] = payload
 
@@ -313,10 +315,10 @@ class L2SwitchScope(Scope):
     def __repr__(self):
         return self.str()
 
-    def includes(self,port):
+    def includes(self,packetIn):
         endpoints = self.props['endpoints']
-        name = port.name
-        vlan = port.props['vlan']
+        name = packetIn.props['in_port'].name
+        vlan = packetIn.props['vlan']
         for endpoint in endpoints:
             p = endpoint[0]
             vlans = endpoint[1]
@@ -596,12 +598,11 @@ class SimpleController(Controller):
         :param packetIn:  PacketIn
         :return:
         """
-        print packetIn
         port = packetIn.props['in_port']
         switch = port.props['switch']
         # Finds the scope, if any, that is managing this packet_in
         for (x,scope) in SimpleController.scopes.items():
-            if scope.switch == switch and scope.includes(port):
+            if scope.switch == switch and scope.includes(packetIn):
                 scope.owner.eventListener(packetIn)
 
 

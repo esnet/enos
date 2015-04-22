@@ -284,10 +284,10 @@ if __name__ == '__main__':
     renderer = SiteRenderer(intent)
     err = renderer.execute()
     # Simulates a PacketIn from a host
-    payload = array('B',"ARP REQUEST")
-    packetIn = PacketInEvent(inPort = "eth2",srcMac=array('B',[0,0,0,0,0,1]),dstMac=broadcastAddress,vlan=11,payload=payload)
-    packetIn.props['ethertype'] = 0x0806
-    renderer.eventListener(packetIn)
+    #payload = array('B',"ARP REQUEST")
+    # packetIn = PacketInEvent(inPort = "eth2",srcMac=array('B',[0,0,0,0,0,1]),dstMac=broadcastAddress,vlan=11,payload=payload)
+    # packetIn.props['ethertype'] = 0x0806
+    # renderer.eventListener(packetIn)
 
 
 

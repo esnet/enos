@@ -169,7 +169,7 @@ class TopoBuilder ():
                 pop = self.pops[s[2]]
                 coreRouter = pop.props['coreRouter']
                 site.props['connectedTo'] = coreRouter.name
-                vlan = s[4]
+                vlan = s[3]
                 for h in s[1]:
                     name = h + "@" + site.name
                     host = Node (name=name, props=self.getHostParams(name=h),builder=self)
@@ -183,7 +183,7 @@ class TopoBuilder ():
                     # Creates service vm
                     name = v[0] + "-" + s[2] + "-vm"
                     host = Node(name=name, props=self.getHostParams(name = name),builder=self)
-                    vlan = s[3]
+                    vlan = s[4]
                     host.props['vlan'] = vlan
                     site.props['serviceVm'] = host
                     hwSwitch = self.coreRouterToHwSwitch(coreRouter.name)
