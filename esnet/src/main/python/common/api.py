@@ -14,15 +14,18 @@ class Port(Properties):
     def __init__(self,name,props={}):
         Properties.__init__(self,name,props)
     def __str__(self):
-        desc = ""
+        desc = "port: "
         if 'switch'in self.props:
-            desc += self.props['switch'].name + "/"
-        desc += Properties.__str__(self)
+            desc += self.props['switch'].name + "/" + self.name
+        else:
+            desc += "unknown switch:" + self.name
         if 'vlan' in self.props:
-            desc += " vlan= " + self.props['vlan']
+            desc += " vlan= " + str(self.props['vlan'])
+        desc += "\n"
         return desc
+
     def __repr__(self):
-        return self.name
+        return self.__str__()
 
 class Node(Properties):
     def __init__(self, name,builder=None,props={}):

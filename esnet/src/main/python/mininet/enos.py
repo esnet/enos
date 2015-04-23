@@ -3,7 +3,7 @@ import sys
 
 from mininet.testbed import TopoBuilder
 from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
-from common.api import Properties
+from common.api import Properties, Port
 from common.openflow import Match, Action, FlowMod, Scope, SimpleController
 from odl.client import ODLClient
 from common.utils import singleton
@@ -28,14 +28,14 @@ class TestbedHost(GenericHost,Properties):
         GenericHost.__init__(self,name)
         Properties.__init__(self,self.getResourceName(),props)
 
-class TestbedPort(GenericPort,Properties):
+class TestbedPort(GenericPort,Port):
     def __init__(self,name,props={}):
         GenericPort.__init__(self,name)
-        Properties.__init__(self,self.getResourceName(),props)
+        Port.__init__(self,self.getResourceName(),props)
 
     def __init__(self,port):
         GenericPort.__init__(self,port.name)
-        Properties.__init__(self,name=port.name,props=port.props)
+        Port.__init__(self,name=port.name,props=port.props)
 
 
 @singleton
@@ -111,8 +111,6 @@ class TestbedTopology (GenericTopologyProvider):
         """
         Find the router ports facing a target
         """
-        coreRouterLinks = []
-        siteRouterLinks = []
         coreRouterPortLinks = {}
 
         for p in router.props['ports']:

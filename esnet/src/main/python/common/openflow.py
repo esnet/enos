@@ -96,7 +96,8 @@ class FlowMod(Properties):
         self.id = generateId()
 
     def __str__(self):
-        desc = "id= " + str(self.id) + " scope= " + self.scope.name + " switch= " + self.switch.name
+        desc ="FlowMod: " + self.name
+        desc += " \n\tid= " + str(self.id) + " scope= " + self.scope.name + " switch= " + self.switch.name
         desc += "\n\t" + str(self.match)
         desc += "\n\tActions:\n"
         for action in self.actions:
@@ -217,7 +218,6 @@ class PacketInEvent(ScopeEvent):
         desc += "\tin_port:" + str(self.props['in_port']) + "\n"
         desc += "\tdl_src: " + binascii.hexlify(self.props['dl_src']) + "\n"
         desc += "\tdl_dst: " + binascii.hexlify(self.props['dl_dst']) + "\n"
-        print desc
         if 'vlan' in self.props:
             desc += "\tvlan: " + str(self.props['vlan']) + "\n"
         if 'payload' in self.props:
@@ -303,7 +303,7 @@ class L2SwitchScope(Scope):
         self.props['endpoints'] = endpoints
 
     def __str__(self):
-        desc = Scope.__str__(self)
+        desc = "Scope " + self.name + " switch= " + self.switch.name
         desc += "\n\tEndpoints:"
         for endpoint in self.props['endpoints']:
             desc += "\n\t\t" + endpoint[0] + " vlans= "
@@ -406,7 +406,7 @@ class L2SwitchScope(Scope):
                     valid = True
                     break
         if not valid:
-            print flowMod,"contains at least one match in_port/vlan that is not contained in this scope"
+            print flowMod,"contains at least one match in_port/vlan that is not contained in this scope:",self
             return False
 
         # check actions
@@ -420,13 +420,13 @@ class L2SwitchScope(Scope):
                     continue
                 vlans = endpoint[1]
                 if not out_vlan in vlans:
-                    print flowMod,"VLAN is not included in this scope"
+                    print flowMod,"VLAN is not included in this scope",self
                     return False
                 else:
                     valid = True
                     break
             if not valid:
-                print flowMod,"contains at least one match out_port/vlan that is not contained in this scope"
+                print flowMod,"contains at least one action out_port/vlan that is not contained in this scope:",self
                 return False
         return True
 
