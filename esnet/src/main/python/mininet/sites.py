@@ -47,7 +47,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         for port in ports:
             port.props['scope'] = scope
             links = port.getLinks()
-            self.activePorts[port.name] = port
+            self.activePorts[siteRouter.name + ":" + port.name] = port
             port.props['macs'] = []
             for link in links:
                 port.props['switch'] = siteRouter
@@ -74,7 +74,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             for link in links:
                 if link == wanLink:
                     # this is the port connected to the site router
-                    self.activePorts[port.name] = port
+                    self.activePorts[borderRouter.name + ":" + port.name] = port
                     vlan = link.props['vlan']
                     port.props['switch'] = borderRouter
                     port.props['vlan'] = vlan
@@ -90,7 +90,9 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         """
         if event.__class__ == PacketInEvent:
             # This is a PACKET_IN. Learn the source MAC address
-            in_port = self.activePorts[event.props['in_port']]
+            port = event.props['in_port']
+            switch = port.props['switch']
+            in_port = self.activePorts[switch.name + ":" + port.name]
             dl_dst = event.props['dl_dst']
             dl_src = event.props['dl_src']
             vlan = event.props['vlan']
@@ -284,7 +286,7 @@ if __name__ == '__main__':
     renderer = SiteRenderer(intent)
     err = renderer.execute()
     # Simulates a PacketIn from a host
-    #payload = array('B',"ARP REQUEST")
+    # payload = array('B',"ARP REQUEST")
     # packetIn = PacketInEvent(inPort = "eth2",srcMac=array('B',[0,0,0,0,0,1]),dstMac=broadcastAddress,vlan=11,payload=payload)
     # packetIn.props['ethertype'] = 0x0806
     # renderer.eventListener(packetIn)
