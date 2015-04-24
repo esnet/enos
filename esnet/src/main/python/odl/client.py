@@ -216,6 +216,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             else:
                 cvp = IEEE8021Q()
                 cvp.setEtherType(packet.etherType)
+                cvp.setVid(packet.vlan)
                 if isinstance(packet.payload, Packet):
                     cvp.setPayload(packet.payload)
                 else:
