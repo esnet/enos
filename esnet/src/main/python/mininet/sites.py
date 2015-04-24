@@ -84,7 +84,9 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                     # this is the port connected to the site router
                     self.activePorts[borderRouter.name + ":" + port.name] = port
                     vlan = link.props['vlan']
-                    port.props['switch'] = borderRouter
+                    if not 'switch' in port.props:
+                        print "!!!!!!!!!!! ",port.props
+                        port.props['switch'] = borderRouter
                     port.props['vlan'] = vlan
                     port.props['type'] = "WAN"
                     scope2.props['endpoints'].append( (port.name,[vlan]))
