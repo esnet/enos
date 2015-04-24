@@ -24,8 +24,7 @@ from org.opendaylight.controller.sal.match.MatchType import IN_PORT
 from org.opendaylight.controller.sal.action import Output
 from org.opendaylight.controller.sal.action import SetDlDst
 from org.opendaylight.controller.sal.action import SetDlSrc
-from org.opendaylight.controller.sal.action import PopVlan
-from org.opendaylight.controller.sal.action import PushVlan
+from org.opendaylight.controller.sal.action import SetVlanId
 
 from org.opendaylight.controller.sal.packet import Packet
 from org.opendaylight.controller.sal.packet import Ethernet
@@ -116,9 +115,9 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             nodeconn = self.odlController.getNodeConnector(odlNode, portName)
             match.setField(IN_PORT, nodeconn)
         if 'dl_src' in flowMod.match.props:
-            match.setField(DL_SRC, flowMod.match.props['dl_src'])
+            match.setField(DL_SRC, self.javaByteArray(flowMod.match.props['dl_src']))
         if 'dl_dst' in flowMod.match.props:
-            match.setField(DL_DST, flowMod.match.props['dl_dst'])
+            match.setField(DL_DST, self.javaByteArray(flowMod.match.props['dl_dst']))
         if 'vlan' in flowMod.match.props:
             match.setField(DL_VLAN, Short(flowMod.match.props['vlan']))
 
@@ -135,11 +134,11 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
 
         action = flowMod.actions[0]
         if 'dl_dst' in action.props:
-            actionList.add(SetDlDst(action.props['dl_dst']))
+            actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'])))
         if 'dl_src' in action.props:
-            actionList.add(SetDlSrc(action.props['dl_src']))
+            actionList.add(SetDlSrc(self.javaByteArray(action.props['dl_src'])))
         if 'vlan' in action.props:
-            actionList.add(PushVlan(action.props['vlan']))
+            actionList.add(SetVlanId(action.props['vlan']))
         if 'out_port' in action.props:
             p = action.props['out_port']
             # Compose the port name, which comes from the mininet switch name ("s2") and our
@@ -167,6 +166,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         # check scope
         if self.isFlowModValid(flowMod):
             sw = self.findODLSwitch(flowMod.switch)
+            # print "flowMod.switch of type ", str(type(flowMod.switch))
             if sw == None:
                 print flowMod,"cannot be pushed because the switch is not in inventory"
                 return False
@@ -177,6 +177,10 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             # go to the controller
             success = self.odlController.addFlow(sw.node, flow)
             print success
+
+            # if success.isSuccess():
+            #     flowMod.switch.props['openFlowSwitch'].flowMods[flowMod] = flowMod
+
             # get result
             return True
         else:
@@ -260,6 +264,21 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             print flowMod,"is not valid"
         return False
 
+    def delAllFlowMods(self, switch):
+        """
+        Implementation of delAllFlowMods for OpenDaylight
+        :param sw: common.api.Node (switch to be nuked)
+        :return:
+        """
+        odlSwitch = self.findODLSwitch(switch)
+        if (odlSwitch):
+            success = self.odlController.removeAllFlows(odlSwitch.getNode())
+            print success
+            switch.flowMods = {}
+            return True
+        else:
+            print "Cannot find ", switch
+            return False
 
     def unsignedByteArray(self, a):
         """
