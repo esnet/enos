@@ -53,7 +53,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             port.props['scope'] = scope
             links = port.getLinks()
             self.activePorts[siteRouter.name + ":" + port.name] = port
-            port.props['macs'] = []
+            port.props['macs'] = {}
             for link in links:
                 port.props['switch'] = siteRouter
                 vlan = link.props['vlan']
@@ -142,23 +142,30 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             if SiteRenderer.debug:
                 print event
                 SiteRenderer.lastEvent = event
+            dl_src = event.props['dl_src']
+            mac = binascii.hexlify(dl_src)
+            print "PACKETIN",mac
             port = event.props['in_port']
             switch = port.props['switch']
             in_port = self.activePorts[switch.name + ":" + port.name]
             dl_dst = event.props['dl_dst']
             dl_src = event.props['dl_src']
+            mac = binascii.hexlify(dl_src)
             vlan = event.props['vlan']
             etherType = event.props['ethertype']
             success = True
-            if not dl_src in self.macs:
+            print mac,self.macs
+            if not mac in self.macs:
+                print "NEW MAC"
                 # New MAC, install flow entries
-                self.macs[dl_src] = in_port
-                in_port.props['macs'].append(dl_src)
+                self.macs[mac] = (dl_src,in_port)
+                in_port.props['macs'][mac] = dl_src
                 # set the flow entry to forward packet to that MAC to this port
                 success = self.setMAC(port=in_port,vlan=vlan,mac=dl_src)
                 if not success:
                     print "Cannot set MAC",binascii.hexlify(dl_src),"on",in_port.props['switch'].name + ":" +in_port.name + "." + str(vlan)
-
+            else:
+                print "ALREADY GOT IT"
             global broadcastAddress
             if dl_dst == broadcastAddress:
                 success = self.broadcast(inPort=in_port,srcMac=dl_src,etherType=etherType,payload=event.props['payload'])
@@ -169,7 +176,9 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         switchController = self.siteRouter.props['controller']
 
         for (x,port) in self.activePorts.items():
-            #print "BROADCAST",port,port.props['type']
+            print "BROADCAST",port,port.props['type']
+            if not 'type' in port.props:
+                print "NO TYPE !", port
             if port.props['type'] != "WAN":
                 if port == inPort:
                     continue
@@ -347,7 +356,7 @@ if __name__ == '__main__':
                     if srcNode in siteNodes and dstNode in siteNodes:
                         enosLinks.append(link)
                 intent = SiteIntent(name=site.name,hosts=enosHosts,borderRouter=borderRouter,siteRouter=siteRouter,links=enosLinks)
-
+        global renderer
         renderer = SiteRenderer(intent)
         err = renderer.execute()
     else:

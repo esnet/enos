@@ -230,9 +230,8 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             rp = self.odlPacketHandler.encodeDataPacket(cp)
             rp.setOutgoingNodeConnector(nodeconn)
 
-            success = self.odlPacketHandler.transmitDataPacket(rp)
+            self.odlPacketHandler.transmitDataPacket(rp)
 
-            print success
             print "PACKET_OUT:",packet
             return True
         else:

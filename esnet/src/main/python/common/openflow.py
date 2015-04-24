@@ -601,9 +601,13 @@ class SimpleController(Controller):
         port = packetIn.props['in_port']
         switch = port.props['switch']
         # Finds the scope, if any, that is managing this packet_in
+        found = False
         for (x,scope) in SimpleController.scopes.items():
             if scope.switch == switch and scope.includes(packetIn):
                 scope.owner.eventListener(packetIn)
+                found = True
+        if not found:
+            print "No ScopeOwner for ",packetIn
 
 
     @staticmethod
