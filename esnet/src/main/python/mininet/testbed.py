@@ -168,6 +168,7 @@ class TopoBuilder ():
                 site.props['siteRouter'] = siteRouter
                 pop = self.pops[s[2]]
                 coreRouter = pop.props['coreRouter']
+                swSwitch = pop.props['swSwitch']
                 site.props['connectedTo'] = coreRouter.name
                 vlan = s[3]
                 for h in s[1]:
@@ -186,23 +187,12 @@ class TopoBuilder ():
                     vlan = s[4]
                     host.props['vlan'] = vlan
                     site.props['serviceVm'] = host
-                    hwSwitch = self.coreRouterToHwSwitch(coreRouter.name)
-                    link = self.createLink(endpoints=[hwSwitch,host],vlan=host.props['vlan'],suffix="-" + vpn.name)
+                    link = self.createLink(endpoints=[swSwitch,host],vlan=host.props['vlan'],suffix="-" + vpn.name)
                     site.props['links'][link.name] = link
                 link = self.createLink(endpoints=[siteRouter,coreRouter],vlan=host.props['vlan'],suffix="-" + vpn.name)
                 site.props['links'][link.name] = link
 
             self.vpns [vpn.name] = vpn
-
-    def coreRouterToHwSwitch(self,coreRouter):
-        """
-        Returns the hardware SDN switch connected to this core router.
-        :param coreRouter: str name of the router
-        :return:
-        """
-        for (x,pop) in self.pops.items():
-            if pop.props['coreRouter'].name == coreRouter:
-                return pop.props['hwSwitch']
 
 
     def getHostParams(self,name):

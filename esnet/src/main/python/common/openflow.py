@@ -40,7 +40,7 @@ class Match(Properties):
         return desc
 
     def __repr__(self):
-        return self.str()
+        return self.__str__()
 
 class Action(Properties):
     """
@@ -72,7 +72,7 @@ class Action(Properties):
         return desc
 
     def __repr__(self):
-        return self.str()
+        return self.__str__()
 
 
 
@@ -106,7 +106,7 @@ class FlowMod(Properties):
         return desc
 
     def __repr__(self):
-        return self.str()
+        return self.__str__()
 
 class Scope(Properties):
     """
@@ -151,11 +151,19 @@ class Scope(Properties):
 
 
     def __str__(self):
-        desc = "Scope: " + self.name + " id= " + str(self.id) + " switch= " + self.switch.name + " owner= " + str(self.owner)
+        desc = "Scope: " + self.name  + " id= " + str(self.id)
+        if self.switch:
+            desc += " switch= " + self.switch.name
+        else:
+            desc += " no switch"
+        if self.owner:
+            desc += " owner= " + str(self.owner)
+        else:
+            desc += " no owner"
         return desc
 
     def __repr__(self):
-        return self.str()
+        return self.__str__()
 
 
 
@@ -226,7 +234,7 @@ class PacketInEvent(ScopeEvent):
         return desc
 
     def __repr__(self):
-        return self.__str()
+        return self.__str__()
 
 
 class PacketOut(Properties):
@@ -264,7 +272,7 @@ class PacketOut(Properties):
         return desc
 
     def __repr__(self):
-        return self.__str()
+        return self.__str__()
 
 class ScopeOwner(Properties):
     """
@@ -313,7 +321,7 @@ class L2SwitchScope(Scope):
         return desc
 
     def __repr__(self):
-        return self.str()
+        return self.__str__()
 
     def includes(self,packetIn):
         endpoints = self.props['endpoints']

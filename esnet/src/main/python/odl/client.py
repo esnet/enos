@@ -231,8 +231,6 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             rp.setOutgoingNodeConnector(nodeconn)
 
             self.odlPacketHandler.transmitDataPacket(rp)
-
-            print "PACKET_OUT:",packet
             return True
         else:
             print packet,"is not valid"

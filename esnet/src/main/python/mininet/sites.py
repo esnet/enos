@@ -144,10 +144,12 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 SiteRenderer.lastEvent = event
             dl_src = event.props['dl_src']
             mac = binascii.hexlify(dl_src)
-            print "PACKETIN",mac
             port = event.props['in_port']
             switch = port.props['switch']
             in_port = self.activePorts[switch.name + ":" + port.name]
+            if not in_port.props['type'] in ['LAN','TOWAN']:
+                # Discard (debug)
+                return
             dl_dst = event.props['dl_dst']
             dl_src = event.props['dl_src']
             mac = binascii.hexlify(dl_src)
@@ -156,7 +158,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             success = True
             print mac,self.macs
             if not mac in self.macs:
-                print "NEW MAC"
                 # New MAC, install flow entries
                 self.macs[mac] = (dl_src,in_port)
                 in_port.props['macs'][mac] = dl_src
@@ -164,8 +165,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 success = self.setMAC(port=in_port,vlan=vlan,mac=dl_src)
                 if not success:
                     print "Cannot set MAC",binascii.hexlify(dl_src),"on",in_port.props['switch'].name + ":" +in_port.name + "." + str(vlan)
-            else:
-                print "ALREADY GOT IT"
             global broadcastAddress
             if dl_dst == broadcastAddress:
                 success = self.broadcast(inPort=in_port,srcMac=dl_src,etherType=etherType,payload=event.props['payload'])
@@ -175,18 +174,23 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
     def broadcast(self,inPort,srcMac,etherType,payload) :
         switchController = self.siteRouter.props['controller']
 
+        success = True
         for (x,port) in self.activePorts.items():
-            print "BROADCAST",port,port.props['type']
-            if not 'type' in port.props:
-                print "NO TYPE !", port
-            if port.props['type'] != "WAN":
-                if port == inPort:
-                    continue
-                scope = port.props['scope']
-                vlan = port.props['vlan']
-                packet = PacketOut(port=port,dl_src=srcMac,dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
-                return switchController.send(packet)
-
+            if port == inPort:
+                # no need to send the broadcast back to itself
+                continue
+            if port.props['type'] in ['WAN','TOSDN']:
+                # the borderRouter will get the broadcast packet through its data plane from siteRouter
+                continue
+            scope = self.props['siteScope']
+            vlan = port.props['vlan']
+            packet = PacketOut(port=port,dl_src=srcMac,dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
+            if SiteRenderer.debug:
+                print packet
+            res = switchController.send(packet)
+            if not res:
+                success = False
+        return success
 
 
     def setMAC(self,port,vlan, mac):
@@ -236,7 +240,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 print "Cannot push flowmod:\n",mod
         return success
 
-    def setBorderRouterBroadcast(self):
+    def setBorderRouter(self):
         inPort = self.props['borderPortToSite']
         outPort = self.props['borderPortToSDN']
         controller = borderRouter.props['controller']
@@ -245,7 +249,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         mod = FlowMod(name=name,scope=scope,switch=borderRouter)
         mod.props['renderer'] = self
         match = Match(name=name)
-        match.props['dl_dst'] = broadcastAddress
         match.props['in_port'] = inPort
         match.props['vlan'] = inPort.props['vlan']
         action = Action(name=name)
@@ -254,7 +257,9 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         mod.match = match
         mod.actions = [action]
         self.flowmods.append(mod)
-        return controller.addFlowMod(mod)
+        success = True
+        success = controller.addFlowMod(mod)
+        return success
 
     def removeFlowEntries(self):
         return False
@@ -268,7 +273,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         # Request the scope to the controller
         self.active = True
         # set broadcast flow entry
-        success = self.setBorderRouterBroadcast()
+        success = self.setBorderRouter()
 
         return success
 
