@@ -47,7 +47,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
             scope.props['endpoints'] = []
             scope.props['intent'] = self.intent
             # We need to add all of the places that WAN circuits terminate as scope endpoints
-            for circuit in coreRouter.props['WAN-Circuit']:
+            for circuit in coreRouter.props['WAN-Circuits']:
                 port = None
                 # Each circuit has two endpoints, need to check them both
                 for ep in circuit.props['endpoints']:
