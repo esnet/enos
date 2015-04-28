@@ -13,8 +13,8 @@ from common.openflow import OpenFlowSwitch
 
 vpn1=["vpn1",[
     ["lbl.gov",["dtn-1","dtn-2"],"lbl",10,11],
-    ["anl.gov",["dtn-1"],"star",10,12]
-    ["cern.ch",["dtn-1"],"cern",10,12]
+    ["anl.gov",["dtn-1"],"star",10,12],
+    ["cern.ch",["dtn-1"],"cern",10,13]
   ]
 ]
 
@@ -121,7 +121,7 @@ class TopoBuilder ():
             pop.props['coreRouter'] = coreRouter
             coreRouter.props['role'] = "CoreRouter"
             coreRouter.props['pop'] = pop
-            coreRouter.props['WAN-Circuit'] = []
+            coreRouter.props['WAN-Circuits'] = []
             self.coreRouters[coreRouter.name] = coreRouter
             pop.props['nbOfLinks'] = nbOfLinks = location[3]
             switchName = location[0] + "-" "ovs"
@@ -154,16 +154,15 @@ class TopoBuilder ():
         # create mesh between core routers
         targets = self.coreRouters.items()
         vlanIndex = 1000
+
         for (x,fromNode) in self.coreRouters.items():
             targets = targets[1:]
             for (z,toNode) in targets:
-                links = []
-                link = self.createLink(endpoints=[fromNode,toNode],suffix=":best-effort",vlan=vlanIndex)
+                link = self.createLink(endpoints=[fromNode,toNode],vlan=vlanIndex)
                 self.coreLinks[link.name] = link
-                links.append(link)
-                links.append(link)
-                toNode.props['WAN-Circuit'].extend(links)
-                fromNode.props['WAN-Circuit'].extend(links)
+                toNode.props['WAN-Circuits'].append(link)
+                fromNode.props['WAN-Circuits'].append(link)
+                vlanIndex += 1
 
         for v in self.vpnInstances:
             vpn = VPN (v[0])
