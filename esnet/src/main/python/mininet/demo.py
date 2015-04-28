@@ -72,8 +72,8 @@ if __name__ == '__main__':
             global renderer
             renderer = SiteRenderer(intent)
             err = renderer.execute()
-            viewer = GenericGraphViewer(intent.buildGraph())
-            viewer.display()
+            #viewer = GenericGraphViewer(intent.buildGraph())
+            #viewer.display()
             print "SDN intent"
             popsIntent = SDNPopsIntent(name=vpn.name,pops=pops,hosts=sdnHosts,links=popsLinks)
             popsRenderer = SDNPopsRenderer(popsIntent)

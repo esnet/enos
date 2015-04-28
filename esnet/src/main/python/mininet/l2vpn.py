@@ -51,7 +51,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         SDNPopsRenderer.instance = self
         self.swSwitchScope = L2SwitchScope(name=self.name,switch=self.swSwitch,owner=self)
 
-        for link in self.links:
+        for link in self.intent.links:
             dstNode = link.getDstNode()
             dstPort = link.getDstPort()
             srcNode = link.getSrcNode()
@@ -143,6 +143,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         :return: Expectation when succcessful, None otherwise
         """
         # Request the scope to the controller
+        success = True
         self.active = True
         # set broadcast flow entry
         self.borderRouter.props['controller'].addScope(self.borderRouterScope)

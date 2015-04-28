@@ -72,6 +72,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.borderRouter.props['controller'].addScope(scope2)
         ports = self.borderRouter.getPorts()
         outPort = None
+        wanVlan = None
         for port in ports:
             port.props['scope'] = scope2
             links = port.getLinks()
@@ -83,6 +84,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                     if not 'switch' in port.props:
                         port.props['switch'] = self.borderRouter
                     port.props['vlan'] = vlan
+                    wanVlan = vlan
                     port.props['type'] = "WAN"
                     scope2.props['endpoints'].append( (port.name,[vlan]))
                     outPort = port
@@ -93,16 +95,15 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         # always get the first link in the list
         link = toHwSwitch[0]
         inPort = None
-        inVlan = link.props['vlan']
         endpoints = link.props['endpoints']
         if endpoints[0] == outPort:
             inPort = endpoints[1]
         else:
             inPort = endpoints[0]
         inPort.props['switch'] = self.borderRouter
-        inPort.props['vlan'] = inVlan
+        inPort.props['vlan'] = wanVlan
         inPort.props['type'] = "TOSDN"
-        scope2.props['endpoints'].append((inPort.name,[inVlan]))
+        scope2.props['endpoints'].append((inPort.name,[wanVlan]))
         self.activePorts[self.borderRouter.name + ":" + inPort.name] = inPort
         self.props['borderPortToSDN'] = inPort
         if SiteRenderer.debug:
@@ -249,7 +250,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         match.props['vlan'] = inPort.props['vlan']
         action = Action(name=name)
         action.props['out_port'] = outPort
-        action.props['vlan'] = outPort.props['vlan']
+        action.props['vlan'] = inPort.props['vlan']
         mod.match = match
         mod.actions = [action]
         self.flowmods.append(mod)
