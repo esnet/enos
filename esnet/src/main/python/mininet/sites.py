@@ -281,6 +281,9 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.active = False
         return self.removeFlowEntries()
 
+    def buildGraph(self):
+
+
 class SiteIntent(ProvisioningIntent):
     def __init__(self,name,hosts,siteRouter,borderRouter,links):
         """

@@ -14,6 +14,7 @@ from common.openflow import OpenFlowSwitch
 vpn1=["vpn1",[
     ["lbl.gov",["dtn-1","dtn-2"],"lbl",10,11],
     ["anl.gov",["dtn-1"],"star",10,12]
+    ["cern.ch",["dtn-1"],"cern",10,12]
   ]
 ]
 
@@ -21,14 +22,23 @@ vpns=[vpn1]
 # Default Locations with hardware openflow switch
 # name,rt,nb of links
 #
-lbl=["lbl",'lbl-tb-of-1',"lbl-mr2",2]
-atla=["atla",'atla-tb-of-1',"atla-cr5",4]
-denv=["denv",'denv-tb-of-1',"denv-cr5",2]
-wash=["wash",'wash-tb-of-1',"wash-cr5",2]
-aofa=["aofa",'aofa-tb-of-1',"aofa-cr5",2]
-star=["star",'star-tb-of-4',"star-cr5",8]
-cern=["cern",'cern-tb-of-1',"cern-cr5",5]
-amst=["amst",'amst-tb-of-1',"amst-cr5",8]
+#lbl=["lbl",'lbl-tb-of-1',"lbl-mr2",2]
+#atla=["atla",'atla-tb-of-1',"atla-cr5",4]
+#denv=["denv",'denv-tb-of-1',"denv-cr5",2]
+#wash=["wash",'wash-tb-of-1',"wash-cr5",2]
+#aofa=["aofa",'aofa-tb-of-1',"aofa-cr5",2]
+#star=["star",'star-tb-of-4',"star-cr5",8]
+#cern=["cern",'cern-tb-of-1',"cern-cr5",5]
+#amst=["amst",'amst-tb-of-1',"amst-cr5",8]
+
+lbl=["lbl",'lbl-tb-of-1',"lbl-mr2",1]
+atla=["atla",'atla-tb-of-1',"atla-cr5",1]
+denv=["denv",'denv-tb-of-1',"denv-cr5",1]
+wash=["wash",'wash-tb-of-1',"wash-cr5",1]
+aofa=["aofa",'aofa-tb-of-1',"aofa-cr5",1]
+star=["star",'star-tb-of-4',"star-cr5",1]
+cern=["cern",'cern-tb-of-1',"cern-cr5",1]
+amst=["amst",'amst-tb-of-1',"amst-cr5",1]
 
 # Default locations
 locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
@@ -142,18 +152,15 @@ class TopoBuilder ():
             self.pops[name] = pop
 
         # create mesh between core routers
-        # two links are created between any core router, each of them with a different QoS (TBD)
-        # one best effort no cap, the other bandwidth limited to low.
         targets = self.coreRouters.items()
+        vlanIndex = 1000
         for (x,fromNode) in self.coreRouters.items():
             targets = targets[1:]
             for (z,toNode) in targets:
                 links = []
-                link = self.createLink(endpoints=[fromNode,toNode],suffix=":best-effort",vlan=1001)
+                link = self.createLink(endpoints=[fromNode,toNode],suffix=":best-effort",vlan=vlanIndex)
                 self.coreLinks[link.name] = link
                 links.append(link)
-                link = self.createLink(endpoints=[fromNode,toNode],suffix=":slow",vlan=1002)
-                self.coreLinks[link.name] = link
                 links.append(link)
                 toNode.props['WAN-Circuit'].extend(links)
                 fromNode.props['WAN-Circuit'].extend(links)

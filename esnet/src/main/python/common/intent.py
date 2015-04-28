@@ -22,11 +22,13 @@ class Expectation(Properties):
     An expectation is the expression of the current state of the rendering of an intent.
     TBD.
     """
-    def __init__(self,name,props={}):
+    def __init__(self,name,renderer,intent,props={}):
         Properties.__init__(self,name=name,props=props)
         self.id = generateId()
         self.name = name
         self.props = props
+        self.intent = intent
+        self.renderer = renderer
 
 
 class Renderer:
@@ -84,6 +86,11 @@ class ProvisioningRenderer(Renderer):
     def __init__(self,name,props={}):
         Renderer.__init__(self,name,props)
 
+
+class ProvisioningExpectation(Expectation):
+    def __init__(self,name,renderer,intent,graph,props={}):
+        Expectation.__init__(self,name=name,renderer=renderer,intent=intent,props=props)
+        self.graph = graph
 
 
 
