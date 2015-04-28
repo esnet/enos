@@ -282,6 +282,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         return self.removeFlowEntries()
 
     def buildGraph(self):
+        return
 
 
 class SiteIntent(ProvisioningIntent):
