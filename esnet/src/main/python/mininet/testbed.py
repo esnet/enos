@@ -186,6 +186,7 @@ class TopoBuilder ():
                     host = Node(name=name, props=self.getHostParams(name = name),builder=self)
                     vlan = s[4]
                     host.props['vlan'] = vlan
+                    host.props['role'] = "ServiceVm"
                     site.props['serviceVm'] = host
                     link = self.createLink(endpoints=[swSwitch,host],vlan=host.props['vlan'],suffix="-" + vpn.name)
                     site.props['links'][link.name] = link

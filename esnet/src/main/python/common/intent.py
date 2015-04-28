@@ -69,6 +69,13 @@ class ProvisioningIntent(Intent):
         Intent.__init__(self,name,props)
         self.props['topology'] = graph
 
+    def buildGraph(self):
+        """
+        Builds and return the topology graph of the intent.
+        """
+        return None
+
+
 
 class ProvisioningRenderer(Renderer):
     """

@@ -26,6 +26,7 @@ class TestbedLink(GenericLink,Properties):
 class TestbedHost(GenericHost,Properties):
     def __init__(self,name,props={}):
         GenericHost.__init__(self,name)
+        print "TESTBEDHOST",self.getResourceName(),id(self)
         Properties.__init__(self,self.getResourceName(),props)
 
 class TestbedPort(GenericPort,Port):

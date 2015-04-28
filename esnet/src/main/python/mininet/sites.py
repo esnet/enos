@@ -254,7 +254,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         mod.match = match
         mod.actions = [action]
         self.flowmods.append(mod)
-        success = True
         success = controller.addFlowMod(mod)
         return success
 
