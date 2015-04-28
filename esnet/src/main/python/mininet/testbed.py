@@ -111,6 +111,7 @@ class TopoBuilder ():
             pop.props['coreRouter'] = coreRouter
             coreRouter.props['role'] = "CoreRouter"
             coreRouter.props['pop'] = pop
+            coreRouter.props['WAN-Circuit'] = []
             self.coreRouters[coreRouter.name] = coreRouter
             pop.props['nbOfLinks'] = nbOfLinks = location[3]
             switchName = location[0] + "-" "ovs"
@@ -154,8 +155,8 @@ class TopoBuilder ():
                 link = self.createLink(endpoints=[fromNode,toNode],suffix=":slow",vlan=1002)
                 self.coreLinks[link.name] = link
                 links.append(link)
-                toNode.props['WAN-Circuit'] = links
-                fromNode.props['WAN-Circuit'] = links
+                toNode.props['WAN-Circuit'].extend(links)
+                fromNode.props['WAN-Circuit'].extend(links)
 
         for v in self.vpnInstances:
             vpn = VPN (v[0])
