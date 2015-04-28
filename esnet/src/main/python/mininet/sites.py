@@ -153,7 +153,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             vlan = event.props['vlan']
             etherType = event.props['ethertype']
             success = True
-            print mac,self.macs
             if not mac in self.macs:
                 # New MAC, install flow entries
                 self.macs[mac] = (dl_src,in_port)
