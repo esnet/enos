@@ -363,6 +363,8 @@ class L2SwitchScope(Scope):
                     for vlan2 in vlans2:
                         if vlan1 == vlan2:
                             # overlap
+                            if self.owner == scope.owner:
+                                continue
                             return True
         return False
 

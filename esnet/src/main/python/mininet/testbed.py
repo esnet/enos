@@ -139,7 +139,7 @@ class TopoBuilder ():
             links2 = []
             while (nbOfLinks > 0):
                 # create links between the core router and the hardware SDN switch
-                link = self.createLink(endpoints=[hwSwitch,coreRouter],vlan=nbOfLinks,suffix=str(nbOfLinks))
+                link = self.createLink(endpoints=[hwSwitch,coreRouter],vlan=nbOfLinks,suffix='-' + str(nbOfLinks))
                 self.coreLinks[link.name] = link
                 links1.append(link)
                 # create links between the software SDN switch and the hardware SDN switch

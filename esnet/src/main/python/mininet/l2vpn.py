@@ -45,8 +45,6 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.flowmods = []
 
         SDNPopsRenderer.instance = self
-        self.borderRouterScope = L2SwitchScope(name=self.name,switch=self.borderRouter,owner=self)
-        SDNPopsRenderer.instance = self
         self.hwSwitchScope = L2SwitchScope(name=self.name,switch=self.hwSwitch,owner=self)
         SDNPopsRenderer.instance = self
         self.swSwitchScope = L2SwitchScope(name=self.name,switch=self.swSwitch,owner=self)
@@ -57,11 +55,13 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             srcNode = link.getSrcNode()
             srcPort = link.getSrcPort()
             vlan = link.props['vpnVlan']
-            if dstNode == self.borderRouter:
-                self.borderRouterScope.addEndpoint((dstPort.name,[vlan]))
-            if dstNode == self.hwSwitch:
+            if srcNode.getResourceName() == self.hwSwitch.name:
+                self.hwSwitchScope.addEndpoint((srcPort.name,[vlan]))
+            if dstNode.getResourceName() == self.hwSwitch.name:
                 self.hwSwitchScope.addEndpoint((dstPort.name,[vlan]))
-            if dstNode == self.swSwitch:
+            if srcNode.getResourceName() == self.swSwitch.name:
+                self.swSwitchScope.addEndpoint((srcPort.name,[vlan]))
+            if dstNode.getResourceName() == self.swSwitch.name:
                 self.swSwitchScope.addEndpoint((dstPort.name,[vlan]))
 
     def __str__(self):
@@ -140,13 +140,12 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         :return: Expectation when succcessful, None otherwise
         """
         # Add scopes to the controller
-        if not self.borderRouter.props['controller'].addScope(self.borderRouterScope):
-            print "Cannot add",self.borderRouterScope
-            return False
         if not self.hwSwitch.props['controller'].addScope(self.hwSwitchScope):
             print "Cannot add",self.hwSwitchScope
             return False
-
+        if not self.swSwitch.props['controller'].addScope(self.swSwitchScope):
+            print "Cannot add",self.swSwitchScope
+            return False
         self.active = True
         return True
 
