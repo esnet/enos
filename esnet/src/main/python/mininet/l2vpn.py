@@ -56,8 +56,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             dstPort = link.getDstPort()
             srcNode = link.getSrcNode()
             srcPort = link.getSrcPort()
-            vlan = link.props['vlan']
-            print "#### LINK",srcNode,dstNode,vlan
+            vlan = link.props['vpnVlan']
             if dstNode == self.borderRouter:
                 self.borderRouterScope.addEndpoint((dstPort.name,[vlan]))
             if dstNode == self.hwSwitch:

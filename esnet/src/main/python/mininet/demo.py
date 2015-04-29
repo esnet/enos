@@ -51,12 +51,15 @@ if __name__ == '__main__':
             siteNodes.append(borderRouter)
             links = site.props['links'].copy()
             enosLinks=[]
+            vpnVlan = None
             for (z,l) in links.items():
                 link = l.props['enosLink']
                 node1 = link.getSrcNode()
                 node2 = link.getDstNode()
                 srcNode = link.getSrcNode()
                 dstNode = link.getDstNode()
+                if borderRouter.name in [srcNode.getResourceName(),dstNode.getResourceName()]:
+                    vpnVlan = link.props['vlan']
                 if srcNode in siteNodes and dstNode in siteNodes:
                     enosLinks.append(link)
                     continue
@@ -70,7 +73,8 @@ if __name__ == '__main__':
             links = hwSwitch.props['toCoreRouter']
             popsLinks = []
             for link in links:
-                popLinks.append(link.props['enosLink'])
+                link.props['enosLink'].props['vpnVlan'] = vpnVlan
+                popsLinks.append(link.props['enosLink'])
             popsIntent = SDNPopsIntent(name=vpn.name,pops=pops,hosts=sdnHosts,links=popsLinks)
             popsRenderer = SDNPopsRenderer(popsIntent)
             popsRenderer.execute()

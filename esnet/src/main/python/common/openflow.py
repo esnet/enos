@@ -543,7 +543,8 @@ class SimpleController(Controller):
                 return False
         for (x,s) in SimpleController.scopes.items():
             if s.overlaps(scope):
-                print "Overlaps with a port/vlan that is already in another scope"
+                print "Overlaps with a port/vlan that is already in another scope:"
+                print s
                 return False
         if scope.id in SimpleController.scopes.keys():
             print "this scope has been already added"
