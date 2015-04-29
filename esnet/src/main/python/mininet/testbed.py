@@ -45,6 +45,8 @@ locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
 
 class TopoBuilder ():
 
+    debug = False;
+
     def __init__(self, fileName = None, network={'ip':'192.168.1.','netmask':'/24'}, controller = None):
         """
         Create a testbed topology
@@ -151,7 +153,7 @@ class TopoBuilder ():
             swSwitch.props['toHwSwitch'] = links2
             self.pops[name] = pop
 
-        # create mesh between core routers
+        # create mesh between core routers, attached to VLANs between the core routers and hardware switches
         targets = self.coreRouters.items()
         vlanIndex = 1000
 
@@ -162,6 +164,26 @@ class TopoBuilder ():
                 self.coreLinks[link.name] = link
                 toNode.props['WAN-Circuits'].append(link)
                 fromNode.props['WAN-Circuits'].append(link)
+
+                if self.debug:
+                    print "To:  " + fromNode.name + " -> " + toNode.name
+
+                toHwSwitch = toNode.props['pop'].props['hwSwitch']
+                link2 = self.createLink(endpoints=[toNode,toHwSwitch], vlan=vlanIndex, suffix='-vlan'+str(vlanIndex))
+                # Automatically updates toHwSwitch.props['toCoreRouter']
+                toNode.props['toHwSwitch'].append(link2)
+                self.coreLinks[link2.name] = link2
+                if self.debug:
+                    print "link2 " + str(link2)
+
+                fromHwSwitch = fromNode.props['pop'].props['hwSwitch']
+                link3 = self.createLink(endpoints=[fromNode,fromHwSwitch], vlan=vlanIndex, suffix='-vlan'+str(vlanIndex))
+                # Automatically updates fromHwSwitch.props['toCoreRouter']
+                fromNode.props['toHwSwitch'].append(link3)
+                self.coreLinks[link3.name] = link3
+                if self.debug:
+                    print "link3 " + str(link3)
+
                 vlanIndex += 1
 
         for v in self.vpnInstances:
