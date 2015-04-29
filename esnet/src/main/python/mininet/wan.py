@@ -75,7 +75,8 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
                 scope.props['endpoints'].append((port.name, [vlan]))
             if self.debug:
                 print enosCoreRouter.name + ' scope', scope
-            enosCoreRouter.props['controller'].addScope(scope)
+            if not enosCoreRouter.props['controller'].addScope(scope):
+                print "Cannot add " + str(scope)
             self.scopes[enosCoreRouter.name] = scope
 
             # Create scopes for all of the OpenFlow switches
@@ -106,7 +107,8 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
                 scope.props['endpoints'].append((port.name, [vlan]))
             if self.debug:
                 print enosHwSwitch.name + ' scope', scope
-            enosHwSwitch.props['controller'].addScope(scope)
+            if not enosHwSwitch.props['controller'].addScope(scope):
+                print "Cannot add " + str(scope)
             self.scopes[enosHwSwitch] = scope
 
         return
@@ -197,7 +199,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
         The router is the common router between the two links.
 
         """
-        controller = router.controller
+        controller = router.props['controller']
 
         vlan1 = link1.props['vlan']
         intf1 = None
@@ -220,7 +222,10 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
             scope = self.scopes[router.name]
             if scope is None:
                 print "Couldn't locate scope for " + str(router)
-            print "Scope id " + str(scope.id) + " " + str(scope)
+            if self.debug:
+                print "Scope id " + str(scope.id) + " " + str(scope)
+                print "Router DPID " + str(router.props['dpid'])
+
             m1 = Match('')
             m1.props['in_port'] = intf1
             m1.props['vlan'] = vlan1
