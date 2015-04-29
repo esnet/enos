@@ -51,7 +51,6 @@ if __name__ == '__main__':
             siteNodes.append(borderRouter)
             links = site.props['links'].copy()
             enosLinks=[]
-            popsLinks = []
             for (z,l) in links.items():
                 link = l.props['enosLink']
                 node1 = link.getSrcNode()
@@ -61,12 +60,6 @@ if __name__ == '__main__':
                 if srcNode in siteNodes and dstNode in siteNodes:
                     enosLinks.append(link)
                     continue
-                if srcNode in [borderRouter,hwSwitch] and dstNode in [borderRouter,hwSwitch]:
-                    popsLinks.append(link)
-                if srcNode in [swSwitch,hwSwitch] and dstNode in [swSwitch,hwSwitch]:
-                    popsLinks.append(link)
-                if srcNode in [swSwitch,serviceVm] and dstNode in [swSwitch,serviceVm]:
-                    popsLinks.append(link)
 
             intent = SiteIntent(name=site.name,hosts=enosHosts,borderRouter=borderRouter,siteRouter=siteRouter,links=enosLinks)
             global renderer
@@ -74,7 +67,10 @@ if __name__ == '__main__':
             err = renderer.execute()
             #viewer = GenericGraphViewer(intent.buildGraph())
             #viewer.display()
-            print "SDN intent"
+            links = hwSwitch.props['toCoreRouter']
+            popsLinks = []
+            for link in links:
+                popLinks.append(link.props['enosLink'])
             popsIntent = SDNPopsIntent(name=vpn.name,pops=pops,hosts=sdnHosts,links=popsLinks)
             popsRenderer = SDNPopsRenderer(popsIntent)
             popsRenderer.execute()

@@ -1,7 +1,7 @@
 from array import array
 import binascii
 
-from common.intent import ProvisioningRenderer, ProvisioningIntent
+from common.intent import ProvisioningRenderer, ProvisioningIntent, ProvisioningExpectation
 from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut, SimpleController
 
 from net.es.netshell.api import GenericGraph
@@ -17,7 +17,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
 
          Simple vlan/port mach and outport /vlan on siteRouter needs to be set
     """
-    debug = True
+    debug = False
     lastEvent = None
     instance = None
 
@@ -106,8 +106,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         scope2.props['endpoints'].append((inPort.name,[wanVlan]))
         self.activePorts[self.borderRouter.name + ":" + inPort.name] = inPort
         self.props['borderPortToSDN'] = inPort
-        if SiteRenderer.debug:
-            print self
 
     def __str__(self):
         desc = "SiteRenderer: " + self.name + "\n"
@@ -282,8 +280,11 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.active = False
         return self.removeFlowEntries()
 
-    def buildGraph(self):
-        return
+
+class SiteExpectation(ProvisioningExpectation):
+    def __init__(self,name,itent,renderer,hostsEndpoints,wanEndpoint):
+        ProvisioningExpectation.__init__(self)
+
 
 
 class SiteIntent(ProvisioningIntent):

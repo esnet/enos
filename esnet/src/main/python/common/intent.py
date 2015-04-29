@@ -90,7 +90,7 @@ class ProvisioningRenderer(Renderer):
 class ProvisioningExpectation(Expectation):
     def __init__(self,name,renderer,intent,graph,props={}):
         Expectation.__init__(self,name=name,renderer=renderer,intent=intent,props=props)
-        self.graph = graph
+        self.props['topology'] = graph
 
 
 

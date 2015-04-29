@@ -57,15 +57,13 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             srcNode = link.getSrcNode()
             srcPort = link.getSrcPort()
             vlan = link.props['vlan']
+            print "#### LINK",srcNode,dstNode,vlan
             if dstNode == self.borderRouter:
-                self.borderRouterScope.props['endpoints'].append(dstPort.name,[vlan])
+                self.borderRouterScope.addEndpoint((dstPort.name,[vlan]))
             if dstNode == self.hwSwitch:
-                self.hwSwitchScope.props['endpoints'].append(dstPort.name,[vlan])
+                self.hwSwitchScope.addEndpoint((dstPort.name,[vlan]))
             if dstNode == self.swSwitch:
-                self.swSwitchScope.props['endpoints'].append(dstPort.name,[vlan])
-
-        if SDNPopsRenderer.debug:
-            print self
+                self.swSwitchScope.addEndpoint((dstPort.name,[vlan]))
 
     def __str__(self):
         desc = "SDNPopsRenderer: " + self.name + "\n"
@@ -142,15 +140,16 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         Renders the intent.
         :return: Expectation when succcessful, None otherwise
         """
-        # Request the scope to the controller
-        success = True
-        self.active = True
-        # set broadcast flow entry
-        self.borderRouter.props['controller'].addScope(self.borderRouterScope)
-        self.hwSwitch.props['controller'].addScope(self.hwSwitchScope)
-        self.swSwitch.props['controller'].addScope(self.swSwitchScope)
+        # Add scopes to the controller
+        if not self.borderRouter.props['controller'].addScope(self.borderRouterScope):
+            print "Cannot add",self.borderRouterScope
+            return False
+        if not self.hwSwitch.props['controller'].addScope(self.hwSwitchScope):
+            print "Cannot add",self.hwSwitchScope
+            return False
 
-        return success
+        self.active = True
+        return True
 
 
     def destroy(self):

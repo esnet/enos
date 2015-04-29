@@ -17,17 +17,20 @@ class TestbedNode(GenericNode,Properties):
         global nodes
         nodes[name] = self
         Properties.__init__(self,name=self.getResourceName(),props=props)
+        self.props['links'] = []
 
 class TestbedLink(GenericLink,Properties):
     def __init__(self,node1,port1,node2,port2,props={}):
         GenericLink.__init__(self,node1,port1,node2,port2)
         Properties.__init__(self,self.getResourceName(),props)
+        node1.props['links'].append(self)
+        node2.props['links'].append(self)
 
 class TestbedHost(GenericHost,Properties):
     def __init__(self,name,props={}):
         GenericHost.__init__(self,name)
-        print "TESTBEDHOST",self.getResourceName(),id(self)
         Properties.__init__(self,self.getResourceName(),props)
+        self.props['links'] = []
 
 class TestbedPort(GenericPort,Port):
     def __init__(self,name,props={}):

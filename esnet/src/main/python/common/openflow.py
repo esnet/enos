@@ -340,6 +340,7 @@ class L2SwitchScope(Scope):
         endpoints1 = self.props['endpoints']
         if not 'endpoints' in scope.props:
             # not a L2SwitchScope
+            print "No endpoints"
             return False
         endpoints2 = scope.props['endpoints']
         # If not the same switch, they don't overlap
@@ -438,6 +439,10 @@ class L2SwitchScope(Scope):
                 return False
         return True
 
+    def addEndpoint(self,endpoint):
+        if not endpoint in self.props['endpoints']:
+            self.props['endpoints'].append(endpoint)
+
 
 class OpenFlowSwitch(Node):
     """
@@ -488,19 +493,26 @@ class SimpleController(Controller):
     """
     This class implements a simple controller. It implements some basic controller function but does not
     implement the actual interaction with the switch or controller.
+    IMPORTANT: this currentl implementation relies on having static state. In otherwords, only one
+    controller extending SimpleController may run at the same time. This limitation should be fixed later.
     """
 
-    scopes ={}
-    forbiddenScopes = {}
-    switches = {}
-    id = generateId()
+    scopes = None
+    forbiddenScopes = None
+    switches = None
+    id = None
+    instance = None
 
     def __init__(self):
         super(SimpleController,self).__init__()
-        SimpleController.scopes ={}
-        SimpleController.forbiddenScopes = {}
-        SimpleController.switches = {}
-        SimpleController.id = generateId()
+        if not SimpleController.id:
+            # First time SimpleController is instanciated. Initialize globals
+            SimpleController.scopes ={}
+            SimpleController.forbiddenScopes = {}
+            SimpleController.switches = {}
+            SimpleController.id = generateId()
+            SimpleController.instance = self
+
 
 
     def addSwitch(self,switch):
@@ -527,11 +539,14 @@ class SimpleController(Controller):
         """
         for (x,s) in SimpleController.forbiddenScopes.items():
             if s.overlaps(scope):
+                print "Overlaps with a forbidden port/vlan"
                 return False
         for (x,s) in SimpleController.scopes.items():
             if s.overlaps(scope):
+                print "Overlaps with a port/vlan that is already in another scope"
                 return False
         if scope.id in SimpleController.scopes.keys():
+            print "this scope has been already added"
             return False
         SimpleController.scopes[scope.id] = scope
         return  True

@@ -153,7 +153,6 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
 
         # compose flow
         flow = Flow(match, actionList)
-        print "Made flowmod",flowMod.switch
         return flow
 
     def addFlowMod(self, flowMod):
@@ -176,7 +175,6 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
                 print "Cannot push flowmond onto",flowMod.switch
             # go to the controller
             success = self.odlController.addFlow(sw.node, flow)
-            print success
 
             # if success.isSuccess():
             #     flowMod.switch.props['openFlowSwitch'].flowMods[flowMod] = flowMod
