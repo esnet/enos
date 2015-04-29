@@ -3,7 +3,7 @@ from string import join
 from net.es.netshell.api import GenericGraph
 
 from common.intent import ProvisioningRenderer, ProvisioningIntent
-from common.openflow import ScopeOwner, L2SwitchScope
+from common.openflow import ScopeOwner, L2SwitchScope, Match, Action, FlowMod
 
 from mininet.enos import TestbedTopology
 
@@ -38,6 +38,9 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
         # Create scopes for all of the places that we need to touch anything
         for pop in self.pops:
 
+            if self.debug:
+                print "WanRenderer: " + pop.name
+
             # Find the hardware router and core switch in both the topobuilder and base ENOS layers
             coreRouter=pop.props['coreRouter']
             enosCoreRouter=coreRouter.props['enosNode']
@@ -56,6 +59,8 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
                 vlan=circuit.props['vlan']
                 if port == None:
                     print "Can't find this router among circuit endpoints"
+                if self.debug:
+                    print "WAN circuit " + str(port) + " vlan " + str(vlan)
                 scope.props['endpoints'].append((port.name, [vlan]))
             for circuit in coreRouter.props['toHwSwitch']:
                 port = None
@@ -65,11 +70,13 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
                 vlan=circuit.props['vlan']
                 if port == None:
                     print "Can't find this router among circuit endpoints"
+                if self.debug:
+                    print "To HW switch " + str(port) + " vlan " + str(vlan)
                 scope.props['endpoints'].append((port.name, [vlan]))
             if self.debug:
                 print enosCoreRouter.name + ' scope', scope
             enosCoreRouter.props['controller'].addScope(scope)
-            self.scopes[enosCoreRouter] = scope
+            self.scopes[enosCoreRouter.name] = scope
 
             # Create scopes for all of the OpenFlow switches
             hwSwitch=pop.props['hwSwitch']
@@ -130,79 +137,112 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
 
         # Create the mesh of virtual circuits between the hardware switches
         targets = self.pops
-        for p in self.pops:
+        for p1 in self.pops:
             targets = targets[1:]
             for p2 in targets:
 
-                link=p.props['hwSwitch'].props['toCoreRouter'][0]
-                vlan = link.props['vlan']
+                # Assumption:  All of the virtual circuits we create are of the form:
+                # cr1 <-> sw1 <-> sw2 <-> cr2
+                cr1 = p1.props['coreRouter'].props['enosNode']
+                cr2 = p2.props['coreRouter'].props['enosNode']
 
-                link2 = p2.props['hwSwitch'].props['toCoreRouter'][0]
-                vlan2 = link2.props['vlan']
+                sw1 = p1.props['hwSwitch'].props['enosNode']
+                sw2 = p2.props['hwSwitch'].props['enosNode']
 
+                # First find the link between the two core routers.
+                # We assume here that there is only one per router pair.  In a more
+                # general case we would have to implement some kind of selection algorithm.
+                linkcr1cr2 = None
+                for l in cr1.props['WAN-Circuits']:
+                    if l in cr2.props['WAN-Circuits']:
+                        linkcr1cr2 = l
+                if linkcr1cr2 is None:
+                    print "Couldn't find link between " + cr1.name + " and " + cr2.name
+
+                # We need to get the VLAN number.  There is an assumption that a virtual
+                # circuit has only one VLAN id throughput its entire length.
+                vlan = linkcr1cr2.props['vlan']
                 if self.debug:
-                    print "Create virtual circuit from " + p.name + " to " + p2.name
-                    print "\tFrom " + p.props['hwSwitch'].name + " vlan " + str(vlan) + " to " + p2.props['hwSwitch'].name + " vlan " + str(vlan2)
-                    print "\tVia " + p.props['coreRouter'].name + ", " + p2.props['coreRouter'].name
+                    print "Found inter-pop link: " + str(linkcr1cr2) + " VLAN " + str(vlan)
 
-                self.makeCircuit(p.props['hwSwitch'], vlan, [p.props['coreRouter'], p2.props['coreRouter']], p2.props['hwSwitch'], vlan2)
+                # Find the links on the routers that go to their respective hardware
+                # switches.  We can do this by matching up the VLAN tags
+                linksw1cr1 = None
+                for l in cr1.props['toHwSwitch']:
+                    if l.props['vlan'] == vlan:
+                        linksw1cr1 = l
+                if linksw1cr1 is None:
+                    print "Couldn't find link between " + sw1.name + " and " + cr1.name
+                if self.debug:
+                    print "Found link to switch: " + str(linksw1cr1)
+
+                linksw2cr2 = None
+                for l in cr2.props['toHwSwitch']:
+                    if l.props['vlan'] == vlan:
+                        linksw2cr2 = l
+                if linksw2cr2 is None:
+                    print "Couldn't find link between " + sw2.name + " and " + cr2.name
+                if self.debug:
+                    print "Found link to switch: " + str(linksw1cr1)
+
+                # Having found all the links, then stitch them together
+                self.stitchVlans(cr1, linksw1cr1, linkcr1cr2)
+                self.stitchVlans(cr2, linkcr1cr2, linksw2cr2)
 
         return
 
-    def findCoreRouterPorts(self, router, target):
+    def stitchVlans(self, router, link1, link2):
         """
-        Find the router ports facing a target
-        :param router, topobuilder level node
-        :param target, topobuilder level node
+        Stitch two VLAN interfaces together on a router.
+        The router is the common router between the two links.
+
         """
-        coreRouterPortLinks = []
+        controller = router.controller
 
-        print "findCoreRouterPorts " + router.name + " -> " + target.name
+        vlan1 = link1.props['vlan']
+        intf1 = None
+        for ep in link1.props['endpoints']:
+            if ep.props['node'] == router.name:
+                intf1 = ep.props['enosPort']
+        if intf1 is None:
+            print "Couldn't find correct end of link " + str(link1) + " on " + router.name
 
-        for p in router.props['ports']:
-            for p2 in target.props['ports']:
-                if router.props['ports'][p].props['link'] == target.props['ports'][p2].props['link']:
-                    coreRouterPortLinks.append(router.props['ports'][p])
-        return coreRouterPortLinks
+        vlan2 = link2.props['vlan']
+        intf2 = None
+        for ep in link2.props['endpoints']:
+            if ep.props['node'] == router.name:
+                intf2 = ep.props['enosPort']
+        if intf2 is None:
+            print "Couldn't find correct end of link " + str(link2) + " on " + router.name
 
-    def selectPort(self, ports):
-        """
-        Select a port that we want to use from a set of ports.  Use this to
-        pick one from a set of ports going to parallel links.  For now
-        we'll prefer the lowest numbered ports and best-effort service.
-        """
-        for p in ports:
-            linkName = ports[p].props['link']
-            if linkName[-1:] == '1' or linkName[-12:] == ':best-effort':
-                return ports[p]
-        return None
+        if controller:
 
+            scope = self.scopes[router.name]
+            if scope is None:
+                print "Couldn't locate scope for " + str(router)
+            print "Scope id " + str(scope.id) + " " + str(scope)
+            m1 = Match('')
+            m1.props['in_port'] = intf1
+            m1.props['vlan'] = vlan1
+            a1 = Action('')
+            a1.props['vlan'] = vlan2
+            a1.props['out_port'] = intf2
+            f1 = FlowMod(scope, router, m1, "", [a1])
+            if self.debug:
+                print 'Push flow ' + str(f1)
+            controller.addFlowMod(f1)
 
-    def makeCircuit(self, startTarget, startVlan, routers, endTarget, endVlan):
-        """
-        Make a virtual circuit one hop at a time.
-        :param startTarget:  topobuilder level start host
-        :param startVlan:  starting VLAN tag on startTarget
-        :param routers:  array of topobuilder level routerse
-        :param endTarget:  topobuilder level end host
-        :param endVlan:  ending VLAN tag on endTarget
-        """
-        router = routers[0]
-        enosRouter = router.props['enosNode']
-        scope = self.scopes[enosRouter]
-        controller = enosRouter.props['controller']
+            m2 = Match('')
+            m2.props['in_port'] = intf2
+            m2.props['vlan'] = vlan2
+            a2 = Action('')
+            a2.props['vlan'] = vlan1
+            a2.props['out_port'] = intf1
+            f2 = FlowMod(scope, router, m2, "", [a2])
+            if self.debug:
+                print 'Push flow ' + str(f2)
+            controller.addFlowMod(f2)
 
-        if len(routers) == 1:
-            # Only one router on the path, so hook the start and end targets together
-            inPorts = self.findCoreRouterPorts(router, startTarget)
-            outPorts = self.findCoreRouterPorts(router, endTarget)
-        else:
-            inPorts = self.findCoreRouterPorts(router, startTarget)
-            outPorts = self.findCoreRouterPorts(router, routers[1])
-
-        print "makeCircuit "
-        print "\tinPorts ", inPorts
-        print "\toutPorts ", outPorts
 
 class WanIntent(ProvisioningIntent):
     """
