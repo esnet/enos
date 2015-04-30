@@ -151,6 +151,7 @@ class TopoBuilder ():
             hwSwitch.props['toCoreRouter'] = links1
             hwSwitch.props['toSwSwitch'] = links2
             swSwitch.props['toHwSwitch'] = links2
+            hwSwitch.props['nextHop'] = {}
             self.pops[name] = pop
 
         # create mesh between core routers, attached to VLANs between the core routers and hardware switches
@@ -172,6 +173,7 @@ class TopoBuilder ():
                 link2 = self.createLink(endpoints=[toNode,toHwSwitch], vlan=vlanIndex, suffix='-vlan'+str(vlanIndex))
                 # Automatically updates toHwSwitch.props['toCoreRouter']
                 toNode.props['toHwSwitch'].append(link2)
+                toHwSwitch.props['nextHop'][fromNode.props['pop'].name] = link2
                 self.coreLinks[link2.name] = link2
                 if self.debug:
                     print "link2 " + str(link2)
@@ -180,6 +182,7 @@ class TopoBuilder ():
                 link3 = self.createLink(endpoints=[fromNode,fromHwSwitch], vlan=vlanIndex, suffix='-vlan'+str(vlanIndex))
                 # Automatically updates fromHwSwitch.props['toCoreRouter']
                 fromNode.props['toHwSwitch'].append(link3)
+                fromHwSwitch.props['nextHop'][toNode.props['pop'].name] = link3
                 self.coreLinks[link3.name] = link3
                 if self.debug:
                     print "link3 " + str(link3)
