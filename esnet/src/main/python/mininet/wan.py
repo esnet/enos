@@ -17,7 +17,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
     have VPNs allocated between the different core routers.
     """
 
-    debug = True
+    debug = False
 
     def __init__(self, intent):
         """
@@ -78,38 +78,6 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
             if not enosCoreRouter.props['controller'].addScope(scope):
                 print "Cannot add " + str(scope)
             self.scopes[enosCoreRouter.name] = scope
-
-            # Create scopes for all of the OpenFlow switches
-            hwSwitch=pop.props['hwSwitch']
-            enosHwSwitch=hwSwitch.props['enosNode']
-
-            # Create and add scopes for interfaces on the hardware switch going to the software switch and core router
-            scope=L2SwitchScope(name=intent.name+'-'+enosHwSwitch.name, switch=enosHwSwitch, owner=self)
-            scope.props['endpoints'] = []
-            scope.props['intent'] = self.intent
-            for circuit in hwSwitch.props['toSwSwitch']:
-                port = None
-                for ep in circuit.props['endpoints']:
-                    if ep.props['node'] == hwSwitch.name:
-                        port = ep.props['enosPort']
-                vlan=circuit.props['vlan']
-                if port == None:
-                    print "Can't find this hardware switch among circuit endpoints"
-                scope.props['endpoints'].append((port.name, [vlan]))
-            for circuit in hwSwitch.props['toCoreRouter']:
-                port = None
-                for ep in circuit.props['endpoints']:
-                    if ep.props['node'] == hwSwitch.name:
-                        port = ep.props['enosPort']
-                vlan=circuit.props['vlan']
-                if port == None:
-                    print "Can't find this hardware switch among circuit endpoints"
-                scope.props['endpoints'].append((port.name, [vlan]))
-            if self.debug:
-                print enosHwSwitch.name + ' scope', scope
-            if not enosHwSwitch.props['controller'].addScope(scope):
-                print "Cannot add " + str(scope)
-            self.scopes[enosHwSwitch] = scope
 
         return
 
