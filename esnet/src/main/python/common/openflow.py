@@ -541,14 +541,18 @@ class SimpleController(Controller):
         """
         for (x,s) in SimpleController.forbiddenScopes.items():
             if s.overlaps(scope):
-                print "Overlaps with a forbidden port/vlan"
+                print "addScope error:  ", scope
+                print "Overlaps with a forbidden port/vlan:"
+                print s
                 return False
         for (x,s) in SimpleController.scopes.items():
             if s.overlaps(scope):
+                print "addScope error:  ", scope
                 print "Overlaps with a port/vlan that is already in another scope:"
                 print s
                 return False
         if scope.id in SimpleController.scopes.keys():
+            print "addScope error:  ", scope
             print "this scope has been already added"
             return False
         SimpleController.scopes[scope.id] = scope
