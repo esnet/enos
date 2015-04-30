@@ -54,19 +54,20 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             dstPort = link.getDstPort()
             srcNode = link.getSrcNode()
             srcPort = link.getSrcPort()
-            vlan = link.props['vpnVlan']
-            if srcNode.getResourceName() == self.hwSwitch.name:
-                self.hwSwitchScope.addEndpoint((srcPort.name,[vlan]))
-                self.activePorts[self.hwSwitch.name + ":" + srcPort.name + ":" + str(vlan)] = srcPort
-            if dstNode.getResourceName() == self.hwSwitch.name:
-                self.hwSwitchScope.addEndpoint((dstPort.name,[vlan]))
-                self.activePorts[self.hwSwitch.name + ":" +dstPort.name + ":" + str(vlan)] = dstPort
-            if srcNode.getResourceName() == self.swSwitch.name:
-                self.swSwitchScope.addEndpoint((srcPort.name,[vlan]))
-                self.activePorts[self.swSwitch.name + ":" +srcPort.name + ":" + str(vlan)] = srcPort
-            if dstNode.getResourceName() == self.swSwitch.name:
-                self.swSwitchScope.addEndpoint((dstPort.name,[vlan]))
-                self.activePorts[self.swSwitch.name + ":" +dstPort.name + ":" + str(vlan)] = dstPort
+            vlans = link.props['vpnVlans']
+            for vlan in vlans:
+                if srcNode.getResourceName() == self.hwSwitch.name:
+                    self.hwSwitchScope.addEndpoint((srcPort.name,[vlan]))
+                    self.activePorts[self.hwSwitch.name + ":" + srcPort.name + ":" + str(vlan)] = srcPort
+                if dstNode.getResourceName() == self.hwSwitch.name:
+                    self.hwSwitchScope.addEndpoint((dstPort.name,[vlan]))
+                    self.activePorts[self.hwSwitch.name + ":" +dstPort.name + ":" + str(vlan)] = dstPort
+                if srcNode.getResourceName() == self.swSwitch.name:
+                    self.swSwitchScope.addEndpoint((srcPort.name,[vlan]))
+                    self.activePorts[self.swSwitch.name + ":" +srcPort.name + ":" + str(vlan)] = srcPort
+                if dstNode.getResourceName() == self.swSwitch.name:
+                    self.swSwitchScope.addEndpoint((dstPort.name,[vlan]))
+                    self.activePorts[self.swSwitch.name + ":" +dstPort.name + ":" + str(vlan)] = dstPort
         print self.activePorts
 
     def __str__(self):
@@ -210,7 +211,6 @@ class SDNPopsIntent(ProvisioningIntent):
         graph = GenericGraph()
 
         for host in self.hosts:
-            graph.addVertex(host)
             graph.addVertex(host)
 
         for link in self.links:

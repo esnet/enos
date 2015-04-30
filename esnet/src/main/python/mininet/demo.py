@@ -5,6 +5,8 @@ from mininet.l2vpn import SDNPopsRenderer,SDNPopsIntent
 from mininet.wan import WanRenderer, WanIntent
 from net.es.netshell.api import GenericGraphViewer
 
+import copy
+
 def getPop(topo,coreRouter):
     pops = topo.builder.pops
     for (x,pop) in pops.items():
@@ -33,8 +35,13 @@ if __name__ == '__main__':
     enosHosts = []
     sdnHosts = []
     pops = []
+
     for (x,vpn) in net.builder.vpns.items():
+        enosHosts = []
+        sdnHosts = []
         sites = vpn.props['sites']
+        popsLinks = []
+        pops = []
         for (y,site) in sites.items():
             hosts = site.props['hosts']
             siteNodes=[]
@@ -70,7 +77,7 @@ if __name__ == '__main__':
                 if srcNode in siteNodes and dstNode in siteNodes:
                     enosLinks.append(link)
                     continue
-
+            print "Creates SiteIntent for vpn " + vpn.name + " site " + site.name
             intent = SiteIntent(name=site.name,hosts=enosHosts,borderRouter=borderRouter,siteRouter=siteRouter,links=enosLinks)
             global renderer
             renderer = SiteRenderer(intent)
@@ -78,19 +85,30 @@ if __name__ == '__main__':
             #viewer = GenericGraphViewer(intent.buildGraph())
             #viewer.display()
             links = hwSwitch.props['toCoreRouter']
-            popsLinks = []
             for link in links:
                 # Strip suffix, get endpoints
                 eps = "-".join(link.name.split("-")[0:-1]).split(':')
                 if hwSwitch.name in eps and borderRouter.name in eps:
+                    enosLink = link.props['enosLink']
+                    if not 'vpnVlans' in enosLink.props:
+                        enosLink.props['vpnVlans'] = []
+                    #print "SITE",site.name,"LINK",link.name,"VLANS",enosLink.props['vpnVlans']
                     if "vlan" in link.name:
-                        link.props['enosLink'].props['vpnVlan'] = link.props['enosLink'].props['vlan']
+                        enosLink.props['vpnVlans'].append(enosLink.props['vlan'])
                     else:
-                        link.props['enosLink'].props['vpnVlan'] = vpnVlan
-                    popsLinks.append(link.props['enosLink'])
-            popsIntent = SDNPopsIntent(name=vpn.name,pops=pops,hosts=sdnHosts,links=popsLinks)
-            popsRenderer = SDNPopsRenderer(popsIntent)
-            popsRenderer.execute()
+                        enosLink.props['vpnVlans'].append(vpnVlan)
+                    popsLinks.append(enosLink)
+
+        # prunes links to pop's that are not in pops
+        for link in popsLinks:
+            print link
+        print "Creates SDNPopsIntent for vpn " + vpn.name, pops
+        popsIntent = SDNPopsIntent(name=vpn.name,pops=pops,hosts=sdnHosts,links=popsLinks)
+        popsRenderer = SDNPopsRenderer(popsIntent)
+        popsRenderer.execute()
+        print "VPN " + vpn.name + " is up."
+        viewer = GenericGraphViewer(popsIntent.graph)
+        viewer.display()
 
 
 
