@@ -44,7 +44,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         scope = L2SwitchScope(name=intent.name,switch=self.siteRouter,owner=self)
         scope.props['endpoints'] = []
         scope.props['intent'] = self.intent
-        self.siteRouter.props['controller'].addScope(scope)
         for port in ports:
             port.props['scope'] = scope
             links = port.getLinks()
@@ -64,12 +63,12 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 else:
                     port.props['type'] = "LAN"
         self.props['siteScope'] = scope
+        self.siteRouter.props['controller'].addScope(scope)
         # Create scope for the border router
         scope2 = L2SwitchScope(name=intent.name,switch=self.borderRouter,owner=self)
         scope2.props['endpoints'] = []
         scope2.props['intent'] = self.intent
         self.props['wanScope'] = scope2
-        self.borderRouter.props['controller'].addScope(scope2)
         ports = self.borderRouter.getPorts()
         outPort = None
         wanVlan = None
@@ -106,6 +105,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         scope2.props['endpoints'].append((inPort.name,[wanVlan]))
         self.activePorts[self.borderRouter.name + ":" + inPort.name] = inPort
         self.props['borderPortToSDN'] = inPort
+        self.borderRouter.props['controller'].addScope(scope2)
 
     def __str__(self):
         desc = "SiteRenderer: " + self.name + "\n"

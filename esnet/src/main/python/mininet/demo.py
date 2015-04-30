@@ -25,7 +25,7 @@ if __name__ == '__main__':
         net = TestbedTopology()
 
     # clean up the Controller's scope
-    SimpleController.scopes = {}
+    SimpleController.instance.scopes = {}
 
     # One-time setup for the VPN service
     wi = WanIntent("esnet", net.builder.pops.values())
