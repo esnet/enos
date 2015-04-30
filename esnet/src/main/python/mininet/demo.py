@@ -60,7 +60,6 @@ if __name__ == '__main__':
             sdnHosts.append(hwSwitch)
             sdnHosts.append(swSwitch)
             sdnHosts.append(serviceVm)
-            pops.append((borderRouter,serviceVm))
             siteNodes.append(siteRouter)
             siteNodes.append(borderRouter)
             links = site.props['links'].copy()
@@ -102,13 +101,13 @@ if __name__ == '__main__':
         # prunes links to pop's that are not in pops
         for link in popsLinks:
             print link
-        print "Creates SDNPopsIntent for vpn " + vpn.name, pops
+        print "Creates SDNPopsIntent for vpn " + vpn.name, "\nPOPS\n",pops, "\nHOSTS\n",sdnHosts
         popsIntent = SDNPopsIntent(name=vpn.name,pops=pops,hosts=sdnHosts,links=popsLinks)
         popsRenderer = SDNPopsRenderer(popsIntent)
         popsRenderer.execute()
         print "VPN " + vpn.name + " is up."
-        viewer = GenericGraphViewer(popsIntent.graph)
-        viewer.display()
+        #viewer = GenericGraphViewer(popsIntent.graph)
+        #viewer.display()
 
 
 

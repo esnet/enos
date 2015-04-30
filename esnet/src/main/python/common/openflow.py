@@ -459,6 +459,7 @@ class OpenFlowSwitch(Node):
         Node.__init__(self, name, builder, props)
         self.dpid = dpid
         self.controller = controller
+        self.props['controller'] = controller
         self.flowMods = {}
         self.scopes = {}
 
@@ -633,7 +634,7 @@ class SimpleController(Controller):
         # Finds the scope, if any, that is managing this packet_in
         found = False
         for (x,scope) in SimpleController.scopes.items():
-            if scope.switch == switch and scope.includes(packetIn):
+            if scope.switch.name == switch.name and scope.includes(packetIn):
                 scope.owner.eventListener(packetIn)
                 found = True
         if not found:

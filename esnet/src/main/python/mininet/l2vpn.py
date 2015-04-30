@@ -25,19 +25,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         """
         ScopeOwner.__init__(self,name=intent.name)
         self.intent = intent
-        for host in intent.hosts:
-            if host.props['role'] == "CoreRouter":
-                self.borderRouter = host
-                continue
-            if host.props['role'] == "HwSwitch":
-                self.hwSwitch = host
-                continue
-            if host.props['role'] == "SwSwitch":
-                self.swSwitch = host
-                continue
-            if host.props['role'] == "ServiceVm":
-                self.service = host
-                continue
+        self.pops = intent.pops
 
         self.macs = {}
         self.active = False
@@ -45,30 +33,37 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.flowmods = []
 
         SDNPopsRenderer.instance = self
-        self.hwSwitchScope = L2SwitchScope(name=self.name,switch=self.hwSwitch,owner=self)
-        SDNPopsRenderer.instance = self
-        self.swSwitchScope = L2SwitchScope(name=self.name,switch=self.swSwitch,owner=self)
+        self.scopes = {}
+        for pop in self.pops:
+            coreRouter = pop.props['coreRouter']
+            hwSwitch = pop.props['hwSwitch']
+            swSwitch = pop.props['swSwitch']
+            hwSwitchScope = L2SwitchScope(name=self.name,switch=hwSwitch,owner=self)
+            swSwitchScope = L2SwitchScope(name=self.name,switch=swSwitch,owner=self)
 
-        for link in self.intent.links:
-            dstNode = link.getDstNode()
-            dstPort = link.getDstPort()
-            srcNode = link.getSrcNode()
-            srcPort = link.getSrcPort()
-            vlans = link.props['vpnVlans']
-            for vlan in vlans:
-                if srcNode.getResourceName() == self.hwSwitch.name:
-                    self.hwSwitchScope.addEndpoint((srcPort.name,[vlan]))
-                    self.activePorts[self.hwSwitch.name + ":" + srcPort.name + ":" + str(vlan)] = srcPort
-                if dstNode.getResourceName() == self.hwSwitch.name:
-                    self.hwSwitchScope.addEndpoint((dstPort.name,[vlan]))
-                    self.activePorts[self.hwSwitch.name + ":" +dstPort.name + ":" + str(vlan)] = dstPort
-                if srcNode.getResourceName() == self.swSwitch.name:
-                    self.swSwitchScope.addEndpoint((srcPort.name,[vlan]))
-                    self.activePorts[self.swSwitch.name + ":" +srcPort.name + ":" + str(vlan)] = srcPort
-                if dstNode.getResourceName() == self.swSwitch.name:
-                    self.swSwitchScope.addEndpoint((dstPort.name,[vlan]))
-                    self.activePorts[self.swSwitch.name + ":" +dstPort.name + ":" + str(vlan)] = dstPort
-        print self.activePorts
+            links = hwSwitch.props['toCoreRouter']
+            for l in links:
+                link = l.props['enosLink']
+                dstNode = link.getDstNode()
+                dstPort = link.getDstPort()
+                srcNode = link.getSrcNode()
+                srcPort = link.getSrcPort()
+                vlans = link.props['vpnVlans']
+                for vlan in vlans:
+                    if srcNode.getResourceName() == hwSwitch.name:
+                        hwSwitchScope.addEndpoint((srcPort.name,[vlan]))
+                        self.activePorts[hwSwitch.name + ":" + srcPort.name + ":" + str(vlan)] = (srcPort,hwSwitch,hwSwitchScope)
+                    if dstNode.getResourceName() == hwSwitch.name:
+                        hwSwitchScope.addEndpoint((dstPort.name,[vlan]))
+                        self.activePorts[hwSwitch.name + ":" +dstPort.name + ":" + str(vlan)] = (dstPort,hwSwitch,hwSwitchScope)
+                    if srcNode.getResourceName() == swSwitch.name:
+                        swSwitchScope.addEndpoint((srcPort.name,[vlan]))
+                        self.activePorts[swSwitch.name + ":" +srcPort.name + ":" + str(vlan)] = (srcPort,swSwitch,swSwitchScope)
+                    if dstNode.getResourceName() == swSwitch.name:
+                        swSwitchScope.addEndpoint((dstPort.name,[vlan]))
+                        self.activePorts[swSwitch.name + ":" +dstPort.name + ":" + str(vlan)] = (dstPort,swSwitch,swSwitchScope)
+            self.scopes[hwSwitch] = hwSwitchScope
+            self.scopes[swSwitch] = swSwitchScope
 
     def __str__(self):
         desc = "SDNPopsRenderer: " + self.name + "\n"
@@ -97,59 +92,57 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if SDNPopsRenderer.debug:
                 print self.name
                 print event
+
             dl_src = event.props['dl_src']
             mac = binascii.hexlify(dl_src)
             port = event.props['in_port']
             switch = port.props['switch']
             vlan = event.props['vlan']
-            in_port = self.activePorts[switch.name + ":" + port.name + ":" + str(vlan)]
+            in_port,switch,scope = self.activePorts[switch.name + ":" + port.name + ":" + str(vlan)]
             dl_dst = event.props['dl_dst']
             dl_src = event.props['dl_src']
             mac = binascii.hexlify(dl_src)
             etherType = event.props['ethertype']
             success = True
+
             if not mac in self.macs:
                 # New MAC, install flow entries
                 self.macs[mac] = (dl_src,in_port)
-                in_port.props['macs'][mac] = dl_src
                 # set the flow entry to forward packet to that MAC to this port
                 success = self.setMAC(port=in_port,vlan=vlan,mac=dl_src)
                 if not success:
-                    print "Cannot set MAC",binascii.hexlify(dl_src),"on",in_port.props['switch'].name + ":" +in_port.name + "." + str(vlan)
+                    print "Cannot set MAC",binascii.hexlify(dl_src),"on", + ":" +in_port.name + "." + str(vlan)
                 else:
                     if SDNPopsRenderer.debug:
                         print self.name,"Learned new MAC",binascii.hexlify(dl_src)
             global broadcastAddress
-
             if dl_dst == broadcastAddress:
-                success = self.broadcast(inPort=in_port,inVlan=vlan,srcMac=dl_src,etherType=etherType,payload=event.props['payload'])
+                success = self.broadcast(inPort=in_port,switch=switch,scope=scope,inVlan=vlan,srcMac=dl_src,etherType=etherType,payload=event.props['payload'])
                 if not success:
                     print  "Cannot send broadcast packet"
 
-    def broadcast(self,inPort,inVlan,srcMac,etherType,payload) :
-        switchController = self.hwSwitch.props['controller']
+
+    def broadcast(self,inPort,inVlan,srcMac,etherType,payload,switch,scope) :
+
+        switchController = switch.props['controller']
         success = True
 
-        for (name,port) in self.activePorts.items():
+        for (name,portInfo) in self.activePorts.items():
+            outPort = portInfo[0]
+            outSwitch = portInfo[1]
+            outScope = portInfo[2]
+            outPort.props['switch'] = switch
             vlan = int(name.split(":")[2])
-            if (port,vlan) == (inPort,inVlan):
+            if (outPort.name,vlan) == (inPort.name,inVlan):
                 # no need to send the broadcast back to itself
-                print "DROP A",port.name,vlan
                 continue
-            if port.props['node'] != self.hwSwitch.name:
-                print "DROP B",port.name,vlan
-                continue
-            scope = self.hwSwitchScope
-            if not 'switch' in port.props:
-                port.props['switch'] = self.hwSwitch
-            packet = PacketOut(port=port,dl_src=srcMac,dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
+            packet = PacketOut(port=outPort,dl_src=srcMac,dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=outScope,payload=payload)
             if SDNPopsRenderer.debug:
-                #print packet
-                print "PACKETOUT",port.name,vlan
+                print packet
             res = switchController.send(packet)
             if not res:
-                print "FAILED",port.name,vlan
                 success = False
+
         return success
 
 
@@ -164,12 +157,10 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         :return: Expectation when succcessful, None otherwise
         """
         # Add scopes to the controller
-        if not self.hwSwitch.props['controller'].addScope(self.hwSwitchScope):
-            print "Cannot add",self.hwSwitchScope
-            return False
-        if not self.swSwitch.props['controller'].addScope(self.swSwitchScope):
-            print "Cannot add",self.swSwitchScope
-            return False
+        for (switch,scope) in self.scopes.items():
+            if not switch.props['enosNode'].props['controller'].addScope(scope):
+                print "Cannot add",scope
+                return False
         self.active = True
         return True
 
