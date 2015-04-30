@@ -85,7 +85,6 @@ if __name__ == '__main__':
                 link = net.builder.pops[srcPop.name].props['hwSwitch'].props['nextHop'][dstPop.name]
                 link.props['enosLink'].props['vpnVlans'] = [link.props['vlan']]
                 popsLinks.append(link.props['enosLink'])
-                targetPops = targetPops[1:]
             links = srcPop.props['hwSwitch'].props['toCoreRouter']
             vpnVlan = srcPop.props['vpnVlan']
             for link in links:
