@@ -2,6 +2,7 @@ from mininet.sites import SiteIntent, SiteRenderer
 from common.openflow import SimpleController
 from mininet.enos import TestbedTopology
 from mininet.l2vpn import SDNPopsRenderer,SDNPopsIntent
+from mininet.wan import WanRenderer, WanIntent
 from net.es.netshell.api import GenericGraphViewer
 
 def getPop(topo,coreRouter):
@@ -23,6 +24,12 @@ if __name__ == '__main__':
 
     # clean up the Controller's scope
     SimpleController.scopes = {}
+
+    # One-time setup for the VPN service
+    wi = WanIntent("esnet", net.builder.pops.values())
+    wr = WanRenderer(wi)
+    wr.execute()
+
     enosHosts = []
     sdnHosts = []
     pops = []
