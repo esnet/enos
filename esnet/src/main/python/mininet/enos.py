@@ -19,6 +19,13 @@ class TestbedNode(GenericNode,Properties):
         Properties.__init__(self,name=self.getResourceName(),props=props)
         self.props['links'] = []
 
+    def getPort(self,name):
+        ports = self.getPorts()
+        for port in ports:
+            if port.name == name:
+                return port
+        return None
+
 class TestbedLink(GenericLink,Properties):
     def __init__(self,node1,port1,node2,port2,props={}):
         GenericLink.__init__(self,node1,port1,node2,port2)

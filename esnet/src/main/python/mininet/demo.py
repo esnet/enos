@@ -77,8 +77,9 @@ if __name__ == '__main__':
                 eps = "-".join(link.name.split("-")[0:-1]).split(':')
                 if hwSwitch.name in eps and borderRouter.name in eps:
                     if "vlan" in link.name:
-                        continue
-                    link.props['enosLink'].props['vpnVlan'] = vpnVlan
+                        link.props['enosLink'].props['vpnVlan'] = link.props['enosLink'].props['vlan']
+                    else:
+                        link.props['enosLink'].props['vpnVlan'] = vpnVlan
                     popsLinks.append(link.props['enosLink'])
             popsIntent = SDNPopsIntent(name=vpn.name,pops=pops,hosts=sdnHosts,links=popsLinks)
             popsRenderer = SDNPopsRenderer(popsIntent)
