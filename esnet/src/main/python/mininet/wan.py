@@ -46,7 +46,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
             enosCoreRouter=coreRouter.props['enosNode']
 
             # Create and add the scope
-            scope=L2SwitchScope(name=intent.name+'-'+enosCoreRouter.name, switch=enosCoreRouter, owner=self)
+            scope=L2SwitchScope(name=intent.name+'-'+enosCoreRouter.name, switch=enosCoreRouter, owner=self,endpoints=[])
             scope.props['endpoints'] = []
             scope.props['intent'] = self.intent
             # We need to add all of the places that WAN circuits terminate as scope endpoints

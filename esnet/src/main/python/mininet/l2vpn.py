@@ -31,19 +31,18 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.active = False
         self.activePorts = {}
         self.flowmods = []
+        self.links = self.intent.links
 
         SDNPopsRenderer.instance = self
         self.scopes = {}
+
         for pop in self.pops:
             coreRouter = pop.props['coreRouter']
             hwSwitch = pop.props['hwSwitch']
             swSwitch = pop.props['swSwitch']
-            hwSwitchScope = L2SwitchScope(name=self.name,switch=hwSwitch,owner=self)
-            swSwitchScope = L2SwitchScope(name=self.name,switch=swSwitch,owner=self)
-
-            links = hwSwitch.props['toCoreRouter']
-            for l in links:
-                link = l.props['enosLink']
+            hwSwitchScope = L2SwitchScope(name=self.name,switch=hwSwitch,owner=self,endpoints=[])
+            swSwitchScope = L2SwitchScope(name=self.name,switch=swSwitch,owner=self,endpoints=[])
+            for link in self.links:
                 dstNode = link.getDstNode()
                 dstPort = link.getDstPort()
                 srcNode = link.getSrcNode()
@@ -64,6 +63,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                         self.activePorts[swSwitch.name + ":" +dstPort.name + ":" + str(vlan)] = (dstPort,swSwitch,swSwitchScope)
             self.scopes[hwSwitch] = hwSwitchScope
             self.scopes[swSwitch] = swSwitchScope
+
 
     def __str__(self):
         desc = "SDNPopsRenderer: " + self.name + "\n"
@@ -109,7 +109,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 # New MAC, install flow entries
                 self.macs[mac] = (dl_src,in_port)
                 # set the flow entry to forward packet to that MAC to this port
-                success = self.setMAC(port=in_port,vlan=vlan,mac=dl_src)
+                success = self.setMAC(port=in_port,switch=switch,scope=scope,vlan=vlan,mac=dl_src)
                 if not success:
                     print "Cannot set MAC",binascii.hexlify(dl_src),"on", + ":" +in_port.name + "." + str(vlan)
                 else:
@@ -146,9 +146,29 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         return success
 
 
-    def setMAC(self,port,vlan, mac):
-        success = False
-        # To be implemented
+    def setMAC(self,port,vlan, mac,switch,scope):
+        if SDNPopsRenderer.debug:
+            print "SDNPopsRenderer: Set flow entries for MAC= " + str(mac)+ " switch=" + port.props['switch'].name + " port= " + port.name + " vlan= " + str(vlan)
+        switch = port.props['switch']
+        controller = switch.props['controller']
+        success = True
+
+        mod = FlowMod(name=scope.name,scope=scope,switch=switch)
+        mod.props['renderer'] = self
+        match = Match(name=scope.name)
+        match.props['dl_dst'] = mac
+        action = Action(name=scope.name)
+        action.props['out_port'] = port
+        action.props['vlan'] = vlan
+        mod.match = match
+        mod.actions = [action]
+        self.flowmods.append(mod)
+        if SDNPopsRenderer.debug:
+            print "add flowMod",mod
+        success = controller.addFlowMod(mod)
+        if not success:
+            print "Cannot push flowmod:\n",mod
+
         return success
 
     def execute(self):

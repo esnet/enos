@@ -24,17 +24,10 @@ if __name__ == '__main__':
     else:
         net = TestbedTopology()
 
-    # clean up the Controller's scope
-    SimpleController.instance.scopes = {}
-
     # One-time setup for the VPN service
     wi = WanIntent("esnet", net.builder.pops.values())
     wr = WanRenderer(wi)
     wr.execute()
-
-    enosHosts = []
-    sdnHosts = []
-    pops = []
 
     for (x,vpn) in net.builder.vpns.items():
         enosHosts = []
@@ -64,7 +57,6 @@ if __name__ == '__main__':
             siteNodes.append(borderRouter)
             links = site.props['links'].copy()
             enosLinks=[]
-            vpnVlan = None
             for (z,l) in links.items():
                 link = l.props['enosLink']
                 node1 = link.getSrcNode()
@@ -72,7 +64,7 @@ if __name__ == '__main__':
                 srcNode = link.getSrcNode()
                 dstNode = link.getDstNode()
                 if borderRouter.name in [srcNode.getResourceName(),dstNode.getResourceName()]:
-                    vpnVlan = link.props['vlan']
+                    pop.props['vpnVlan'] = link.props['vlan']
                 if srcNode in siteNodes and dstNode in siteNodes:
                     enosLinks.append(link)
                     continue
@@ -83,25 +75,29 @@ if __name__ == '__main__':
             err = renderer.execute()
             #viewer = GenericGraphViewer(intent.buildGraph())
             #viewer.display()
-            links = hwSwitch.props['toCoreRouter']
+
+        popsLinks = []
+
+        for srcPop in pops:
+            for dstPop in pops:
+                if srcPop == dstPop:
+                    continue
+                link = net.builder.pops[srcPop.name].props['hwSwitch'].props['nextHop'][dstPop.name]
+                link.props['enosLink'].props['vpnVlans'] = [link.props['vlan']]
+                popsLinks.append(link.props['enosLink'])
+                targetPops = targetPops[1:]
+            links = srcPop.props['hwSwitch'].props['toCoreRouter']
+            vpnVlan = srcPop.props['vpnVlan']
             for link in links:
                 # Strip suffix, get endpoints
                 eps = "-".join(link.name.split("-")[0:-1]).split(':')
-                if hwSwitch.name in eps and borderRouter.name in eps:
-                    enosLink = link.props['enosLink']
-                    if not 'vpnVlans' in enosLink.props:
-                        enosLink.props['vpnVlans'] = []
-                    #print "SITE",site.name,"LINK",link.name,"VLANS",enosLink.props['vpnVlans']
-                    if "vlan" in link.name:
-                        enosLink.props['vpnVlans'].append(enosLink.props['vlan'])
-                    else:
-                        enosLink.props['vpnVlans'].append(vpnVlan)
+                enosLink = link.props['enosLink']
+                if not 'vpnVlans' in enosLink.props:
+                    enosLink.props['vpnVlans'] = []
+                if not "vlan" in link.name and not vpnVlan in enosLink.props['vpnVlans']:
+                    enosLink.props['vpnVlans'] = [vpnVlan]
                     popsLinks.append(enosLink)
 
-        # prunes links to pop's that are not in pops
-        for link in popsLinks:
-            print link
-        print "Creates SDNPopsIntent for vpn " + vpn.name, "\nPOPS\n",pops, "\nHOSTS\n",sdnHosts
         popsIntent = SDNPopsIntent(name=vpn.name,pops=pops,hosts=sdnHosts,links=popsLinks)
         popsRenderer = SDNPopsRenderer(popsIntent)
         popsRenderer.execute()

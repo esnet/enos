@@ -65,7 +65,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.props['siteScope'] = scope
         self.siteRouter.props['controller'].addScope(scope)
         # Create scope for the border router
-        scope2 = L2SwitchScope(name=intent.name,switch=self.borderRouter,owner=self)
+        scope2 = L2SwitchScope(name=intent.name,switch=self.borderRouter,owner=self,endpoints=[])
         scope2.props['endpoints'] = []
         scope2.props['intent'] = self.intent
         self.props['wanScope'] = scope2
