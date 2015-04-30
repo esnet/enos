@@ -278,8 +278,10 @@ class WanIntent(ProvisioningIntent):
         """
         graph=GenericGraph()
 
-        popsSoFar=[]
+        # First add all of the core routers and hardware switches to the graph
         for pop in self.pops:
+
+            # Add the core router and hardware switch as nodes in the graph
             coreRouter=pop.props['coreRouter']
             hwRouter=pop.props['hwSwitch']
             enosCoreRouter=pop.props['coreRouter'].props['enosNode']
@@ -291,19 +293,39 @@ class WanIntent(ProvisioningIntent):
             # This is the topobuilder layer.  There might be multiple
             # links here...arbitrarily pick the first one.
             link=pop.props['hwSwitch'].props['toCoreRouter'][0]
-            enoslink=link.props['enosLink']
+            enosLink=link.props['enosLink']
             vlan=link.props['vlan']
 
-            node1=enoslink.getSrcNode()
-            node2=enoslink.getDstNode()
-            graph.addEdge(node1, node2, enoslink)
+            node1=enosLink.getSrcNode()
+            node2=enosLink.getDstNode()
+            graph.addEdge(node1, node2, enosLink)
 
-            # Now make the mesh of VCs between
-            for (pop2) in popsSoFar:
-                if pop == pop2:
-                    continue
-                coreRouter2=pop2.props['coreRouter'].props['enosNode']
-                # WANCircuit?
-                popsSoFar.append(pop2)
+        # Then add all of the links connecting them up.  We need to do this as
+        # two separate passes to ensure that all the graph vertices have been
+        # created before we add the links.
+        linksSoFar = []
+        for pop in self.pops:
+            # Get all of the links that are anchored on the core router
+            # that go somewhere else in the set of POPs we care abound
+            tryLinks = []
+            # Add inter-POP links that are going somewhere else in our
+            # set of POPs
+            for link in pop.props['coreRouter'].props['WAN-Circuits']:
+                pop0 = link.props['endpoints'][0].props['switch'].props['pop']
+                pop1 = link.props['endpoints'][1].props['switch'].props['pop']
+                if pop0 in self.pops and pop1 in self.pops:
+                    tryLinks.append(link)
+            # Add all links to the hardware switch in this POP
+            tryLinks.extend(pop.props['coreRouter'].props['toHwSwitch'])
+
+            # Of those links, add those that haven't already been added.
+            for link in tryLinks:
+                if not link in linksSoFar:
+                    enosLink = link.props['enosLink']
+                    vlan = link.props['vlan']
+                    node1 = enosLink.getSrcNode()
+                    node2 = enosLink.getDstNode()
+                    graph.addEdge(node1, node2, enosLink)
+                    linksSoFar.append(link)
 
         return graph
