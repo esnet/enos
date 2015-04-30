@@ -86,6 +86,18 @@ class TopoBuilder ():
                 print sw.name,"\t",binascii.hexlify(sw.props['dpid']),"\topenflow:" + str(sw.props['dpid'][7]),"\t",sw.props['mininetName']
         print "\n\n"
 
+    def displayHosts(self,vpnName):
+        vpn = self.vpns[vpnName]
+        print "\nName\t\tIPv4 Address\tVLAN\tMininet Name\t"
+        for site in vpn.props['sites'].values():
+            for h in site.props['hosts'].values():
+                print h.name,"\t",h.props['ip'],"\t",h.props['vlan'],"\t",h.props['mininetName']
+        print "\n"
+        for site in vpn.props['sites'].values():
+            h = site.props['serviceVm']
+            print h.name,"\t",h.props['ip'],"\t",h.props['vlan'],"\t",h.props['mininetName']
+        print "\n\n"
+
     def createLink(self,endpoints,vlan,suffix=""):
         link = Link(name=endpoints[0].name+":"+endpoints[1].name+suffix)
         port1 = endpoints[0].newPort({'link':link.name})
