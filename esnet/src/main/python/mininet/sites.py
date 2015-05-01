@@ -129,13 +129,14 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         :param event: ScopeEvent
         """
         if event.__class__ == PacketInEvent:
-            print event
+            print "#####", event
             # This is a PACKET_IN. Learn the source MAC address
             if not 'vlan' in event.props:
                 # no VLAN, reject
                 if SiteRenderer.debug:
                     print "no VLAN, reject",event
                 return
+            print 1
             if SiteRenderer.debug:
                 print event
                 SiteRenderer.lastEvent = event
@@ -143,17 +144,23 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             mac = binascii.hexlify(dl_src)
             port = event.props['in_port']
             switch = port.props['switch']
+            print 2
             in_port = self.activePorts[switch.name + ":" + port.name]
+            print 3
             if not in_port.props['type'] in ['LAN','TOWAN']:
                 # Discard (debug)
+                print 4, in_port.props
                 return
+            print 5
             dl_dst = event.props['dl_dst']
             dl_src = event.props['dl_src']
             mac = binascii.hexlify(dl_src)
             vlan = event.props['vlan']
             etherType = event.props['ethertype']
             success = True
+            print 10
             if not mac in self.macs:
+                print 20
                 # New MAC, install flow entries
                 self.macs[mac] = (dl_src,in_port)
                 in_port.props['macs'][mac] = dl_src
@@ -161,6 +168,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 success = self.setMAC(port=in_port,vlan=vlan,mac=dl_src)
                 if not success:
                     print "Cannot set MAC",binascii.hexlify(dl_src),"on",in_port.props['switch'].name + ":" +in_port.name + "." + str(vlan)
+            print 30
             global broadcastAddress
             if dl_dst == broadcastAddress:
                 success = self.broadcast(inPort=in_port,srcMac=dl_src,etherType=etherType,payload=event.props['payload'])
@@ -254,6 +262,24 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         mod.actions = [action]
         self.flowmods.append(mod)
         success = controller.addFlowMod(mod)
+
+        tmp = inPort
+        inPort = outPort
+        outPort = tmp
+        name = ""
+        mod = FlowMod(name=name,scope=scope,switch=self.borderRouter)
+        mod.props['renderer'] = self
+        match = Match(name=name)
+        match.props['in_port'] = inPort
+        match.props['vlan'] = inPort.props['vlan']
+        action = Action(name=name)
+        action.props['out_port'] = outPort
+        action.props['vlan'] = outPort.props['vlan']
+        mod.match = match
+        mod.actions = [action]
+        self.flowmods.append(mod)
+        success = controller.addFlowMod(mod)
+
         return success
 
     def removeFlowEntries(self):
