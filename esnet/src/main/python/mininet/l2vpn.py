@@ -132,6 +132,10 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if outPort.name == inPort.name:
                 # no need to rebroadcast on in_port
                 continue
+            inLink = inPort.props['link']
+            outLink = outPort.pros['link']
+            if 'vlan' in inLink.name and 'vlan' in outLink.name:
+                continue
             packet = PacketOut(port=outPort,dl_src=srcMac,dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=outScope,payload=payload)
             if SDNPopsRenderer.debug:
                 print packet
