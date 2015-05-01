@@ -91,7 +91,7 @@ class TopoBuilder ():
         print "\nName\t\tIPv4 Address\tVLAN\tMininet Name\t"
         for site in vpn.props['sites'].values():
             for h in site.props['hosts'].values():
-                print h.name,"\t",h.props['ip'],"\t",h.props['vlan'],"\t",h.props['mininetName']
+                print h.name,"\t",h.props['ip'],"\t",site.props['vlan'],"\t",h.props['mininetName']
         print "\n"
         for site in vpn.props['sites'].values():
             h = site.props['serviceVm']

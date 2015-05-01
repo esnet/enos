@@ -108,11 +108,12 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             mac = binascii.hexlify(dl_src)
             etherType = event.props['ethertype']
             success = True
-            self.macs[mac] = (dl_src,in_port)
-            # set the flow entry to forward packet to that MAC to this port
-            success = self.setMAC(port=in_port,switch=switch,scope=scope,vlan=vlan,mac=dl_src)
-            if not success:
-                print "Cannot set MAC",binascii.hexlify(dl_src),"on", + ":" +in_port.name + "." + str(vlan)
+            if not mac in self.macs:
+                self.macs[mac] = (dl_src,in_port)
+                # set the flow entry to forward packet to that MAC to this port
+                success = self.setMAC(port=in_port,switch=switch,scope=scope,vlan=vlan,mac=dl_src)
+                if not success:
+                    print "Cannot set MAC",binascii.hexlify(dl_src),"on", + ":" +in_port.name + "." + str(vlan)
             global broadcastAddress
             if not 'switch' in in_port.props:
                 in_port.props['switch'] = switch
