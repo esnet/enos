@@ -120,19 +120,22 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
         switchController = switch.props['controller']
         success = True
+        endpoints = scope.props['endpoints']
 
-        for (name,portInfo) in self.activePorts.items():
-            outPort = portInfo[0]
-            outSwitch = portInfo[1]
-            outScope = portInfo[2]
-            outPort.props['switch'] = switch
-            vlan = int(name.split(":")[2])
-            if (outPort.name,vlan) == (inPort.name,inVlan):
-                # no need to send the broadcast back to itself
+        for endpoint in endpoints:
+            vlan = endpoint[1][0]
+            outPort,outSwitch,outScope = self.activePorts[switch.name+":"+endpoint[0]+":"+str(vlan)]
+            # Check that outScope is the sacme as scope
+            if scope != outScope:
+                print "Wrong scope", outScope
+                continue
+            if outPort.name == inPort.name:
+                # no need to rebroadcast on in_port
                 continue
             packet = PacketOut(port=outPort,dl_src=srcMac,dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=outScope,payload=payload)
             if SDNPopsRenderer.debug:
                 print packet
+                #print "PacketOut out-switch",outSwitch.name,"out-port",outPort.name,"scope",outScope.switch.name
             res = switchController.send(packet)
             if not res:
                 success = False
