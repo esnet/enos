@@ -122,6 +122,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         success = True
         endpoints = scope.props['endpoints']
 
+        print "broadcast()"
+
         for endpoint in endpoints:
             vlan = endpoint[1][0]
             outPort,outSwitch,outScope = self.activePorts[switch.name+":"+endpoint[0]+":"+str(vlan)]
@@ -134,7 +136,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 continue
             inLink = inPort.props['link']
             outLink = outPort.pros['link']
-            if 'vlan' in inLink.name and 'vlan' in outLink.name:
+            if inLink.props['vlan'] >= 1000 and outLink.props['vlan'] >= 1000:
                 continue
             packet = PacketOut(port=outPort,dl_src=srcMac,dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=outScope,payload=payload)
             if SDNPopsRenderer.debug:

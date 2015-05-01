@@ -248,7 +248,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         match.props['vlan'] = inPort.props['vlan']
         action = Action(name=name)
         action.props['out_port'] = outPort
-        action.props['vlan'] = inPort.props['vlan']
+        action.props['vlan'] = outPort.props['vlan']
         mod.match = match
         mod.actions = [action]
         self.flowmods.append(mod)
