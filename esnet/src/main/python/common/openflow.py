@@ -261,9 +261,18 @@ class PacketOut(Properties):
         self.payload = payload
 
     def __str__(self):
-        desc = "PacketOut: " + self.name + "switch= " + self.port.props['switch'].name + " port= " + self.port.name + " vlan= " + str(self.vlan)
-        desc += "\n\tScope: " + str(self.scope) + "\n"
-        desc += "\tPayload:\n\t\t"
+        desc = "PacketOut: " + self.name
+        if self.port:
+            desc += " port= " + self.port.name
+            if 'switch' in self.port.props:
+                desc += " switch= " + self.port.props['switch'].name
+        if self.vlan:
+            desc += " vlan= " + str(self.vlan)
+        if self.scope:
+            desc += "\n\tScope: " + str(self.scope) + "\n"
+
+        if self.payload:
+            desc += "\tPayload:\n\t\t"
         if isinstance(self.payload, array):
             desc += binascii.hexlify(self.payload)
         else:
