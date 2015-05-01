@@ -129,7 +129,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         :param event: ScopeEvent
         """
         if event.__class__ == PacketInEvent:
-            print "#####", event
             # This is a PACKET_IN. Learn the source MAC address
             if not 'vlan' in event.props:
                 # no VLAN, reject
