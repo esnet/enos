@@ -32,6 +32,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.activePorts = {}
         self.flowmods = []
         self.links = self.intent.links
+        self.linkByPort = {}
 
         SDNPopsRenderer.instance = self
         self.scopes = {}
@@ -47,6 +48,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 dstPort = link.getDstPort()
                 srcNode = link.getSrcNode()
                 srcPort = link.getSrcPort()
+                self.linkByPort[dstPort] = link
+                self.linkByPort[srcPort] = link
+
                 vlans = link.props['vpnVlans']
                 for vlan in vlans:
                     if srcNode.getResourceName() == hwSwitch.name:
@@ -110,6 +114,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if not success:
                 print "Cannot set MAC",binascii.hexlify(dl_src),"on", + ":" +in_port.name + "." + str(vlan)
             global broadcastAddress
+            if not 'switch' in in_port.props:
+                in_port.props['switch'] = switch
             if dl_dst == broadcastAddress:
                 success = self.broadcast(inPort=in_port,switch=switch,scope=scope,inVlan=vlan,srcMac=dl_src,etherType=etherType,payload=event.props['payload'])
                 if not success:
@@ -134,9 +140,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if outPort.name == inPort.name:
                 # no need to rebroadcast on in_port
                 continue
-            inLink = inPort.props['link']
-            outLink = outPort.pros['link']
-            if inLink.props['vlan'] >= 1000 and outLink.props['vlan'] >= 1000:
+
+            if inVlan >= 1000 and vlan >= 1000:
                 continue
             packet = PacketOut(port=outPort,dl_src=srcMac,dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=outScope,payload=payload)
             if SDNPopsRenderer.debug:
