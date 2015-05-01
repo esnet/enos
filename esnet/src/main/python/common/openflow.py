@@ -397,6 +397,10 @@ class L2SwitchScope(Scope):
         if len(endpoints) == 0:
             return True
 
+        """"
+        This code is currently disabled: SDNPropsRenderer is simplified and currently needs to have a generic
+        flow mod, i.e, without any other match than dl_dst. This will have to be fixed
+
         if not 'in_port' in match.props:
             # This controller rejects matches that do not include an in_port"
             print flowMod,"does not include an in_port in the macth. Not supported."
@@ -419,6 +423,7 @@ class L2SwitchScope(Scope):
         if not valid:
             print flowMod,"contains at least one match in_port/vlan that is not contained in this scope:",self
             return False
+        """""
 
         # check actions
         for action in actions:

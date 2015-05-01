@@ -104,17 +104,11 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             mac = binascii.hexlify(dl_src)
             etherType = event.props['ethertype']
             success = True
-
-            if not mac in self.macs:
-                # New MAC, install flow entries
-                self.macs[mac] = (dl_src,in_port)
-                # set the flow entry to forward packet to that MAC to this port
-                success = self.setMAC(port=in_port,switch=switch,scope=scope,vlan=vlan,mac=dl_src)
-                if not success:
-                    print "Cannot set MAC",binascii.hexlify(dl_src),"on", + ":" +in_port.name + "." + str(vlan)
-                else:
-                    if SDNPopsRenderer.debug:
-                        print self.name,"Learned new MAC",binascii.hexlify(dl_src)
+            self.macs[mac] = (dl_src,in_port)
+            # set the flow entry to forward packet to that MAC to this port
+            success = self.setMAC(port=in_port,switch=switch,scope=scope,vlan=vlan,mac=dl_src)
+            if not success:
+                print "Cannot set MAC",binascii.hexlify(dl_src),"on", + ":" +in_port.name + "." + str(vlan)
             global broadcastAddress
             if dl_dst == broadcastAddress:
                 success = self.broadcast(inPort=in_port,switch=switch,scope=scope,inVlan=vlan,srcMac=dl_src,etherType=etherType,payload=event.props['payload'])
@@ -148,8 +142,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
     def setMAC(self,port,vlan, mac,switch,scope):
         if SDNPopsRenderer.debug:
-            print "SDNPopsRenderer: Set flow entries for MAC= " + str(mac)+ " switch=" + port.props['switch'].name + " port= " + port.name + " vlan= " + str(vlan)
-        switch = port.props['switch']
+            print "SDNPopsRenderer: Set flow entries for MAC= " + str(mac)+ " switch=" + switch.name + " port= " + port.name + " vlan= " + str(vlan)
+
         controller = switch.props['controller']
         success = True
 
