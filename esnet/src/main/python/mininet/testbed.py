@@ -179,6 +179,7 @@ class TopoBuilder ():
 
                 if self.debug:
                     print "To:  " + fromNode.name + " -> " + toNode.name
+                    print "link " + str(link)
 
                 toHwSwitch = toNode.props['pop'].props['hwSwitch']
                 link2 = self.createLink(endpoints=[toNode,toHwSwitch], vlan=vlanIndex, suffix='-vlan'+str(vlanIndex))
