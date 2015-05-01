@@ -108,7 +108,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             mac = binascii.hexlify(dl_src)
             etherType = event.props['ethertype']
             success = True
-            if not mac in self.macs:
+            #if not mac in self.macs:
+            if True:
                 self.macs[mac] = (dl_src,in_port)
                 # set the flow entry to forward packet to that MAC to this port
                 success = self.setMAC(port=in_port,switch=switch,scope=scope,vlan=vlan,mac=dl_src)
@@ -128,8 +129,6 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         switchController = switch.props['controller']
         success = True
         endpoints = scope.props['endpoints']
-
-        print "broadcast()"
 
         for endpoint in endpoints:
             vlan = endpoint[1][0]
