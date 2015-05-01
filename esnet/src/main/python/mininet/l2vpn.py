@@ -135,8 +135,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             packet = PacketOut(port=outPort,dl_src=srcMac,dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=outScope,payload=payload)
             if SDNPopsRenderer.debug:
                 print packet
-                print "PacketOut out-switch",outSwitch.name,"out-port",outPort.name,"scope",outScope.switch.name
+                #print "PacketOut out-switch",outSwitch.name,"out-port",outPort.name,"scope",outScope.switch.name
             res = switchController.send(packet)
+            res = True
             if not res:
                 success = False
 

@@ -17,7 +17,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
 
          Simple vlan/port mach and outport /vlan on siteRouter needs to be set
     """
-    debug = False
+    debug = True
     lastEvent = None
     instance = None
 
