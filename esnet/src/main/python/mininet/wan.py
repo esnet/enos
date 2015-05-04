@@ -2,7 +2,7 @@ from string import join
 
 from net.es.netshell.api import GenericGraph
 
-from common.intent import ProvisioningRenderer, ProvisioningIntent
+from common.intent import ProvisioningRenderer, ProvisioningIntent, ProvisioningExpectation
 from common.openflow import ScopeOwner, L2SwitchScope, Match, Action, FlowMod
 
 from mininet.enos import TestbedTopology
@@ -27,13 +27,16 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
         ScopeOwner.__init__(self, name=intent.name)
 #        ProvisioningRenderer.__init__(self, name=intent.name)
         self.pops=intent.pops
-        self.graph=intent.graph
-        self.intent = intent
+        self.intentGraph=intent.graph
+        self.graph=self.buildGraph()
+        self.intent=intent
 
         self.active=False
         self.activePorts={}
         self.flowmods=[]
         self.scopes={}
+
+        self.coreRouters=[]
 
         # Create scopes for all of the places that we need to touch anything
         for pop in self.pops:
@@ -44,6 +47,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
             # Find the hardware router and core switch in both the topobuilder and base ENOS layers
             coreRouter=pop.props['coreRouter']
             enosCoreRouter=coreRouter.props['enosNode']
+            self.coreRouters.append(coreRouter)
 
             # Create and add the scope
             scope=L2SwitchScope(name=intent.name+'-'+enosCoreRouter.name, switch=enosCoreRouter, owner=self,endpoints=[])
@@ -84,6 +88,8 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
     def __str__(self):
         desc = "WanRenderer: " + self.name + "\n"
         desc += "\tPOPs: " + str.join (", ", (i.name for i in self.pops)) + "\n"
+        desc += "\tRouters: " + str.join (", ", (i.name for i in self.coreRouters)) + "\n"
+
         return desc
 
     def __repr__(self):
@@ -159,7 +165,8 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
                 self.stitchVlans(cr1, linksw1cr1, linkcr1cr2)
                 self.stitchVlans(cr2, linkcr1cr2, linksw2cr2)
 
-        return
+        expectation = WanExpectation(self.name,self,self.intent,self.buildGraph())
+        return expectation
 
     def stitchVlans(self, router, link1, link2):
         """
@@ -216,28 +223,6 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
                 print 'Push flow ' + str(f2)
             controller.addFlowMod(f2)
 
-
-class WanIntent(ProvisioningIntent):
-    """
-    Describes the WAN setup needed to support the VPN service.
-    In general this will consist of a set of hardware switches in various POPs,
-    each of which is attached to a core router.  Between the core routers we have
-    various configured VLANs for forwarding.  The intent describes those switches
-    and POPs.
-    """
-
-    def __init__(self, name, pops):
-        """
-        Creates a provisioning intent for the WAN service.  It contains a
-        GenericGraph of the pop-level topology.
-        :param name:
-        :param pops:  Array of pop objects
-        """
-        self.pops=pops
-        self.graph=self.buildGraph()
-        ProvisioningIntent.__init__(self, name=name, graph=self.graph)
-        return
-
     def buildGraph(self):
         """
         Build the graph object.
@@ -247,7 +232,12 @@ class WanIntent(ProvisioningIntent):
         graph=GenericGraph()
 
         # First add all of the core routers and hardware switches to the graph
-        for pop in self.pops:
+        # We partially derive this graph from the intentGraph, by iterating over all
+        # the graph nodes in the intentGraph and retrieving props['pop'] to
+        # get the original pop object.
+        for cr in self.intentGraph.vertexSet():
+
+            pop = cr.props['pop']
 
             # Add the core router and hardware switch as nodes in the graph
             coreRouter=pop.props['coreRouter']
@@ -297,3 +287,94 @@ class WanIntent(ProvisioningIntent):
                     linksSoFar.append(link)
 
         return graph
+
+
+
+class WanIntent(ProvisioningIntent):
+    """
+    Describes the WAN setup needed to support the VPN service.
+    In general this will consist of a set of hardware switches in various POPs,
+    each of which is attached to a core router.  Between the core routers we have
+    various configured VLANs for forwarding.  The intent describes those switches
+    and POPs.
+    """
+
+    def __init__(self, name, pops):
+        """
+        Creates a provisioning intent for the WAN service.  It contains a
+        GenericGraph of the pop-level topology.
+        :param name:
+        :param pops:  Array of pop objects
+        """
+        self.pops=pops
+        self.graph=self.buildGraph()
+        ProvisioningIntent.__init__(self, name=name, graph=self.graph)
+        return
+
+    def __str__(self):
+        desc = "WanIntent: " + self.name + "\n"
+        desc += "\tPOPs: " + str.join (", ", (i.name for i in self.pops)) + "\n"
+        return desc
+
+    def __repr__(self):
+        return self.__str__()
+
+    def buildGraph(self):
+        """
+        Build the graph object.
+        Idea here is to show (approximately) POP-layer full-mesh connectivity
+        :return: net.es.netshell.api.GenericGraph
+        """
+        graph=GenericGraph()
+
+        # First add all of the core routers to the graph
+        routers = []
+        for pop in self.pops:
+
+            # Add the core router to the graph
+            coreRouter=pop.props['coreRouter']
+            enosCoreRouter=pop.props['coreRouter'].props['enosNode']
+            graph.addVertex(enosCoreRouter)
+            routers.append(enosCoreRouter)
+
+        # Then add all of the links connecting them up.  We need to do this as
+        # two separate passes to ensure that all the graph vertices have been
+        # created before we add the links.
+        linksSoFar = []
+        for pop in self.pops:
+            # Get all of the links that are anchored on the core router
+            # that go somewhere else in the set of POPs we care abound
+            tryLinks = []
+            # Add inter-POP links that are going somewhere else in our
+            # set of POPs
+            for link in pop.props['coreRouter'].props['WAN-Circuits']:
+                endpoint0 = link.props['endpoints'][0].props['switch']
+                endpoint1 = link.props['endpoints'][1].props['switch']
+                if endpoint0 in routers and endpoint1 in routers:
+                    tryLinks.append(link)
+
+            # Of those links, add those that haven't already been added.
+            for link in tryLinks:
+                if not link in linksSoFar:
+                    enosLink = link.props['enosLink']
+                    vlan = link.props['vlan']
+                    node1 = enosLink.getSrcNode()
+                    node2 = enosLink.getDstNode()
+                    graph.addEdge(node1, node2, enosLink)
+                    linksSoFar.append(link)
+
+        return graph
+
+class WanExpectation(ProvisioningExpectation):
+    def __init__(self,name,renderer,intent,graph,props={}):
+        ProvisioningExpectation.__init__(self,name=name,renderer=renderer,intent=intent,graph=graph,props=props)
+        # Save nextHop ports for stitching?
+
+    def __str__(self):
+        desc = "WanIntent: " + self.name + "\n"
+        desc += "\tPOPs: " + str.join (", ", (i.name for i in self.pops)) + "\n"
+        return desc
+
+    def __repr__(self):
+        return self.__str__()
+
