@@ -13,7 +13,7 @@ from net.es.netshell.api import GenericGraph, GenericHost
 broadcastAddress = array('B',[0xFF,0xFF,0xFF,0xFF,0xFF,0xFF])
 
 class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
-    debug = True
+    debug = False
     lastEvent = None
     instance = None
 
