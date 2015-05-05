@@ -15,6 +15,9 @@ class Intent(Properties):
         self.id = generateId()
         self.name = name
         self.props = props
+        Intent.directory[name] = self
+
+    directory = {}
 
 
 class Expectation(Properties):
@@ -29,6 +32,9 @@ class Expectation(Properties):
         self.props = props
         self.intent = intent
         self.renderer = renderer
+        Expectation.directory[name] = self
+
+    directory = {}
 
 
 class Renderer:
@@ -42,6 +48,8 @@ class Renderer:
         :param intent (Intent):
         :return:
         """
+        #Properties.__init__(self,name=intent.name,props=props)
+        Renderer.directory[intent.name] = self
 
     def execute(self):
         """
@@ -55,6 +63,7 @@ class Renderer:
         Destroys or stop the rendering of the intent.
         """
 
+    directory = {}
 
 
 class ProvisioningIntent(Intent):
