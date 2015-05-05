@@ -370,9 +370,6 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
                 if self.dropLLDP:
                     if etherType == EtherTypes.LLDP.shortValue() & 0xffff:
                         return PacketResult.KEEP_PROCESSING
-                if p.props['switch'] != sw.props['enosNode']:
-                    p.props['switch'] = sw.props['enosNode']
-
                 # Strip off IEEE 802.1q VLAN and set VLAN if present
                 if etherType == EtherTypes.VLANTAGGED.shortValue() & 0xffff:
                     # If we get here, then l2pkt.payload is an object of type
@@ -384,15 +381,12 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
                         payload = vlanPacket.getPayload()
                     else:
                         payload = vlanPacket.getRawPayload()
-
                 packetIn = PacketInEvent(inPort = p,srcMac=srcMac,dstMac=destMac,vlan=vlanTag,payload=payload)
                 packetIn.props['ethertype'] = etherType
 
                 if self.debug:
                     print "  Ethernet frame " + self.strByteArray(srcMac) + " -> " + self.strByteArray(destMac) + " Ethertype " + "%04x" % etherType + " VLAN " + "%04x" % vlanTag
-
                 self.dispatchPacketIn(packetIn)
-
                 return PacketResult.KEEP_PROCESSING
 
             else:

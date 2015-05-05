@@ -10,6 +10,11 @@ from common.api import Properties, Node
 
 import binascii
 
+debug = False
+def setDebug(val):
+    global debug
+    debug = val
+
 class Match(Properties):
     """
     This is the class defining an OpenFlow match. It is a wrapper of Properties.
@@ -28,6 +33,9 @@ class Match(Properties):
         Properties.__init__(self,name,props)
 
     def __str__(self):
+        global debug
+        if not debug:
+            return self.name
         desc = "Match: "
         if 'in_port' in self.props:
             desc += " in_port= " + self.props['in_port'].name
@@ -59,6 +67,9 @@ class Action(Properties):
         Properties.__init__(self,name,props)
 
     def __str__(self):
+        global debug
+        if not debug:
+            return self.name
         desc = "action " + self.name
         if 'out_port' in self.props:
             desc += " out_port= " + self.props['out_port'].name
@@ -96,6 +107,9 @@ class FlowMod(Properties):
         self.id = generateId()
 
     def __str__(self):
+        global debug
+        if not debug:
+            return self.name
         desc ="FlowMod: " + self.name
         desc += " \n\tid= " + str(self.id) + " scope= " + self.scope.name + " switch= " + self.switch.name
         desc += "\n\t" + str(self.match)
@@ -222,6 +236,9 @@ class PacketInEvent(ScopeEvent):
             self.props['payload'] = payload
 
     def __str__(self):
+        global debug
+        if not debug:
+            return self.name
         desc = "PacketIn: " + self.name + "\n"
         desc += "\tin_port:" + str(self.props['in_port']) + "\n"
         desc += "\tdl_src: " + binascii.hexlify(self.props['dl_src']) + "\n"
@@ -261,6 +278,9 @@ class PacketOut(Properties):
         self.payload = payload
 
     def __str__(self):
+        global debug
+        if not debug:
+            return self.name
         desc = "PacketOut: " + self.name
         if self.port:
             desc += " port= " + self.port.name
@@ -320,6 +340,9 @@ class L2SwitchScope(Scope):
         self.props['endpoints'] = endpoints
 
     def __str__(self):
+        global debug
+        if not debug:
+            return self.name
         desc = "Scope " + self.name + " switch= " + self.switch.name
         desc += "\n\tEndpoints:"
         for endpoint in self.props['endpoints']:
@@ -392,18 +415,18 @@ class L2SwitchScope(Scope):
         """
         Check to see if a flow is contained within this scope
         """
-        match = flowMod.match
-        actions = flowMod.actions
-        switch = flowMod.switch
+        flowModMatch = flowMod.match
+        flowModActions = flowMod.actions
+        flowModSwitch = flowMod.switch
 
-        endpoints = self.props['endpoints']
+        flowModEndpoints = self.props['endpoints']
         # See if it's for the same switch.  If not, it can't be valid.
-        if switch != self.switch:
-            print flowMod,"flowmod is for a different switch than this scope's switch",self.switch
+        if flowModSwitch != self.switch:
+            print flowMod,"flowmod is for a different switch than this scope's switch",self.switch,"was",flowMod.switch
             return False
 
         # If no endpoints, then the scope includes all VLANs and ports and the flow must be valid.
-        if len(endpoints) == 0:
+        if len(flowModEndpoints) == 0:
             return True
 
         """"
@@ -435,11 +458,11 @@ class L2SwitchScope(Scope):
         """""
 
         # check actions
-        for action in actions:
+        for action in flowModActions:
             out_port = action.props['out_port'].name
             out_vlan = action.props['vlan']
             valid = False
-            for endpoint in endpoints:
+            for endpoint in flowModEndpoints:
                 port = endpoint[0]
                 if port != out_port:
                     continue

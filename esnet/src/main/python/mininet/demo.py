@@ -14,6 +14,9 @@ def getPop(topo,coreRouter):
             return pop
     return None
 
+intents = {}
+renderers = {}
+
 if __name__ == '__main__':
     configFileName = None
     net=None

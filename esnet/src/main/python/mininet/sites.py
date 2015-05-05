@@ -3,6 +3,7 @@ import binascii
 
 from common.intent import ProvisioningRenderer, ProvisioningIntent, ProvisioningExpectation
 from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut, SimpleController
+from mininet.enos import TestbedTopology
 
 from net.es.netshell.api import GenericGraph
 
@@ -50,7 +51,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             self.activePorts[self.siteRouter.name + ":" + port.name] = port
             port.props['macs'] = {}
             for link in links:
-                port.props['switch'] = self.siteRouter
+                # port.props['switch'] = self.siteRouter
                 vlan = link.props['vlan']
                 port.props['vlan'] = vlan
                 dstNode = link.getDstNode()
@@ -80,8 +81,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                     # this is the port connected to the site router
                     self.activePorts[self.borderRouter.name + ":" + port.name] = port
                     vlan = link.props['vlan']
-                    if not 'switch' in port.props:
-                        port.props['switch'] = self.borderRouter
                     port.props['vlan'] = vlan
                     wanVlan = vlan
                     port.props['type'] = "WAN"
@@ -90,16 +89,12 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                     self.props['borderPortToSite'] = port
                     break
         # chose a link to the hwSwitch of the SDNPop and add it to the border router scope
-        toHwSwitch = self.borderRouter.props['toHwSwitch']
+        toHwSwitch = self.borderRouter.props['sitesToHwSwitch']
         # always get the first link in the list
         link = toHwSwitch[0]
         inPort = None
         endpoints = link.props['endpoints']
-        if endpoints[0] == outPort:
-            inPort = endpoints[1]
-        else:
-            inPort = endpoints[0]
-        inPort.props['switch'] = self.borderRouter
+        inPort = endpoints[1]
         inPort.props['vlan'] = wanVlan
         inPort.props['type'] = "TOSDN"
         scope2.props['endpoints'].append((inPort.name,[wanVlan]))
@@ -141,7 +136,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             dl_src = event.props['dl_src']
             mac = binascii.hexlify(dl_src)
             port = event.props['in_port']
-            switch = port.props['switch']
+            switch = TestbedTopology().nodes[port.props['node']]
             in_port = self.activePorts[switch.name + ":" + port.name]
             if not in_port.props['type'] in ['LAN','TOWAN']:
                 # Discard (debug)
@@ -160,7 +155,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 # set the flow entry to forward packet to that MAC to this port
                 success = self.setMAC(port=in_port,vlan=vlan,mac=dl_src)
                 if not success:
-                    print "Cannot set MAC",binascii.hexlify(dl_src),"on",in_port.props['switch'].name + ":" +in_port.name + "." + str(vlan)
+                    print "Cannot set MAC",binascii.hexlify(dl_src),"on",in_port.props['node'] + ":" +in_port.name + "." + str(vlan)
             global broadcastAddress
             if dl_dst == broadcastAddress:
                 success = self.broadcast(inPort=in_port,srcMac=dl_src,etherType=etherType,payload=event.props['payload'])
@@ -191,8 +186,8 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
 
     def setMAC(self,port,vlan, mac):
         if SiteRenderer.debug:
-            print "Set flow entries for MAC= " + str(mac)+ " switch=" + port.props['switch'].name + " port= " + port.name + " vlan= " + str(vlan)
-        switch = port.props['switch']
+            print "SiteRenderer: Set flow entries for MAC= " + str(mac)+ " switch=" + port.props['node'] + " port= " + port.name + " vlan= " + str(vlan)
+        switch = TestbedTopology().nodes[port.props['node']]
         controller = switch.props['controller']
         success = True
         for (x,inPort) in self.activePorts.items():
@@ -212,11 +207,11 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             else:
                 name += "no type"
             scope = None
-            if inPort.props['switch'] == self.siteRouter:
+            if inPort.props['node'] == self.siteRouter.name:
                 scope = self.props['siteScope']
             else:
                 scope = self.props['wanScope']
-            mod = FlowMod(name=name,scope=scope,switch=inPort.props['switch'])
+            mod = FlowMod(name=name,scope=scope,switch=TestbedTopology().nodes[inPort.props['node']])
             mod.props['renderer'] = self
             match = Match(name=name)
             match.props['dl_dst'] = mac
@@ -237,6 +232,8 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         return success
 
     def setBorderRouter(self):
+        if SiteRenderer.debug:
+            print "SiteRenderer: setBorderRouter"
         inPort = self.props['borderPortToSite']
         outPort = self.props['borderPortToSDN']
         controller = self.borderRouter.props['controller']

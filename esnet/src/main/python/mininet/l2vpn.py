@@ -96,11 +96,10 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if SDNPopsRenderer.debug:
                 print self.name
                 print event
-
             dl_src = event.props['dl_src']
             mac = binascii.hexlify(dl_src)
             port = event.props['in_port']
-            switch = port.props['switch']
+            switch = TestbedTopology().nodes[port.props['node']]
             vlan = event.props['vlan']
             in_port,switch,scope = self.activePorts[switch.name + ":" + port.name + ":" + str(vlan)]
             dl_dst = event.props['dl_dst']
@@ -116,8 +115,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 if not success:
                     print "Cannot set MAC",binascii.hexlify(dl_src),"on", + ":" +in_port.name + "." + str(vlan)
             global broadcastAddress
-            if not 'switch' in in_port.props:
-                in_port.props['switch'] = switch
+            if not 'node' in in_port.props:
+                print "L2VPN no swict",in_port,in_port.props
+                #in_port.props['switch'] = switch
             if dl_dst == broadcastAddress:
                 success = self.broadcast(inPort=in_port,switch=switch,scope=scope,inVlan=vlan,srcMac=dl_src,etherType=etherType,payload=event.props['payload'])
                 if not success:
