@@ -371,8 +371,10 @@ class WanExpectation(ProvisioningExpectation):
         # Save nextHop ports for stitching?
 
     def __str__(self):
-        desc = "WanIntent: " + self.name + "\n"
-        desc += "\tPOPs: " + str.join (", ", (i.name for i in self.pops)) + "\n"
+        desc = "WanExpectation: " + self.name + "\n"
+        desc += "\tPOPs: " + str.join (", ", (i.name for i in self.renderer.pops)) + "\n"
+        desc += "\tRouters: " + str.join (", ", (i.name for i in self.renderer.coreRouters)) + "\n"
+
         return desc
 
     def __repr__(self):
