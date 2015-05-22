@@ -117,15 +117,14 @@ class ESnetMininet(Mininet):
         self.topo.start(self)
 
 if __name__ == '__main__':
-    global controllerIp, controllerPort, configFileName
-    opts, args = getopt.getopt(sys.argv[1:],"f:c:p",['--file=','--controller=','--port='])
+    opts, args = getopt.getopt(sys.argv[1:],"f:c:p:",['file=','controller=','port='])
     for opt, arg in opts:
         if opt in ['-f','--file']:
             configFileName = arg
         elif opt in ['-c','--controller']:
             controllerIp = arg
         elif opt in ['-p','--port']:
-            controllerPort = arg
+            controllerPort = int(arg)
 
     setLogLevel( 'info' )
 
