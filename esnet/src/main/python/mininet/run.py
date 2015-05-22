@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import sys, binascii
+import sys, binascii, getopt
 
 from mininet.net import Mininet
 from mininet.node import Controller, OVSKernelSwitch, RemoteController
@@ -13,8 +13,9 @@ from testbed import TopoBuilder
 #
 # OpenFlow controller IP and ports
 #
-controllerIp='192.168.56.1'
+controllerIp='localhost'
 controllerPort=6633
+configFileName = None
 
 
 class TestbedTopo(Topo):
@@ -100,7 +101,7 @@ class TestbedTopo(Topo):
 class ESnetMininet(Mininet):
 
     def __init__(self, **args):
-        global controllerIp, controllerPort
+        global controllerIp, controllerPort, configFileName
         self.topo = TestbedTopo()
         args['topo'] = self.topo
         args['switch'] = OVSKernelSwitch
@@ -116,14 +117,19 @@ class ESnetMininet(Mininet):
         self.topo.start(self)
 
 if __name__ == '__main__':
+    global controllerIp, controllerPort, configFileName
+    opts, args = getopt.getopt(sys.argv[1:],"f:c:p",['--file=','--controller=','--port='])
+    for opt, arg in opts:
+        if opt in ['-f','--file']:
+            configFileName = arg
+        elif opt in ['-c','--controller']:
+            controllerIp = arg
+        elif opt in ['-p','--port']:
+            controllerPort = arg
+
     setLogLevel( 'info' )
-    # todo: real argument parsing.
-    configFileName = None
-    if len(sys.argv) > 1:
-        configFileName = sys.argv[1]
-        net = ESnetMininet(fileName=configFileName)
-    else:
-        net = ESnetMininet()
+
+    net = ESnetMininet()
 
     net.start()
     net.topo.builder.displaySwitches()

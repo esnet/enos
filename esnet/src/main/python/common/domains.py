@@ -1,6 +1,9 @@
 from common.api import Properties
 
 class Directory (Properties):
+    """
+    Directory is the based class of a global (i.e. inter-domain) directory.
+    """
     def __init__(self,name="",props={}):
         Properties.__init__(self,name=name,props=props)
         self.props['domains'] = {}
