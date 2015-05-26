@@ -1,8 +1,8 @@
-from net.es.enos.api import ModifiedDijkstra
+from net.es.netshell.api import ModifiedDijkstra
 from org.jgrapht.alg import DijkstraShortestPath
 from net.es.enos.esnet import GraphViewer
-from net.es.enos.api import TopologyFactory
-from net.es.enos.api import TopologyProvider
+from net.es.netshell.api import TopologyFactory
+from net.es.netshell.api import TopologyProvider
 import sys
 
 #

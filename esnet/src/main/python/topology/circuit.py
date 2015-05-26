@@ -4,18 +4,15 @@ from org.joda.time import DateTime
 
 topology = TopologyFactory.instance()
 topo = topology.retrieveTopologyProvider("localLayer2")
-graph = topo.retrieveTopology()
 sites = topo.getSiteLinks()
 nodes = topo.getNodes()
-nodesByLink = topo.getNodesByLink()
-portsByLink = topo.getPortsByLink()
 
 links = topo.getLinks()
 
 srcNode = nodes.get("urn:ogf:network:es.net:lbl-mr2")
 dstNode = nodes.get("urn:ogf:network:es.net:bnl-mr3")
 
-circuits = OSCARSReservations.retrieveScheduledCircuits()
+circuits = OSCARSReservations(topo).retrieveScheduledCircuits()
 
 def setMaxCapacity(c):
 	reserved={}

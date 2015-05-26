@@ -25,7 +25,7 @@ arrow = " -> " # Arrow for output data. Replace with single space for easy copyi
 # Copied over from path.py-- initializes and fetches topology and list of nodes
 topology = TopologyFactory.instance()
 topo = topology.retrieveTopologyProvider("localLayer2")
-graph = topo.retrieveTopology()
+graph = topo.getGraph(TopologyProvider.WeightType.TrafficEngineering)
 nodes = topo.getNodes()
 listOfLinks = topo.getLinks()
 
