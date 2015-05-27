@@ -13,7 +13,7 @@ from testbed import TopoBuilder
 #
 # OpenFlow controller IP and ports
 #
-controllerIp='localhost'
+controllerIp='127.0.0.1'
 controllerPort=6633
 configFileName = None
 
