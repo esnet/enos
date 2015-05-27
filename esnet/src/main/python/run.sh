@@ -5,5 +5,5 @@
 # command-line prompt.
 #
 export PYTHONPATH=${PWD}
-python mininet/run.py
+python mininet/run.py ${*}
 
