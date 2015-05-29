@@ -33,17 +33,19 @@ if __name__ == '__main__':
     wr.execute()
 
     for (x,vpn) in net.builder.vpns.items():
-        enosHosts = []
-        sdnHosts = []
+        enosHosts = []  # All hosts in this VPN
+        sdnHosts = []   # All nodes in this VPN (end hosts, routers, service VMs)
         sites = vpn.props['sites']
         popsLinks = []
         pops = []
         for (y,site) in sites.items():
             hosts = site.props['hosts']
-            siteNodes=[]
+            siteHosts=[]    # Hosts on this site
+            siteNodes=[]    # Nodes on this site (end hosts, routers, service VMs)
             for(z,h) in hosts.items():
                 host = h.props['enosNode']
                 enosHosts.append(host)
+                siteHosts.append(host)
                 siteNodes.append(host)
             siteRouter = site.props['siteRouter'].props['enosNode']
             borderRouter = net.nodes[site.props['connectedTo']]
@@ -72,7 +74,7 @@ if __name__ == '__main__':
                     enosLinks.append(link)
                     continue
             print "Creates SiteIntent for vpn " + vpn.name + " site " + site.name
-            intent = SiteIntent(name=site.name,hosts=enosHosts,borderRouter=borderRouter,siteRouter=siteRouter,links=enosLinks)
+            intent = SiteIntent(name=site.name,hosts=siteHosts,borderRouter=borderRouter,siteRouter=siteRouter,links=enosLinks)
             global renderer
             renderer = SiteRenderer(intent)
             err = renderer.execute()
