@@ -111,7 +111,7 @@ public class ESnetTopology  extends TopologyProvider {;
         }
         // Retrieve from JSON Domain, Node and Link objects and index them into the various HashMaps
         List<ESnetDomain> domains = jsonTopology.getDomains();
-	    HashMap<String, List<ESnetNode>> locationToNode = new HashMap<> ();
+        HashMap<String, List<ESnetNode>> locationToNode = new HashMap<> ();
 
         for (ESnetDomain domain : domains) {
             // First index all Nodes.
@@ -126,54 +126,68 @@ public class ESnetTopology  extends TopologyProvider {;
                         ESnetNode n = this.nodes.get(node.getId());
                         n.setLongitude(node.getLongitude());
                         n.setLatitude(node.getLatitude());
-
+                    }
+                    // other nodes in the same location might have no geolocation information yet
+                    String nodeName;
+                    String[] nodeList = node.getId().split(":")[4].split("-");
+                    if (nodeList.length == 3) {
+                        nodeName = nodeList[0] + "-" + nodeList[1];
                     } else {
-	                    String nodeName;
-	                    String[] nodeList = node.getId().split(":")[4].split("-");
-	                    if (nodeList.length == 3) {
-		                    nodeName = nodeList[0] + "-" + nodeList[1];
-	                    } else {
-		                    nodeName = nodeList[0];
-	                    }
-	                    if (locationToNode.containsKey(nodeName)) {
-		                    for (ESnetNode locationNode : locationToNode.get(nodeName)) {
-			                    locationNode.setLongitude(node.getLongitude());
-			                    locationNode.setLatitude(node.getLatitude());
-		                    }
-	                    }
+                        nodeName = nodeList[0];
+                    }
+                    if (locationToNode.containsKey(nodeName)) {
+                        for (ESnetNode locationNode : locationToNode.get(nodeName)) {
+                            if (locationNode.getLongitude() == null) {
+                                locationNode.setLongitude(node.getLongitude());
+                                locationNode.setLatitude(node.getLatitude());
+                            }
+                        }
                     }
                     // All we need from this node is the coordinates.
                     continue;
                 }
-	            String[] nodeList = node.getId().split(":")[4].split("-");
-	            String nodeName;
-	            if (nodeList.length == 3) {
-		            nodeName = nodeList[0] + "-" + nodeList[1];
-	            } else {
-		            nodeName = nodeList[0];
-	            }
-
-	            if (nodeName.equals("sacr")) {
-		            node.setLongitude(Double.toString(-121.478851));
-		            node.setLatitude(Double.toString(38.575764));
-	            } else if (nodeName.equals("snll")) {
-		            node.setLongitude(Double.toString(-121.768056));
-		            node.setLatitude(Double.toString(37.681944));
-	            } else if (nodeName.equals("ameslab")) {
-		            node.setLongitude(Double.toString(-93.6482));
-		            node.setLatitude(Double.toString(42.0305));
-	            } else if (nodeName.equals("albq")) {
-		            node.setLongitude(Double.toString(-106.6100));
-		            node.setLatitude(Double.toString(35.1107));
-	            } else if (nodeName.equals("lsvn")) {
-		            node.setLongitude(Double.toString(-115.1174));
-		            node.setLatitude(Double.toString(36.2365));
-	            } else {
-		            if (!locationToNode.containsKey(nodeName)) {
-			            locationToNode.put(nodeName, new ArrayList<ESnetNode>());
-		            }
-		            locationToNode.get(nodeName).add(node);
-	            }
+                String[] nodeList = node.getId().split(":")[4].split("-");
+                String nodeName;
+                if (nodeList.length == 3) {
+                    nodeName = nodeList[0] + "-" + nodeList[1];
+                } else {
+                    nodeName = nodeList[0];
+                }
+                if (nodeName.equals("sacr")) {
+                    node.setLongitude(Double.toString(-121.478851));
+                    node.setLatitude(Double.toString(38.575764));
+                } else if (nodeName.equals("albq")) {
+                    node.setLongitude(Double.toString(-106.6100));
+                    node.setLatitude(Double.toString(35.1107));
+                } else if (nodeName.equals("lsvn")) {
+                    node.setLongitude(Double.toString(-115.1174));
+                    node.setLatitude(Double.toString(36.2365));
+                } else if (nodeName.equals("lond")) {
+                    node.setLongitude(Double.toString(-0.014581));
+                    node.setLatitude(Double.toString(51.498127));
+                } else if (nodeName.equals("cern-513")) {
+                    node.setLongitude(Double.toString(6.04586));
+                    node.setLatitude(Double.toString(46.232481));
+                } else if (nodeName.equals("amst")) {
+                    node.setLongitude(Double.toString(4.95816));
+                    node.setLatitude(Double.toString(52.356175));
+                } else if (nodeName.equals("cern-272")) {
+                    node.setLongitude(Double.toString(6.054561));
+                    node.setLatitude(Double.toString(46.235502));
+                /*
+                } else if (nodeName.equals("snll")) {
+                    node.setLongitude(Double.toString(-121.768056));
+                    node.setLatitude(Double.toString(37.681944));
+                } else if (nodeName.equals("ameslab")) {
+                    node.setLongitude(Double.toString(-93.6482));
+                    node.setLatitude(Double.toString(42.0305));
+                */
+                } else {
+                    if (!locationToNode.containsKey(nodeName)) {
+                        locationToNode.put(nodeName, new ArrayList<ESnetNode>());
+                    }
+                    locationToNode.get(nodeName).add(node);
+                }
                 this.nodes.put(node.getId(),node);
             }
 
@@ -279,7 +293,7 @@ public class ESnetTopology  extends TopologyProvider {;
      * @return
      */
     @Override
-	public DefaultListenableGraph<Node, Link> getGraph (DateTime start,
+    public DefaultListenableGraph<Node, Link> getGraph (DateTime start,
                                                         DateTime end,
                                                         WeightType weightType) throws IOException {
 
@@ -289,7 +303,7 @@ public class ESnetTopology  extends TopologyProvider {;
             reservations = (new OSCARSReservations(this)).getReserved(start, end);
         }
 
-		DefaultListenableGraph<Node,Link> graph =
+        DefaultListenableGraph<Node,Link> graph =
                 new ESnetTopologyWeightedGraph(ESnetLink.class);
 
         // First, add all Vertices
