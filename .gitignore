@@ -1,6 +1,10 @@
 *.class
-
+*.pyc
 # Package Files #
 *.jar
 *.war
 *.ear
+# Intellij
+*.xml
+*.iml
+.idea
