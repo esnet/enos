@@ -4,7 +4,6 @@ import struct, array, jarray
 from java.lang import Short
 from java.util import LinkedList
 
-
 from org.opendaylight.controller.sal.core import Node
 from org.opendaylight.controller.sal.packet import Ethernet
 from org.opendaylight.controller.sal.packet import RawPacket
@@ -38,7 +37,10 @@ if len(logger.handlers) == 0:
 class MiniCallback(net.es.netshell.odl.PacketHandler.Callback):
     version = 6
     # topo: h1-eth0 <-> s1-eth1, s1-eth2 <-> s2-eth2, s2-eth1 <-> h2-eth0
-    # vlan:          10                   11                   10
+    # vlan:          10                   11                   10                       
+    #                   conn[1]  conn[0]     conn[1]  conn[0]
+    #                       device[1]            device[0]
+    #                       ID = 2               ID = 1
     vlan_lan = 10
     vlan_wan = 11
     vlan_trans = {10:11, 11:10}
@@ -51,6 +53,10 @@ class MiniCallback(net.es.netshell.odl.PacketHandler.Callback):
             return
         self.odlPacketHandler = net.es.netshell.odl.PacketHandler.getInstance()
         self.odlPacketHandler.setPacketInCallback(self)
+        self.h1mac = array.array('b', [0,0,0,0,0,1])
+        self.h2mac = array.array('b', [0,0,0,0,0,2])
+        self.trans1mac = array.array('b', [0,0,0,0,0,3])
+        self.trans2mac = array.array('b', [0,0,0,0,0,4])
         self.macs = [ array.array('b', [0,0,0,0,0,1]), array.array('b', [0,0,0,0,0,2]), array.array('b', [-1,-1,-1,-1,-1,-1]) ]
     def startCallback(self):
         self.odlPacketHandler.setPacketInCallback(self)
@@ -89,6 +95,8 @@ class MiniCallback(net.es.netshell.odl.PacketHandler.Callback):
             return PacketResult.KEEP_PROCESSING
 
         if ingressNode.getID() == 1L:
+            # s2 is aware of h2 now
+            # config s1: forward to s2 if dst = h2
             assert(vlanTag == MiniCallback.vlan_lan)
             dst = self.javaByteArray(l2pkt.getSourceMACAddress())
             it = self.devices[1].nodeConnectors.iterator()
@@ -101,12 +109,13 @@ class MiniCallback(net.es.netshell.odl.PacketHandler.Callback):
             actionList = LinkedList()
             # MAC translation
             # actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'])))
-            # actionList.add(SetDlSrc(self.javaByteArray(action.props['dl_src'])))
+            actionList.add(SetDlSrc(self.javaByteArray(self.trans1mac)))
             actionList.add(SetVlanId(MiniCallback.vlan_lan))
             actionList.add(Output(out_port))
             flow = Flow(match, actionList)
             self.odlController.addFlow(ingressNode, flow)
 
+            # config s2: forward to h2 if dst = h2
             it = self.devices[0].nodeConnectors.iterator()
             in_port = it.next()
             out_port = it.next()
@@ -117,20 +126,22 @@ class MiniCallback(net.es.netshell.odl.PacketHandler.Callback):
             actionList = LinkedList()
             # MAC translation
             # actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'])))
-            # actionList.add(SetDlSrc(self.javaByteArray(action.props['dl_src'])))
+            actionList.add(SetDlSrc(self.javaByteArray(self.h1mac)))
             actionList.add(SetVlanId(MiniCallback.vlan_wan))
             actionList.add(Output(out_port))
             flow = Flow(match, actionList)
             self.odlController.addFlow(self.devices[0].node, flow)
 
-            # broadcast
+            # broadcast so that neighbors(s1) could be aware of h2 as well
             for nodeconn in self.devices[1].nodeConnectors:
                 if nodeconn == ingressConnector:
                     continue
                 rawPacket.setOutgoingNodeConnector(nodeconn)
                 self.odlPacketHandler.transmitDataPacket(rawPacket)
         else:
+            # s1 is aware of h1
             assert(vlanTag == MiniCallback.vlan_lan)
+            # config s2: forward to s1 if dst = h1
             dst = self.javaByteArray(l2pkt.getSourceMACAddress())
             it = self.devices[0].nodeConnectors.iterator()
             out_port = it.next()
@@ -142,12 +153,13 @@ class MiniCallback(net.es.netshell.odl.PacketHandler.Callback):
             actionList = LinkedList()
             # MAC translation
             # actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'])))
-            # actionList.add(SetDlSrc(self.javaByteArray(action.props['dl_src'])))
+            actionList.add(SetDlSrc(self.javaByteArray(self.trans2mac)))
             actionList.add(SetVlanId(MiniCallback.vlan_lan))
             actionList.add(Output(out_port))
             flow = Flow(match, actionList)
             self.odlController.addFlow(ingressNode, flow)
 
+            # config s1: forward to h1 if dst = h1
             it = self.devices[1].nodeConnectors.iterator()
             out_port = it.next()
             in_port = it.next()
@@ -158,13 +170,13 @@ class MiniCallback(net.es.netshell.odl.PacketHandler.Callback):
             actionList = LinkedList()
             # MAC translation
             # actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'])))
-            # actionList.add(SetDlSrc(self.javaByteArray(action.props['dl_src'])))
+            actionList.add(SetDlSrc(self.javaByteArray(self.trans)))
             actionList.add(SetVlanId(MiniCallback.vlan_wan))
             actionList.add(Output(out_port))
             flow = Flow(match, actionList)
             self.odlController.addFlow(self.devices[1].node, flow)
 
-            # broadcast
+            # broadcast so that neighbors(s2) could be aware of h1 as well
             for nodeconn in self.devices[0].nodeConnectors:
                 if nodeconn == ingressConnector:
                     continue
