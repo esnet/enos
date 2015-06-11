@@ -1,11 +1,11 @@
 import net.es.netshell.odl.Controller
 import net.es.netshell.odl.PacketHandler
-import struct, array, jarray
 from java.lang import Short
 from java.util import LinkedList
 
 from org.opendaylight.controller.sal.core import Node
 from org.opendaylight.controller.sal.packet import Ethernet
+from org.opendaylight.controller.sal.packet import IEEE8021Q
 from org.opendaylight.controller.sal.packet import RawPacket
 from org.opendaylight.controller.sal.packet import PacketResult
 from org.opendaylight.controller.sal.utils import EtherTypes
@@ -21,165 +21,128 @@ from org.opendaylight.controller.sal.action import SetDlSrc
 from org.opendaylight.controller.sal.action import SetVlanId
 from org.opendaylight.controller.sal.flowprogrammer import Flow
 
-import logging
-import sys
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-if len(logger.handlers) == 0:
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-# using logger.setLevel(logging.DEBUG) to open debug information
+from mininet.mac import MACAddress
+from mininet.mat import MATManager
+from mininet.utility import strByteArray, javaByteArray, broadcastAddress
+from mininet.utility import Logger
 
-class MiniCallback(net.es.netshell.odl.PacketHandler.Callback):
-    version = 6
-    # topo: h1-eth0 <-> s1-eth1, s1-eth2 <-> s2-eth2, s2-eth1 <-> h2-eth0
-    # vlan:          10                   11                   10                       
-    #                   conn[1]  conn[0]     conn[1]  conn[0]
-    #                       device[1]            device[0]
-    #                       ID = 2               ID = 1
-    vlan_lan = 10
-    vlan_wan = 11
-    vlan_trans = {10:11, 11:10}
-    topo = {}
+class MiniTopo():
+    def __init__(self):
+        # $ sudo mn --topo linear,2 --controller remote
+        # construct the simple topology
+        # single VPN
+        # topo: h1-eth0 <-> s1-eth1, s1-eth2 <-> s2-eth2, s2-eth1 <-> h2-eth0
+        # vlan:          10                   11                   10                       
+        #                   conn[1]  conn[0]     conn[1]  conn[0]
+        #                       device[1]            device[0]
+        #                       ID = 2               ID = 1
+        self.vlans = {}
+        self.ports = {}
+        self.nodes = {}
+        self.ports_name = {}
+        self.nodes_name = {}
+
+        devices = net.es.netshell.odl.Controller.getInstance().getNetworkDevices()
+        
+        vid = MATManager.generateRandomVPNID()
+        self.vlans[vid] = {"s1-eth1": 10, "s1-eth2":11, "s2-eth2":11, "s2-eth1":10}
+        for vlan in self.vlans[vid].items():
+            MATManager.setVid(vlan[0], vlan[1], vid) # eg. setVid("s1-eth1", 10, vid)
+
+        it = devices[1].nodeConnectors.iterator()
+        self.ports["s1-eth2"] = it.next()
+        self.ports["s1-eth1"] = it.next()
+        it = devices[0].nodeConnectors.iterator()
+        self.ports["s2-eth1"] = it.next()
+        self.ports["s2-eth2"] = it.next()
+        self.nodes["s1"] = devices[1].getNode()
+        self.nodes["s2"] = devices[0].getNode()
+
+        for port in self.ports.items():
+            self.ports_name[port[1]] = port[0]
+        for node in self.nodes.items():
+            self.nodes_name[node[1]] = node[0]
+
+class MiniTest(net.es.netshell.odl.PacketHandler.Callback):
+    version = 9
     def __init__(self):
         self.odlController = net.es.netshell.odl.Controller.getInstance()
-        self.devices = self.odlController.getNetworkDevices()
-        if len(self.devices) != 2:
-            logger.warning("more than 2 devices, out of the controller's capability...")
-            return
         self.odlPacketHandler = net.es.netshell.odl.PacketHandler.getInstance()
         self.odlPacketHandler.setPacketInCallback(self)
-        self.h1mac = array.array('b', [0,0,0,0,0,1])
-        self.h2mac = array.array('b', [0,0,0,0,0,2])
-        self.trans1mac = array.array('b', [0,0,0,0,0,3])
-        self.trans2mac = array.array('b', [0,0,0,0,0,4])
-        self.macs = [ array.array('b', [0,0,0,0,0,1]), array.array('b', [0,0,0,0,0,2]), array.array('b', [-1,-1,-1,-1,-1,-1]) ]
+        self.topo = MiniTopo()
+
     def startCallback(self):
         self.odlPacketHandler.setPacketInCallback(self)
 
     def stopCallback(self):
         self.odlPacketHandler.setPacketInCallback(None)
-
-    def javaByteArray(self, parr):
-        jarr = jarray.zeros(len(parr), 'b')
-        for i in range(len(jarr)):
-            jarr[i] = struct.unpack('b', struct.pack('B', parr[i]))[0]
-        return jarr
-       
+        
     def callback(self, rawPacket):
-        logger.debug("Hello, callback" + str(MiniCallback.version))
+        Logger().debug("Hello, callback " + str(MiniTest.version))
         ingressConnector = rawPacket.getIncomingNodeConnector() # OF|2@OF|00:...:01
         ingressNode = ingressConnector.getNode() # OF|00:...:02
         if ingressNode.getType() != Node.NodeIDType.OPENFLOW:
-            logger.warning("from node with unknown type...")
+            Logger().warning("from node with unknown type...")
             return PacketResult.IGNORED
         l2pkt = self.odlPacketHandler.decodeDataPacket(rawPacket)
         if l2pkt.__class__  != Ethernet:
-            logger.warning("unknown packet...")
+            Logger().warning("unknown packet...")
             return PacketResult.IGNORED
-        if not l2pkt.getSourceMACAddress() in self.macs or not l2pkt.getDestinationMACAddress() in self.macs:
-            logger.debug("packet from uninterested src... Goodbye, callback")
-            return PacketResult.KEEP_PROCESSING
         etherType = l2pkt.getEtherType() & 0xffff # convert to unsigned type
         if etherType != EtherTypes.VLANTAGGED.shortValue() & 0xffff:
-            logger.info("uninterested packet without vlan... Goodbye, callback")
+            Logger().debug("uninterested packet without vlan... Goodbye, callback")
             return PacketResult.KEEP_PROCESSING
         vlanPacket = l2pkt.getPayload()
         vlanTag = vlanPacket.getVid()
-        if vlanTag != MiniCallback.vlan_lan and vlanTag != MiniCallback.vlan_wan:
-            logger.warning("uninterested vlan... Goodbye, callback")
-            return PacketResult.KEEP_PROCESSING
-
-        if ingressNode.getID() == 1L:
-            # s2 is aware of h2 now
-            # config s1: forward to s2 if dst = h2
-            assert(vlanTag == MiniCallback.vlan_lan)
-            dst = self.javaByteArray(l2pkt.getSourceMACAddress())
-            it = self.devices[1].nodeConnectors.iterator()
-            in_port = it.next()
-            out_port = it.next()
+        # input: switch, port, vlan, mac
+        port_name = self.topo.ports_name[ingressConnector]
+        print port_name
+        if port_name[-1] == '1':
+            # the packet is from host
+            mac = MACAddress(l2pkt.getSourceMACAddress())
+            # output: trans_mac (fr vid(fr port and vlan) and mac) as list
+            trans_mac = MATManager.MAT(mac, port_name, vlanTag)
+            # add flowmod: match: to mac; action: vlan, port, trans_mac
             match = Match()
-            # match.setField(IN_PORT, in_port)
-            match.setField(DL_DST, dst)
-            match.setField(DL_VLAN, Short(MiniCallback.vlan_wan))
+            match.setField(DL_DST, trans_mac.jarray())
             actionList = LinkedList()
-            # MAC translation
-            # actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'])))
-            actionList.add(SetDlSrc(self.javaByteArray(self.trans1mac)))
-            actionList.add(SetVlanId(MiniCallback.vlan_lan))
-            actionList.add(Output(out_port))
+            actionList.add(SetDlDst(mac.jarray()))
+            actionList.add(SetVlanId(vlanTag))
+            actionList.add(Output(ingressConnector))
             flow = Flow(match, actionList)
             self.odlController.addFlow(ingressNode, flow)
-
-            # config s2: forward to h2 if dst = h2
-            it = self.devices[0].nodeConnectors.iterator()
-            in_port = it.next()
-            out_port = it.next()
-            match = Match()
-            # match.setField(IN_PORT, in_port)
-            match.setField(DL_DST, dst)
-            match.setField(DL_VLAN, Short(MiniCallback.vlan_lan))
-            actionList = LinkedList()
-            # MAC translation
-            # actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'])))
-            actionList.add(SetDlSrc(self.javaByteArray(self.h1mac)))
-            actionList.add(SetVlanId(MiniCallback.vlan_wan))
-            actionList.add(Output(out_port))
-            flow = Flow(match, actionList)
-            self.odlController.addFlow(self.devices[0].node, flow)
-
-            # broadcast so that neighbors(s1) could be aware of h2 as well
-            for nodeconn in self.devices[1].nodeConnectors:
-                if nodeconn == ingressConnector:
-                    continue
-                rawPacket.setOutgoingNodeConnector(nodeconn)
-                self.odlPacketHandler.transmitDataPacket(rawPacket)
+            # if fr host && broadcast: packetout with trans_mac and trans_vlan (fr vid(fr port and vlan) and out_port)
+            if MACAddress(l2pkt.getDestinationMACAddress()) == MACAddress.broadcast:
+                vid = MATManager.getVid(port_name, vlanTag)
+                for port in self.topo.ports.items():
+                    if port[1] == ingressConnector:
+                        continue
+                    trans_vlan = self.topo.vlans[vid][port[0]]
+                    l2pkt_out = Ethernet()
+                    l2pkt_out.setSourceMACAddress(trans_mac.array())
+                    l2pkt_out.setDestinationMACAddress(l2pkt.getDestinationMACAddress())
+                    vlanpkt_out = IEEE8021Q()
+                    vlanpkt_out.setVid(trans_vlan)
+                    vlanpkt_out.setEtherType(vlanPacket.getEtherType())
+                    vlanpkt_out.setPayload(vlanPacket.getPayload())
+                    l2pkt_out.setPayload(vlanpkt_out)
+                    l2pkt_out.setEtherType(EtherTypes.VLANTAGGED.shortValue())
+                    rawpkt_out = self.odlPacketHandler.encodeDataPacket(l2pkt_out)
+                    rawpkt_out.setOutgoingNodeConnector(port[1])
+                    self.odlPacketHandler.transmitDataPacket(rawpkt_out)
         else:
-            # s1 is aware of h1
-            assert(vlanTag == MiniCallback.vlan_lan)
-            # config s2: forward to s1 if dst = h1
-            dst = self.javaByteArray(l2pkt.getSourceMACAddress())
-            it = self.devices[0].nodeConnectors.iterator()
-            out_port = it.next()
-            in_port = it.next()
+            # the packet is from controller (broadcast)
+            trans_mac = MACAddress(l2pkt.getSourceMACAddress())
+            # output: trans_mac (fr vid(fr port and vlan) and mac) as list
+            mac = MATManager.restoreMAT(trans_mac)
+            # add flowmod: match: to mac; action: vlan, port, trans_mac
             match = Match()
-            # match.setField(IN_PORT, in_port)
-            match.setField(DL_DST, dst)
-            match.setField(DL_VLAN, Short(MiniCallback.vlan_wan))
+            match.setField(DL_DST, mac.jarray())
             actionList = LinkedList()
-            # MAC translation
-            # actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'])))
-            actionList.add(SetDlSrc(self.javaByteArray(self.trans2mac)))
-            actionList.add(SetVlanId(MiniCallback.vlan_lan))
-            actionList.add(Output(out_port))
+            actionList.add(SetDlDst(trans_mac.jarray()))
+            actionList.add(SetVlanId(vlanTag))
+            actionList.add(Output(ingressConnector))
             flow = Flow(match, actionList)
             self.odlController.addFlow(ingressNode, flow)
-
-            # config s1: forward to h1 if dst = h1
-            it = self.devices[1].nodeConnectors.iterator()
-            out_port = it.next()
-            in_port = it.next()
-            match = Match()
-            # match.setField(IN_PORT, in_port)
-            match.setField(DL_DST, dst)
-            match.setField(DL_VLAN, Short(MiniCallback.vlan_lan))
-            actionList = LinkedList()
-            # MAC translation
-            # actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'])))
-            actionList.add(SetDlSrc(self.javaByteArray(self.trans)))
-            actionList.add(SetVlanId(MiniCallback.vlan_wan))
-            actionList.add(Output(out_port))
-            flow = Flow(match, actionList)
-            self.odlController.addFlow(self.devices[1].node, flow)
-
-            # broadcast so that neighbors(s2) could be aware of h1 as well
-            for nodeconn in self.devices[0].nodeConnectors:
-                if nodeconn == ingressConnector:
-                    continue
-                rawPacket.setOutgoingNodeConnector(nodeconn)
-                self.odlPacketHandler.transmitDataPacket(rawPacket)
         return PacketResult.KEEP_PROCESSING
