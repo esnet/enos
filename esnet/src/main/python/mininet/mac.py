@@ -3,7 +3,7 @@ import jarray
 import array
 
 class MACAddress:
-    broadcast = MACAddress([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+    broadcast = None
     size = 6
     def __init__(self, v = [0]):
         self.data = [0] * MACAddress.size
@@ -24,4 +24,5 @@ class MACAddress:
         return self.data == other.data
     def __ne__(self, other):
         return self.data != other.data
+MACAddress.broadcast = MACAddress([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
 

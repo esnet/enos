@@ -9,6 +9,7 @@ import copy
 
 import random
 from mininet.utility import InitLogger
+from mininet.mat import MATManager
 
 def getPop(topo,coreRouter):
     pops = topo.builder.pops
