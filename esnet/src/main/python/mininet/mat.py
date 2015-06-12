@@ -1,6 +1,5 @@
 import random
 import array
-from mininet.utility import strByteArray, javaByteArray
 from mininet.mac import MACAddress
 
 class MATManager:
@@ -11,11 +10,11 @@ class MATManager:
     HostMAC = {}
     @staticmethod
     def reset():
-        occupiedHostID = {}
-        occupiedVPNID = {}
-        VPNID = {}
-        HostID = {}
-        HostMAC = {}     
+        MATManager.occupiedHostID = {}
+        MATManager.occupiedVPNID = {}
+        MATManager.VPNID = {}
+        MATManager.HostID = {}
+        MATManager.HostMAC = {}
     @staticmethod
     def generateRandomVPNID():
         found = False

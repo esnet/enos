@@ -1,14 +1,8 @@
 import unittest
-from mininet.utility import strByteArray
 from mininet.mac import MACAddress
 from mininet.mat import MATManager
 import random
-
-class TestUtility(unittest.TestCase):
-    def testStrByteArray(self):
-        src = [1,2,3]
-        self.assertEqual(strByteArray(src), "01:02:03")
-
+import copy
 class TestMAT(unittest.TestCase):
     def testMAC(self):
         mac1 = MACAddress()
@@ -18,6 +12,11 @@ class TestMAT(unittest.TestCase):
         self.assertNotEqual(mac1, mac2)
         mac3 = MACAddress([-1]*6)
         self.assertEqual(mac3, MACAddress.broadcast)
+        mac4 = copy.deepcopy(mac2)
+        self.assertEqual(mac2, mac4)
+        self.assertEqual(mac2.jarray(), mac4.jarray())
+        self.assertEqual(mac2.array(), mac4.array())
+
     def testMAT(self):
         # public method: reset, generateRandomVPNID, setVid, getVid, MAT
         MATManager.reset()
@@ -35,5 +34,4 @@ class TestMAT(unittest.TestCase):
         self.assertEqual(MATManager.restoreMAT(trans_mac), src_mac)
 
 if __name__ == '__main__':
-    random.seed(0)
     unittest.main()

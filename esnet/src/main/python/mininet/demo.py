@@ -7,6 +7,9 @@ from net.es.netshell.api import GenericGraphViewer
 
 import copy
 
+import random
+from mininet.utility import InitLogger
+
 def getPop(topo,coreRouter):
     pops = topo.builder.pops
     for (x,pop) in pops.items():
@@ -16,8 +19,9 @@ def getPop(topo,coreRouter):
 
 intents = {}
 renderers = {}
-
 if __name__ == '__main__':
+    # random.seed(0)    # in order to get the same result to simplify debugging
+    InitLogger()
     configFileName = None
     net=None
     intent=None
@@ -109,9 +113,17 @@ if __name__ == '__main__':
         #viewer = GenericGraphViewer(popsIntent.graph)
         #viewer.display()
 
-
-
-
-
-
-
+        # init MAT god who knows everything about port, vlan, and vid
+        MATManager.reset()
+        vid = MATManager.generateRandomVPNID()
+        for link in net.getLinks().items():
+            vlan = link[1].props['vlan']
+            if vlan >= 1000: # FIXME
+                continue
+            if 'vpnVlans' in link[1].props: # FIXME
+                vlan = link[1].props['vpnVlans'][0]
+            if vlan == 1: # FIXME
+                continue
+            port = net.portByLink[link[0]]
+            port_name = port.props['node'] + ":" + port.name
+            MATManager.setVid(port_name, vlan, vid)

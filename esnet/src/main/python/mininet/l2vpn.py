@@ -9,9 +9,11 @@ from odl.client import ODLClient
 from mininet.enos import TestbedTopology
 
 from net.es.netshell.api import GenericGraph, GenericHost
+from mininet.mac import MACAddress
+from mininet.mat import MATManager
+from mininet.utility import Logger
 
 broadcastAddress = array('B',[0xFF,0xFF,0xFF,0xFF,0xFF,0xFF])
-
 class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
     debug = False
     lastEvent = None
@@ -96,30 +98,31 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if SDNPopsRenderer.debug:
                 print self.name
                 print event
+
             dl_src = event.props['dl_src']
-            mac = binascii.hexlify(dl_src)
+            mac = MACAddress(dl_src)
             port = event.props['in_port']
             switch = TestbedTopology().nodes[port.props['node']]
             vlan = event.props['vlan']
             in_port,switch,scope = self.activePorts[switch.name + ":" + port.name + ":" + str(vlan)]
             dl_dst = event.props['dl_dst']
             dl_src = event.props['dl_src']
-            mac = binascii.hexlify(dl_src)
+            mac = MACAddress(dl_src)
             etherType = event.props['ethertype']
             success = True
             #if not mac in self.macs:
             if True:
-                self.macs[mac] = (dl_src,in_port)
+                self.macs[mac.str()] = (dl_src,in_port)
                 # set the flow entry to forward packet to that MAC to this port
-                success = self.setMAC(port=in_port,switch=switch,scope=scope,vlan=vlan,mac=dl_src)
+                success = self.setMAC(port=in_port,switch=switch,scope=scope,vlan=vlan,mac=mac)
                 if not success:
-                    print "Cannot set MAC",binascii.hexlify(dl_src),"on", + ":" +in_port.name + "." + str(vlan)
+                    print "Cannot set MAC", mac, "on", + ":" +in_port.name + "." + str(vlan)
             global broadcastAddress
             if not 'node' in in_port.props:
                 print "L2VPN no swict",in_port,in_port.props
                 #in_port.props['switch'] = switch
             if dl_dst == broadcastAddress:
-                success = self.broadcast(inPort=in_port,switch=switch,scope=scope,inVlan=vlan,srcMac=dl_src,etherType=etherType,payload=event.props['payload'])
+                success = self.broadcast(inPort=in_port,switch=switch,scope=scope,inVlan=vlan,srcMac=mac,etherType=etherType,payload=event.props['payload'])
                 if not success:
                     print  "Cannot send broadcast packet"
 
@@ -140,10 +143,14 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if outPort.name == inPort.name:
                 # no need to rebroadcast on in_port
                 continue
-
             if inVlan >= 1000 and vlan >= 1000:
                 continue
-            packet = PacketOut(port=outPort,dl_src=srcMac,dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=outScope,payload=payload)
+            port_name = switch.name + ":" + inPort.name
+            if vlan < 1000: # FIXME
+                transMac = MATManager.restoreMAT(srcMac)
+            else:
+                transMac = MATManager.MAT(srcMac, port_name, inVlan)
+            packet = PacketOut(port=outPort,dl_src=transMac.array(),dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=outScope,payload=payload)
             if SDNPopsRenderer.debug:
                 print packet
                 #print "PacketOut out-switch",outSwitch.name,"out-port",outPort.name,"scope",outScope.switch.name
@@ -157,7 +164,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
     def setMAC(self,port,vlan, mac,switch,scope):
         if SDNPopsRenderer.debug:
-            print "SDNPopsRenderer: Set flow entries for MAC= " + str(mac)+ " switch=" + switch.name + " port= " + port.name + " vlan= " + str(vlan)
+            print "SDNPopsRenderer: Set flow entries for MAC= " + mac.str() + " switch=" + switch.name + " port= " + port.name + " vlan= " + str(vlan)
 
         controller = switch.props['controller']
         success = True
@@ -165,10 +172,23 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         mod = FlowMod(name=scope.name,scope=scope,switch=switch)
         mod.props['renderer'] = self
         match = Match(name=scope.name)
-        match.props['dl_dst'] = mac
+        port_name = switch.name + ":" + port.name
+        # check if the packet is from the site or the core
+        fromSite = (vlan < 1000) # FIXME
+        if fromSite:
+            # set the flowmod that if match(dst is trans_mac)
+            # then act(mod dst to mac, mod vlan to vlan, output = port)
+            trans_mac = MATManager.MAT(mac, port_name, vlan)
+        else:
+        # from coreRouter i.e. mac = translated VPN mac
+        # set the flowmod that if match(dst is mac)
+        # then act(mod dst = restoreMac)
+            trans_mac = MATManager.restoreMAT(mac)
+        match.props['dl_dst'] = trans_mac.array()
         action = Action(name=scope.name)
         action.props['out_port'] = port
         action.props['vlan'] = vlan
+        action.props['dl_dst'] = mac.array()
         mod.match = match
         mod.actions = [action]
         self.flowmods.append(mod)
