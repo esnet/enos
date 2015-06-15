@@ -18,6 +18,8 @@ class MACAddress:
         return result
     def str(self):
         return str.join(":", ("%02X" % i for i in self.data))
+    def __repr__(self):
+        return self.str()
     def __str__(self):
         return self.str()
     def __eq__(self, other):
