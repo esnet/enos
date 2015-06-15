@@ -1,14 +1,7 @@
-import mininet.utility
-import mininet.mac
-import mininet.mat
-import mininet.mcallback
-reload(mininet.mac)
-reload(mininet.mat)
-reload(mininet.utility)
-reload(mininet.mcallback)
 from mininet.mac import MACAddress
+from mininet.mat import MATManager
 from mininet.mcallback import MiniTest
-from mininet.utility import InitLogger, javaByteArray, broadcastAddress
+from mininet.utility import InitLogger
 import random
 random.seed(0)
 MATManager.reset()

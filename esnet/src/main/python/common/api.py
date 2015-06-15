@@ -13,6 +13,7 @@ class Properties(object):
 class Port(Properties):
     def __init__(self,name,props={}):
         Properties.__init__(self,name,props)
+
     def __str__(self):
         desc = "port: "
         if 'switch'in self.props:
@@ -42,6 +43,7 @@ class Node(Properties):
     def newPort(self,props={}):
         port = Port(name= "eth" + str(self.interfaceIndex),props=props)
         self.props['ports'][port.name] = port
+        port.props['fullname'] = self.name + "-" + port.name
         port.props['node'] = self.name
         self.interfaceIndex += 1
         return port

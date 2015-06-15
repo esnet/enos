@@ -24,7 +24,6 @@ from org.opendaylight.controller.sal.flowprogrammer import Flow
 
 from mininet.mac import MACAddress
 from mininet.mat import MATManager
-from mininet.utility import strByteArray, javaByteArray, broadcastAddress
 from mininet.utility import Logger
 
 class MiniTopo():

@@ -23,6 +23,7 @@ renderers = {}
 if __name__ == '__main__':
     # random.seed(0)    # in order to get the same result to simplify debugging
     InitLogger()
+    MATManager.reset()
     configFileName = None
     net=None
     intent=None
@@ -115,7 +116,6 @@ if __name__ == '__main__':
         #viewer.display()
 
         # init MAT god who knows everything about port, vlan, and vid
-        MATManager.reset()
         vid = MATManager.generateRandomVPNID()
         for link in net.getLinks().items():
             vlan = link[1].props['vlan']
