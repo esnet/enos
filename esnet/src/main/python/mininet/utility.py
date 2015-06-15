@@ -18,7 +18,29 @@ def InitLogger():
 def Logger():
     return logging.getLogger()
 
-def dump(obj, props=True, variable=True, method=False, hidden=False):
+def subdump(name, obj, tab, verbose=False):
+	if not verbose and (isinstance(obj, dict) or isinstance(obj, HashMap)):
+		description = "{} with len=0"
+		if len(obj) > 0:
+			description = "{{{}{}:{}{},...}} with len={}".format(obj.items()[0][0], obj.items()[0][0].__class__, obj.items()[0][1], obj.items()[0][1].__class__, len(obj))
+	elif not verbose and isinstance(obj, list):
+		description = "[] with len=0"
+		if len(obj) > 0:
+			description = "[{}{},...] with len={}".format(obj[0], obj[0].__class__, len(obj))
+	else:
+		description = "{}".format(obj)
+	print '\t'*tab + name + str(obj.__class__) + description
+
+def dump(obj, props=True, variable=True, method=False, hidden=False, verbose=False):
+	"""
+	Dump the information of the object
+	:param obj: the target object
+	:param props: list the properties(props) of the object
+	:param variable: dump an attr if it is not a method
+	:param method: dump an attr if it is a method
+	:param hidden: dump an attr if it is built-in (started with 2 underlines eg. __xxx__)
+	:param verbose: dump elements in the list, dict, or HashMap
+	"""
 	print "dump " + str(obj.__class__) + ":", obj
 	for attr in dir(obj):
 		if attr[0:2] == '__':
@@ -29,10 +51,7 @@ def dump(obj, props=True, variable=True, method=False, hidden=False):
 				continue
 			print "\t" + attr + ":"
 			for prop in obj.props.items():
-				if not isinstance(prop[1], dict) and not isinstance(prop[1], list):
-					print "\t\t" + prop[0] + str(prop[1].__class__), prop[1]
-				else:
-					print "\t\t" + prop[0] + str(prop[1].__class__)
+				subdump(prop[0], prop[1], 2)
 		else:
 			var = getattr(obj, attr)
 			if inspect.ismethod(var):
@@ -41,17 +60,4 @@ def dump(obj, props=True, variable=True, method=False, hidden=False):
 			else:
 				if not variable:
 					continue
-			if isinstance(var, dict) or isinstance(var, HashMap):
-				if len(var) > 0:
-					description = "{{{}{}:{}{}}} with len={}".format(var.items()[0][0], var.items()[0][0].__class__, var.items()[0][1], var.items()[0][1].__class__, len(var))
-					print "\t" + attr + str(var.__class__) + description
-				else:
-					print "\t" + attr + str(var.__class__) + " empty"
-			elif isinstance(var, list):
-				if len(var) > 0:
-					description = "[{}{}] with len={}".format(var[0], var[0].__class__, len(var))
-					print "\t" + attr + str(var.__class__) + description
-				else:
-					print "\t" + attr + str(var.__class__) + " empty"
-			else:
-				print "\t" + attr + str(var.__class__), var
+			subdump(attr, var, 1)
