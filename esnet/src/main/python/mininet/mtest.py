@@ -52,6 +52,7 @@ class MiniTopo():
         it = devices[1].nodeConnectors.iterator()
         self.ports["s1-eth2"] = it.next()
         self.ports["s1-eth1"] = it.next()
+
         it = devices[0].nodeConnectors.iterator()
         self.ports["s2-eth1"] = it.next()
         self.ports["s2-eth2"] = it.next()
@@ -64,7 +65,7 @@ class MiniTopo():
             self.nodes_name[node[1]] = node[0]
 
 class MiniTest(net.es.netshell.odl.PacketHandler.Callback):
-    version = 9
+    version = 10
     def __init__(self):
         self.odlController = net.es.netshell.odl.Controller.getInstance()
         self.odlPacketHandler = net.es.netshell.odl.PacketHandler.getInstance()
@@ -96,7 +97,6 @@ class MiniTest(net.es.netshell.odl.PacketHandler.Callback):
         vlanTag = vlanPacket.getVid()
         # input: switch, port, vlan, mac
         port_name = self.topo.ports_name[ingressConnector]
-        print port_name
         if port_name[-1] == '1':
             # the packet is from host
             mac = MACAddress(l2pkt.getSourceMACAddress())
@@ -110,6 +110,7 @@ class MiniTest(net.es.netshell.odl.PacketHandler.Callback):
             actionList.add(SetVlanId(vlanTag))
             actionList.add(Output(ingressConnector))
             flow = Flow(match, actionList)
+            Logger().info("fr site: add flow match={{dst:{}}}, action={{dst:{},vlan:{},port:{}}}".format(trans_mac, mac, vlanTag, port_name))
             self.odlController.addFlow(ingressNode, flow)
             # if fr host && broadcast: packetout with trans_mac and trans_vlan (fr vid(fr port and vlan) and out_port)
             if MACAddress(l2pkt.getDestinationMACAddress()) == MACAddress.broadcast:
@@ -143,5 +144,6 @@ class MiniTest(net.es.netshell.odl.PacketHandler.Callback):
             actionList.add(SetVlanId(vlanTag))
             actionList.add(Output(ingressConnector))
             flow = Flow(match, actionList)
+            Logger().info("fr ctrl: add flow match={{dst:{}}}, action={{dst:{},vlan:{},port:{}}}".format(mac, trans_mac, vlanTag, port_name))
             self.odlController.addFlow(ingressNode, flow)
         return PacketResult.KEEP_PROCESSING
