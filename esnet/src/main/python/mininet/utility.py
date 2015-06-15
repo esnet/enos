@@ -2,7 +2,8 @@ import logging
 import sys
 import array
 import struct, array, jarray
-
+from java.util import HashMap
+import inspect
 
 def InitLogger():
     logger = logging.getLogger()
@@ -17,12 +18,15 @@ def InitLogger():
 def Logger():
     return logging.getLogger()
 
-def dump(obj):
+def dump(obj, props=True, variable=True, method=False, hidden=False):
 	print "dump " + str(obj.__class__) + ":", obj
 	for attr in dir(obj):
 		if attr[0:2] == '__':
-			continue
+			if not hidden:
+				continue
 		if attr == "props":
+			if not props:
+				continue
 			print "\t" + attr + ":"
 			for prop in obj.props.items():
 				if not isinstance(prop[1], dict) and not isinstance(prop[1], list):
@@ -31,7 +35,23 @@ def dump(obj):
 					print "\t\t" + prop[0] + str(prop[1].__class__)
 		else:
 			var = getattr(obj, attr)
-			if not isinstance(var, dict) and not isinstance(var, list):
-				print "\t" + attr + str(var.__class__), var
+			if inspect.ismethod(var):
+				if not method:
+					continue
 			else:
-				print "\t" + attr + str(var.__class__)
+				if not variable:
+					continue
+			if isinstance(var, dict) or isinstance(var, HashMap):
+				if len(var) > 0:
+					description = "{{{}{}:{}{}}} with len={}".format(var.items()[0][0], var.items()[0][0].__class__, var.items()[0][1], var.items()[0][1].__class__, len(var))
+					print "\t" + attr + str(var.__class__) + description
+				else:
+					print "\t" + attr + str(var.__class__) + " empty"
+			elif isinstance(var, list):
+				if len(var) > 0:
+					description = "[{}{}] with len={}".format(var[0], var[0].__class__, len(var))
+					print "\t" + attr + str(var.__class__) + description
+				else:
+					print "\t" + attr + str(var.__class__) + " empty"
+			else:
+				print "\t" + attr + str(var.__class__), var
