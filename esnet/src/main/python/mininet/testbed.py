@@ -48,7 +48,6 @@ amst=["amst",'amst-tb-of-1',"amst-cr5",1]
 
 # Default locations
 locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
-locations=[lbl, star]
 class TopoBuilder ():
 
     debug = False;
