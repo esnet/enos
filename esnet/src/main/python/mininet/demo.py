@@ -21,7 +21,7 @@ def getPop(topo,coreRouter):
 intents = {}
 renderers = {}
 if __name__ == '__main__':
-    # random.seed(0)    # in order to get the same result to simplify debugging
+    random.seed(0)    # in order to get the same result to simplify debugging
     InitLogger()
     MATManager.reset()
     configFileName = None
@@ -126,5 +126,4 @@ if __name__ == '__main__':
             if vlan == 1: # FIXME
                 continue
             port = net.portByLink[link[0]]
-            port_name = port.props['node'] + ":" + port.name
-            MATManager.setVid(port_name, vlan, vid)
+            MATManager.setVid(port.name, vlan, vid)

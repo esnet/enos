@@ -41,9 +41,8 @@ class Node(Properties):
             builder.nodes[name] = self
 
     def newPort(self,props={}):
-        port = Port(name= "eth" + str(self.interfaceIndex),props=props)
+        port = Port(name= self.name + "-eth" + str(self.interfaceIndex), props=props)
         self.props['ports'][port.name] = port
-        port.props['fullname'] = self.name + "-" + port.name
         port.props['node'] = self.name
         self.interfaceIndex += 1
         return port

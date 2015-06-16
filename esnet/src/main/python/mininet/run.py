@@ -50,7 +50,8 @@ class TestbedTopo(Topo):
         port2 = link.props['endpoints'][1]
         node1 = self.builder.nodes[port1.props['node']]
         node2 = self.builder.nodes[port2.props['node']]
-        self.addLink(node1.props['mininetName'],node2.props['mininetName'],int(port1.name[3:]),int(port2.name[3:]))
+
+        self.addLink(node1.props['mininetName'],node2.props['mininetName'],int(port1.name.split("-eth")[1]),int(port2.name.split("-eth")[1]))
 
 
     def buildCore(self):

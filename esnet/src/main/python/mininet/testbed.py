@@ -18,6 +18,12 @@ vpn1=["vpn1",[
   ]
 ]
 
+vpn2=["vpn2",[
+    ["atla.gov",["dtn-1"],"atla",20,21],
+    ["cern.ch",["dtn-1"],"cern",20,22],
+  ]
+]
+
 vpns=[vpn1]
 # Default Locations with hardware openflow switch
 # name,rt,nb of links
@@ -42,7 +48,7 @@ amst=["amst",'amst-tb-of-1',"amst-cr5",1]
 
 # Default locations
 locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
-
+locations=[lbl, star]
 class TopoBuilder ():
 
     debug = False;
@@ -75,8 +81,8 @@ class TopoBuilder ():
         if fileName != None:
             self.loadConfiguration(fileName)
         else:
-            self.locations = [atla,lbl,denv,wash,aofa,star,cern,amst]
-            self.vpnInstances = [vpn1]
+            self.locations = locations
+            self.vpnInstances = vpns
         self.loadDefault()
 
     def displaySwitches(self):

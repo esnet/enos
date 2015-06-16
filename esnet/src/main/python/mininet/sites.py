@@ -48,7 +48,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         for port in ports:
             port.props['scope'] = scope
             links = port.getLinks()
-            self.activePorts[self.siteRouter.name + ":" + port.name] = port
+            self.activePorts[port.name] = port
             port.props['macs'] = {}
             for link in links:
                 # port.props['switch'] = self.siteRouter
@@ -79,7 +79,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             for link in links:
                 if link == wanLink:
                     # this is the port connected to the site router
-                    self.activePorts[self.borderRouter.name + ":" + port.name] = port
+                    self.activePorts[port.name] = port
                     vlan = link.props['vlan']
                     port.props['vlan'] = vlan
                     wanVlan = vlan
@@ -98,7 +98,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         inPort.props['vlan'] = wanVlan
         inPort.props['type'] = "TOSDN"
         scope2.props['endpoints'].append((inPort.name,[wanVlan]))
-        self.activePorts[self.borderRouter.name + ":" + inPort.name] = inPort
+        self.activePorts[inPort.name] = inPort
         self.props['borderPortToSDN'] = inPort
         self.borderRouter.props['controller'].addScope(scope2)
 
@@ -137,7 +137,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             mac = binascii.hexlify(dl_src)
             port = event.props['in_port']
             switch = TestbedTopology().nodes[port.props['node']]
-            in_port = self.activePorts[switch.name + ":" + port.name]
+            in_port = self.activePorts[port.name]
             if not in_port.props['type'] in ['LAN','TOWAN']:
                 # Discard (debug)
                 return

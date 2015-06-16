@@ -36,7 +36,6 @@ from org.opendaylight.controller.sal.packet import PacketResult
 from org.opendaylight.controller.sal.flowprogrammer import Flow
 
 from org.opendaylight.controller.sal.utils import EtherTypes;
-
 class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
     """
     Class that is an interface to the ENOS OpenDaylight client.
@@ -111,7 +110,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         match = Match()
         if 'in_port' in flowMod.match.props:
             # Compose the port name
-            portName = flowMod.switch.props['mininetName'] + '-' + flowMod.match.props['in_port'].name
+            portName = flowMod.switch.props['mininetName'] + '-' + flowMod.match.props['in_port'].name.split("-")[-1]
             nodeconn = self.odlController.getNodeConnector(odlNode, portName)
             match.setField(IN_PORT, nodeconn)
         if 'dl_src' in flowMod.match.props:
@@ -144,7 +143,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             # Compose the port name, which comes from the mininet switch name ("s2") and our
             # port name ("eth1").  We then need to look this up in the ODL SwitchManager,
             # but that requires a pointer to the ODL Node.
-            portName = flowMod.switch.props['mininetName'] + "-" + p.name
+            portName = flowMod.switch.props['mininetName'] + "-" + p.name.split("-")[-1]
             nodeconn = self.odlController.getNodeConnector(odlNode, portName)
             actionList.add(Output(nodeconn))
         else:
@@ -175,7 +174,6 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
                 print "Cannot push flowmond onto",flowMod.switch
             # go to the controller
             success = self.odlController.addFlow(sw.node, flow)
-
             # if success.isSuccess():
             #     flowMod.switch.props['openFlowSwitch'].flowMods[flowMod] = flowMod
 
@@ -199,7 +197,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             if sw == None:
                 print packet, "cannot be sent because the switch is not in inventory"
                 return False
-            portName = packet.scope.switch.props['mininetName'] + '-' + packet.port.name
+            portName = packet.scope.switch.props['mininetName'] + '-' + packet.port.name.split("-")[-1]
             nodeconn = self.odlController.getNodeConnector(sw.getNode(), portName)
             if nodeconn == None:
                 print packet, "cannot be sent because the port is invalid"
@@ -349,7 +347,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             # be a small integer X that corresponds to the "ethX" port name in ENOS
             # (and sY-ethX in mininet)
             portno = ingressConnector.getNodeConnectorIDString()
-            p = sw.props['ports']['eth' + portno]
+            p = sw.props['ports'][sw.name + '-eth' + portno]
             if self.debug and not self.dropLLDP:
                 print "  Port " + p.name + " -> Link " + p.props['link']
 

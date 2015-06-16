@@ -145,7 +145,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 continue
             if inVlan >= 1000 and vlan >= 1000:
                 continue
-            port_name = switch.name + ":" + inPort.name
+            port_name = inPort.name
             if vlan < 1000: # FIXME
                 transMac = MATManager.restoreMAT(srcMac)
             else:
@@ -172,13 +172,12 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         mod = FlowMod(name=scope.name,scope=scope,switch=switch)
         mod.props['renderer'] = self
         match = Match(name=scope.name)
-        port_name = switch.name + ":" + port.name
         # check if the packet is from the site or the core
         fromSite = (vlan < 1000) # FIXME
         if fromSite:
             # set the flowmod that if match(dst is trans_mac)
             # then act(mod dst to mac, mod vlan to vlan, output = port)
-            trans_mac = MATManager.MAT(mac, port_name, vlan)
+            trans_mac = MATManager.MAT(mac, port.name, vlan)
         else:
         # from coreRouter i.e. mac = translated VPN mac
         # set the flowmod that if match(dst is mac)
