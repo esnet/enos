@@ -16,6 +16,8 @@ class TestMAT(unittest.TestCase):
         self.assertEqual(mac2, mac4)
         self.assertEqual(mac2.jarray(), mac4.jarray())
         self.assertEqual(mac2.array(), mac4.array())
+        mac5 = MACAddress("01:02:10:11:fe:FF")
+        self.assertEqual(mac2, mac5)
 
     def testMAT(self):
         # public method: reset, generateRandomVPNID, setVid, getVid, MAT

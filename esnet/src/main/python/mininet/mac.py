@@ -6,6 +6,9 @@ class MACAddress:
     broadcast = None
     size = 6
     def __init__(self, v = [0]):
+        if isinstance(v, str):
+            self.data = map(lambda x : int(x, 16), v.split(":"))
+            return
         self.data = [0] * MACAddress.size
         for i in range(min(len(v), MACAddress.size)):
             self.data[i] = struct.unpack('B', struct.pack('B', v[i]))[0]

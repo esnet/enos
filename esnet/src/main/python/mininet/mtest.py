@@ -56,13 +56,13 @@ class MiniTopo():
         it = devices[0].nodeConnectors.iterator()
         self.ports["s2-eth1"] = it.next()
         self.ports["s2-eth2"] = it.next()
-        self.nodes["s1"] = devices[1].getNode()
-        self.nodes["s2"] = devices[0].getNode()
+        self.nodes["s1"] = devices[1]
+        self.nodes["s2"] = devices[0]
 
         for port in self.ports.items():
             self.ports_name[port[1]] = port[0]
         for node in self.nodes.items():
-            self.nodes_name[node[1]] = node[0]
+            self.nodes_name[node[1].getNode()] = node[0]
 
 class MiniTest(net.es.netshell.odl.PacketHandler.Callback):
     version = 10
@@ -97,6 +97,7 @@ class MiniTest(net.es.netshell.odl.PacketHandler.Callback):
         vlanTag = vlanPacket.getVid()
         # input: switch, port, vlan, mac
         port_name = self.topo.ports_name[ingressConnector]
+        Logger().info("recv pkt={{src:{},dst:{},vlan:{}}} on port {}}}".format(MACAddress(l2pkt.getSourceMACAddress()), MACAddress(l2pkt.getDestinationMACAddress()), vlanTag, port_name))
         if port_name[-1] == '1':
             # the packet is from host
             mac = MACAddress(l2pkt.getSourceMACAddress())
@@ -115,10 +116,14 @@ class MiniTest(net.es.netshell.odl.PacketHandler.Callback):
             # if fr host && broadcast: packetout with trans_mac and trans_vlan (fr vid(fr port and vlan) and out_port)
             if MACAddress(l2pkt.getDestinationMACAddress()) == MACAddress.broadcast:
                 vid = MATManager.getVid(port_name, vlanTag)
-                for port in self.topo.ports.items():
-                    if port[1] == ingressConnector:
+                self.ingressNode = ingressNode
+                it = self.topo.nodes[self.topo.nodes_name[ingressNode]].nodeConnectors.iterator()
+                while it.hasNext():
+                    port = it.next()
+                    if port == ingressConnector:
                         continue
-                    trans_vlan = self.topo.vlans[vid][port[0]]
+                    port_name = self.topo.ports_name[port]
+                    trans_vlan = self.topo.vlans[vid][port_name]
                     l2pkt_out = Ethernet()
                     l2pkt_out.setSourceMACAddress(trans_mac.array())
                     l2pkt_out.setDestinationMACAddress(l2pkt.getDestinationMACAddress())
@@ -129,7 +134,8 @@ class MiniTest(net.es.netshell.odl.PacketHandler.Callback):
                     l2pkt_out.setPayload(vlanpkt_out)
                     l2pkt_out.setEtherType(EtherTypes.VLANTAGGED.shortValue())
                     rawpkt_out = self.odlPacketHandler.encodeDataPacket(l2pkt_out)
-                    rawpkt_out.setOutgoingNodeConnector(port[1])
+                    rawpkt_out.setOutgoingNodeConnector(port)
+                    Logger().info("send pkt={{src:{},dst:{},vlan:{}}} on port {}}}".format(trans_mac, MACAddress(l2pkt.getDestinationMACAddress()), trans_vlan, port_name))
                     self.odlPacketHandler.transmitDataPacket(rawpkt_out)
         else:
             # the packet is from controller (broadcast)
@@ -146,4 +152,27 @@ class MiniTest(net.es.netshell.odl.PacketHandler.Callback):
             flow = Flow(match, actionList)
             Logger().info("fr ctrl: add flow match={{dst:{}}}, action={{dst:{},vlan:{},port:{}}}".format(mac, trans_mac, vlanTag, port_name))
             self.odlController.addFlow(ingressNode, flow)
+            # if fr core && broadcast: packetout with restored_mac and restored_vlan (fr vid(fr port and vlan) and out_port)
+            if MACAddress(l2pkt.getDestinationMACAddress()) == MACAddress.broadcast:
+                vid = MATManager.getVid(port_name, vlanTag)
+                it = self.topo.nodes[self.topo.nodes_name[ingressNode]].nodeConnectors.iterator()
+                while it.hasNext():
+                    port = it.next()
+                    if port == ingressConnector:
+                        continue
+                    port_name = self.topo.ports_name[port]
+                    trans_vlan = self.topo.vlans[vid][port_name]
+                    l2pkt_out = Ethernet()
+                    l2pkt_out.setSourceMACAddress(mac.array())
+                    l2pkt_out.setDestinationMACAddress(l2pkt.getDestinationMACAddress()) # broadcast
+                    vlanpkt_out = IEEE8021Q()
+                    vlanpkt_out.setVid(trans_vlan)
+                    vlanpkt_out.setEtherType(vlanPacket.getEtherType())
+                    vlanpkt_out.setPayload(vlanPacket.getPayload())
+                    l2pkt_out.setPayload(vlanpkt_out)
+                    l2pkt_out.setEtherType(EtherTypes.VLANTAGGED.shortValue())
+                    rawpkt_out = self.odlPacketHandler.encodeDataPacket(l2pkt_out)
+                    rawpkt_out.setOutgoingNodeConnector(port)
+                    Logger().info("send pkt={{src:{},dst:{},vlan:{}}} on port {}}}".format(mac, MACAddress(l2pkt.getDestinationMACAddress()), trans_vlan, port_name))
+                    self.odlPacketHandler.transmitDataPacket(rawpkt_out)
         return PacketResult.KEEP_PROCESSING
