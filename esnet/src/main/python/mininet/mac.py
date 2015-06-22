@@ -9,6 +9,9 @@ class MACAddress:
         if isinstance(v, str):
             self.data = map(lambda x : int(x, 16), v.split(":"))
             return
+        if isinstance(v, int):
+            self.data = map(lambda x : x, struct.unpack("8B", struct.pack("Q", v))[2:])
+            return
         self.data = [0] * MACAddress.size
         for i in range(min(len(v), MACAddress.size)):
             self.data[i] = struct.unpack('B', struct.pack('B', v[i]))[0]
