@@ -3,6 +3,7 @@ import array, jarray
 import sys
 import inspect
 import binascii
+import threading
 from mininet.mac import MACAddress
 from common.utils import print_stack
 from common.utils import Logger
@@ -329,10 +330,11 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             self.tryCallback(rawPacket)
         except:
             exc = sys.exc_info()
-            print exc[0], exc[1]
+            tid = threading.current_thread().ident
+            print '[%d]%r %r' % (tid, exc[0], exc[1])
             tb = exc[2]
             while tb:
-                print tb.tb_frame.f_code, tb.tb_lineno
+                print '[%d]%r %r' % (tid, tb.tb_frame.f_code, tb.tb_lineno)
                 tb = tb.tb_next
     def tryCallback(self, rawPacket):
         """

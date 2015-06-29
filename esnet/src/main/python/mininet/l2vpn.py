@@ -169,8 +169,11 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                         success = False
         elif inPort.get('type') == 'ToWAN':
             # from WAN, broadcast to site
-            transMac = self.reverse(srcMac)
             vid = dstMac.getVid()
+            if not vid in switch.props['siteVlanIndex']:
+                Logger().warning('In fact, this packet should not be delivered here at the first place...')
+                return True
+            transMac = self.reverse(srcMac)
             dstMac = MACAddress.createBroadcast() # 0xFF{vid}FFFF => 0xFFFFFFFFFFFF
             vpn = self.vpnIndex[vid]
             port = switch.props['toSitePorts'][0]
