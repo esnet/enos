@@ -8,8 +8,8 @@ from net.es.netshell.api import GenericGraphViewer
 import copy
 
 import random
-from common.utils import InitLogger, dump
-from mininet.mat import MAT
+from mininet.utility import InitLogger
+from mininet.mat import MATManager
 
 def getPop(topo,coreRouter):
     pops = topo.builder.pops
@@ -23,6 +23,7 @@ renderers = {}
 if __name__ == '__main__':
     random.seed(0)    # in order to get the same result to simplify debugging
     InitLogger()
+    MATManager.reset()
     configFileName = None
     net=None
     intent=None
@@ -31,42 +32,98 @@ if __name__ == '__main__':
         net = TestbedTopology(fileName=configFileName)
     else:
         net = TestbedTopology()
-    net1 = net
+
     # One-time setup for the VPN service
-    wi = WanIntent("esnet", net.builder.pops)
+    wi = WanIntent("esnet", net.builder.pops.values())
     wr = WanRenderer(wi)
     wr.execute()
-    rendererIndex = {} # [sitename] = SiteRenderer
-    pops = [] # pops that contains a site
-    allHosts = []
-    allLinks = []
-    for site in net.builder.sites:
-        hosts = map(lambda h : h.props['enosNode'], site.props['hosts'])
-        borderRouter = site.props['borderRouter'].props['enosNode']
-        siteRouter = site.props['siteRouter'].props['enosNode']
-        links = map(lambda l : l.props['enosLink'], site.props['links'])
-        intent = SiteIntent(name=site.name, hosts=hosts, borderRouter=borderRouter, siteRouter=siteRouter, links=links)
-        renderer = SiteRenderer(intent)
-        err = renderer.execute()
-        rendererIndex[site.name] = renderer
-        pops.append(site.props['pop'])
-        allHosts.append(siteRouter)
-        allHosts.append(borderRouter)
-        allHosts.extend(hosts)
-        allLinks.extend(links)
 
-    # TODO how to dispatch packet from WAN to correct scope if multiple VPNs?
-    # TODO include hosts and links involving swSwitch and serviceVm
-    popsIntent = SDNPopsIntent(name="vpn", pops=net.builder.pops, hosts=hosts, links=links)
-    popsRenderer = SDNPopsRenderer(popsIntent)
-    popsRenderer.execute()
+    for (x,vpn) in net.builder.vpns.items():
+        enosHosts = []  # All hosts in this VPN
+        sdnHosts = []   # All nodes in this VPN (end hosts, routers, service VMs)
+        sites = vpn.props['sites']
+        popsLinks = []
+        pops = []
+        for (y,site) in sites.items():
+            hosts = site.props['hosts']
+            siteHosts=[]    # Hosts on this site
+            siteNodes=[]    # Nodes on this site (end hosts, routers, service VMs)
+            for(z,h) in hosts.items():
+                host = h.props['enosNode']
+                enosHosts.append(host)
+                siteHosts.append(host)
+                siteNodes.append(host)
+            siteRouter = site.props['siteRouter'].props['enosNode']
+            borderRouter = net.nodes[site.props['connectedTo']]
+            pop = getPop(topo=net,coreRouter=borderRouter)
+            pops.append(pop)
+            hwSwitch = pop.props['hwSwitch']
+            swSwitch = pop.props['swSwitch']
+            serviceVm = site.props['serviceVm'].props['enosNode']
+            sdnHosts.append(borderRouter)
+            sdnHosts.append(hwSwitch)
+            sdnHosts.append(swSwitch)
+            sdnHosts.append(serviceVm)
+            siteNodes.append(siteRouter)
+            siteNodes.append(borderRouter)
+            links = site.props['links'].copy()
+            enosLinks=[]
+            for (z,l) in links.items():
+                link = l.props['enosLink']
+                node1 = link.getSrcNode()
+                node2 = link.getDstNode()
+                srcNode = link.getSrcNode()
+                dstNode = link.getDstNode()
+                if borderRouter.name in [srcNode.getResourceName(),dstNode.getResourceName()]:
+                    pop.props['vpnVlan'] = link.props['vlan']
+                if srcNode in siteNodes and dstNode in siteNodes:
+                    enosLinks.append(link)
+                    continue
+            print "Creates SiteIntent for vpn " + vpn.name + " site " + site.name
+            intent = SiteIntent(name=site.name,hosts=siteHosts,borderRouter=borderRouter,siteRouter=siteRouter,links=enosLinks)
+            global renderer
+            renderer = SiteRenderer(intent)
+            err = renderer.execute()
+            #viewer = GenericGraphViewer(intent.buildGraph())
+            #viewer.display()
 
-    for vpn in net.builder.vpns:
-        lanVlan = vpn.props['lanVlan']
-        for participant in vpn.props['participants']:
-            (site, hosts, wanVlan) = participant
-            siteRenderer = site.props['siteRouter'].props['toWanPort'].props['enosPort'].props['scope'].owner
-            siteRenderer.addVpn(lanVlan, wanVlan)
-        vpn.props['mat'] = MAT(vpn.props['vid'])
-        popsRenderer.addVpn(vpn)
+        popsLinks = []
+
+        for srcPop in pops:
+            for dstPop in pops:
+                if srcPop == dstPop:
+                    continue
+                link = net.builder.pops[srcPop.name].props['hwSwitch'].props['nextHop'][dstPop.name]
+                link.props['enosLink'].props['vpnVlans'] = [link.props['vlan']]
+                popsLinks.append(link.props['enosLink'])
+            links = srcPop.props['hwSwitch'].props['toCoreRouter']
+            vpnVlan = srcPop.props['vpnVlan']
+            for link in links:
+                # Strip suffix, get endpoints
+                eps = "-".join(link.name.split("-")[0:-1]).split(':')
+                enosLink = link.props['enosLink']
+                if not 'vpnVlans' in enosLink.props:
+                    enosLink.props['vpnVlans'] = []
+                if not "vlan" in link.name and not vpnVlan in enosLink.props['vpnVlans']:
+                    enosLink.props['vpnVlans'] = [vpnVlan]
+                    popsLinks.append(enosLink)
+
+        popsIntent = SDNPopsIntent(name=vpn.name,pops=pops,hosts=sdnHosts,links=popsLinks)
+        popsRenderer = SDNPopsRenderer(popsIntent)
+        popsRenderer.execute()
         print "VPN " + vpn.name + " is up."
+        #viewer = GenericGraphViewer(popsIntent.graph)
+        #viewer.display()
+
+        # init MAT god who knows everything about port, vlan, and vid
+        vid = MATManager.generateRandomVPNID()
+        for link in net.getLinks().items():
+            vlan = link[1].props['vlan']
+            if vlan >= 1000: # FIXME
+                continue
+            if 'vpnVlans' in link[1].props: # FIXME
+                vlan = link[1].props['vpnVlans'][0]
+            if vlan == 1: # FIXME
+                continue
+            port = net.portByLink[link[0]]
+            MATManager.setVid(port.name, vlan, vid)

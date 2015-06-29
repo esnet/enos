@@ -1,7 +1,7 @@
 #! /bin/sh
 hostid=$1
 
-ifid=eth1
+ifid=eth0
 vlanid=10
 
 vconfig add h${hostid}-${ifid} ${vlanid}

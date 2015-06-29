@@ -8,27 +8,23 @@
 import struct,binascii
 from array import array
 
-from common.api import Node, SDNPop, Link, Port, Site, VPN, Host, ServiceVm, SiteRouter, CoreRouter, HwSwitch, SwSwitch
-from common.mac import MACAddress
+from common.api import  Node, SDNPop, Link, Port, Site, VPN
+from common.openflow import OpenFlowSwitch
 
-# All switches including site routers, core routers, hw switches, and sw switches should
-# not have the same name so that the name of each port could be unique.
-lblsite = ["lbl.gov",['dtn-1', 'dtn-2'],"lbl"]
-anlsite = ["anl.gov",['dtn-1', 'dtn-2'],"star"]
-cernsite = ["cern.ch",['dtn-1', 'dtn-2'],"cern"]
-sites = [lblsite, anlsite, cernsite]
-vpn1=["vpn1", 1234, 10, [
-    ("lbl.gov", ['dtn-1', 'dtn-2'], 11), 
-    ("anl.gov", ['dtn-1', 'dtn-2'], 12),
-    ("cern.ch", ['dtn-1', 'dtn-2'], 13)
-    ]
+vpn1=["vpn1",[
+    ["lbl.gov",["dtn-1","dtn-2"],"lbl",10,11],
+    ["anl.gov",["dtn-1"],"star",10,12],
+    ["cern.ch",["dtn-1"],"cern",10,13]
+  ]
 ]
-vpn2=["vpn2", 5678, 20, [
-    ("lbl.gov", ['dtn-1'], 21),
-    ("anl.gov", ['dtn-1'], 22)
-    ]
+
+vpn2=["vpn2",[
+    ["atla.gov",["dtn-1"],"atla",20,21],
+    ["cern.ch",["dtn-1"],"cern",20,22],
+  ]
 ]
-vpns=[vpn1, vpn2]
+
+vpns=[vpn1]
 # Default Locations with hardware openflow switch
 # name,rt,nb of links
 #
@@ -64,20 +60,16 @@ class TopoBuilder ():
         :param controller: Controller object (or subclass thereof)
         :return:
         """
-        self.hostID = 1
-        self.switchID = 1
+        self.hostIndex = 1
+        self.switchIndex = 1
         self.dpidIndex = 1
         self.nodes = {}
-        self.hosts = []
-        self.hostIndex = {} # [hostname] = Host
-        self.switches = []
-        self.links = []
-        self.sites = []
-        self.siteIndex = {} # [sitename] = Site
-        self.sitesConfig = []
-        self.pops = []
-        self.popIndex = {} # [popname] = SDNPop
-        self.vpns = []
+        self.pops = {}
+        self.coreLinks = {}
+        self.coreRouters = {}
+        self.hwSwitches = {}
+        self.swSwitches = {}
+        self.vpns = {}
         self.network = network
         if self.network['ip'][-1] == '.':
             self.network['ip'] = self.network['ip'][:-1]
@@ -89,75 +81,39 @@ class TopoBuilder ():
             self.loadConfiguration(fileName)
         else:
             self.locations = locations
-            self.sitesConfig = sites
             self.vpnInstances = vpns
         self.loadDefault()
 
     def displaySwitches(self):
         print "\nName\t\t\tDPID\t\tODL Name\tMininet Name\n"
-        for sw in self.switches:
+        for (x,sw) in self.nodes.items():
             if 'dpid' in sw.props:
                 print sw.name,"\t",binascii.hexlify(sw.props['dpid']),"\topenflow:" + str(sw.props['dpid'][7]),"\t",sw.props['mininetName']
         print "\n\n"
 
-    def displayHosts(self,vpn):
+    def displayHosts(self,vpnName):
+        vpn = self.vpns[vpnName]
         print "\nName\t\tIPv4 Address\tVLAN\tMininet Name\t"
-        for host in self.hosts:
-            print h.name,"\t",h.props['ip'],"\t",vpn.props['lanVlan'],"\t",h.props['mininetName']
+        for site in vpn.props['sites'].values():
+            for h in site.props['hosts'].values():
+                print h.name,"\t",h.props['ip'],"\t",site.props['vlan'],"\t",h.props['mininetName']
+        print "\n"
+        for site in vpn.props['sites'].values():
+            h = site.props['serviceVm']
+            print h.name,"\t",h.props['ip'],"\t",h.props['vlan'],"\t",h.props['mininetName']
         print "\n\n"
 
-    def addSwitch(self, name):
-        switch = Switch(name=name)
-        self.switches.append(switch)
-        return switch
+    def createLink(self,endpoints,vlan,suffix=""):
+        link = Link(name=endpoints[0].name+":"+endpoints[1].name+suffix)
+        port1 = endpoints[0].newPort({'link':link.name})
+        port2 = endpoints[1].newPort({'link':link.name})
+        link.props['endpoints'].append(port1)
+        link.props['endpoints'].append(port2)
+        if vlan:
+            link.props['vlan'] = vlan
+        return link
 
-    def addSDNPop(self, popname, hwswitchname, coreroutername, swswitchname, nbOfLinks):
-        pop = SDNPop(popname, hwswitchname, coreroutername, swswitchname, nbOfLinks)
-        hwSwitch = pop.props['hwSwitch']
-        coreRouter = pop.props['coreRouter']
-        swSwitch = pop.props['swSwitch']
-        self.switches.append(hwSwitch)
-        self.switches.append(coreRouter)
-        self.switches.append(swSwitch)
-        for link in hwSwitch.get('toCoreRouter'):
-            self.links.append(link)
-        for link in hwSwitch.get('toSwSwitch'):
-            self.links.append(link)
-        return pop
 
-    def connect(self, pop1, pop2, vlan):
-        coreRouter1 = pop1.get('coreRouter')
-        coreRouter2 = pop2.get('coreRouter')
-        hwSwitch1 = pop1.get('hwSwitch')
-        hwSwitch2 = pop2.get('hwSwitch')
-        link11 = Link.create(coreRouter1, hwSwitch1, vlan)
-        link11.setPortType('WANToSDN', 'ToWAN')
-        link12 = Link.create(coreRouter1, coreRouter2, vlan)
-        link12.setPortType('ToWAN', 'ToWAN')
-        link22 = Link.create(coreRouter2, hwSwitch2, vlan)
-        link22.setPortType('WANToSDN', 'ToWAN')
-        coreRouter1.props['WAN-Circuits'].append(link12)
-        coreRouter1.props['toWanPorts'].append(link12.props['endpoints'][0])
-        coreRouter2.props['toWanPorts'].append(link12.props['endpoints'][1])
-        coreRouter2.props['WAN-Circuits'].append(link12)
-
-        coreRouter1.props['toHwSwitch'].append(link11)
-        coreRouter2.props['toHwSwitch'].append(link22)
-        coreRouter1.props['toHwSwitchPorts'].append(link11.props['endpoints'][0])
-        coreRouter2.props['toHwSwitchPorts'].append(link22.props['endpoints'][0])
-        hwSwitch1.props['nextHop'][pop2.name] = link12
-        hwSwitch2.props['nextHop'][pop1.name] = link12
-
-        self.links.append(link11)
-        self.links.append(link12)
-        self.links.append(link22)
-    def updateHost(self, host):
-        host.update(self.getHostParams(host.name))
-    def updateSwitch(self, switch):
-        switch.update(self.getSwitchParams(switch.name))
-        role = switch.get('role')
-        if role: # hwSwitch, coreRouter, swSwitch
-            switch.update({'controller':self.controller})
     def loadDefault(self):
         """
             We make several simplifying assumptions here:
@@ -168,86 +124,148 @@ class TopoBuilder ():
             4.  All OpenFlow switches can be represented by the same object class.
         """
         for location in self.locations:
-            (popname, hwswitchname, coreroutername, swswitchname, nbOfLinks) = (location[0], location[1], location[2], location[0] + "-ovs", location[3])
-            pop = self.addSDNPop(popname, hwswitchname, coreroutername, swswitchname, nbOfLinks)
-            self.popIndex[popname] = pop
-            self.pops.append(pop)
+
+            name = location[0]
+            pop = SDNPop(name)
+            # dpid, controller
+            swprops = self.getSwitchParams(location[1])
+            hwSwitch = OpenFlowSwitch(name = location[1], dpid = swprops['dpid'], controller = self.controller, props = swprops, builder = self)
+            pop.props['hwSwitch'] = hwSwitch
+            hwSwitch.props['role'] = "HwSwitch"
+            hwSwitch.props['pop'] = pop
+            self.hwSwitches[hwSwitch.name] = hwSwitch
+            # dpid, controller
+            swprops = self.getSwitchParams(location[2])
+            coreRouter = OpenFlowSwitch(name = location[2], dpid = swprops['dpid'], controller = self.controller, props = swprops, builder = self)
+            pop.props['coreRouter'] = coreRouter
+            coreRouter.props['role'] = "CoreRouter"
+            coreRouter.props['pop'] = pop
+            coreRouter.props['WAN-Circuits'] = []
+            self.coreRouters[coreRouter.name] = coreRouter
+            pop.props['nbOfLinks'] = nbOfLinks = location[3]
+            switchName = location[0] + "-" "ovs"
+            # dpid, controller
+            swprops = self.getSwitchParams(switchName)
+            swSwitch = OpenFlowSwitch(name = switchName, dpid = swprops['dpid'], controller = self.controller, props = swprops, builder = self)
+            pop.props['swSwitch'] = swSwitch
+            swSwitch.props['role'] = "SwSwitch"
+            swSwitch.props['pop'] = pop
+            self.swSwitches[swSwitch.name] = swSwitch
+
+            links1 = []
+            links2 = []
+            while (nbOfLinks > 0):
+                # create links between the core router and the hardware SDN switch
+                link = self.createLink(endpoints=[hwSwitch,coreRouter],vlan=nbOfLinks,suffix='-' + str(nbOfLinks))
+                self.coreLinks[link.name] = link
+                links1.append(link)
+                # create links between the software SDN switch and the hardware SDN switch
+                link = self.createLink(endpoints=[hwSwitch,swSwitch],vlan=nbOfLinks,suffix='-' + str(nbOfLinks))
+                self.coreLinks[link.name] = link
+                links2.append(link)
+                nbOfLinks -= 1
+            coreRouter.props['sitesToHwSwitch'] = links1
+            hwSwitch.props['toCoreRouter'] = links1
+            hwSwitch.props['toSwSwitch'] = links2
+            swSwitch.props['sitesToHwSwitch'] = links2
+            hwSwitch.props['nextHop'] = {}
+            self.pops[name] = pop
+            coreRouter.props['toHwSwitch'] = []
+            swSwitch.props['toHwSwitch'] = []
 
         # create mesh between core routers, attached to VLANs between the core routers and hardware switches
-        pops = self.pops
+        targets = sorted(self.coreRouters.items())
         vlanIndex = 1000
-        for i in range(len(pops)):
-            pop1 = pops[i]
-            for j in range(i+1, len(pops)):
-                pop2 = pops[j]
-                self.connect(pop1, pop2, vlanIndex)
+        for (x,fromNode) in sorted(self.coreRouters.items()):
+            targets = targets[1:]
+            for (z,toNode) in targets:
+                link = self.createLink(endpoints=[fromNode,toNode],vlan=vlanIndex)
+                self.coreLinks[link.name] = link
+                toNode.props['WAN-Circuits'].append(link)
+                fromNode.props['WAN-Circuits'].append(link)
+
+                if self.debug:
+                    print "To:  " + fromNode.name + " -> " + toNode.name
+                    print "link " + str(link)
+
+                toHwSwitch = toNode.props['pop'].props['hwSwitch']
+                link2 = self.createLink(endpoints=[toNode,toHwSwitch], vlan=vlanIndex, suffix='-vlan'+str(vlanIndex))
+                # Automatically updates toHwSwitch.props['toCoreRouter']
+                toNode.props['toHwSwitch'].append(link2)
+                toHwSwitch.props['nextHop'][fromNode.props['pop'].name] = link2
+                self.coreLinks[link2.name] = link2
+                if self.debug:
+                    print "link2 " + str(link2)
+
+                fromHwSwitch = fromNode.props['pop'].props['hwSwitch']
+
+                link3 = self.createLink(endpoints=[fromNode,fromHwSwitch], vlan=vlanIndex, suffix='-vlan'+str(vlanIndex))
+                # Automatically updates fromHwSwitch.props['toCoreRouter']
+                fromNode.props['toHwSwitch'].append(link3)
+                fromHwSwitch.props['nextHop'][toNode.props['pop'].name] = link3
+                self.coreLinks[link3.name] = link3
+                if self.debug:
+                    print "link3 " + str(link3)
+
                 vlanIndex += 1
 
-        # might be skip if vpn's information is complete
-        for (sitename, hostnames, popname) in self.sitesConfig:
-            site = self.addSite(sitename, popname)
-            # TODO lanVlan wanVlan
-            for name in hostnames:
-                hostname = name + "@" + sitename
-                host = self.addHost(hostname)
-                site.addHost(host)
-            self.links.extend(site.get('links'))
+        for v in self.vpnInstances:
+            vpn = VPN (v[0])
+            self.vpns[vpn.name] = vpn
+            for s in v[1]:
+                site = Site(s[0])
+                vpn.props['sites'][site.name] = site
+                name = s[0]
+                siteRouter = Node(name=name, props = self.getSwitchParams(name=name),builder=self)
+                site.props['siteRouter'] = siteRouter
+                pop = self.pops[s[2]]
+                coreRouter = pop.props['coreRouter']
+                swSwitch = pop.props['swSwitch']
+                site.props['connectedTo'] = coreRouter.name
+                vlan = s[3]
+                for h in s[1]:
+                    name = h + "@" + site.name
+                    host = Node (name=name, props=self.getHostParams(name=h),builder=self)
+                    host.props['vlan'] = vlan
+                    site.props['hosts'][host.name] = host
+                    link = self.createLink(endpoints=[siteRouter,host],suffix="-" + vpn.name,vlan=vlan)
+                    site.props['links'][link.name] = link
 
-        for (vpnname, vid, lanVlan, participants) in self.vpnInstances:
-            vpn = VPN(vpnname, vid, lanVlan)
-            for (sitename, hostnames, wanVlan) in participants:
-                site = self.siteIndex[sitename]
-                hosts = map(lambda hostname : self.hostIndex['%s@%s' % (hostname, sitename)], hostnames)
-                vpn.addParticipant(site, hosts, wanVlan)
-            self.hosts.extend(vpn.props['serviceVms'])
-            self.links.extend(vpn.props['serviceVmLinks'])
-            self.vpns.append(vpn)
-        for host in self.hosts:
-            self.updateHost(host)
-        for switch in self.switches:
-            self.updateSwitch(switch)
-    def addSite(self, sitename, popname):
-        site = Site(sitename)
-        siteRouter = site.get('siteRouter')
-        self.switches.append(siteRouter)
-        pop = self.popIndex[popname]
-        site.props['pop'] = pop
-        coreRouter = pop.get('coreRouter')
-        site.props['borderRouter'] = coreRouter
+                site.props['vlan'] = vlan
+                if not site.props.has_key('serviceVm'):
+                    # Creates service vm
+                    name = v[0] + "-" + s[2] + "-vm"
+                    host = Node(name=name, props=self.getHostParams(name = name),builder=self)
+                    vlan = s[4]
+                    host.props['vlan'] = vlan
+                    host.props['role'] = "ServiceVm"
+                    site.props['serviceVm'] = host
+                    link = self.createLink(endpoints=[swSwitch,host],vlan=host.props['vlan'],suffix="-" + vpn.name)
+                    site.props['links'][link.name] = link
+                link = self.createLink(endpoints=[siteRouter,coreRouter],vlan=host.props['vlan'],suffix="-" + vpn.name)
+                site.props['links'][link.name] = link
 
-        link = Link.create(siteRouter, coreRouter)
-        link.props['endpoints'][0].props['type'] = 'ToWAN'
-        link.props['endpoints'][1].props['type'] = 'ToSite'
-        siteRouter.props['toWanPort'] = link.props['endpoints'][0]
-        coreRouter.props['toSitePort'] = link.props['endpoints'][1]
-        site.props['links'].append(link)
-        self.siteIndex[sitename] = site
-        self.sites.append(site)
-        return site
-    def addHost(self, name):
-        host = Host(name=name)
-        self.hosts.append(host)
-        self.hostIndex[host.name] = host
-        return host
+            self.vpns [vpn.name] = vpn
+
+
     def getHostParams(self,name):
-        index = self.hostID
-        self.hostID +=  1
+        index = self.hostIndex
+        self.hostIndex +=  1
         mininetName = "h" + str(index)
         self.mininetToRealNames[mininetName] = name
         ip = self.network['ip'] + "." + str(index) + self.network['netmask']
-        return {'mininetName' : mininetName, 'ip' : ip, 'mac' : MACAddress(index)}
+        return {'mininetName' : mininetName, 'ip' : ip}
 
     def getSwitchParams(self,name):
-        index = self.switchID
-        self.switchID += 1
-        # for mininet
+        index = self.switchIndex
+        self.switchIndex += 1
         mininetName = "s" + str(index)
         self.mininetToRealNames[mininetName] = name
         # Create dpid
         index = self.dpidIndex
-        self.dpidIndex += 1
+        self.dpidIndex = self.dpidIndex + 1
         dpid = array('B',struct.unpack("8B", struct.pack("!Q", index)))
-        self.dpidToName[binascii.hexlify(dpid)] = name
+        self.dpidToName[str(dpid)] = name
         return {"mininetName" : mininetName, "dpid" : dpid}
 
 

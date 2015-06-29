@@ -8,11 +8,7 @@ from array import array
 from common.utils import generateId
 from common.api import Properties, Node
 
-from mininet.mac import MACAddress
-from common.utils import Logger
-
 import binascii
-import sys
 
 debug = False
 def setDebug(val):
@@ -44,9 +40,9 @@ class Match(Properties):
         if 'in_port' in self.props:
             desc += " in_port= " + self.props['in_port'].name
         if 'dl_src' in self.props:
-            desc += " dl_src= %s" % self.props['dl_src']
+            desc += " dl_src= " + binascii.hexlify(self.props['dl_src'])
         if 'dl_dst' in self.props:
-            desc += " dl_dst= %s" % self.props['dl_dst']
+            desc += " dl_dst= " + binascii.hexlify(self.props['dl_dst'])
         if 'vlan' in self.props:
             desc += " vlan= " + str(self.props['vlan'])
         return desc
@@ -78,9 +74,9 @@ class Action(Properties):
         if 'out_port' in self.props:
             desc += " out_port= " + self.props['out_port'].name
         if 'dl_src' in self.props:
-            desc += " dl_src= %s" % self.props['dl_src']
+            desc += " dl_src= " + binascii.hexlify(self.props['dl_src'])
         if 'dl_dst' in self.props:
-            desc += " dl_dst= %s" % self.props['dl_dst']
+            desc += " dl_dst= " + binascii.hexlify(self.props['dl_dst'])
         if 'vlan' in self.props:
             desc += " vlan= " + str(self.props['vlan'])
         desc += "\n"
@@ -227,12 +223,15 @@ class PacketInEvent(ScopeEvent):
      Other layers are TBD
     """
 
-    def __init__(self,inPort=None,srcMac=None,dstMac=None,vlan=0,payload=None,name=""):
+    def __init__(self,inPort=None,srcMac=None,dstMac=None,vlan=None,payload=None,name="",):
         Properties.__init__(self,name)
         self.props['in_port'] = inPort
         self.props['dl_src'] = srcMac
         self.props['dl_dst'] = dstMac
-        self.props['vlan'] = vlan
+        if vlan:
+            self.props['vlan'] = vlan
+        else:
+            self.props['vlan'] = 0
         if payload:
             self.props['payload'] = payload
 
@@ -242,8 +241,8 @@ class PacketInEvent(ScopeEvent):
             return self.name
         desc = "PacketIn: " + self.name + "\n"
         desc += "\tin_port:" + str(self.props['in_port']) + "\n"
-        desc += "\tdl_src: " + str(self.props['dl_src']) + "\n"
-        desc += "\tdl_dst: " + str(self.props['dl_dst']) + "\n"
+        desc += "\tdl_src: " + binascii.hexlify(self.props['dl_src']) + "\n"
+        desc += "\tdl_dst: " + binascii.hexlify(self.props['dl_dst']) + "\n"
         if 'vlan' in self.props:
             desc += "\tvlan: " + str(self.props['vlan']) + "\n"
         if 'payload' in self.props:
@@ -252,7 +251,7 @@ class PacketInEvent(ScopeEvent):
         return desc
 
     def __repr__(self):
-        return 'PacketInEvent(inPort=%r,srcMac=%r,dstMac=%r,vlan=%r)' % (self.props['in_port'], self.props['dl_src'], self.props['dl_dst'], self.props['vlan'])
+        return self.__str__()
 
 
 class PacketOut(Properties):
@@ -269,7 +268,7 @@ class PacketOut(Properties):
         In reality, payload is either an array of unsigned bytes or a subclass of
         org.opendaylight.controller.sal.packet.Packet.
         """
-        super(PacketOut, self).__init__(name)
+        Properties.__init__(self,name)
         self.scope = scope
         self.port = port
         self.dl_src = dl_src
@@ -302,7 +301,7 @@ class PacketOut(Properties):
         return desc
 
     def __repr__(self):
-        return 'PacketOut(scope=%r,port=%r,src=%r,dst=%r,etherType=%r,vlan=%r)' % (self.scope, self.port, self.dl_src, self.dl_dst, self.etherType, self.vlan)
+        return self.__str__()
 
 class ScopeOwner(Properties):
     """
@@ -328,7 +327,7 @@ class L2SwitchScope(Scope):
     """
     This class is the base class of any Scope that defines a layer 2 switch
     """
-    def __init__(self,name,switch,owner,props={},endpoints={}):
+    def __init__(self,name,switch,owner,props={},endpoints=[]):
         """
         Creates a Layer2Scope. The optional endpoint parameter is a list that contains tuples. Tuples are expected
         to be (port,vlans), where port is a string and vlans is a list of integers. The following are valid examples:
@@ -338,7 +337,7 @@ class L2SwitchScope(Scope):
         If no endpoint is provided, then the scope represents all VLAN on all ports
         """
         Scope.__init__(self,name,switch,owner,props)
-        self.props['endpoints'] = endpoints # ['portname'] = [vlans]
+        self.props['endpoints'] = endpoints
 
     def __str__(self):
         global debug
@@ -346,9 +345,9 @@ class L2SwitchScope(Scope):
             return self.name
         desc = "Scope " + self.name + " switch= " + self.switch.name
         desc += "\n\tEndpoints:"
-        for (portname, vlans) in self.props['endpoints'].items():
-            desc += "\n\t\t" + portname + " vlans= "
-            for vlan in vlans:
+        for endpoint in self.props['endpoints']:
+            desc += "\n\t\t" + endpoint[0] + " vlans= "
+            for vlan in endpoint[1]:
                 desc += str(vlan)
         desc += "\n"
         return desc
@@ -357,13 +356,16 @@ class L2SwitchScope(Scope):
         return self.__str__()
 
     def includes(self,packetIn):
+        endpoints = self.props['endpoints']
         name = packetIn.props['in_port'].name
         vlan = packetIn.props['vlan']
-        if not name in self.props['endpoints']:
-            return False
-        vlans = self.props['endpoints'][name]
-        if not vlans or vlan in vlans:
-            return True
+        for endpoint in endpoints:
+            p = endpoint[0]
+            vlans = endpoint[1]
+            if p == name:
+                for v in vlans:
+                    if v == vlan:
+                        return True
         return False
 
     def overlaps(self, scope):
@@ -379,21 +381,33 @@ class L2SwitchScope(Scope):
         # If either set of endpoints is empty, they trivially overlap
         if len(endpoints1) == 0 or len(endpoints2) == 0:
             return True
-        for (port, vlans1) in endpoints1.items():
-            if not port in endpoints2:
-                continue
-            vlans2 = endpoints2[port]
-            if not vlans1 or not vlans2:
-                return True
-            if set(vlans1).intersection(vlans2):
-                return True
+        for endpoint1 in endpoints1:
+            port1 = endpoint1[0]
+            vlans1 = endpoint1[1]
+            for endpoint2 in endpoints2:
+                port2 = endpoint2[0]
+                vlans2 = endpoint2[1]
+                if port1 != port2:
+                    # not same port, therefore no overlap
+                    continue
+                # check vlans
+                for vlan1 in vlans1:
+                    for vlan2 in vlans2:
+                        if vlan1 == vlan2:
+                            # overlap
+                            if self.owner == scope.owner:
+                                continue
+                            return True
         return False
 
     def isValidPacketOut(self,packet):
+
         endpoints = self.props['endpoints']
-        if packet.port.name in endpoints:
-            vlans = endpoints[packet.port.name]
-            return not vlans or packet.vlan in vlans
+        for port,vlans in endpoints:
+            if port != packet.port.name:
+                continue
+            if packet.vlan in vlans:
+                return True
         print  packet,"is not within this scope:",self
         return False
 
@@ -446,12 +460,14 @@ class L2SwitchScope(Scope):
         # check actions
         for action in flowModActions:
             out_port = action.props['out_port'].name
-            out_vlan = action.get('vlan')
+            out_vlan = action.props['vlan']
             valid = False
-            for (port, vlans) in flowModEndpoints.items():
+            for endpoint in flowModEndpoints:
+                port = endpoint[0]
                 if port != out_port:
                     continue
-                if vlans and out_vlan and not out_vlan in vlans:
+                vlans = endpoint[1]
+                if not out_vlan in vlans:
                     print flowMod,"VLAN is not included in this scope",self
                     return False
                 else:
@@ -462,11 +478,10 @@ class L2SwitchScope(Scope):
                 return False
         return True
 
-    def addEndpoint(self, port, vlans):
-        if not port.name in self.props['endpoints']:
-            self.props['endpoints'][port.name] = []
-        self.props['endpoints'][port.name].extend(vlans)
-        port.props['enosNode'].props['controller'].addScopeIndex(self, port, vlans)
+    def addEndpoint(self,endpoint):
+        if not endpoint in self.props['endpoints']:
+            self.props['endpoints'].append(endpoint)
+
 
 class OpenFlowSwitch(Node):
     """
@@ -537,7 +552,8 @@ class SimpleController(Controller):
             SimpleController.switches = {}
             SimpleController.id = generateId()
             SimpleController.instance = self
-            self.scopeIndex = {}
+
+
 
     def addSwitch(self,switch):
         """
@@ -554,7 +570,7 @@ class SimpleController(Controller):
         for flowMod in switch.flowMods():
             SimpleController.delFlowMod(flowMod)
 
-    def addScope(self, scope):
+    def addScope(self,scope):
         """
         Adds the scopes to the authorized set of scopes. In order to be accepted, a scope must not overlap
         with any of the forbiden scopes, and not overlap with any of existing, authorized, scopes.
@@ -578,11 +594,11 @@ class SimpleController(Controller):
             print "this scope has been already added"
             return False
         SimpleController.scopes[scope.id] = scope
-        return True
+        return  True
+
     def removeScope(self,scope):
         SimpleController.scopes.pop(scope)
-        for (portname, vlans) in scope.props['endpoints']:
-            del SimpleController.scopesIndex[portname]
+
 
     def addForbiddenScope(self,scope):
         """
@@ -644,39 +660,23 @@ class SimpleController(Controller):
         """
         return False
 
-    def getScope(self, port, vlan):
-        key = '%s.%d' % (port.name, vlan)
-        if not key in self.scopeIndex:
-            # try without vlan
-            key = port.name
-        if not key in self.scopeIndex:
-            Logger().error('%s.%d not found in %r.scopeIndex' % (port.name, vlan, self))
-            return None
-        return self.scopeIndex[key]
-
-    def addScopeIndex(self, scope, port, vlans = []):
-        if not vlans:
-            self.scopeIndex['%s' % port.name] = scope
-        else:
-            for vlan in vlans:
-                self.scopeIndex['%s.%d' % (port.name, vlan)] = scope
-
     def dispatchPacketIn(self,packetIn):
         """
+
         :param packetIn:  PacketIn
         :return:
         """
-        port = packetIn.props['in_port'].props['enosPort']
-        vlan = packetIn.props['vlan']
-        if vlan == 0:
-            Logger().debug('vlan == 0 not interested...')
-            return
-        Logger().info('recv packet %r' % packetIn)
-        scope = self.getScope(port, vlan)
-        if scope and scope.switch == port.get('enosNode') and scope.includes(packetIn):
-            scope.owner.eventListener(packetIn)
-        else:
-            Logger().error('No scope for %r', packetIn)
+        port = packetIn.props['in_port']
+        switch = port.props['switch']
+        # Finds the scope, if any, that is managing this packet_in
+        found = False
+        for (x,scope) in SimpleController.scopes.items():
+            if scope.switch.name == switch.name and scope.includes(packetIn):
+                scope.owner.eventListener(packetIn)
+                found = True
+        if not found:
+            print "No ScopeOwner for ",packetIn
+
 
     @staticmethod
     def makeL2FlowMod(scope, switch, inPort, inVlan, outPort, outVlan):
