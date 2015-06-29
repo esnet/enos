@@ -6,12 +6,12 @@ from common.api import Site, Properties
 from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut, SimpleController
 from odl.client import ODLClient
 
-from mininet.enos import TestbedTopology
+from mininet.enos import TestbedTopology, TestbedHost, TestbedNode, TestbedPort, TestbedLink
 
 from net.es.netshell.api import GenericGraph, GenericHost
 from mininet.mac import MACAddress
 from mininet.mat import MATManager
-from mininet.utility import Logger
+from common.utils import Logger, dump
 
 broadcastAddress = array('B',[0xFF,0xFF,0xFF,0xFF,0xFF,0xFF])
 class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
@@ -35,41 +35,31 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.flowmods = []
         self.links = self.intent.links
         self.linkByPort = {}
-
+        self.vidIndex = {}
+        self.vpnIndex = {}
         SDNPopsRenderer.instance = self
         self.scopes = {}
+        self.scopeIndex = {}
 
         for pop in self.pops:
-            coreRouter = pop.props['coreRouter']
-            hwSwitch = pop.props['hwSwitch']
-            swSwitch = pop.props['swSwitch']
-            hwSwitchScope = L2SwitchScope(name=self.name,switch=hwSwitch,owner=self,endpoints=[])
+            coreRouter = pop.props['coreRouter'].props['enosNode']
+            hwSwitch = pop.props['hwSwitch'].props['enosNode']
+            hwSwitchScope = L2SwitchScope(name=self.name,switch=hwSwitch,owner=self)
+            for port in hwSwitch.getPorts():
+                port.props['scope'] = hwSwitchScope
+                if port.get('type') == 'ToWAN':
+                    vlans = []
+                    for link in port.getLinks():
+                        vlans.append(link.props['vlan'])
+                    hwSwitchScope.addEndpoint(port, vlans)
+            self.scopeIndex[hwSwitch.name] = hwSwitchScope
+            self.scopes[hwSwitch.name] = hwSwitchScope
+            swSwitch = pop.props['swSwitch'].props['enosNode']
             swSwitchScope = L2SwitchScope(name=self.name,switch=swSwitch,owner=self,endpoints=[])
-            for link in self.links:
-                dstNode = link.getDstNode()
-                dstPort = link.getDstPort()
-                srcNode = link.getSrcNode()
-                srcPort = link.getSrcPort()
-                self.linkByPort[dstPort] = link
-                self.linkByPort[srcPort] = link
-
-                vlans = link.props['vpnVlans']
-                for vlan in vlans:
-                    if srcNode.getResourceName() == hwSwitch.name:
-                        hwSwitchScope.addEndpoint((srcPort.name,[vlan]))
-                        self.activePorts[hwSwitch.name + ":" + srcPort.name + ":" + str(vlan)] = (srcPort,hwSwitch,hwSwitchScope)
-                    if dstNode.getResourceName() == hwSwitch.name:
-                        hwSwitchScope.addEndpoint((dstPort.name,[vlan]))
-                        self.activePorts[hwSwitch.name + ":" +dstPort.name + ":" + str(vlan)] = (dstPort,hwSwitch,hwSwitchScope)
-                    if srcNode.getResourceName() == swSwitch.name:
-                        swSwitchScope.addEndpoint((srcPort.name,[vlan]))
-                        self.activePorts[swSwitch.name + ":" +srcPort.name + ":" + str(vlan)] = (srcPort,swSwitch,swSwitchScope)
-                    if dstNode.getResourceName() == swSwitch.name:
-                        swSwitchScope.addEndpoint((dstPort.name,[vlan]))
-                        self.activePorts[swSwitch.name + ":" +dstPort.name + ":" + str(vlan)] = (dstPort,swSwitch,swSwitchScope)
-            self.scopes[hwSwitch] = hwSwitchScope
-            self.scopes[swSwitch] = swSwitchScope
-
+            for port in swSwitch.getPorts():
+                port.props['scope'] = swSwitchScope
+            self.scopeIndex[swSwitch.name] = swSwitchScope
+            self.scopes[swSwitch.name] = swSwitchScope
 
     def __str__(self):
         desc = "SDNPopsRenderer: " + self.name + "\n"
@@ -100,14 +90,12 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 print event
 
             dl_src = event.props['dl_src']
-            mac = MACAddress(dl_src)
-            port = event.props['in_port']
-            switch = TestbedTopology().nodes[port.props['node']]
-            vlan = event.props['vlan']
-            in_port,switch,scope = self.activePorts[switch.name + ":" + port.name + ":" + str(vlan)]
             dl_dst = event.props['dl_dst']
-            dl_src = event.props['dl_src']
             mac = MACAddress(dl_src)
+            in_port = event.props['in_port'].props['enosPort']
+            switch = in_port.props['enosNode']
+            vlan = event.props['vlan']
+            scope = switch.props['controller'].getScope(in_port, vlan)
             etherType = event.props['ethertype']
             success = True
             #if not mac in self.macs:
@@ -117,48 +105,84 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 success = self.setMAC(port=in_port,switch=switch,scope=scope,vlan=vlan,mac=mac)
                 if not success:
                     print "Cannot set MAC", mac, "on", + ":" +in_port.name + "." + str(vlan)
-            global broadcastAddress
             if not 'node' in in_port.props:
                 print "L2VPN no swict",in_port,in_port.props
                 #in_port.props['switch'] = switch
-            if dl_dst == broadcastAddress:
-                success = self.broadcast(inPort=in_port,switch=switch,scope=scope,inVlan=vlan,srcMac=mac,etherType=etherType,payload=event.props['payload'])
+            if dl_dst.isBroadcast():
+                success = self.broadcast(inPort=in_port,switch=switch,scope=scope,inVlan=vlan,srcMac=mac,dstMac=dl_dst,etherType=etherType,payload=event.props['payload'])
                 if not success:
                     print  "Cannot send broadcast packet"
 
+    def addVpn(self, vpn):
+        vid = vpn.props['vid']
+        self.vpnIndex[vid] = vpn
+        for participant in vpn.props['participants']:
+            (site, hosts, wanVlan) = participant
+            pop = site.props['pop']
+            hwSwitch = pop.props['hwSwitch'].props['enosNode']
+            hwSwitch.props['siteVlanIndex'][vid] = wanVlan
+            controller = hwSwitch.props['controller']
+            for port in hwSwitch.getPorts():
+                if port.props['type'] == 'ToSite':
+                    self.vidIndex['%s.%d' % (port.name, wanVlan)] = vid
+                    scope = port.props['scope']
+                    scope.addEndpoint(port, [wanVlan])
 
-    def broadcast(self,inPort,inVlan,srcMac,etherType,payload,switch,scope) :
+    def getVid(self, port, vlan):
+        key = '%s.%d' % (port, vlan)
+        if not key in self.vidIndex:
+            Logger().error('%s not found in %r.vidIndex' % (key, self) )
+            return None
+        return self.vidIndex[key]
+    def translate(self, port, vlan, mac):
+        vid = self.getVid(port, vlan)
+        vpn = self.vpnIndex[vid]
+        return vpn.props['mat'].translate(mac)
+    def reverse(self, trans_mac):
+        vid = trans_mac.getVid()
+        vpn = self.vpnIndex[vid]
+        hid = trans_mac.getHid()
+        return vpn.props['mat'].reverse(hid)
+
+    def broadcast(self,inPort,inVlan,srcMac,dstMac,etherType,payload,switch,scope) :
 
         switchController = switch.props['controller']
+        switch = inPort.props['enosNode']
+        scope = inPort.props['scope']
         success = True
         endpoints = scope.props['endpoints']
-
-        for endpoint in endpoints:
-            vlan = endpoint[1][0]
-            outPort,outSwitch,outScope = self.activePorts[switch.name+":"+endpoint[0]+":"+str(vlan)]
-            # Check that outScope is the sacme as scope
-            if scope != outScope:
-                print "Wrong scope", outScope
-                continue
-            if outPort.name == inPort.name:
-                # no need to rebroadcast on in_port
-                continue
-            if inVlan >= 1000 and vlan >= 1000:
-                continue
-            port_name = inPort.name
-            if vlan < 1000: # FIXME
-                transMac = MATManager.restoreMAT(srcMac)
-            else:
-                transMac = MATManager.MAT(srcMac, port_name, inVlan)
-            packet = PacketOut(port=outPort,dl_src=transMac.array(),dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=outScope,payload=payload)
+        if inPort.get('type') == 'ToSite':
+            # from site, broadcast to WANs
+            vid = self.getVid(inPort, inVlan)
+            transMac = self.translate(inPort, inVlan, srcMac)
+            vpn = self.vpnIndex[vid]
+            lanVlan = vpn.props['lanVlan']
+            dstMac = MACAddress.createBroadcast(vid)
+            for port in switch.getPorts():
+                if port.props['type'] == 'ToWAN':
+                    vlan = port.props['vlan']
+                    packet = PacketOut(port=port, dl_src=transMac, dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
+                    if SDNPopsRenderer.debug:
+                        print packet
+                    res = switchController.send(packet)
+                    if not res:
+                        Logger().warning('switchController.send(%r) fail' % packet)
+                        success = False
+        elif inPort.get('type') == 'ToWAN':
+            # from WAN, broadcast to site
+            transMac = self.reverse(srcMac)
+            vid = dstMac.getVid()
+            dstMac = MACAddress.createBroadcast() # 0xFF{vid}FFFF => 0xFFFFFFFFFFFF
+            vpn = self.vpnIndex[vid]
+            port = switch.props['toSitePorts'][0]
+            vlan = switch.props['siteVlanIndex'][vid]
+            packet = PacketOut(port=port,dl_src=transMac,dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
             if SDNPopsRenderer.debug:
                 print packet
-                #print "PacketOut out-switch",outSwitch.name,"out-port",outPort.name,"scope",outScope.switch.name
             res = switchController.send(packet)
-            res = True
             if not res:
+                Logger().warning('switchController.send(%r) fail' % packet)
                 success = False
-
         return success
 
 
@@ -173,21 +197,23 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         mod.props['renderer'] = self
         match = Match(name=scope.name)
         # check if the packet is from the site or the core
-        fromSite = (vlan < 1000) # FIXME
-        if fromSite:
-            # set the flowmod that if match(dst is trans_mac)
+        if port.get('type') == 'ToSite':
+            # set the flowmod that if match(dst == trans_mac)
             # then act(mod dst to mac, mod vlan to vlan, output = port)
-            trans_mac = MATManager.MAT(mac, port.name, vlan)
+            trans_mac = self.translate(port, vlan, mac)
+        elif port.get('type') == 'ToWAN':
+            # from coreRouter i.e. mac = translated VPN mac
+            # set the flowmod that if match(dst == mac)
+            # then act(mod dst = restoreMac)
+            trans_mac = self.reverse(mac)
         else:
-        # from coreRouter i.e. mac = translated VPN mac
-        # set the flowmod that if match(dst is mac)
-        # then act(mod dst = restoreMac)
-            trans_mac = MATManager.restoreMAT(mac)
-        match.props['dl_dst'] = trans_mac.array()
+            Logger().error('setMAC fail for the packet is from the port with unknown type')
+            return
+        match.props['dl_dst'] = trans_mac
         action = Action(name=scope.name)
         action.props['out_port'] = port
         action.props['vlan'] = vlan
-        action.props['dl_dst'] = mac.array()
+        action.props['dl_dst'] = mac
         mod.match = match
         mod.actions = [action]
         self.flowmods.append(mod)
@@ -205,9 +231,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         :return: Expectation when succcessful, None otherwise
         """
         # Add scopes to the controller
-        for (switch,scope) in self.scopes.items():
-            if not switch.props['enosNode'].props['controller'].addScope(scope):
-                print "Cannot add",scope
+        for scope in self.scopes.values():
+            if not scope.switch.props['controller'].addScope(scope):
+                print "Cannot add", scope
                 return False
         self.active = True
         return True
@@ -225,7 +251,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
 
 class SDNPopsIntent(ProvisioningIntent):
-    def __init__(self,name,pops,hosts,links):
+    def __init__(self, name, pops, hosts, links):
         """
         Creates a provisioning intent providing a GenericGraph of the logical view of the
         topology that is intended to be created.
@@ -233,15 +259,8 @@ class SDNPopsIntent(ProvisioningIntent):
         :param site: Site
         """
         self.pops = pops
+        self.hosts = hosts
         self.links = links
-        self.hosts = []
-        for host in hosts:
-            if not 'enosNode' in host.props:
-                # This is already a GenericNode object
-                self.hosts.append(host)
-            else:
-                self.hosts.append(host.props['enosNode'])
-
         self.graph = self.getGraph()
         ProvisioningIntent.__init__(self,name=name,graph=self.graph)
 
@@ -255,7 +274,8 @@ class SDNPopsIntent(ProvisioningIntent):
         for link in self.links:
             node1 = link.getSrcNode()
             node2 = link.getDstNode()
-            graph.addEdge(node1,node2,link)
+            if node1 in self.hosts and node2 in self.hosts:
+                graph.addEdge(node1,node2,link)
         return graph
 
 

@@ -8,14 +8,12 @@ from common.openflow import Match, Action, FlowMod, Scope, SimpleController
 from odl.client import ODLClient
 from common.utils import singleton
 
-nodes = {}
-
+from common.utils import dump
+from mininet.mac import MACAddress
 
 class TestbedNode(GenericNode,Properties):
     def __init__(self,name,props={}):
         GenericNode.__init__(self,name)
-        global nodes
-        nodes[name] = self
         Properties.__init__(self,name=self.getResourceName(),props=props)
         self.props['links'] = []
 
@@ -40,13 +38,10 @@ class TestbedHost(GenericHost,Properties):
         self.props['links'] = []
 
 class TestbedPort(GenericPort,Port):
-    def __init__(self,name,props={}):
-        GenericPort.__init__(self,name)
-        Port.__init__(self,self.getResourceName(),props)
-
     def __init__(self,port):
         GenericPort.__init__(self,port.name)
         Port.__init__(self,name=port.name,props=port.props)
+        self.props['macs'] = {} # [mac] = port
 
 
 @singleton
@@ -56,26 +51,29 @@ class TestbedTopology (GenericTopologyProvider):
         sys.stdout.write('.')
         sys.stdout.flush()
 
-    def buildSwitch(self,switch):
-        sw = TestbedNode(switch.name,props=switch.props)
-        self.addNode(sw)
-        switch.props['enosNode'] = sw
-        sw.props['controller'] = self.controller
+    def buildSwitch(self, switch):
+        enosSwitch = TestbedNode(switch.name, props=dict(switch.props, controller=self.controller))
+        self.addNode(enosSwitch)
+        switch.props['enosNode'] = enosSwitch
 
     def buildHost(self,host):
-        h = TestbedHost(host.name,props=host.props)
-        self.addNode(h)
-        host.props['enosNode'] = h
+        enosHost = TestbedHost(host.name,props=host.props)
+        self.addNode(enosHost)
+        host.props['enosNode'] = enosHost
 
     def buildLink(self,link):
         p1 = link.props['endpoints'][0]
         p2 = link.props['endpoints'][1]
+        n1 = p1.props['node']
+        n2 = p2.props['node']
+        node1 = n1.props['enosNode']
+        node2 = n2.props['enosNode']
         port1 = TestbedPort(port=p1)
+        port1.props['enosNode'] = node1
         p1.props['enosPort'] = port1
         port2 = TestbedPort(port=p2)
+        port2.props['enosNode'] = node2
         p2.props['enosPort'] = port2
-        node1 = self.builder.nodes[p1.props['node']].props['enosNode']
-        node2 = self.builder.nodes[p2.props['node']].props['enosNode']
         self.addPort (node1,port1)
         self.addPort (node2,port2)
         p1.props['switch'] = node1
@@ -85,38 +83,15 @@ class TestbedTopology (GenericTopologyProvider):
         self.addLink(l)
 
     def buildCore(self):
-        for coreRouter in self.builder.coreRouters.items():
-            self.buildSwitch(coreRouter[1])
-        for hwSwitch in self.builder.hwSwitches.items():
-            self.buildSwitch(hwSwitch[1])
-        for swSwitch in self.builder.swSwitches.items():
-            self.buildSwitch(swSwitch[1])
-        for link in self.builder.coreLinks.items():
-            self.buildLink(link[1])
-
-    def buildVpn(self,vpn):
-        """
-
-        :param vpn: TopoVPN
-        :return:
-        """
-        for s in vpn.props['sites']:
-            site = vpn.props['sites'][s]
-            siteRouter = site.props['siteRouter']
-            self.buildSwitch(siteRouter)
-            for h in site.props['hosts']:
-                host = site.props['hosts'][h]
-                self.buildHost(host)
-            self.buildHost(site.props['serviceVm'])
-
-            for l in site.props['links']:
-                link = site.props['links'][l]
-                self.buildLink(link)
+        for switch in self.builder.switches:
+            self.buildSwitch(switch)
+        for host in self.builder.hosts:
+            self.buildHost(host)
+        for link in self.builder.links:
+            self.buildLink(link)
 
     def buildVpns(self):
-        for vpnName in self.builder.vpns:
-            vpn = self.builder.vpns[vpnName]
-            self.buildVpn(vpn)
+        pass
 
     def findCoreRouterPorts(self, router, target):
         """
@@ -223,6 +198,8 @@ class TestbedTopology (GenericTopologyProvider):
         self.builder = TopoBuilder(fileName = fileName, controller = self.controller)
         self.buildCore()
         self.buildVpns()
+        if not controller:
+            self.controller.init()
 
 
 if __name__ == '__main__':

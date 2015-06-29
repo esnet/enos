@@ -5,7 +5,13 @@ from net.es.netshell.api import GenericGraph
 from common.intent import ProvisioningRenderer, ProvisioningIntent, ProvisioningExpectation
 from common.openflow import ScopeOwner, L2SwitchScope, Match, Action, FlowMod
 
+from odl.client import ODLClient
 from mininet.enos import TestbedTopology
+from mininet.mac import MACAddress
+from common.utils import dump
+
+import pdb
+import net.es.netshell.odl.PacketHandler
 
 class WanRenderer(ProvisioningRenderer, ScopeOwner):
     """
@@ -45,51 +51,29 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
                 print "WanRenderer: " + pop.name
 
             # Find the hardware router and core switch in both the topobuilder and base ENOS layers
-            coreRouter=pop.props['coreRouter']
-            enosCoreRouter=coreRouter.props['enosNode']
+            coreRouter=pop.props['coreRouter'].props['enosNode']
             self.coreRouters.append(coreRouter)
 
             # Create and add the scope
-            scope=L2SwitchScope(name=intent.name+'-'+enosCoreRouter.name, switch=enosCoreRouter, owner=self,endpoints=[])
-            scope.props['endpoints'] = []
+            scope=L2SwitchScope(name=intent.name+'-'+coreRouter.name, switch=coreRouter, owner=self,endpoints={})
             scope.props['intent'] = self.intent
-            # We need to add all of the places that WAN circuits terminate as scope endpoints
-            for circuit in coreRouter.props['WAN-Circuits']:
-                port = None
-                # Each circuit has two endpoints, need to check them both
-                for ep in circuit.props['endpoints']:
-                    if ep.props['node'] == coreRouter.name:
-                        port = ep.props['enosPort']
-                vlan=circuit.props['vlan']
-                if port == None:
-                    print "Can't find this router among circuit endpoints"
-                if self.debug:
-                    print "WAN circuit " + str(port) + " vlan " + str(vlan)
-                scope.props['endpoints'].append((port.name, [vlan]))
-            for circuit in coreRouter.props['toHwSwitch']:
-                port = None
-                for ep in circuit.props['endpoints']:
-                    if ep.props['node'] == coreRouter.name:
-                        port = ep.props['enosPort']
-                vlan=circuit.props['vlan']
-                if port == None:
-                    print "Can't find this router among circuit endpoints"
-                if self.debug:
-                    print "To HW switch " + str(port) + " vlan " + str(vlan)
-                scope.props['endpoints'].append((port.name, [vlan]))
+            for port in coreRouter.getPorts():
+                if port.props['type'] in ['WANToSDN', 'ToWAN']:
+                    vlans = []
+                    for link in port.props['links']:
+                        vlans.append(link.props['vlan'])
+                    scope.addEndpoint(port, vlans)
             if self.debug:
-                print enosCoreRouter.name + ' scope', scope
-            if not enosCoreRouter.props['controller'].addScope(scope):
+                print coreRouter.name + ' scope', scope
+            if not coreRouter.props['controller'].addScope(scope):
                 print "Cannot add " + str(scope)
-            self.scopes[enosCoreRouter.name] = scope
-
+            self.scopes[coreRouter.name] = scope
         return
 
     def __str__(self):
         desc = "WanRenderer: " + self.name + "\n"
         desc += "\tPOPs: " + str.join (", ", (i.name for i in self.pops)) + "\n"
         desc += "\tRouters: " + str.join (", ", (i.name for i in self.coreRouters)) + "\n"
-
         return desc
 
     def __repr__(self):
@@ -172,14 +156,13 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
         """
         Stitch two VLAN interfaces together on a router.
         The router is the common router between the two links.
-
         """
         controller = router.props['controller']
 
         vlan1 = link1.props['vlan']
         intf1 = None
         for ep in link1.props['endpoints']:
-            if ep.props['node'] == router.name:
+            if ep.props['node'].name == router.name:
                 intf1 = ep.props['enosPort']
         if intf1 is None:
             print "Couldn't find correct end of link " + str(link1) + " on " + router.name
@@ -187,7 +170,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
         vlan2 = link2.props['vlan']
         intf2 = None
         for ep in link2.props['endpoints']:
-            if ep.props['node'] == router.name:
+            if ep.props['node'].name == router.name:
                 intf2 = ep.props['enosPort']
         if intf2 is None:
             print "Couldn't find correct end of link " + str(link2) + " on " + router.name
@@ -203,9 +186,9 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
 
             m1 = Match('')
             m1.props['in_port'] = intf1
-            m1.props['vlan'] = vlan1
+            # m1.props['vlan'] = vlan1
             a1 = Action('')
-            a1.props['vlan'] = vlan2
+            # a1.props['vlan'] = vlan2
             a1.props['out_port'] = intf2
             f1 = FlowMod(scope, router, m1, "", [a1])
             if self.debug:
@@ -214,9 +197,9 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
 
             m2 = Match('')
             m2.props['in_port'] = intf2
-            m2.props['vlan'] = vlan2
+            # m2.props['vlan'] = vlan2
             a2 = Action('')
-            a2.props['vlan'] = vlan1
+            # a2.props['vlan'] = vlan1
             a2.props['out_port'] = intf1
             f2 = FlowMod(scope, router, m2, "", [a2])
             if self.debug:
@@ -332,10 +315,9 @@ class WanIntent(ProvisioningIntent):
         for pop in self.pops:
 
             # Add the core router to the graph
-            coreRouter=pop.props['coreRouter']
-            enosCoreRouter=pop.props['coreRouter'].props['enosNode']
-            graph.addVertex(enosCoreRouter)
-            routers.append(enosCoreRouter)
+            coreRouter=pop.props['coreRouter'].props['enosNode']
+            graph.addVertex(coreRouter)
+            routers.append(coreRouter)
 
         # Then add all of the links connecting them up.  We need to do this as
         # two separate passes to ensure that all the graph vertices have been
