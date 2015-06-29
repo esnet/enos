@@ -10,7 +10,6 @@ from mininet.enos import TestbedTopology, TestbedHost, TestbedNode, TestbedPort,
 
 from net.es.netshell.api import GenericGraph, GenericHost
 from mininet.mac import MACAddress
-from mininet.mat import MATManager
 from common.utils import Logger, dump
 
 broadcastAddress = array('B',[0xFF,0xFF,0xFF,0xFF,0xFF,0xFF])
