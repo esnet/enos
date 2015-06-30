@@ -58,11 +58,9 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
             scope=L2SwitchScope(name=intent.name+'-'+coreRouter.name, switch=coreRouter, owner=self,endpoints={})
             scope.props['intent'] = self.intent
             for port in coreRouter.getPorts():
-                if port.props['type'] in ['WANToSDN', 'ToWAN']:
-                    vlans = []
+                if port.props['type'] in ['WANToSDN', 'WAN']:
                     for link in port.props['links']:
-                        vlans.append(link.props['vlan'])
-                    scope.addEndpoint(port, vlans)
+                        scope.addEndpoint(port, link.props['vlan'])
             if self.debug:
                 print coreRouter.name + ' scope', scope
             if not coreRouter.props['controller'].addScope(scope):

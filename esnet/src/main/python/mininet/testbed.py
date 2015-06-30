@@ -20,7 +20,7 @@ sites = [lblsite, anlsite, cernsite]
 vpn1=["vpn1", 1234, 10, [
     ("lbl.gov", ['dtn-1', 'dtn-2'], 11), 
     ("anl.gov", ['dtn-1', 'dtn-2'], 12),
-    ("cern.ch", ['dtn-1', 'dtn-2'], 13)
+    ("cern.ch", ['dtn-1', 'dtn-2'], 13),
     ]
 ]
 vpn2=["vpn2", 5678, 20, [
@@ -119,10 +119,7 @@ class TopoBuilder ():
         self.switches.append(hwSwitch)
         self.switches.append(coreRouter)
         self.switches.append(swSwitch)
-        for link in hwSwitch.get('toCoreRouter'):
-            self.links.append(link)
-        for link in hwSwitch.get('toSwSwitch'):
-            self.links.append(link)
+        self.links.extend(pop.props['links'])
         return pop
 
     def connect(self, pop1, pop2, vlan):
@@ -133,7 +130,7 @@ class TopoBuilder ():
         link11 = Link.create(coreRouter1, hwSwitch1, vlan)
         link11.setPortType('WANToSDN', 'ToWAN')
         link12 = Link.create(coreRouter1, coreRouter2, vlan)
-        link12.setPortType('ToWAN', 'ToWAN')
+        link12.setPortType('WAN', 'WAN')
         link22 = Link.create(coreRouter2, hwSwitch2, vlan)
         link22.setPortType('WANToSDN', 'ToWAN')
         coreRouter1.props['WAN-Circuits'].append(link12)
@@ -145,8 +142,8 @@ class TopoBuilder ():
         coreRouter2.props['toHwSwitch'].append(link22)
         coreRouter1.props['toHwSwitchPorts'].append(link11.props['endpoints'][0])
         coreRouter2.props['toHwSwitchPorts'].append(link22.props['endpoints'][0])
-        hwSwitch1.props['nextHop'][pop2.name] = link12
-        hwSwitch2.props['nextHop'][pop1.name] = link12
+        hwSwitch1.props['nextHop'][pop2.name] = link11
+        hwSwitch2.props['nextHop'][pop1.name] = link22
 
         self.links.append(link11)
         self.links.append(link12)
@@ -200,7 +197,7 @@ class TopoBuilder ():
                 hosts = map(lambda hostname : self.hostIndex['%s@%s' % (hostname, sitename)], hostnames)
                 vpn.addParticipant(site, hosts, wanVlan)
             self.hosts.extend(vpn.props['serviceVms'])
-            self.links.extend(vpn.props['serviceVmLinks'])
+            self.links.extend(vpn.props['links'])
             self.vpns.append(vpn)
         for host in self.hosts:
             self.updateHost(host)
@@ -216,8 +213,7 @@ class TopoBuilder ():
         site.props['borderRouter'] = coreRouter
 
         link = Link.create(siteRouter, coreRouter)
-        link.props['endpoints'][0].props['type'] = 'ToWAN'
-        link.props['endpoints'][1].props['type'] = 'ToSite'
+        link.setPortType('ToBorder', 'SDNToSite')
         siteRouter.props['toWanPort'] = link.props['endpoints'][0]
         coreRouter.props['toSitePort'] = link.props['endpoints'][1]
         site.props['links'].append(link)

@@ -26,6 +26,7 @@ class Port(Properties):
         self.props['links'] = [] # list of Link
         # Others
         self.props['vlanIndex'] = {} # [vid] = mod_vlan
+        self.props['scopeIndex'] = {} # [vid] = Scope
         self.props['vlan'] = 0
         self.update(props)
     def __repr__(self):
@@ -101,6 +102,7 @@ class SwSwitch(Switch):
 class SDNPop(Properties):
     def __init__(self, name, hwswitchname, coreroutername, swswitchname, nbOfLinks=1, props={}):
         super(SDNPop, self).__init__(name, props=props)
+        self.props['links'] = []
         hwSwitch = HwSwitch(hwswitchname)
         hwSwitch.props['pop'] = self
         coreRouter = CoreRouter(coreroutername)
@@ -119,6 +121,8 @@ class SDNPop(Properties):
             link2.setPortType('ToSwSwitch', 'ToHwSwitch')
             hwSwitch.props['toSwSwitch'].append(link2)
             swSwitch.props['sitesToHwSwitch'].append(link2)
+            self.props['links'].append(link1)
+            self.props['links'].append(link2)
         self.props['hwSwitch'] = hwSwitch
         self.props['coreRouter'] = coreRouter
         self.props['swSwitch'] = swSwitch
@@ -132,7 +136,7 @@ class VPN(Properties):
         self.props['participants'] = [] # list of (site, hosts, wanVlan)
         self.props['serviceVms'] = []
         self.props['serviceVmIndex'] = {} # [sitename] = serviceVm
-        self.props['serviceVmLinks'] = []
+        self.props['links'] = []
         self.props['mat'] = None # MAC Address Translation
     def addParticipant(self, site, hosts, wanVlan):
         # create a service vm (host) and connect it to sw switch
@@ -142,7 +146,8 @@ class VPN(Properties):
         self.props['serviceVmIndex'][site.name] = serviceVm
         swSwitch = pop.props['swSwitch']
         link = Link.create(serviceVm, swSwitch, wanVlan)
-        self.props['serviceVmLinks'].append(link)
+        link.setPortType('ToServiceVm', 'VLAN')
+        self.props['links'].append(link)
         self.props['participants'].append((site, hosts, wanVlan))
 
 class Site(Properties):
@@ -167,6 +172,7 @@ class Link(Properties):
     def __init__(self, name, props={}):
         super(Link, self).__init__(name)
         self.props['endpoints'] = [] # [Port, Port]
+        self.props['portIndex'] = {} # [nodename] = Port
         self.props['vlan'] = 0
         self.update(props)
     @staticmethod
@@ -175,6 +181,7 @@ class Link(Properties):
         port2 = node2.getPort(interfaceIndex2)
         link = Link(name='%s:%s' % (port1.name, port2.name))
         link.props['endpoints'] = [port1, port2]
+        link.props['portIndex'] = {node1.name:port1, node2.name:port2}
         link.props['vlan'] = vlan
         if vlan:
             port1.props['vlan'] = vlan

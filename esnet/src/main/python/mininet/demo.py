@@ -55,18 +55,14 @@ if __name__ == '__main__':
         allHosts.extend(hosts)
         allLinks.extend(links)
 
-    # TODO how to dispatch packet from WAN to correct scope if multiple VPNs?
-    # TODO include hosts and links involving swSwitch and serviceVm
-    popsIntent = SDNPopsIntent(name="vpn", pops=net.builder.pops, hosts=hosts, links=links)
-    popsRenderer = SDNPopsRenderer(popsIntent)
-    popsRenderer.execute()
-
     for vpn in net.builder.vpns:
+        vpn.props['mat'] = MAT(vpn.props['vid'])
+        popsIntent = SDNPopsIntent(name="vpn", vpn=vpn, topo=net.builder)
+        popsRenderer = SDNPopsRenderer(popsIntent)
+        popsRenderer.execute()
         lanVlan = vpn.props['lanVlan']
         for participant in vpn.props['participants']:
             (site, hosts, wanVlan) = participant
             siteRenderer = site.props['siteRouter'].props['toWanPort'].props['enosPort'].props['scope'].owner
             siteRenderer.addVpn(lanVlan, wanVlan)
-        vpn.props['mat'] = MAT(vpn.props['vid'])
-        popsRenderer.addVpn(vpn)
         print "VPN " + vpn.name + " is up."

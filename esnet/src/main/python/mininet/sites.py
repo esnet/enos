@@ -10,7 +10,7 @@ from net.es.netshell.api import GenericGraph
 from common.utils import Logger
 from mininet.mac import MACAddress
 from common.utils import dump
-
+import threading
 broadcastAddress = array('B',[0xFF,0xFF,0xFF,0xFF,0xFF,0xFF])
 sites = []
 class SiteRenderer(ProvisioningRenderer,ScopeOwner):
@@ -52,7 +52,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         for port in self.siteRouter.getPorts():
             self.activePorts[port.name] = port
             port.props['scope'] = scope
-        # scope.addEndpoint(port, vlans) later while configuring vpns
+        # scope.addEndpoint(port, vlan) later while configuring vpns
         self.siteRouter.props['controller'].addScope(scope)
         # Create scope for the border router
         scope2 = L2SwitchScope(name=intent.name,switch=self.borderRouter,owner=self)
@@ -61,11 +61,11 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         hwswitch_to_site_port = self.borderRouter.props['toSitePort'].props['enosPort']
         self.activePorts[hwswitch_to_site_port.name] = hwswitch_to_site_port
         hwswitch_to_site_port.props['scope'] = scope2
-        scope2.addEndpoint(hwswitch_to_site_port, [])
+        scope2.addEndpoint(hwswitch_to_site_port)
         site_to_hwswitch_port = self.borderRouter.props['sitesToHwSwitchPorts'][0].props['enosPort']
         self.activePorts[site_to_hwswitch_port.name] = site_to_hwswitch_port
         site_to_hwswitch_port.props['scope'] = scope2
-        scope2.addEndpoint(site_to_hwswitch_port, [])
+        scope2.addEndpoint(site_to_hwswitch_port)
         self.props['borderPortToSite'] = hwswitch_to_site_port
         self.props['borderPortToSDN'] = site_to_hwswitch_port
         self.borderRouter.props['controller'].addScope(scope2)
@@ -77,10 +77,10 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         toWanPort = siteRouter.props['toWanPort'].props['enosPort']
         for port in siteRouter.getPorts():
             if port == toWanPort:
-                scope.addEndpoint(port, [wanVlan])
+                scope.addEndpoint(port, wanVlan)
             else:
                 # to LAN (Hosts)
-                scope.addEndpoint(port, [lanVlan])
+                scope.addEndpoint(port, lanVlan)
     def __str__(self):
         desc = "SiteRenderer: " + self.name + "\n"
         desc += "\tSite scope:\n" + str(self.props['siteScope'])
@@ -116,7 +116,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             port = event.props['in_port']
             # switch = port.props['node']
             in_port = self.activePorts[port.name]
-            if not in_port.props['type'] in ['ToLAN','ToWAN']:
+            if not in_port.props['type'] in ['ToLAN','ToBorder']:
                 # Discard (debug)
                 return
             dl_dst = event.props['dl_dst']
@@ -158,10 +158,10 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             if port.props['type'] == 'ToLAN':
                 vlan = lanVlan
                 packet = PacketOut(port=port,dl_src=srcMac,dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
-            elif port.props['type'] == 'ToWAN':
+            elif port.props['type'] == 'ToBorder':
                 vlan = wanVlan
                 packet = PacketOut(port=port,dl_src=srcMac,dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
-            else:
+            else: #SDNToSite, SiteToSDN
                 continue
             if SiteRenderer.debug:
                 print packet
