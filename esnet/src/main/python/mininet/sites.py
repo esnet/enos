@@ -69,18 +69,18 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.props['borderPortToSite'] = hwswitch_to_site_port
         self.props['borderPortToSDN'] = site_to_hwswitch_port
         self.borderRouter.props['controller'].addScope(scope2)
-    def addVpn(self, lanVlan, wanVlan):
+    def addVpn(self, hosts, lanVlan, wanVlan):
         self.lanVlanIndex[wanVlan] = lanVlan
         self.wanVlanIndex[lanVlan] = wanVlan
         siteRouter = self.props['siteScope'].switch
         scope = self.props['siteScope']
         toWanPort = siteRouter.props['toWanPort'].props['enosPort']
-        for port in siteRouter.getPorts():
-            if port == toWanPort:
-                scope.addEndpoint(port, wanVlan)
-            else:
-                # to LAN (Hosts)
-                scope.addEndpoint(port, lanVlan)
+        scope.addEndpoint(toWanPort, wanVlan)
+        for host in hosts:
+            host_port = host.props['ports'][1] # assume host has only one port
+            link = host_port.props['links'][0] # assume port has only one link
+            port = link.props['portIndex'][siteRouter.name]
+            scope.addEndpoint(port, lanVlan)
     def __str__(self):
         desc = "SiteRenderer: " + self.name + "\n"
         desc += "\tSite scope:\n" + str(self.props['siteScope'])

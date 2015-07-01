@@ -43,7 +43,6 @@ from org.opendaylight.controller.sal.packet import PacketResult
 from org.opendaylight.controller.sal.flowprogrammer import Flow
 
 from org.opendaylight.controller.sal.utils import EtherTypes;
-client = []
 class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
     """
     Class that is an interface to the ENOS OpenDaylight client.
@@ -212,7 +211,6 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         :param packet: common.openflow.PacketOut
         :return:  True if successful, False if not
         """
-        Logger().info('send %r' % packet)
         if self.isPacketOutValid(packet):
             # Get the switch (Node in the ODL world) and port (NodeConnector in the ODL world)
             sw = self.findODLSwitch(packet.scope.switch)
@@ -251,8 +249,6 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             self.odlPacketHandler.transmitDataPacket(rp)
             return True
         else:
-            global client
-            client.extend([self, packet])
             print 'Packet %r is not valid' % packet
         return False
 

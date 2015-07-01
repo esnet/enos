@@ -64,5 +64,5 @@ if __name__ == '__main__':
         for participant in vpn.props['participants']:
             (site, hosts, wanVlan) = participant
             siteRenderer = site.props['siteRouter'].props['toWanPort'].props['enosPort'].props['scope'].owner
-            siteRenderer.addVpn(lanVlan, wanVlan)
+            siteRenderer.addVpn(hosts, lanVlan, wanVlan)
         print "VPN " + vpn.name + " is up."
