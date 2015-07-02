@@ -1,5 +1,5 @@
 from net.es.netshell.api import GenericGraphViewer
-
+from common.intent import Intent
 if len(command_args) < 3:
     print "Usage:  " + command_args[1] + " intentname"
 

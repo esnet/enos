@@ -1,19 +1,18 @@
 import net.es.netshell.odl.PacketHandler
 net.es.netshell.odl.PacketHandler.getInstance().setPacketInCallback(None)
 
+import common.intent
+reload (common.intent)
+from common.intent import Intent
+from common.intent import Expectation
+
 import common.utils
 reload (common.utils)
 from common.utils import InitLogger
 from common.utils import Logger
 
-import common.utils
-reload (common.utils)
-
 import common.api
 reload (common.api)
-
-import common.mac
-reload (common.mac)
 
 from common.api import Link
 from common.api import Port
@@ -29,9 +28,10 @@ from common.api import SDNPop
 from common.api import VPN
 from common.mac import MACAddress
 
-import mininet.mac
-reload (mininet.mac)
-from mininet.mac import MACAddress
+import common.mac
+reload (common.mac)
+
+from common.mac import MACAddress
 
 import mininet.mat
 reload (mininet.mat)

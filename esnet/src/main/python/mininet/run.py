@@ -9,7 +9,6 @@ from mininet.topo import Topo
 
 from common.api import Node, SDNPop,Link,Port,Site,VPN
 from testbed import TopoBuilder
-from common.utils import dump
 from common.mac import MACAddress
 #
 # OpenFlow controller IP and ports

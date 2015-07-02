@@ -8,8 +8,7 @@ from common.openflow import Match, Action, FlowMod, Scope, SimpleController
 from odl.client import ODLClient
 from common.utils import singleton
 
-from common.utils import dump
-from mininet.mac import MACAddress
+from common.mac import MACAddress
 
 class TestbedNode(GenericNode,Properties):
     def __init__(self,name,props={}):
@@ -199,8 +198,8 @@ class TestbedTopology (GenericTopologyProvider):
         self.buildCore()
         self.buildVpns()
         if not controller:
+            # now that self.builder is ready
             self.controller.init()
-
 
 if __name__ == '__main__':
     # todo: real argument parsing.

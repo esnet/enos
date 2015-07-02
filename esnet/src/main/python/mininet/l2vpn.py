@@ -9,10 +9,9 @@ from odl.client import ODLClient
 from mininet.enos import TestbedTopology, TestbedHost, TestbedNode, TestbedPort, TestbedLink
 
 from net.es.netshell.api import GenericGraph, GenericHost
-from mininet.mac import MACAddress
-from common.utils import Logger, dump
+from common.mac import MACAddress
+from common.utils import Logger
 
-broadcastAddress = array('B',[0xFF,0xFF,0xFF,0xFF,0xFF,0xFF])
 class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
     debug = False
     lastEvent = None
@@ -54,9 +53,17 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             for port in hwSwitch.getPorts():
                 if port.props['type'] == 'ToSite':
                     hwSwitchScope.addEndpoint(port, wanVlan)
-            # swSwitch = pop.props['swSwitch'].props['enosNode']
-            # swSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, swSwitch.name),switch=swSwitch,owner=self)
-            # self.scopeIndex[swSwitch.name] = swSwitchScope
+            swSwitch = pop.props['swSwitch'].props['enosNode']
+            swSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, swSwitch.name),switch=swSwitch,owner=self)
+            self.scopeIndex[swSwitch.name] = swSwitchScope
+            # A scope with an empty endpoints indicates it covers everything.
+            # Therefore, though swSwitchScope has no function for now, we still
+            # need to add an endpoint to avoid the failure of scope.overlaps()
+            serviceVm = self.vpn.props['serviceVmIndex'][site.name]
+            vm_port = serviceVm.props['ports'][1] # assume only one port on ServiceVm
+            link = vm_port.props['links'][0] # assume only one link on the port
+            sw_port = link.props['portIndex'][swSwitch.name]
+            swSwitchScope.addEndpoint(sw_port)
 
         for i in range(len(self.pops)):
             pop1 = self.pops[i]
@@ -69,10 +76,16 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
                 link1 = hwSwitch1.props['nextHop'][pop2.name]
                 port1 = link1.props['portIndex'][hwSwitch1.name]
+                # Here we use (port, vid) instead of (port, vlan) as the index.
+                # The reason is that VPNs all share the same port and vlan on
+                # the 'ToWAN' ports of HwSwitch, so we couldn't dispatch
+                # packets to the scope based on vlan. The solution is temporary
+                # only.
                 scope1.addEndpoint(port1, vid)
                 port1.props['scopeIndex'][vid] = scope1
                 link2 = hwSwitch2.props['nextHop'][pop1.name]
                 port2 = link2.props['portIndex'][hwSwitch2.name]
+                # Similar to the comment above
                 scope2.addEndpoint(port2, vid)
                 port2.props['scopeIndex'][vid] = scope2
 

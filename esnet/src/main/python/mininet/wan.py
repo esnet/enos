@@ -7,11 +7,7 @@ from common.openflow import ScopeOwner, L2SwitchScope, Match, Action, FlowMod
 
 from odl.client import ODLClient
 from mininet.enos import TestbedTopology
-from mininet.mac import MACAddress
-from common.utils import dump
-
-import pdb
-import net.es.netshell.odl.PacketHandler
+from common.mac import MACAddress
 
 class WanRenderer(ProvisioningRenderer, ScopeOwner):
     """
@@ -184,9 +180,9 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
 
             m1 = Match('')
             m1.props['in_port'] = intf1
-            # m1.props['vlan'] = vlan1
+            m1.props['vlan'] = vlan1
             a1 = Action('')
-            # a1.props['vlan'] = vlan2
+            a1.props['vlan'] = vlan2
             a1.props['out_port'] = intf2
             f1 = FlowMod(scope, router, m1, "", [a1])
             if self.debug:
@@ -195,9 +191,9 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
 
             m2 = Match('')
             m2.props['in_port'] = intf2
-            # m2.props['vlan'] = vlan2
+            m2.props['vlan'] = vlan2
             a2 = Action('')
-            # a2.props['vlan'] = vlan1
+            a2.props['vlan'] = vlan1
             a2.props['out_port'] = intf1
             f2 = FlowMod(scope, router, m2, "", [a2])
             if self.debug:

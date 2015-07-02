@@ -4,8 +4,7 @@ import sys
 import inspect
 import binascii
 import threading
-from mininet.mac import MACAddress
-from common.utils import print_stack
+from common.mac import MACAddress
 from common.utils import Logger
 
 from java.lang import Short
@@ -42,7 +41,7 @@ from org.opendaylight.controller.sal.packet import PacketResult
 
 from org.opendaylight.controller.sal.flowprogrammer import Flow
 
-from org.opendaylight.controller.sal.utils import EtherTypes;
+from org.opendaylight.controller.sal.utils import EtherTypes
 class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
     """
     Class that is an interface to the ENOS OpenDaylight client.
@@ -54,11 +53,10 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
 
     def __init__(self,topology):
         """
-        Note: topology might not be ready (builder) at this moment,
-        so you are not allowed to do initialization related to topology.builder.
-        However, you can do it later in method init(self) if you want.
-        :param topology:
-        :return: mininet.TestbedTopology
+        Note: topology might not be ready at this moment,
+        so you are not allowed to access anything related to topology.builder here.
+        However, you could do it later in method init(self).
+        :param topology: TestbedTopology whose builder is not ready yet
         """
         self.__class__ = SimpleController
         #super(ODLClient,self).__init__()
@@ -69,9 +67,12 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         ODLClient.topology = topology
         self.debug = 0
         self.dropLLDP = True
-        self.odlSwitchIndex = {} # [key=odlNode.getID() or dpid]
+        self.odlSwitchIndex = {} # [key=dpid]
         self.switchIndex = {} # [key=odlNode.getID()]
     def init(self):
+        """
+        Index odlSwitchIndex and switchIndex to speed up getSwitch() and findODLSwitch()
+        """
         # index odl node and port(connector)
         index = {} # [dpid] = switch
         for switch in ODLClient.topology.builder.switches:
@@ -82,8 +83,8 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             nodeID = odlSwitch.getNode().getID()
             dpid = binascii.hexlify(odlSwitch.getDataLayerAddress())
             if not dpid in index:
+                Logger().warning('an OdlSwitch with %r not found in topology' % dpid)
                 continue
-            self.odlSwitchIndex[nodeID] = odlSwitch
             self.odlSwitchIndex[dpid] = odlSwitch
             self.switchIndex[nodeID] = index[dpid]
         self.odlPacketHandler.setPacketInCallback(self)
@@ -102,17 +103,15 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
     def findODLSwitch(self, switch):
         """
         Given the switch in the ENOS (Python) world, find the switch in the
-        ODL (Java) world.  We basically have to iterate over all of the switches
-        the controller knows about and match on the DPID.  This stupidity is
-        because there's apparently no way in the SwitchManager API to search for a
-        switch by its name or DPID.
-        XXX I bet this operation is expensive.  Maybe we should think about putting in
-        a cache of the switch lookup.
-
-        :param enosSwitch: common.api.Node
+        ODL (Java) world.
+        :param switch: common.api.Node
         :return: org.opendaylight.controller.switchmanager.Switch (None if not found)
         """
-        return self.odlSwitchIndex[binascii.hexlify(switch.props['dpid'][-6:])]
+        dpid = binascii.hexlify(switch.props['dpid'][-6:])
+        if not dpid in self.odlSwitchIndex:
+            Logger().warning('could not found dpid %r in %r.findODLSwitch' % (dpid, self))
+            return None
+        return self.odlSwitchIndex[dpid]
 
     def makeODLFlowEntry(self, flowMod, odlNode):
         """
@@ -134,9 +133,9 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             nodeconn = self.odlController.getNodeConnector(odlNode, portName)
             match.setField(IN_PORT, nodeconn)
         if 'dl_src' in flowMod.match.props:
-            match.setField(DL_SRC, flowMod.match.props['dl_src'].jarray())
+            match.setField(DL_SRC, self.javaByteArray(flowMod.match.props['dl_src'].data))
         if 'dl_dst' in flowMod.match.props:
-            match.setField(DL_DST, flowMod.match.props['dl_dst'].jarray())
+            match.setField(DL_DST, self.javaByteArray(flowMod.match.props['dl_dst'].data))
         if 'vlan' in flowMod.match.props:
             match.setField(DL_VLAN, Short(flowMod.match.props['vlan']))
 
@@ -153,9 +152,9 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
 
         action = flowMod.actions[0]
         if 'dl_dst' in action.props:
-            actionList.add(SetDlDst(action.props['dl_dst'].jarray()))
+            actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'].data)))
         if 'dl_src' in action.props:
-            actionList.add(SetDlSrc(action.props['dl_src'].jarray()))
+            actionList.add(SetDlSrc(self.javaByteArray(action.props['dl_src'].data)))
         if 'vlan' in action.props:
             actionList.add(SetVlanId(action.props['vlan']))
         if 'out_port' in action.props:
@@ -225,8 +224,8 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
 
             # Create the outgoing packet in ODL land.  The outgoing node connector must be set.
             cp = Ethernet()
-            cp.setSourceMACAddress(packet.dl_src.jarray())
-            cp.setDestinationMACAddress(packet.dl_dst.jarray())
+            cp.setSourceMACAddress(self.javaByteArray(packet.dl_src.data))
+            cp.setDestinationMACAddress(self.javaByteArray(packet.dl_dst.data))
             if packet.vlan == 0:
                 cp.setEtherType(packet.etherType)
                 if isinstance(packet.payload, Packet):

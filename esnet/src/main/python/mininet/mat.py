@@ -1,10 +1,10 @@
 import random
 from common.api import Properties
-from mininet.mac import MACAddress
+from common.mac import MACAddress
 import threading
 
 class MAT(Properties):
-    reserved = 0xFF00 - 1 # Hid after this value are reversed for multicast
+    reserved = 0xFF00 - 1 # Hid after this value are reserved for multicast
     def __init__(self, vid):
         super(MAT, self).__init__(name='MAT[%d]' % vid)
         self.props['vid'] = vid

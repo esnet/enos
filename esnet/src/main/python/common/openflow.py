@@ -8,7 +8,7 @@ from array import array
 from common.utils import generateId
 from common.api import Properties, Node
 
-from mininet.mac import MACAddress
+from common.mac import MACAddress
 from common.utils import Logger
 
 import binascii
@@ -653,15 +653,21 @@ class SimpleController(Controller):
         return False
 
     def getScope(self, port, vlan, mac):
-        # TODO imp getRenderer
+        """
+        Here we hack by using (port, vid) instead of (port, vlan) as the index
+        for some specific ports ('ToWAN' ports on HwSwitch) to fix the issue
+        that VPNs with different vids should have their own separated scopes
+        but share the same port and vlan.
+        """
         if port.props['type'] == 'ToWAN':
             key = '%s.%d' % (port.name, mac.getVid())
         else:
             key = '%s.%d' % (port.name, vlan)
         if not key in self.scopeIndex:
+            # try to check if the port includes all vlans
             key = port.name
         if not key in self.scopeIndex:
-            Logger().error('key %s not found in %r.scopeIndex' % (key, self))
+            Logger().warning('(%s, %d) not found in %r.scopeIndex' % (port.name, vlan, self))
             return None
         return self.scopeIndex[key]
 

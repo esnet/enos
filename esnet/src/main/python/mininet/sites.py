@@ -8,11 +8,8 @@ from mininet.enos import TestbedHost, TestbedNode, TestbedPort, TestbedLink
 
 from net.es.netshell.api import GenericGraph
 from common.utils import Logger
-from mininet.mac import MACAddress
-from common.utils import dump
+from common.mac import MACAddress
 import threading
-broadcastAddress = array('B',[0xFF,0xFF,0xFF,0xFF,0xFF,0xFF])
-sites = []
 class SiteRenderer(ProvisioningRenderer,ScopeOwner):
     """
     Implements the rendering of provisioning intents on the Site. This class is responsible for pushing the proper
@@ -158,6 +155,9 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             if port.props['type'] == 'ToLAN':
                 vlan = lanVlan
                 packet = PacketOut(port=port,dl_src=srcMac,dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
+                if not switchController.isPacketOutValid(packet):
+                    # the host did not participate the VPN
+                    continue
             elif port.props['type'] == 'ToBorder':
                 vlan = wanVlan
                 packet = PacketOut(port=port,dl_src=srcMac,dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=scope,payload=payload)

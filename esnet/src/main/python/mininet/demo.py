@@ -8,7 +8,7 @@ from net.es.netshell.api import GenericGraphViewer
 import copy
 
 import random
-from common.utils import InitLogger, dump
+from common.utils import InitLogger
 from mininet.mat import MAT
 
 def getPop(topo,coreRouter):
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     for vpn in net.builder.vpns:
         vpn.props['mat'] = MAT(vpn.props['vid'])
-        popsIntent = SDNPopsIntent(name="vpn", vpn=vpn, topo=net.builder)
+        popsIntent = SDNPopsIntent(name=vpn.name, vpn=vpn, topo=net.builder)
         popsRenderer = SDNPopsRenderer(popsIntent)
         popsRenderer.execute()
         lanVlan = vpn.props['lanVlan']
