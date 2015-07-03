@@ -59,7 +59,8 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.activePorts[hwswitch_to_site_port.name] = hwswitch_to_site_port
         hwswitch_to_site_port.props['scope'] = scope2
         scope2.addEndpoint(hwswitch_to_site_port)
-        site_to_hwswitch_port = self.borderRouter.props['sitesToHwSwitchPorts'][0].props['enosPort']
+        link = self.borderRouter.props['siteToHwSwitch'][0] # get the first link as the site link
+        site_to_hwswitch_port = link.props['portIndex'][self.borderRouter.name].props['enosPort']
         self.activePorts[site_to_hwswitch_port.name] = site_to_hwswitch_port
         site_to_hwswitch_port.props['scope'] = scope2
         scope2.addEndpoint(site_to_hwswitch_port)

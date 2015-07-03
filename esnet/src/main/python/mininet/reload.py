@@ -26,6 +26,7 @@ from common.api import SwSwitch
 from common.api import Site
 from common.api import SDNPop
 from common.api import VPN
+from common.api import Wan
 from common.mac import MACAddress
 
 import common.mac

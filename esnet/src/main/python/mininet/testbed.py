@@ -8,7 +8,7 @@
 import struct,binascii
 from array import array
 
-from common.api import Node, SDNPop, Link, Port, Site, VPN, Host, ServiceVm, SiteRouter, CoreRouter, HwSwitch, SwSwitch
+from common.api import Node, SDNPop, Link, Port, Site, Wan, VPN, Host, ServiceVm, SiteRouter, CoreRouter, HwSwitch, SwSwitch
 from common.mac import MACAddress
 
 # All switches including site routers, core routers, hw switches, and sw switches should
@@ -71,13 +71,14 @@ class TopoBuilder ():
         self.hosts = []
         self.hostIndex = {} # [hostname] = Host
         self.switches = []
-        self.links = []
+        self.links = [] # all links including those in sites, pops, vpns, and wan
         self.sites = []
         self.siteIndex = {} # [sitename] = Site
         self.sitesConfig = []
         self.pops = []
         self.popIndex = {} # [popname] = SDNPop
         self.vpns = []
+        self.wan = Wan(name='esnet')
         self.network = network
         if self.network['ip'][-1] == '.':
             self.network['ip'] = self.network['ip'][:-1]
@@ -122,32 +123,6 @@ class TopoBuilder ():
         self.links.extend(pop.props['links'])
         return pop
 
-    def connect(self, pop1, pop2, vlan):
-        coreRouter1 = pop1.get('coreRouter')
-        coreRouter2 = pop2.get('coreRouter')
-        hwSwitch1 = pop1.get('hwSwitch')
-        hwSwitch2 = pop2.get('hwSwitch')
-        link11 = Link.create(coreRouter1, hwSwitch1, vlan)
-        link11.setPortType('WANToSDN', 'ToWAN')
-        link12 = Link.create(coreRouter1, coreRouter2, vlan)
-        link12.setPortType('WAN', 'WAN')
-        link22 = Link.create(coreRouter2, hwSwitch2, vlan)
-        link22.setPortType('WANToSDN', 'ToWAN')
-        coreRouter1.props['WAN-Circuits'].append(link12)
-        coreRouter1.props['toWanPorts'].append(link12.props['endpoints'][0])
-        coreRouter2.props['toWanPorts'].append(link12.props['endpoints'][1])
-        coreRouter2.props['WAN-Circuits'].append(link12)
-
-        coreRouter1.props['toHwSwitch'].append(link11)
-        coreRouter2.props['toHwSwitch'].append(link22)
-        coreRouter1.props['toHwSwitchPorts'].append(link11.props['endpoints'][0])
-        coreRouter2.props['toHwSwitchPorts'].append(link22.props['endpoints'][0])
-        hwSwitch1.props['nextHop'][pop2.name] = link11
-        hwSwitch2.props['nextHop'][pop1.name] = link22
-
-        self.links.append(link11)
-        self.links.append(link12)
-        self.links.append(link22)
     def updateHost(self, host):
         host.update(self.getHostParams(host.name))
     def updateSwitch(self, switch):
@@ -171,24 +146,17 @@ class TopoBuilder ():
             self.pops.append(pop)
 
         # create mesh between core routers, attached to VLANs between the core routers and hardware switches
-        pops = self.pops
-        vlanIndex = 1000
-        for i in range(len(pops)):
-            pop1 = pops[i]
-            for j in range(i+1, len(pops)):
-                pop2 = pops[j]
-                self.connect(pop1, pop2, vlanIndex)
-                vlanIndex += 1
+        self.wan.connectAll(self.pops, 1000)
+        self.links.extend(self.wan.props['links'])
 
         # might be skip if vpn's information is complete
         for (sitename, hostnames, popname) in self.sitesConfig:
             site = self.addSite(sitename, popname)
-            # TODO lanVlan wanVlan
             for name in hostnames:
                 hostname = name + "@" + sitename
                 host = self.addHost(hostname)
                 site.addHost(host)
-            self.links.extend(site.get('links'))
+            self.links.extend(site.props['links'])
 
         for (vpnname, vid, lanVlan, participants) in self.vpnInstances:
             vpn = VPN(vpnname, vid, lanVlan)

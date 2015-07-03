@@ -68,25 +68,23 @@ class SiteRouter(Switch):
     def __init__(self, name, props={}):
         super(SiteRouter, self).__init__(name, props=props)
         self.props['role'] = 'SiteRouter'
+        self.props['toWanPort'] = None # Port
 
 class CoreRouter(Switch):
     def __init__(self, name, props={}):
         super(CoreRouter, self).__init__(name, props=props)
         self.props['role'] = 'CoreRouter'
         self.props['WAN-Circuits'] = [] # list of Link between coreRouters
-        self.props['toWanPorts'] = [] # list of Port between coreRouters
-        self.props['sitesToHwSwitch'] = [] # list of Link to hwSwitch (stitch with siteRouter)
-        self.props['sitesToHwSwitchPorts'] = [] # list of Port to hwSwitch (stitch with siteRouter)
+        self.props['siteToHwSwitch'] = [] # list of Link to hwSwitch (stitch with siteRouter)
         self.props['toHwSwitch'] = [] # list of Link to hwSwitch (stitch with coreRouter)
-        self.props['toHwSwitchPorts'] = [] # list of Port to hwSwitch (stitch with coreRouter)
+        self.props['toSitePort'] = None # Port (might be empty if no site)
         self.props['pop'] = None
 
 class HwSwitch(Switch):
     def __init__(self, name, props={}):
         super(HwSwitch, self).__init__(name, props=props)
         self.props['role'] = 'HwSwitch'
-        self.props['toCoreRouter'] = [] # list of Link to site through coreRouter
-        self.props['toSitePorts'] = [] # list of Port to site
+        self.props['toCoreRouter'] = [] # list of Link toward site
         self.props['toSwSwitch'] = [] # list of Link to swSwitch
         self.props['nextHop'] = {} # [pop.name] = Link
         self.props['pop'] = None
@@ -96,7 +94,7 @@ class SwSwitch(Switch):
     def __init__(self, name, props={}):
         super(SwSwitch, self).__init__(name, props=props)
         self.props['role'] = 'SwSwitch'
-        self.props['sitesToHwSwitch'] = [] # list of Link to hwSwitch
+        self.props['toHwSwitch'] = [] # list of Link to hwSwitch
         self.props['pop'] = None
 
 class SDNPop(Properties):
@@ -113,14 +111,12 @@ class SDNPop(Properties):
             vlan = i + 1
             link1 = Link.create(coreRouter, hwSwitch, vlan)
             link1.setPortType('SiteToSDN', 'ToSite')
-            coreRouter.props['sitesToHwSwitch'].append(link1)
+            coreRouter.props['siteToHwSwitch'].append(link1)
             hwSwitch.props['toCoreRouter'].append(link1)
-            coreRouter.props['sitesToHwSwitchPorts'].append(link1.props['endpoints'][0])
-            hwSwitch.props['toSitePorts'].append(link1.props['endpoints'][1])
             link2 = Link.create(hwSwitch, swSwitch, vlan)
             link2.setPortType('ToSwSwitch', 'ToHwSwitch')
             hwSwitch.props['toSwSwitch'].append(link2)
-            swSwitch.props['sitesToHwSwitch'].append(link2)
+            swSwitch.props['toHwSwitch'].append(link2)
             self.props['links'].append(link1)
             self.props['links'].append(link2)
         self.props['hwSwitch'] = hwSwitch
@@ -152,7 +148,7 @@ class VPN(Properties):
 
 class Site(Properties):
     def __init__(self, name, props={}):
-        super(Site, self).__init__(name, props=props)
+        super(Site, self).__init__(name)
         siteRouter = SiteRouter(name)
         self.props['siteRouter'] = siteRouter
         # configure when connecting a Host
@@ -161,12 +157,51 @@ class Site(Properties):
         # configure when connecting to a Pop
         self.props['borderRouter'] = None # CoreRouter
         self.props['pop'] = None # SDNPop
+        self.update(props)
     def addHost(self, host):
         self.props['hosts'].append(host)
         siteRouter = self.props['siteRouter']
         link = Link.create(siteRouter, host)
         link.setPortType('ToLAN', 'LAN')
         self.props['links'].append(link)
+
+class Wan(Properties):
+    def __init__(self, name, props={}):
+        super(Wan, self).__init__(name)
+        self.props['pops'] = []
+        self.props['links'] = [] # links between pops and their stitched link to hwSwitch
+        self.update(props)
+    def connectAll(self, pops, initVlan):
+        vlanIndex = initVlan
+        for i in range(len(pops)):
+            pop1 = pops[i]
+            for j in range(i+1, len(pops)):
+                pop2 = pops[j]
+                self.connect(pop1, pop2, vlanIndex)
+                vlanIndex += 1
+        self.props['pops'].extend(pops)
+    def connect(self, pop1, pop2, vlan):
+        coreRouter1 = pop1.props['coreRouter']
+        coreRouter2 = pop2.props['coreRouter']
+        link = Link.create(coreRouter1, coreRouter2, vlan)
+        link.setPortType('WAN', 'WAN')
+        self.props['links'].append(link)
+        coreRouter1.props['WAN-Circuits'].append(link)
+        coreRouter2.props['WAN-Circuits'].append(link)
+
+        hwSwitch1 = pop1.props['hwSwitch']
+        link1 = Link.create(coreRouter1, hwSwitch1, vlan)
+        link1.setPortType('WANToSDN', 'ToWAN')
+        self.props['links'].append(link1)
+        coreRouter1.props['toHwSwitch'].append(link1)
+        hwSwitch1.props['nextHop'][pop2.name] = link1
+
+        hwSwitch2 = pop2.props['hwSwitch']
+        link2 = Link.create(coreRouter2, hwSwitch2, vlan)
+        link2.setPortType('WANToSDN', 'ToWAN')
+        self.props['links'].append(link2)
+        coreRouter2.props['toHwSwitch'].append(link2)
+        hwSwitch2.props['nextHop'][pop1.name] = link2
 
 class Link(Properties):
     def __init__(self, name, props={}):

@@ -122,7 +122,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
 
         :param flowMod: ENOS FlowMod
         :param odlNode: OpenDaylight Node object
-        :return:
+        :return: False if error occurs
         """
 
         # Compose match object                                                     `
@@ -131,6 +131,9 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             # Compose the port name
             portName = flowMod.switch.props['mininetName'] + '-' + flowMod.match.props['in_port'].name.split("-")[-1]
             nodeconn = self.odlController.getNodeConnector(odlNode, portName)
+            if not nodeconn:
+                Logger().warning('%s not found at %r' % (portName, odlNode))
+                return False
             match.setField(IN_PORT, nodeconn)
         if 'dl_src' in flowMod.match.props:
             match.setField(DL_SRC, self.javaByteArray(flowMod.match.props['dl_src'].data))
@@ -164,6 +167,9 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             # but that requires a pointer to the ODL Node.
             portName = flowMod.switch.props['mininetName'] + "-" + p.name.split("-")[-1]
             nodeconn = self.odlController.getNodeConnector(odlNode, portName)
+            if not nodeconn:
+                Logger().warning('%s not found at %r' % (portName, odlNode))
+                return False
             actionList.add(Output(nodeconn))
         else:
             # This implementation requires all actions to contain a port_out

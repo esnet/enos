@@ -26,7 +26,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         ScopeOwner.__init__(self,name=intent.name)
         self.intent = intent
         self.vpn = intent.vpn
-        self.topo = intent.topo
+        self.wan = intent.wan
         self.pops = intent.pops
 
         self.macs = {}
@@ -188,7 +188,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             transMac = self.reverse(srcMac)
             dstMac = self.reverse(dstMac) # 0xFF{vid}FFFF => 0xFFFFFFFFFFFF
             vpn = self.vpn
-            port = switch.props['toSitePorts'][0]
+            link = switch.props['toCoreRouter'][0] # always choose the first link
+            port = link.props['portIndex'][switch.name]
             packet = PacketOut(port=port,dl_src=transMac,dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
             if SDNPopsRenderer.debug:
                 print packet
@@ -264,12 +265,12 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
 
 class SDNPopsIntent(ProvisioningIntent):
-    def __init__(self, name, vpn, topo):
+    def __init__(self, name, vpn, wan):
         """
         Creates a provisioning intent providing a GenericGraph of the logical view of the
         topology that is intended to be created.
-        :param topology: TestbedTopology
-        :param site: Site
+        :param vpn: VPN which contains information of participants (site and hosts)
+        :param wan: Wan which contains information of all links in WAN
         """
         pops = []
         hosts = []
@@ -285,11 +286,34 @@ class SDNPopsIntent(ProvisioningIntent):
             hosts.append(pop.props['swSwitch'])
             hosts.extend(vpn.props['serviceVms'])
         
-        links = filter(lambda link : link.props['endpoints'][0].props['node'] in hosts and link.props['endpoints'][1].props['node'] in hosts, topo.links)
+        # filter links between pops in this VPN
+        coreRouters = map(lambda pop : pop.props['coreRouter'], pops)
+        links = filter(lambda link : link.props['endpoints'][0].props['node'] in coreRouters and link.props['endpoints'][1].props['node'] in coreRouters, wan.props['links'])
+        vlans = map(lambda link : link.props['vlan'], links)
+        # only keep those whose vlan is interested by the VPN
+        links = filter(lambda link : link.props['vlan'] in vlans, wan.props['links'])
+
+        links.extend(vpn.props['links']) # vm - sw
+        for participant in vpn.props['participants']:
+            (site, hosts_in_site, wanVlan) = participant
+            siteRouter = site.props['siteRouter']
+            for host in hosts_in_site:
+                port = host.props['ports'][1] # assume only one port in the host
+                link = port.props['links'][0] # assume only one link in the port
+                links.append(link)
+            # find the link between siteRouter and borderRouter
+            port = siteRouter.props['toWanPort']
+            link = port.props['links'][0] # assume only one link in the port
+            links.append(link)
+            # find the link stitched with the site
+            hwSwitch = site.props['pop'].props['hwSwitch']
+            links.extend(hwSwitch.props['toCoreRouter'])
+            links.extend(hwSwitch.props['toSwSwitch'])
+
         enosHosts = map(lambda host : host.props['enosNode'], hosts)
         enosLinks = map(lambda host : host.props['enosLink'], links)
         self.vpn = vpn
-        self.topo = topo
+        self.wan = wan
         self.pops = pops
         self.hosts = enosHosts
         self.links = enosLinks

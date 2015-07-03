@@ -51,7 +51,7 @@ class Match(Properties):
         return desc
 
     def __repr__(self):
-        return self.__str__()
+        return 'Match(%s)' % ','.join(['%s=%r' % (prop[0], prop[1]) for prop in self.props.items()])
 
 class Action(Properties):
     """
@@ -86,8 +86,7 @@ class Action(Properties):
         return desc
 
     def __repr__(self):
-        return self.__str__()
-
+        return 'Action(%s)' % ','.join(['%s=%r' % (prop[0], prop[1]) for prop in self.props.items()])
 
 
 class FlowMod(Properties):
@@ -108,7 +107,8 @@ class FlowMod(Properties):
         self.actions = actions
         self.match = match
         self.id = generateId()
-
+        if not name:
+            self.name = str(self.id)
     def __str__(self):
         global debug
         if not debug:
@@ -123,7 +123,7 @@ class FlowMod(Properties):
         return desc
 
     def __repr__(self):
-        return self.__str__()
+        return 'FlowMod(name=%r,scope=%r,switch=%r,match=%r,actions=%r)' % (self.name, self.scope, self.switch, self.match, self.actions)
 
 class Scope(Properties):
     """

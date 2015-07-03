@@ -11,13 +11,6 @@ import random
 from common.utils import InitLogger
 from mininet.mat import MAT
 
-def getPop(topo,coreRouter):
-    pops = topo.builder.pops
-    for (x,pop) in pops.items():
-        if pop.props['coreRouter'].name == coreRouter.name:
-            return pop
-    return None
-
 intents = {}
 renderers = {}
 if __name__ == '__main__':
@@ -57,7 +50,7 @@ if __name__ == '__main__':
 
     for vpn in net.builder.vpns:
         vpn.props['mat'] = MAT(vpn.props['vid'])
-        popsIntent = SDNPopsIntent(name=vpn.name, vpn=vpn, topo=net.builder)
+        popsIntent = SDNPopsIntent(name=vpn.name, vpn=vpn, wan=net.builder.wan)
         popsRenderer = SDNPopsRenderer(popsIntent)
         popsRenderer.execute()
         lanVlan = vpn.props['lanVlan']
