@@ -4,11 +4,12 @@ import binascii
 from common.intent import ProvisioningRenderer, ProvisioningIntent, ProvisioningExpectation
 from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut, SimpleController
 from mininet.enos import TestbedTopology
+from mininet.enos import TestbedHost, TestbedNode, TestbedPort, TestbedLink
 
 from net.es.netshell.api import GenericGraph
-
-broadcastAddress = array('B',[0xFF,0xFF,0xFF,0xFF,0xFF,0xFF])
-
+from common.utils import Logger
+from common.mac import MACAddress
+import threading
 class SiteRenderer(ProvisioningRenderer,ScopeOwner):
     """
     Implements the rendering of provisioning intents on the Site. This class is responsible for pushing the proper
@@ -37,71 +38,47 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.active = False
         self.activePorts = {}
         self.flowmods = []
+        self.lanVlanIndex = {} # [wanVlan] = lanVlan
+        self.wanVlanIndex = {} # [lanVlan] = wanVlan
         SiteRenderer.instance = self
 
-        ports = self.siteRouter.getPorts()
-        wanLink = None
         # Create scope for the site router
         scope = L2SwitchScope(name=intent.name,switch=self.siteRouter,owner=self)
-        scope.props['endpoints'] = []
         scope.props['intent'] = self.intent
-        for port in ports:
-            port.props['scope'] = scope
-            links = port.getLinks()
-            self.activePorts[port.name] = port
-            port.props['macs'] = {}
-            for link in links:
-                # port.props['switch'] = self.siteRouter
-                vlan = link.props['vlan']
-                port.props['vlan'] = vlan
-                dstNode = link.getDstNode()
-                srcNode = link.getSrcNode()
-                scope.props['endpoints'].append( (port.name,[vlan]))
-                if self.borderRouter in [dstNode,srcNode]:
-                    # this is the link to the WAN border router
-                    wanLink = link
-                    port.props['type'] = "TOWAN"
-                else:
-                    port.props['type'] = "LAN"
         self.props['siteScope'] = scope
+        for port in self.siteRouter.getPorts():
+            self.activePorts[port.name] = port
+            port.props['scope'] = scope
+        # scope.addEndpoint(port, vlan) later while configuring vpns
         self.siteRouter.props['controller'].addScope(scope)
         # Create scope for the border router
-        scope2 = L2SwitchScope(name=intent.name,switch=self.borderRouter,owner=self,endpoints=[])
-        scope2.props['endpoints'] = []
+        scope2 = L2SwitchScope(name=intent.name,switch=self.borderRouter,owner=self)
         scope2.props['intent'] = self.intent
         self.props['wanScope'] = scope2
-        ports = self.borderRouter.getPorts()
-        outPort = None
-        wanVlan = None
-        for port in ports:
-            port.props['scope'] = scope2
-            links = port.getLinks()
-            for link in links:
-                if link == wanLink:
-                    # this is the port connected to the site router
-                    self.activePorts[port.name] = port
-                    vlan = link.props['vlan']
-                    port.props['vlan'] = vlan
-                    wanVlan = vlan
-                    port.props['type'] = "WAN"
-                    scope2.props['endpoints'].append( (port.name,[vlan]))
-                    outPort = port
-                    self.props['borderPortToSite'] = port
-                    break
-        # chose a link to the hwSwitch of the SDNPop and add it to the border router scope
-        toHwSwitch = self.borderRouter.props['sitesToHwSwitch']
-        # always get the first link in the list
-        link = toHwSwitch[0]
-        inPort = None
-        endpoints = link.props['endpoints']
-        inPort = endpoints[1]
-        inPort.props['vlan'] = wanVlan
-        inPort.props['type'] = "TOSDN"
-        scope2.props['endpoints'].append((inPort.name,[wanVlan]))
-        self.activePorts[inPort.name] = inPort
-        self.props['borderPortToSDN'] = inPort
+        hwswitch_to_site_port = self.borderRouter.props['toSitePort'].props['enosPort']
+        self.activePorts[hwswitch_to_site_port.name] = hwswitch_to_site_port
+        hwswitch_to_site_port.props['scope'] = scope2
+        scope2.addEndpoint(hwswitch_to_site_port)
+        link = self.borderRouter.props['siteToHwSwitch'][0] # get the first link as the site link
+        site_to_hwswitch_port = link.props['portIndex'][self.borderRouter.name].props['enosPort']
+        self.activePorts[site_to_hwswitch_port.name] = site_to_hwswitch_port
+        site_to_hwswitch_port.props['scope'] = scope2
+        scope2.addEndpoint(site_to_hwswitch_port)
+        self.props['borderPortToSite'] = hwswitch_to_site_port
+        self.props['borderPortToSDN'] = site_to_hwswitch_port
         self.borderRouter.props['controller'].addScope(scope2)
-
+    def addVpn(self, hosts, lanVlan, wanVlan):
+        self.lanVlanIndex[wanVlan] = lanVlan
+        self.wanVlanIndex[lanVlan] = wanVlan
+        siteRouter = self.props['siteScope'].switch
+        scope = self.props['siteScope']
+        toWanPort = siteRouter.props['toWanPort'].props['enosPort']
+        scope.addEndpoint(toWanPort, wanVlan)
+        for host in hosts:
+            host_port = host.props['ports'][1] # assume host has only one port
+            link = host_port.props['links'][0] # assume port has only one link
+            port = link.props['portIndex'][siteRouter.name]
+            scope.addEndpoint(port, lanVlan)
     def __str__(self):
         desc = "SiteRenderer: " + self.name + "\n"
         desc += "\tSite scope:\n" + str(self.props['siteScope'])
@@ -134,48 +111,59 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 print event
                 SiteRenderer.lastEvent = event
             dl_src = event.props['dl_src']
-            mac = binascii.hexlify(dl_src)
             port = event.props['in_port']
-            switch = TestbedTopology().nodes[port.props['node']]
+            # switch = port.props['node']
             in_port = self.activePorts[port.name]
-            if not in_port.props['type'] in ['LAN','TOWAN']:
+            if not in_port.props['type'] in ['ToLAN','ToBorder']:
                 # Discard (debug)
                 return
             dl_dst = event.props['dl_dst']
             dl_src = event.props['dl_src']
-            mac = binascii.hexlify(dl_src)
+            mac = dl_src
             vlan = event.props['vlan']
             etherType = event.props['ethertype']
             success = True
             #if not mac in self.macs:
             if True:
                 # New MAC, install flow entries
-                self.macs[mac] = (dl_src,in_port)
-                in_port.props['macs'][mac] = dl_src
+                self.macs[mac.str()] = (dl_src, in_port)
+                in_port.props['macs'][mac.str()] = dl_src
                 # set the flow entry to forward packet to that MAC to this port
                 success = self.setMAC(port=in_port,vlan=vlan,mac=dl_src)
                 if not success:
-                    print "Cannot set MAC",binascii.hexlify(dl_src),"on",in_port.props['node'] + ":" +in_port.name + "." + str(vlan)
-            global broadcastAddress
-            if dl_dst == broadcastAddress:
-                success = self.broadcast(inPort=in_port,srcMac=dl_src,etherType=etherType,payload=event.props['payload'])
+                    print "Cannot set MAC %s on %r.%r" % (dl_src, in_port, vlan)
+            if dl_dst.isBroadcast():
+                success = self.broadcast(vlan=vlan, inPort=in_port,srcMac=dl_src,dstMac=dl_dst,etherType=etherType,payload=event.props['payload'])
                 if not success:
                     print  "Cannot send broadcast packet"
 
-    def broadcast(self,inPort,srcMac,etherType,payload) :
+    def broadcast(self,vlan,inPort,srcMac,dstMac,etherType,payload) :
         switchController = self.siteRouter.props['controller']
-
+        siteRouterName = inPort.props['node'].name
+        scope = inPort.props['scope']
+        fromLAN = inPort.props['type'] == 'ToLAN'
+        if fromLAN:
+            lanVlan = vlan
+            wanVlan = self.wanVlanIndex[vlan]
+        else:
+            lanVlan = self.lanVlanIndex[vlan]
+            wanVlan = vlan
         success = True
-        for (x,port) in self.activePorts.items():
+        for port in self.activePorts.values():
             if port == inPort:
                 # no need to send the broadcast back to itself
                 continue
-            if port.props['type'] in ['WAN','TOSDN']:
-                # the borderRouter will get the broadcast packet through its data plane from siteRouter
+            if port.props['type'] == 'ToLAN':
+                vlan = lanVlan
+                packet = PacketOut(port=port,dl_src=srcMac,dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
+                if not switchController.isPacketOutValid(packet):
+                    # the host did not participate the VPN
+                    continue
+            elif port.props['type'] == 'ToBorder':
+                vlan = wanVlan
+                packet = PacketOut(port=port,dl_src=srcMac,dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
+            else: #SDNToSite, SiteToSDN
                 continue
-            scope = self.props['siteScope']
-            vlan = port.props['vlan']
-            packet = PacketOut(port=port,dl_src=srcMac,dl_dst=broadcastAddress,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
             if SiteRenderer.debug:
                 print packet
             res = switchController.send(packet)
@@ -184,51 +172,38 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         return success
 
 
-    def setMAC(self,port,vlan, mac):
+    def setMAC(self, port, vlan, mac):
         if SiteRenderer.debug:
-            print "SiteRenderer: Set flow entries for MAC= " + str(mac)+ " switch=" + port.props['node'] + " port= " + port.name + " vlan= " + str(vlan)
-        switch = TestbedTopology().nodes[port.props['node']]
+            print "SiteRenderer: Set flow entries for MAC= %r port=%r vlan=%r" % (mac, port, vlan)
+        switch = port.props['enosNode']
+        scope = port.props['scope']
         controller = switch.props['controller']
         success = True
-        for (x,inPort) in self.activePorts.items():
-            if inPort == port or inPort.props['type'] == "WAN":
-                continue
-            if inPort.props['type'] in ["LAN","TOWAN"]:
-                outPort = port
-            if inPort.props['type'] == "TOSDN":
-                outPort = self.props['borderPortToSite']
-            name = "inPort= " + inPort.name
-            if 'vlan' in inPort.props:
-                name += " vlan= " + str(inPort.props['vlan'])
-            else:
-                name += "no vlan"
-            if 'type' in inPort.props:
-                name +=  " type= " + inPort.props['type']
-            else:
-                name += "no type"
-            scope = None
-            if inPort.props['node'] == self.siteRouter.name:
-                scope = self.props['siteScope']
-            else:
-                scope = self.props['wanScope']
-            mod = FlowMod(name=name,scope=scope,switch=TestbedTopology().nodes[inPort.props['node']])
-            mod.props['renderer'] = self
-            match = Match(name=name)
-            match.props['dl_dst'] = mac
-            match.props['in_port'] = inPort
-            match.props['vlan'] = inPort.props['vlan']
-            action = Action(name=name)
-            action.props['out_port'] = outPort
-            action.props['vlan'] = outPort.props['vlan']
-            mod.match = match
-            mod.actions = [action]
-            self.flowmods.append(mod)
-            if SiteRenderer.debug:
-                print "add flowMod",mod
-            res = controller.addFlowMod(mod)
-            if not res:
-                success = False
-                print "Cannot push flowmod:\n",mod
+        fromWan = (port == switch.props['toWanPort'].props['enosPort'])
+        if fromWan:
+            wanVlan = vlan
+            lanVlan = self.lanVlanIndex[wanVlan]
+        else:
+            lanVlan = vlan
+            wanVlan = self.wanVlanIndex[lanVlan]
+
+        name = '%r fr %s.%d' % (mac, port.name, vlan)
+        mod = FlowMod(name=name, scope=scope,switch=switch)
+        mod.props['renderer'] = self
+        match = Match(name=name)
+        match.props['dl_dst'] = mac
+        action = Action(name=name)
+        action.props['out_port'] = port
+        action.props['vlan'] = vlan
+        mod.match = match
+        mod.actions = [action]
+        self.flowmods.append(mod)
+        if SiteRenderer.debug:
+            print "add flowMod",mod
+        res = controller.addFlowMod(mod)
+        if not res:
+            success = False
+            print "Cannot push flowmod:\n",mod
         return success
 
     def setBorderRouter(self):
@@ -243,10 +218,10 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         mod.props['renderer'] = self
         match = Match(name=name)
         match.props['in_port'] = inPort
-        match.props['vlan'] = inPort.props['vlan']
+        # match.props['vlan'] = inPort.props['vlan']
         action = Action(name=name)
         action.props['out_port'] = outPort
-        action.props['vlan'] = outPort.props['vlan']
+        # action.props['vlan'] = outPort.props['vlan']
         mod.match = match
         mod.actions = [action]
         self.flowmods.append(mod)
@@ -260,10 +235,10 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         mod.props['renderer'] = self
         match = Match(name=name)
         match.props['in_port'] = inPort
-        match.props['vlan'] = inPort.props['vlan']
+        # match.props['vlan'] = inPort.props['vlan']
         action = Action(name=name)
         action.props['out_port'] = outPort
-        action.props['vlan'] = outPort.props['vlan']
+        # action.props['vlan'] = outPort.props['vlan']
         mod.match = match
         mod.actions = [action]
         self.flowmods.append(mod)
