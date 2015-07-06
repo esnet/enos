@@ -8,7 +8,7 @@ from net.es.netshell.api import GenericGraphViewer
 import copy
 
 import random
-from common.utils import InitLogger
+from common.utils import InitLogger, Logger
 from mininet.mat import MAT
 
 intents = {}
@@ -40,7 +40,6 @@ if __name__ == '__main__':
         links = map(lambda l : l.props['enosLink'], site.props['links'])
         intent = SiteIntent(name=site.name, hosts=hosts, borderRouter=borderRouter, siteRouter=siteRouter, links=links)
         renderer = SiteRenderer(intent)
-        err = renderer.execute()
         rendererIndex[site.name] = renderer
         pops.append(site.props['pop'])
         allHosts.append(siteRouter)
@@ -60,4 +59,10 @@ if __name__ == '__main__':
             siteRenderer.addVpn(hosts, lanVlan, wanVlan)
         print "VPN " + vpn.name + " is up."
         #viewer = GenericGraphViewer(popsIntent.graph)
-        #viewer.display
+        #viewer.display()
+
+    for site in net.builder.sites:
+        renderer = rendererIndex[site.name]
+        suc = renderer.execute() # must execute after vpn configuration (site.addVpn)
+        if not suc:
+            Logger().warning('%r.execute() fail', renderer)

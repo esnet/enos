@@ -213,37 +213,23 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         outPort = self.props['borderPortToSDN']
         controller = self.borderRouter.props['controller']
         scope = inPort.props['scope']
-        name = ""
-        mod = FlowMod(name=name,scope=scope,switch=self.borderRouter)
-        mod.props['renderer'] = self
-        match = Match(name=name)
-        match.props['in_port'] = inPort
-        # match.props['vlan'] = inPort.props['vlan']
-        action = Action(name=name)
-        action.props['out_port'] = outPort
-        # action.props['vlan'] = outPort.props['vlan']
-        mod.match = match
-        mod.actions = [action]
-        self.flowmods.append(mod)
-        success = controller.addFlowMod(mod)
-
-        tmp = inPort
-        inPort = outPort
-        outPort = tmp
-        name = ""
-        mod = FlowMod(name=name,scope=scope,switch=self.borderRouter)
-        mod.props['renderer'] = self
-        match = Match(name=name)
-        match.props['in_port'] = inPort
-        # match.props['vlan'] = inPort.props['vlan']
-        action = Action(name=name)
-        action.props['out_port'] = outPort
-        # action.props['vlan'] = outPort.props['vlan']
-        mod.match = match
-        mod.actions = [action]
-        self.flowmods.append(mod)
-        success = controller.addFlowMod(mod)
-
+        success = True
+        for wanVlan in self.wanVlanIndex.values():
+            for (direction, port1, port2) in [('site_to_hw', inPort, outPort), ('hw_to_site', outPort, inPort)]:
+                name = '%s(%d)@%s' % (direction, wanVlan, self.borderRouter.name)
+                mod = FlowMod(name=name,scope=scope,switch=self.borderRouter)
+                mod.props['renderer'] = self
+                match = Match(name=name)
+                match.props['in_port'] = port1
+                match.props['vlan'] = wanVlan
+                action = Action(name=name)
+                action.props['out_port'] = port2
+                action.props['vlan'] = wanVlan
+                mod.match = match
+                mod.actions = [action]
+                self.flowmods.append(mod)
+                if not controller.addFlowMod(mod):
+                    success = False
         return success
 
     def removeFlowEntries(self):
