@@ -225,7 +225,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             portName = packet.scope.switch.props['mininetName'] + '-' + packet.port.name.split("-")[-1]
             nodeconn = self.odlController.getNodeConnector(sw.getNode(), portName)
             if nodeconn == None:
-                print packet, "cannot be sent because the port is invalid"
+                Logger().warning('can not send %r because the port %s on %r is invalid' % (packet, portName, sw.getNode()))
                 return False
 
             # Create the outgoing packet in ODL land.  The outgoing node connector must be set.

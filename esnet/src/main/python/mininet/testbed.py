@@ -71,6 +71,7 @@ class TopoBuilder ():
         self.hosts = []
         self.hostIndex = {} # [hostname] = Host
         self.switches = []
+        self.switchIndex = {} # [switchname] = Switch
         self.links = [] # all links including those in sites, pops, vpns, and wan
         self.sites = []
         self.siteIndex = {} # [sitename] = Site
@@ -107,19 +108,18 @@ class TopoBuilder ():
             print h.name,"\t",h.props['ip'],"\t",vpn.props['lanVlan'],"\t",h.props['mininetName']
         print "\n\n"
 
-    def addSwitch(self, name):
-        switch = Switch(name=name)
+    def addSwitch(self, switch):
         self.switches.append(switch)
-        return switch
+        self.switchIndex[switch.name] = switch
 
     def addSDNPop(self, popname, hwswitchname, coreroutername, swswitchname, nbOfLinks):
         pop = SDNPop(popname, hwswitchname, coreroutername, swswitchname, nbOfLinks)
         hwSwitch = pop.props['hwSwitch']
         coreRouter = pop.props['coreRouter']
         swSwitch = pop.props['swSwitch']
-        self.switches.append(hwSwitch)
-        self.switches.append(coreRouter)
-        self.switches.append(swSwitch)
+        self.addSwitch(hwSwitch)
+        self.addSwitch(coreRouter)
+        self.addSwitch(swSwitch)
         self.links.extend(pop.props['links'])
         return pop
 
@@ -174,7 +174,7 @@ class TopoBuilder ():
     def addSite(self, sitename, popname):
         site = Site(sitename)
         siteRouter = site.get('siteRouter')
-        self.switches.append(siteRouter)
+        self.addSwitch(siteRouter)
         pop = self.popIndex[popname]
         site.props['pop'] = pop
         coreRouter = pop.get('coreRouter')
