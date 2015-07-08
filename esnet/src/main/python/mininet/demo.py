@@ -17,14 +17,13 @@ if __name__ == '__main__':
     random.seed(0)    # in order to get the same result to simplify debugging
     InitLogger()
     configFileName = None
-    net=None
+    net = None
     intent=None
     if len(sys.argv) > 1:
         configFileName = sys.argv[1]
         net = TestbedTopology(fileName=configFileName)
     else:
         net = TestbedTopology()
-    net1 = net
     # One-time setup for the VPN service
     wi = WanIntent("esnet", net.builder.pops)
     wr = WanRenderer(wi)

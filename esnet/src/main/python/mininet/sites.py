@@ -126,7 +126,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             #if not mac in self.macs:
             if True:
                 # New MAC, install flow entries
-                self.macs[mac.str()] = (dl_src, in_port)
+                # self.macs[mac.str()] = (dl_src, in_port)
                 in_port.props['macs'][mac.str()] = dl_src
                 # set the flow entry to forward packet to that MAC to this port
                 success = self.setMAC(port=in_port,vlan=vlan,mac=dl_src)
@@ -197,7 +197,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         action.props['vlan'] = vlan
         mod.match = match
         mod.actions = [action]
-        self.flowmods.append(mod)
+        # self.flowmods.append(mod)
         if SiteRenderer.debug:
             print "add flowMod",mod
         res = controller.addFlowMod(mod)
@@ -227,7 +227,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 action.props['vlan'] = wanVlan
                 mod.match = match
                 mod.actions = [action]
-                self.flowmods.append(mod)
+                # self.flowmods.append(mod)
                 if not controller.addFlowMod(mod):
                     success = False
         return success

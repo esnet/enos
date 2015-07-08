@@ -12,7 +12,12 @@ class MAT(Properties):
         self.props['mac'] = {} # [hid] = mac
         self.props['lock'] = threading.Lock()
         self.props['mac'][0xFFFF] = MACAddress("FF:FF:FF:FF:FF:FF")
-        # self.props['mac'][0xFF02] = MACAddress("33:33:00:00:00:02")
+        self.props['hid']['FF:FF:FF:FF:FF:FF'] = 0xFFFF
+        # might support other multicast address in the vid
+        # Note: self.props['mac'][0xFF02] = MACAddress("33:33:00:00:00:02")
+        # self.props['hid']['33:33:00:00:00:02'] = 0xFF02
+        # might be implemented on IPv6Renderer but not here since it's not
+        # related to vid
         # ...
         # Note: MAT.reserved might need to be changed if necessary
     def translate(self, mac):

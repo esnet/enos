@@ -198,6 +198,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             if not flow:
                 print "Cannot push flowmond onto",flowMod.switch
             # go to the controller
+            Logger().info('addFlow %r' % flow)
             success = self.odlController.addFlow(sw.node, flow)
             # if success.isSuccess():
             #     flowMod.switch.props['openFlowSwitch'].flowMods[flowMod] = flowMod

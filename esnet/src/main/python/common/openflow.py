@@ -13,6 +13,7 @@ from common.utils import Logger
 
 import binascii
 import sys
+
 debug = False
 def setDebug(val):
     global debug
@@ -680,7 +681,7 @@ class SimpleController(Controller):
             # try to check if the port includes all vlans
             key = port.name
         if not key in self.scopeIndex:
-            Logger().warning('(%s, %d) not found in %r.scopeIndex' % (port.name, vlan, self))
+            Logger().warning('(%s, %d, %r) not found in %r.scopeIndex' % (port.name, vlan, mac, self))
             return None
         return self.scopeIndex[key]
 
