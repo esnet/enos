@@ -73,12 +73,14 @@ class TopoBuilder ():
         self.switches = []
         self.switchIndex = {} # [switchname] = Switch
         self.links = [] # all links including those in sites, pops, vpns, and wan
+        self.linkIndex = {} # [linkname] = Link
         self.sites = []
         self.siteIndex = {} # [sitename] = Site
         self.sitesConfig = []
         self.pops = []
         self.popIndex = {} # [popname] = SDNPop
         self.vpns = []
+        self.vpnIndex = {} # [vpnname] = Vpn
         self.wan = Wan(name='esnet')
         self.network = network
         if self.network['ip'][-1] == '.':
@@ -120,7 +122,7 @@ class TopoBuilder ():
         self.addSwitch(hwSwitch)
         self.addSwitch(coreRouter)
         self.addSwitch(swSwitch)
-        self.links.extend(pop.props['links'])
+        self.addLinks(pop.props['links'])
         return pop
 
     def updateHost(self, host):
@@ -147,16 +149,17 @@ class TopoBuilder ():
 
         # create mesh between core routers, attached to VLANs between the core routers and hardware switches
         self.wan.connectAll(self.pops, 1000)
-        self.links.extend(self.wan.props['links'])
+        self.addLinks(self.wan.props['links'])
 
         # might be skip if vpn's information is complete
         for (sitename, hostnames, popname) in self.sitesConfig:
             site = self.addSite(sitename, popname)
             for name in hostnames:
                 hostname = name + "@" + sitename
-                host = self.addHost(hostname)
+                host = Host(name=hostname)
                 site.addHost(host)
-            self.links.extend(site.props['links'])
+                self.addHost(host)
+            self.addLinks(site.props['links'])
 
         for (vpnname, vid, lanVlan, participants) in self.vpnInstances:
             vpn = VPN(vpnname, vid, lanVlan)
@@ -164,9 +167,11 @@ class TopoBuilder ():
                 site = self.siteIndex[sitename]
                 hosts = map(lambda hostname : self.hostIndex['%s@%s' % (hostname, sitename)], hostnames)
                 vpn.addParticipant(site, hosts, wanVlan)
-            self.hosts.extend(vpn.props['serviceVms'])
-            self.links.extend(vpn.props['links'])
+            self.addHosts(vpn.props['serviceVms'])
+            self.addLinks(vpn.props['links'])
             self.vpns.append(vpn)
+            self.vpnIndex[vpn.name] = vpn
+
         for host in self.hosts:
             self.updateHost(host)
         for switch in self.switches:
@@ -188,11 +193,18 @@ class TopoBuilder ():
         self.siteIndex[sitename] = site
         self.sites.append(site)
         return site
-    def addHost(self, name):
-        host = Host(name=name)
+    def addHost(self, host):
         self.hosts.append(host)
         self.hostIndex[host.name] = host
-        return host
+    def addHosts(self, hosts):
+        for host in hosts:
+            self.addHost(host)
+    def addLink(self, link):
+        self.links.append(link)
+        self.linkIndex[link.name] = link
+    def addLinks(self, links):
+        for link in links:
+            self.addLink(link)
     def getHostParams(self,name):
         index = self.hostID
         self.hostID +=  1
