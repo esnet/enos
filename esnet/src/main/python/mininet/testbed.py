@@ -17,18 +17,7 @@ lblsite = ["lbl.gov",['dtn-1', 'dtn-2'],"lbl"]
 anlsite = ["anl.gov",['dtn-1', 'dtn-2'],"star"]
 cernsite = ["cern.ch",['dtn-1', 'dtn-2'],"cern"]
 sites = [lblsite, anlsite, cernsite]
-vpn1=["vpn1", 1234, 10, [
-    ("lbl.gov", ['dtn-1', 'dtn-2'], 11),
-    ("anl.gov", ['dtn-1', 'dtn-2'], 12),
-    ("cern.ch", ['dtn-1', 'dtn-2'], 13),
-    ]
-]
-vpn2=["vpn2", 5678, 20, [
-    ("lbl.gov", ['dtn-1'], 21),
-    ("anl.gov", ['dtn-1'], 22)
-    ]
-]
-vpns=[vpn1, vpn2]
+
 # Default Locations with hardware openflow switch
 # name,rt,nb of links
 #
@@ -79,8 +68,6 @@ class TopoBuilder ():
         self.sitesConfig = []
         self.pops = []
         self.popIndex = {} # [popname] = SDNPop
-        self.vpns = []
-        self.vpnIndex = {} # [vpnname] = Vpn
         self.wan = Wan(name='esnet')
         self.network = network
         if self.network['ip'][-1] == '.':
@@ -94,7 +81,6 @@ class TopoBuilder ():
         else:
             self.locations = locations
             self.sitesConfig = sites
-            self.vpnInstances = vpns
         self.loadDefault()
 
     def displaySwitches(self):
@@ -151,7 +137,6 @@ class TopoBuilder ():
         self.wan.connectAll(self.pops, 1000)
         self.addLinks(self.wan.props['links'])
 
-        # might be skip if vpn's information is complete
         for (sitename, hostnames, popname) in self.sitesConfig:
             site = self.addSite(sitename, popname)
             for name in hostnames:
@@ -160,17 +145,6 @@ class TopoBuilder ():
                 site.addHost(host)
                 self.addHost(host)
             self.addLinks(site.props['links'])
-
-        for (vpnname, vid, lanVlan, participants) in self.vpnInstances:
-            vpn = VPN(vpnname, vid, lanVlan)
-            for (sitename, hostnames, wanVlan) in participants:
-                site = self.siteIndex[sitename]
-                hosts = map(lambda hostname : self.hostIndex['%s@%s' % (hostname, sitename)], hostnames)
-                vpn.addParticipant(site, hosts, wanVlan)
-            self.addHosts(vpn.props['serviceVms'])
-            self.addLinks(vpn.props['links'])
-            self.vpns.append(vpn)
-            self.vpnIndex[vpn.name] = vpn
 
         for host in self.hosts:
             self.updateHost(host)

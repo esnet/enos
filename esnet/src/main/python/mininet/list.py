@@ -1,7 +1,3 @@
-import sys
-if not sys.prefix:
-    sys.prefix = "/lib" # let argparse work
-import argparse
 
 def usage():
     print "usage:"
@@ -61,7 +57,7 @@ def main():
     elif command_args[2] == 'switches':
         showlist(net.builder.switches)
     elif command_args[2] == 'vpns':
-        showlist(net.builder.vpns)
+        showlist(vpns)
     elif command_args[2] == 'wan':
         showobj(net.builder.wan)
     elif len(command_args) < 4:
@@ -82,7 +78,7 @@ def main():
         switch = get(net.builder.switches, net.builder.switchIndex, command_args[3])
         showobj(switch)
     elif command_args[2] == 'vpn':
-        vpn = get(net.builder.vpns, net.builder.vpnIndex, command_args[3])
+        vpn = get(vpns, vpnIndex, command_args[3])
         showobj(vpn)
 
 if __name__ == '__main__':

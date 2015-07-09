@@ -51,7 +51,9 @@ class Node(Properties):
 
 class Host(Node):
     def __init__(self, name, props={}):
-        super(Host, self).__init__(name, props=props)
+        super(Host, self).__init__(name)
+        self.props['connectTo'] = None # a SiteRouter (or a SwSwitch if self is ServiceVm)
+        self.props.update(props)
 
 class ServiceVm(Host):
     def __init__(self, name, props={}):
@@ -127,13 +129,15 @@ class SDNPop(Properties):
 class VPN(Properties):
     def __init__(self, name, vid, lanVlan, props={}):
         super(VPN, self).__init__(name, props=props)
-        self.props['vid'] = vid
-        self.props['lanVlan'] = lanVlan
+        self.props['vid'] = vid # int
+        self.props['lanVlan'] = lanVlan # int
         self.props['participants'] = [] # list of (site, hosts, wanVlan)
-        self.props['serviceVms'] = []
-        self.props['serviceVmIndex'] = {} # [sitename] = serviceVm
+        self.props['participantIndex'] = {} # [sitename] = (site, hosts, wanVlan)
+        self.props['serviceVms'] = [] # list of ServiceVm
+        self.props['serviceVmIndex'] = {} # [sitename] = ServiceVm
         self.props['links'] = []
         self.props['mat'] = None # MAC Address Translation
+        self.props['renderer'] = None # SDNPopsRenderer
     def addParticipant(self, site, hosts, wanVlan):
         # create a service vm (host) and connect it to sw switch
         pop = site.props['pop']
@@ -144,8 +148,28 @@ class VPN(Properties):
         link = Link.create(serviceVm, swSwitch, wanVlan)
         link.setPortType('ToServiceVm', 'VLAN')
         self.props['links'].append(link)
-        self.props['participants'].append((site, hosts, wanVlan))
-
+        participant = (site, hosts, wanVlan)
+        self.props['participants'].append(participant)
+        self.props['participantIndex'][site.name] = participant
+    def addSite(self, site, wanVlan):
+        # could be invoked in CLI
+        pop = site.props['pop']
+        serviceVm = ServiceVm('%s-%s-vm' % (self.name, pop.name))
+        self.props['serviceVms'].append(serviceVm)
+        self.props['serviceVmIndex'][site.name] = serviceVm
+        swSwitch = pop.props['swSwitch']
+        link = Link.create(serviceVm, swSwitch, wanVlan)
+        link.setPortType('ToServiceVm', 'VLAN')
+        serviceVm.props['connectTo'] = swSwitch
+        self.props['links'].append(link)
+        participant = (site, [], wanVlan)
+        self.props['participants'].append(participant)
+        self.props['participantIndex'][site.name] = participant
+        return (serviceVm, link)
+    def addHost(self, host):
+        # could be invoked in CLI
+        sitename = host.props['connectTo'].name # sitename == siteRouterName
+        self.props['participantIndex'][sitename][1].append(host)
 class Site(Properties):
     def __init__(self, name, props={}):
         super(Site, self).__init__(name)
@@ -163,6 +187,7 @@ class Site(Properties):
         siteRouter = self.props['siteRouter']
         link = Link.create(siteRouter, host)
         link.setPortType('ToLAN', 'LAN')
+        host.props['connectTo'] = siteRouter
         self.props['links'].append(link)
 
 class Wan(Properties):

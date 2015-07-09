@@ -7,7 +7,7 @@ from mininet.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.topo import Topo
 
-from common.api import Node, SDNPop,Link,Port,Site,VPN
+from common.api import Node, Host, ServiceVm, SDNPop,Link,Port,Site,VPN
 from testbed import TopoBuilder
 from common.mac import MACAddress
 #
@@ -95,6 +95,33 @@ class ESnetMininet(Mininet):
         if not self.built:
             self.build()
         self.topo.start(self)
+
+    def listPop(self):
+        for pop in self.topo.builder.pops:
+            print pop
+    def addVm(self, vpnname, popname, wanVlan = 0):
+        """
+        Could be invoked in mininet CLI
+        :param popname:
+        """
+        if not popname in self.topo.builder.popIndex:
+            print "pop %s not found" % popname
+            return
+        name = "%s-%s-vm" % (vpnname, popname)
+        host = ServiceVm(name=name)
+        self.topo.builder.addHost(host)
+        self.topo.builder.updateHost(host)
+        hostname = host.props['mininetName']
+        self.addHost(hostname, mac=str(host.props['mac']))
+        pop = self.topo.builder.popIndex[popname]
+        swSwitch = pop.props['swSwitch']
+        link = Link.create(host, swSwitch, wanVlan)
+        self.topo.builder.addLink(link)
+        port1 = link.props['endpoints'][0]
+        port2 = link.props['endpoints'][1]
+        node1 = port1.props['node']
+        node2 = port2.props['node']
+        self.addLink(node1.props['mininetName'],node2.props['mininetName'],port1.props['interfaceIndex'],port2.props['interfaceIndex'])
 
 if __name__ == '__main__':
     opts, args = getopt.getopt(sys.argv[1:],"f:c:p:",['file=','controller=','port='])

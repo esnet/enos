@@ -1,9 +1,14 @@
-import net.es.netshell.odl.Controller
-from mininet.testbed import TopoBuilder
+from net.es.netshell.odl import Controller
 def main():
-    topo = TopoBuilder()
+    try:
+        topo = net.builder
+    except:
+        print "no topo is existed, create a temporary one"
+        from mininet.testbed import TopoBuilder
+        topo = TopoBuilder()
 
-    controller = net.es.netshell.odl.Controller.getInstance()
+    controller = Controller.getInstance()
+
     devices = controller.getNetworkDevices()
     allPass = True
     if len(topo.switches) != len(devices):

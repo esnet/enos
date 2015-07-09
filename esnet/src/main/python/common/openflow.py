@@ -415,7 +415,7 @@ class L2SwitchScope(Scope):
         if packet.port.name in endpoints:
             vals = endpoints[packet.port.name]
             return not vals or val in vals
-        print  packet,"is not within this scope:",self
+        print  "%r is not within this scope %r" % (packet, self)
         return False
 
     def isValidFlowMod(self, flowMod):
@@ -554,12 +554,12 @@ class SimpleController(Controller):
         super(SimpleController,self).__init__()
         if not SimpleController.id:
             # First time SimpleController is instanciated. Initialize globals
-            SimpleController.scopes ={}
             SimpleController.forbiddenScopes = {}
             SimpleController.switches = {}
             SimpleController.id = generateId()
             SimpleController.instance = self
-            self.scopeIndex = {}
+        self.scopes = {} # [guid] = scope
+        self.scopeIndex = {} # ['port.vlan'] or ['port.vid'] = scope
 
     def addSwitch(self,switch):
         """
@@ -569,10 +569,9 @@ class SimpleController(Controller):
         """
         SimpleController.switches[switch.dpid] = switch
 
-    def removeSwitch(self,switch):
+    def removeSwitch(self, switch):
         self.switches.pop(switch)
         # Remove all flow mods on that switch
-        SimpleController.scopes = {}
         for flowMod in switch.flowMods():
             SimpleController.delFlowMod(flowMod)
 
@@ -589,22 +588,22 @@ class SimpleController(Controller):
                 print "Overlaps with a forbidden port/vlan:"
                 print s
                 return False
-        for (x,s) in SimpleController.scopes.items():
+        for s in self.scopes.values():
             if s.overlaps(scope):
                 print "addScope error:  ", scope
                 print "Overlaps with a port/vlan that is already in another scope:"
                 print s
                 return False
-        if scope.id in SimpleController.scopes.keys():
+        if scope.id in self.scopes:
             print "addScope error:  ", scope
             print "this scope has been already added"
             return False
-        SimpleController.scopes[scope.id] = scope
+        self.scopes[scope.id] = scope
         return True
     def removeScope(self,scope):
-        SimpleController.scopes.pop(scope)
+        self.scopes.pop(scope.id)
         for (portname, vlans) in scope.props['endpoints']:
-            del SimpleController.scopesIndex[portname]
+            del self.scopesIndex[portname]
 
     def addForbiddenScope(self,scope):
         """
@@ -621,24 +620,23 @@ class SimpleController(Controller):
         :return:
         """
         print "not implemented yet"
-
     def isFlowModValid(self, flowMod):
         scopeId = flowMod.scope.id
-        if not scopeId in SimpleController.scopes:
+        if not scopeId in self.scopes:
             print "Provided scope is not authorized"
             print "Authorized scopes are"
-            for sid in SimpleController.scopes:
-                print "\t" + str(sid)
+            for scope in self.scopes.values():
+                print "\t" + str(scope.id)
             return False
-        scope = SimpleController.scopes[scopeId]
+        scope = self.scopes[scopeId]
         return scope.isValidFlowMod(flowMod)
 
     def isPacketOutValid(self,packet):
         scopeId = packet.scope.id
-        if not scopeId in SimpleController.scopes:
-            print "PacketOut",packet,"scope is not authorized"
+        if not scopeId in self.scopes:
+            print "%r's scope is not authorized" % packet
             return False
-        scope = SimpleController.scopes[scopeId]
+        scope = self.scopes[scopeId]
         return scope.isValidPacketOut(packet)
 
     def addFlowMod(self, flowMod):
@@ -707,7 +705,7 @@ class SimpleController(Controller):
         if scope and scope.switch == port.get('enosNode') and scope.includes(packetIn):
             scope.owner.eventListener(packetIn)
         else:
-            Logger().error('No scope for %r', packetIn)
+            Logger().warning('No scope for %r', packetIn)
 
     @staticmethod
     def makeL2FlowMod(scope, switch, inPort, inVlan, outPort, outVlan):

@@ -35,59 +35,57 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.flowmods = []
         self.links = self.intent.links
         self.linkByPort = {}
-        self.vidIndex = {}
         SDNPopsRenderer.instance = self
-        self.scopeIndex = {}
+        self.scopeIndex = {} # [hwSwitch.name or swSwitch.name] = scope
 
+    def addSite(self, site, wanVlan):
         vid = self.vpn.props['vid']
-        for participant in self.vpn.props['participants']:
-            (site, hosts, wanVlan) = participant
-            pop = site.props['pop']
-            coreRouter = pop.props['coreRouter'].props['enosNode']
-            hwSwitch = pop.props['hwSwitch'].props['enosNode']
-            hwSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, hwSwitch.name), switch=hwSwitch, owner=self)
-            self.scopeIndex[hwSwitch.name] = hwSwitchScope
+        pop = site.props['pop']
+        coreRouter = pop.props['coreRouter'].props['enosNode']
+        hwSwitch = pop.props['hwSwitch'].props['enosNode']
+        hwSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, hwSwitch.name), switch=hwSwitch, owner=self)
+        self.scopeIndex[hwSwitch.name] = hwSwitchScope
 
-            hwSwitch.props['siteVlanIndex'][vid] = wanVlan
-            controller = hwSwitch.props['controller']
-            for port in hwSwitch.getPorts():
-                if port.props['type'] == 'ToSite':
-                    hwSwitchScope.addEndpoint(port, wanVlan)
-            swSwitch = pop.props['swSwitch'].props['enosNode']
-            swSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, swSwitch.name),switch=swSwitch,owner=self)
-            self.scopeIndex[swSwitch.name] = swSwitchScope
-            # A scope with an empty endpoints indicates it covers everything.
-            # Therefore, though swSwitchScope has no function for now, we still
-            # need to add an endpoint to avoid the failure of scope.overlaps()
-            serviceVm = self.vpn.props['serviceVmIndex'][site.name]
-            vm_port = serviceVm.props['ports'][1] # assume only one port on ServiceVm
-            link = vm_port.props['links'][0] # assume only one link on the port
-            sw_port = link.props['portIndex'][swSwitch.name]
-            swSwitchScope.addEndpoint(sw_port)
+        hwSwitch.props['siteVlanIndex'][vid] = wanVlan
+        controller = hwSwitch.props['controller']
+        for port in hwSwitch.getPorts():
+            if port.props['type'] == 'ToSite': # should have only one (or nbOfLinks) port
+                hwSwitchScope.addEndpoint(port, wanVlan)
+                break
+        swSwitch = pop.props['swSwitch'].props['enosNode']
+        swSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, swSwitch.name),switch=swSwitch,owner=self)
+        self.scopeIndex[swSwitch.name] = swSwitchScope
+        # A scope with an empty endpoints indicates it covers everything.
+        # Therefore, though swSwitchScope has no function for now, we still
+        # need to add an endpoint to avoid the failure of scope.overlaps()
+        serviceVm = self.vpn.props['serviceVmIndex'][site.name]
+        vm_port = serviceVm.props['ports'][1] # assume only one port on ServiceVm
+        link = vm_port.props['links'][0] # assume only one link on the port
+        sw_port = link.props['portIndex'][swSwitch.name]
+        swSwitchScope.addEndpoint(sw_port)
 
-        for i in range(len(self.pops)):
-            pop1 = self.pops[i]
-            hwSwitch1 = pop1.props['hwSwitch']
-            scope1 = self.scopeIndex[hwSwitch1.name]
-            for j in range(i+1, len(self.pops)):
-                pop2 = self.pops[j]
-                hwSwitch2 = pop2.props['hwSwitch']
-                scope2 = self.scopeIndex[hwSwitch2.name]
+        pop1 = hwSwitch.props['pop']
+        hwSwitch1 = hwSwitch
+        scope1 = hwSwitchScope
+        for pop2 in self.pops:
+            hwSwitch2 = pop2.props['hwSwitch']
+            scope2 = self.scopeIndex[hwSwitch2.name]
 
-                link1 = hwSwitch1.props['nextHop'][pop2.name]
-                port1 = link1.props['portIndex'][hwSwitch1.name]
-                # Here we use (port, vid) instead of (port, vlan) as the index.
-                # The reason is that VPNs all share the same port and vlan on
-                # the 'ToWAN' ports of HwSwitch, so we couldn't dispatch
-                # packets to the scope based on vlan. The solution is temporary
-                # only.
-                scope1.addEndpoint(port1, vid)
-                port1.props['scopeIndex'][vid] = scope1
-                link2 = hwSwitch2.props['nextHop'][pop1.name]
-                port2 = link2.props['portIndex'][hwSwitch2.name]
-                # Similar to the comment above
-                scope2.addEndpoint(port2, vid)
-                port2.props['scopeIndex'][vid] = scope2
+            link1 = hwSwitch1.props['nextHop'][pop2.name]
+            port1 = link1.props['portIndex'][hwSwitch1.name]
+            # Here we use (port, vid) instead of (port, vlan) as the index.
+            # The reason is that VPNs all share the same port and vlan on
+            # the 'ToWAN' ports of HwSwitch, so we couldn't dispatch
+            # packets to the scope based on vlan. The solution is temporary
+            # only.
+            scope1.addEndpoint(port1, vid)
+            port1.props['scopeIndex'][vid] = scope1
+            link2 = hwSwitch2.props['nextHop'][pop1.name]
+            port2 = link2.props['portIndex'][hwSwitch2.name]
+            # Similar to the comment above
+            scope2.addEndpoint(port2, vid)
+            port2.props['scopeIndex'][vid] = scope2
+        self.pops.append(pop1)
 
     def __str__(self):
         desc = "SDNPopsRenderer: " + self.name + "\n"
@@ -215,6 +213,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             action_mac = mac
         elif port.get('type') == 'ToWAN':
             # set the flowmod = {match:{dst:mac}, action:{dst:trans_mac}}
+            match.props['vlan'] = switch.props['siteVlanIndex'][self.vpn.props['vid']]
             match_mac = mac
             action_mac = self.translate(mac)
         else:
