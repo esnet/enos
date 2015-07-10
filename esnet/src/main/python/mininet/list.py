@@ -1,9 +1,35 @@
+#
+# ENOS, Copyright (c) 2015, The Regents of the University of California,
+# through Lawrence Berkeley National Laboratory (subject to receipt of any
+# required approvals from the U.S. Dept. of Energy).  All rights reserved.
+#
+# If you have questions about your rights to use or distribute this software,
+# please contact Berkeley Lab's Technology Transfer Department at TTD@lbl.gov.
+#
+# NOTICE.  This software is owned by the U.S. Department of Energy.  As such,
+# the U.S. Government has been granted for itself and others acting on its
+# behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
+# to reproduce, prepare derivative works, and perform publicly and display
+# publicly.  Beginning five (5) years after the date permission to assert
+# copyright is obtained from the U.S. Department of Energy, and subject to
+# any subsequent five (5) year renewals, the U.S. Government is granted for
+# itself and others acting on its behalf a paid-up, nonexclusive, irrevocable,
+# worldwide license in the Software to reproduce, prepare derivative works,
+# distribute copies to the public, perform publicly and display publicly, and
+# to permit others to do so.
+#
+from common.intent import Expectation
+from common.intent import Intent
 
 def usage():
     print "usage:"
     print "list flowmods: list names of all flowmods"
+    print "list expectations: list names of all expectations"
+    print "list expecatation $INDEX: list a single expectation (by name)"
     print "list hosts: list names of all hosts"
     print "list host $INDEX: list the host (index could be number or name)"
+    print "list intents: list names of all intents"
+    print "list intent $INDEX: list a single intent (by name)"
     print "list links: list names of all links"
     print "list link $INDEX: list the link (index could be number or name)"
     print "list pops: list names of all pops"
@@ -51,6 +77,9 @@ def main():
         return
     if len(command_args) < 3:
         usage()
+    elif command_args[2] == 'expectations':
+        for i in sorted(Expectation.directory):
+            print i
     elif command_args[2] == 'flowmods':
         i = 0
         for renderer in renderers:
@@ -59,6 +88,9 @@ def main():
                 i += 1
     elif command_args[2] == 'hosts':
         showlist(net.builder.hosts)
+    elif command_args[2] == 'intents':
+        for i in sorted(Intent.directory):
+            print i
     elif command_args[2] == 'links':
         showlist(net.builder.links)
     elif command_args[2] == 'pops':
@@ -83,9 +115,15 @@ def main():
         showobj(net.builder.wan)
     elif len(command_args) < 4:
         usage()
+    elif command_args[2] == 'expectation':
+        expectation = get(None, Expectation.directory, command_args[3])
+        showobj(expectation)
     elif command_args[2] == 'host':
         host = get(net.builder.hosts, net.builder.hostIndex, command_args[3])
         showobj(host)
+    elif command_args[2] == 'intent':
+        intent = get(None, Intent.directory, command_args[3])
+        showobj(intent)
     elif command_args[2] == 'link':
         link = get(net.builder.links, net.builder.linkIndex, command_args[3])
         showobj(link)
