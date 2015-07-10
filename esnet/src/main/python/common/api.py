@@ -25,12 +25,11 @@ class Port(Properties):
         # configured by Link:
         self.props['links'] = [] # list of Link
         # Others
-        self.props['vlanIndex'] = {} # [vid] = mod_vlan
         self.props['scopeIndex'] = {} # [vid] = Scope
         self.props['vlan'] = 0
         self.update(props)
     def __repr__(self):
-        return 'Port(name=%s, interfaceIndex=%d, vlan=%d, vlanIndex=%r' % (self.name, self.props['interfaceIndex'], self.props['vlan'], self.props['vlanIndex'])
+        return 'Port(name=%s, interfaceIndex=%d, vlan=%d' % (self.name, self.props['interfaceIndex'], self.props['vlan'])
 
 class Node(Properties):
     def __init__(self, name, props={}):
@@ -121,6 +120,10 @@ class SDNPop(Properties):
             swSwitch.props['toHwSwitch'].append(link2)
             self.props['links'].append(link1)
             self.props['links'].append(link2)
+        link = Link.create(hwSwitch, swSwitch)
+        link.setPortType('ToSwSwitch.WAN', 'ToHwSwitch.WAN')
+        self.props['links'].append(link)
+
         self.props['hwSwitch'] = hwSwitch
         self.props['coreRouter'] = coreRouter
         self.props['swSwitch'] = swSwitch

@@ -12,6 +12,8 @@ def usage():
     print "vpn vpnindex addsite siteindex wanVlan"
     print "vpn vpnindex addhost hostindex"
     print "vpn vpnindex execute"
+    print "vpn vpnindex tap siteindex"
+    print "vpn vpnindex untap siteindex"
 def toint(s):
     try:
         return int(s)
@@ -35,16 +37,41 @@ def get(l, d, index):
         sys.exit()
 def sample(args):
     if len(args) < 1:
-        index = '0'
+        index = '1'
     else:
         index = args[0]
-    if index == '0':
-        create(['vpn1', '1234', '10'])
-        addsite(['vpn1', 'addsite', '0', '11']) # lbl.gov
-        addsite(['vpn1', 'addsite', '1', '12']) # anl.gov
-        addhost(['vpn1', 'addhost', '0']) # dtn-1@lbl.gov
-        addhost(['vpn1', 'addhost', '2']) # dtn-1@anl.gov
+    if index == '1':
+        create(['vpn1', '1234', '10']) # vid=1234, lanVlan=10
+        addsite(['vpn1', 'addsite', 'lbl.gov', '11']) # wanVlan=11
+        addsite(['vpn1', 'addsite', 'anl.gov', '12'])
+        addsite(['vpn1', 'addsite', 'cern.ch', '13'])
+        addhost(['vpn1', 'addhost', 'dtn-1@lbl.gov'])
+        addhost(['vpn1', 'addhost', 'dtn-2@lbl.gov'])
+        addhost(['vpn1', 'addhost', 'dtn-1@anl.gov'])
+        addhost(['vpn1', 'addhost', 'dtn-2@anl.gov'])
+        addhost(['vpn1', 'addhost', 'dtn-1@cern.ch'])
+        addhost(['vpn1', 'addhost', 'dtn-2@cern.ch'])
         execute(['vpn1', 'execute'])
+        print "Reminder: you should add serviceVms on Mininet manually"
+        print "mininet> px net.addVm('vpn1','lbl')"
+        print "mininet> px net.addVm('vpn1','star')"
+        print "mininet> px net.addVm('vpn1','cern')"
+        print "mininet> switch s6 start"
+        print "mininet> switch s18 start"
+        print "mininet> switch s21 start"
+
+    elif index == '2':
+        create(['vpn2', '5678', '20'])
+        addsite(['vpn2', 'addsite', 'lbl.gov', '21'])
+        addsite(['vpn2', 'addsite', 'anl.gov', '22'])
+        addhost(['vpn2', 'addhost', 'dtn-1@lbl.gov'])
+        addhost(['vpn2', 'addhost', 'dtn-1@anl.gov'])
+        execute(['vpn2', 'execute'])
+        print "Reminder: you should add serviceVms on Mininet manually"
+        print "mininet> px net.addVm('vpn2','lbl')"
+        print "mininet> px net.addVm('vpn2','star')"
+        print "mininet> switch s6 start"
+        print "mininet> switch s18 start"
     else:
         print "index %s is not implemented" % index
 def create(args):
@@ -119,6 +146,26 @@ def execute(args):
     vpnindex = args[0]
     vpn = get(vpns, vpnIndex, vpnindex)
     vpn.props['renderer'].execute()
+def tap(args):
+    if len(args) < 3:
+        print "invalid arguments."
+        usage()
+        return
+    # args = [vpnindex, 'tap', siteindex]
+    (vpnindex, siteindex) = [args[0], args[2]]
+    vpn = get(vpns, vpnIndex, vpnindex)
+    site = get(net.builder.sites, net.builder.siteIndex, siteindex)
+    vpn.props['renderer'].tap(site=site)
+def untap(args):
+    if len(args) < 3:
+        print "invalid arguments."
+        usage()
+        return
+    # args = [vpnindex, 'untap', siteindex]
+    (vpnindex, siteindex) = [args[0], args[2]]
+    vpn = get(vpns, vpnIndex, vpnindex)
+    site = get(net.builder.sites, net.builder.siteIndex, siteindex)
+    vpn.props['renderer'].untap(site=site)
 def main():
     if not net:
         print 'Please run demo first'
@@ -140,6 +187,10 @@ def main():
         addhost(command_args[2:])
     elif command_args[3] == 'execute':
         execute(command_args[2:])
+    elif command_args[3] == 'tap':
+        tap(command_args[2:])
+    elif command_args[3] == 'untap':
+        untap(command_args[2:])
     else:
         print "unknown command"
         usage()

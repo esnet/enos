@@ -36,7 +36,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.macs = {}
         self.active = False
         self.activePorts = {}
-        self.flowmods = []
+        self.flowmodIndex = {} # [FlowMod.key()] = FlowMod
         self.lanVlanIndex = {} # [wanVlan] = lanVlan
         self.wanVlanIndex = {} # [lanVlan] = wanVlan
         self.props['siteScope'] = None
@@ -96,6 +96,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         toWanPort = siteRouter.props['toWanPort'].props['enosPort']
         scope.addEndpoint(toWanPort, wanVlan)
     def __str__(self):
+        return "SiteRenderer(name=%s, activePorts=%r, siteScope=%r, wanScope=%r)" % (self.name, self.activePorts, self.props['siteScope'], self.props['wanScope'])
         desc = "SiteRenderer: " + self.name + "\n"
         desc += "\tSite scope:\n" + str(self.props['siteScope'])
         desc += "\tWAN scope:\n" + str(self.props['wanScope'])
@@ -108,7 +109,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         return desc
 
     def __repr__(self):
-        return "SiteRenderer(name=%s, activePorts=%r, siteScope=%r, wanScope=%r)" % (self.name, self.activePorts, self.props['siteScope'], self.props['wanScope'])
+        return self.__str__()
 
     def eventListener(self,event):
         """
@@ -214,7 +215,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         action.props['vlan'] = action_vlan
         mod.match = match
         mod.actions = [action]
-        # self.flowmods.append(mod)
+        scope.addFlowMod(mod)
         if SiteRenderer.debug:
             print "add flowMod",mod
         res = controller.addFlowMod(mod)
@@ -246,7 +247,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             action.props['vlan'] = wanVlan
             mod.match = match
             mod.actions = [action]
-            # self.flowmods.append(mod)
+            wanScope.addFlowMod(mod)
             if not controller.addFlowMod(mod):
                 success = False
         return success

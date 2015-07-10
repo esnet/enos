@@ -275,6 +275,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             if not flow:
                 print "Cannot remove flowmod from",flowMod.switch
             # go to the controller
+            Logger().info('del %r' % flow)
             success = self.odlController.removeFlow(sw.node, flow)
             print success
             # get result

@@ -35,7 +35,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
 
         self.active=False
         self.activePorts={}
-        self.flowmods=[]
+        self.flowmodIndex = {} # [FlowMod.key()] = FlowMod
         self.scopes={}
 
         self.coreRouters=[]
@@ -187,6 +187,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
             f1 = FlowMod(scope, router, m1, "", [a1])
             if self.debug:
                 print 'Push flow ' + str(f1)
+            scope.addFlowMod(f1)
             controller.addFlowMod(f1)
 
             m2 = Match('')
@@ -198,6 +199,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
             f2 = FlowMod(scope, router, m2, "", [a2])
             if self.debug:
                 print 'Push flow ' + str(f2)
+            scope.addFlowMod(f2)
             controller.addFlowMod(f2)
 
     def buildGraph(self):

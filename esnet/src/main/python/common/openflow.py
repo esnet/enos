@@ -110,6 +110,29 @@ class FlowMod(Properties):
         self.id = generateId()
         if not name:
             self.name = str(self.id)
+    def key(self):
+        key = "{match:{"
+        if 'in_port' in self.match.props:
+            key += "port:%s," % self.match.props['in_port'].name
+        if 'dl_src' in self.match.props:
+            key += "src:%s," % self.match.props['dl_src']
+        if 'dl_dst' in self.match.props:
+            key += "dst:%s," % self.match.props['dl_dst']
+        if 'vlan' in self.match.props:
+            key += "vlan:%d," % self.match.props['vlan']
+        key = key.strip(',')
+        key += "},action:{"
+        if 'out_port' in self.actions[0].props:
+            key += "port:%s," % self.actions[0].props['out_port'].name
+        if 'dl_src' in self.actions[0].props:
+            key += "src:%s," % self.actions[0].props['dl_src']
+        if 'dl_dst' in self.actions[0].props:
+            key += "dst:%s," % self.actions[0].props['dl_dst']
+        if 'vlan' in self.actions[0].props:
+            key += "vlan:%d," % self.actions[0].props['vlan']
+        key = key.strip(',')
+        key += "}}"
+        return key
     def __str__(self):
         global debug
         if not debug:
@@ -337,9 +360,19 @@ class L2SwitchScope(Scope):
             ("eth10",[1,2,10]) VLAN 1, 2 and 10 on port eth10
         If no endpoint is provided, then the scope represents all VLAN on all ports
         """
-        Scope.__init__(self,name,switch,owner,props)
+        Scope.__init__(self,name,switch,owner)
         self.props['endpoints'] = {}
         self.props['endpoints'].update(endpoints) # ['portname'] = [vlans]
+        self.props['flowmodIndex'] = {} # [flowmod.key()] = FlowMod # used in vpn hw scope only
+        self.props.update(props)
+    def addFlowMod(self, flowmod):
+        key = flowmod.key()
+        self.props['flowmodIndex'][key] = flowmod
+        self.owner.flowmodIndex[key] = flowmod
+    def delFlowMod(self, flowmod):
+        key = flowmod.key()
+        self.props['flowmodIndex'].pop(key)
+        self.owner.flowmodIndex.pop(key)
     def __str__(self):
         global debug
         if not debug:
@@ -625,8 +658,8 @@ class SimpleController(Controller):
         if not scopeId in self.scopes:
             print "Provided scope is not authorized"
             print "Authorized scopes are"
-            for scope in self.scopes.values():
-                print "\t" + str(scope.id)
+            for sid in self.scopes.keys():
+                print "\t" + str(sid)
             return False
         scope = self.scopes[scopeId]
         return scope.isValidFlowMod(flowMod)
