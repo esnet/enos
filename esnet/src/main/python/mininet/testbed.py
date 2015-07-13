@@ -150,20 +150,27 @@ class TopoBuilder ():
             self.updateHost(host)
         for switch in self.switches:
             self.updateSwitch(switch)
-    def addSite(self, sitename, popname):
+    def addSite(self, sitename, popname, portno = 0):
         site = Site(sitename)
-        siteRouter = site.get('siteRouter')
+        siteRouter = site.props['siteRouter']
         self.addSwitch(siteRouter)
         pop = self.popIndex[popname]
         site.props['pop'] = pop
-        coreRouter = pop.get('coreRouter')
+        coreRouter = pop.props['coreRouter']
         site.props['borderRouter'] = coreRouter
 
         link = Link.create(siteRouter, coreRouter)
-        link.setPortType('ToBorder', 'SDNToSite')
-        siteRouter.props['toWanPort'] = link.props['endpoints'][0]
-        coreRouter.props['toSitePort'] = link.props['endpoints'][1]
+        link.setPortType('SiteToCore', 'CoreToSite')
         site.props['links'].append(link)
+
+        siteRouter.props['toWanPort'] = link.props['endpoints'][0]
+        toSitePort = link.props['portIndex'][coreRouter.name]
+        coreRouter.props['sitePortIndex'][sitename] = toSitePort
+        toHwPort = coreRouter.props['toHwPorts'][portno]
+        coreRouter.props['stitchedSitePortIndex'][toSitePort.name] = toHwPort
+        hwlink = toHwPort.props['links'][0] # assume only one link
+        hwSwitch = pop.props['hwSwitch']
+        hwSwitch.props['sitePortIndex'][sitename] = hwlink.props['portIndex'][hwSwitch.name]
         self.siteIndex[sitename] = site
         self.sites.append(site)
         return site

@@ -41,35 +41,27 @@ def sample(args):
     else:
         index = args[0]
     if index == '1':
-        create(['vpn1', '1234', '10']) # vid=1234, lanVlan=10
-        addsite(['vpn1', 'addsite', 'lbl.gov', '11']) # wanVlan=11
+        create(['vpn1', '1234', '10'])
+        addsite(['vpn1', 'addsite', 'lbl.gov', '11'])
         addsite(['vpn1', 'addsite', 'anl.gov', '12'])
-        addsite(['vpn1', 'addsite', 'cern.ch', '13'])
         addhost(['vpn1', 'addhost', 'dtn-1@lbl.gov'])
-        addhost(['vpn1', 'addhost', 'dtn-2@lbl.gov'])
         addhost(['vpn1', 'addhost', 'dtn-1@anl.gov'])
-        addhost(['vpn1', 'addhost', 'dtn-2@anl.gov'])
-        addhost(['vpn1', 'addhost', 'dtn-1@cern.ch'])
-        addhost(['vpn1', 'addhost', 'dtn-2@cern.ch'])
         execute(['vpn1', 'execute'])
         print "Reminder: you should add serviceVms on Mininet manually"
         print "mininet> px net.addVm('vpn1','lbl')"
         print "mininet> px net.addVm('vpn1','star')"
-        print "mininet> px net.addVm('vpn1','cern')"
         print "mininet> switch s6 start"
-        print "mininet> switch s18 start"
         print "mininet> switch s21 start"
-
     elif index == '2':
         create(['vpn2', '5678', '20'])
         addsite(['vpn2', 'addsite', 'lbl.gov', '21'])
-        addsite(['vpn2', 'addsite', 'anl.gov', '22'])
+        addsite(['vpn2', 'addsite', 'cern.ch', '23'])
         addhost(['vpn2', 'addhost', 'dtn-1@lbl.gov'])
-        addhost(['vpn2', 'addhost', 'dtn-1@anl.gov'])
+        addhost(['vpn2', 'addhost', 'dtn-1@cern.ch'])
         execute(['vpn2', 'execute'])
         print "Reminder: you should add serviceVms on Mininet manually"
         print "mininet> px net.addVm('vpn2','lbl')"
-        print "mininet> px net.addVm('vpn2','star')"
+        print "mininet> px net.addVm('vpn2','cern')"
         print "mininet> switch s6 start"
         print "mininet> switch s18 start"
     else:

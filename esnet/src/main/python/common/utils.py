@@ -43,8 +43,8 @@ def InitLogger(level=logging.INFO):
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-def Logger():
-    return logging.getLogger()
+def Logger(name=None):
+    return logging.getLogger(name)
 
 def print_stack():
     tid = threading.current_thread().ident

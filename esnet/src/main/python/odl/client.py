@@ -70,6 +70,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
     :param topology mininet.enos.TestbedTopology
     """
     topology = None
+    logger = Logger('ODLClient')
 
     def __init__(self,topology):
         """
@@ -103,14 +104,14 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             nodeID = odlSwitch.getNode().getID()
             dpid = binascii.hexlify(odlSwitch.getDataLayerAddress())
             if not dpid in index:
-                Logger().warning('an OdlSwitch with %r not found in topology' % dpid)
+                ODLClient.logger.warning('an OdlSwitch with %r not found in topology' % dpid)
                 continue
             self.odlSwitchIndex[dpid] = odlSwitch
             self.switchIndex[nodeID] = index[dpid]
         self.odlPacketHandler.setPacketInCallback(self)
     def getSwitch(self, nodeID):
         if not nodeID in self.switchIndex:
-            Logger().error('nodeID %r not found in %r.switchIndex' % (nodeID, self))
+            ODLClient.logger.error('nodeID %r not found in %r.switchIndex' % (nodeID, self))
             return None
         return self.switchIndex[nodeID]
 
@@ -129,7 +130,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         """
         dpid = binascii.hexlify(switch.props['dpid'][-6:])
         if not dpid in self.odlSwitchIndex:
-            Logger().warning('could not found dpid %r in %r.findODLSwitch' % (dpid, self))
+            ODLClient.logger.warning('could not found dpid %r in %r.findODLSwitch' % (dpid, self))
             return None
         return self.odlSwitchIndex[dpid]
 
@@ -152,7 +153,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             portName = flowMod.switch.props['mininetName'] + '-' + flowMod.match.props['in_port'].name.split("-")[-1]
             nodeconn = self.odlController.getNodeConnector(odlNode, portName)
             if not nodeconn:
-                Logger().warning('%s not found at %r' % (portName, odlNode))
+                ODLClient.logger.warning('%s not found at %r' % (portName, odlNode))
                 return False
             match.setField(IN_PORT, nodeconn)
         if 'dl_src' in flowMod.match.props:
@@ -188,7 +189,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             portName = flowMod.switch.props['mininetName'] + "-" + p.name.split("-")[-1]
             nodeconn = self.odlController.getNodeConnector(odlNode, portName)
             if not nodeconn:
-                Logger().warning('%s not found at %r' % (portName, odlNode))
+                ODLClient.logger.warning('%s not found at %r' % (portName, odlNode))
                 return False
             actionList.add(Output(nodeconn))
         else:
@@ -218,13 +219,14 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             if not flow:
                 print "Cannot push flowmond onto",flowMod.switch
             # go to the controller
-            Logger().info('addFlow %r' % flow)
-            success = self.odlController.addFlow(sw.node, flow)
+            ODLClient.logger.info('addFlow %r' % flow)
+            res = self.odlController.addFlow(sw.node, flow)
+            print "True"
+            return res.isSuccess()
             # if success.isSuccess():
             #     flowMod.switch.props['openFlowSwitch'].flowMods[flowMod] = flowMod
 
             # get result
-            return True
         else:
             print 'flowMod %r is not valid' % flowMod
         return False
@@ -246,7 +248,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             portName = packet.scope.switch.props['mininetName'] + '-' + packet.port.name.split("-")[-1]
             nodeconn = self.odlController.getNodeConnector(sw.getNode(), portName)
             if nodeconn == None:
-                Logger().warning('can not send %r because the port %s on %r is invalid' % (packet, portName, sw.getNode()))
+                ODLClient.logger.warning('can not send %r because the port %s on %r is invalid' % (packet, portName, sw.getNode()))
                 return False
 
             # Create the outgoing packet in ODL land.  The outgoing node connector must be set.
@@ -271,11 +273,10 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
                 cp.setEtherType(EtherTypes.VLANTAGGED.shortValue())
             rp = self.odlPacketHandler.encodeDataPacket(cp)
             rp.setOutgoingNodeConnector(nodeconn)
-
+            ODLClient.logger.info("send %r@%r" %(packet, nodeconn))
             self.odlPacketHandler.transmitDataPacket(rp)
             return True
-        else:
-            print 'Packet %r is not valid' % packet
+        ODLClient.logger.warning("Packet %r is not valid" % packet)
         return False
 
     def delFlowMod(self, flowMod):
@@ -295,7 +296,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             if not flow:
                 print "Cannot remove flowmod from",flowMod.switch
             # go to the controller
-            Logger().info('del %r' % flow)
+            ODLClient.logger.info('del %r' % flow)
             success = self.odlController.removeFlow(sw.node, flow)
             print success
             # get result

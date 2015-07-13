@@ -348,6 +348,7 @@ class ScopeOwner(Properties):
         return self.__str__()
 
 class L2SwitchScope(Scope):
+    logger = Logger('L2SwitchScope')
     """
     This class is the base class of any Scope that defines a layer 2 switch
     """
@@ -365,10 +366,20 @@ class L2SwitchScope(Scope):
         self.props['endpoints'].update(endpoints) # ['portname'] = [vlans]
         self.props['flowmodIndex'] = {} # [flowmod.key()] = FlowMod # used in vpn hw scope only
         self.props.update(props)
-    def addFlowMod(self, flowmod):
+    def checkFlowMod(self, flowmod):
         key = flowmod.key()
+        return key in self.owner.flowmodIndex
+    def addFlowMod(self, flowmod):
+        """
+        :return: False if existed already
+        """
+        key = flowmod.key()
+        if key in self.owner.flowmodIndex:
+            # existed already
+            return False
         self.props['flowmodIndex'][key] = flowmod
         self.owner.flowmodIndex[key] = flowmod
+        return True
     def delFlowMod(self, flowmod):
         key = flowmod.key()
         self.props['flowmodIndex'].pop(key)
@@ -392,15 +403,15 @@ class L2SwitchScope(Scope):
     def includes(self, packetIn):
         """
         Check if packetIn is included by the scope
-        Here we hack ToWAN ports on HwSwitches to check vid instead of vlan
-        because of the issue that all VPNs share the same vlans in
-        these ports. The solution is temporary.
+        Here we hack SrcToDst.WAN ports on HwSwitches to check vid instead of
+        vlan because of the issue that all VPNs share the same vlans in these
+        ports. The solution is temporary.
         """
         port = packetIn.props['in_port']
         portname = packetIn.props['in_port'].name
         if not portname in self.props['endpoints']:
             return False
-        if port.props['type'] == 'ToWAN':
+        if port.props['type'].endswith('.WAN'):
             # use vid instead of vlan to differentiate scopes
             val = packetIn.props['dl_dst'].getVid()
         else:
@@ -434,11 +445,11 @@ class L2SwitchScope(Scope):
     def isValidPacketOut(self,packet):
         """
         Check if the packet is valid for this scope
-        Here we hack ToWAN ports on HwSwitches to check vid instead of vlan
-        because of the issue that all VPNs share the same vlans in
-        these ports. The solution is temporary.
+        Here we hack SrcToDst.WAN ports on HwSwitches to check vid instead of
+        vlan because of the issue that all VPNs share the same vlans in these
+        ports. The solution is temporary.
         """
-        if packet.port.props['type'] == 'ToWAN':
+        if packet.port.props['type'].endswith('.WAN'):
             # vid
             val = packet.dl_dst.getVid()
         else:
@@ -447,8 +458,10 @@ class L2SwitchScope(Scope):
         endpoints = self.props['endpoints']
         if packet.port.name in endpoints:
             vals = endpoints[packet.port.name]
-            return not vals or val in vals
-        print  "%r is not within this scope %r" % (packet, self)
+            result = not vals or val in vals
+            if result:
+                return True
+        L2SwitchScope.logger.warning("%r is not within this scope %r" % (packet, self))
         return False
 
     def isValidFlowMod(self, flowMod):
@@ -667,7 +680,7 @@ class SimpleController(Controller):
     def isPacketOutValid(self,packet):
         scopeId = packet.scope.id
         if not scopeId in self.scopes:
-            print "%r's scope is not authorized" % packet
+            SimpleController.logger.warning("%r's scope is not authorized" % packet)
             return False
         scope = self.scopes[scopeId]
         return scope.isValidPacketOut(packet)
@@ -700,11 +713,11 @@ class SimpleController(Controller):
     def getScope(self, port, vlan, mac):
         """
         Here we hack by using (port, vid) instead of (port, vlan) as the index
-        for some specific ports ('ToWAN' ports on HwSwitch) to fix the issue
-        that VPNs with different vids should have their own separated scopes
-        but share the same port and vlan.
+        for some specific ports ('SrcToDst.WAN' ports on HwSwitch) to fix the
+        issue that VPNs with different vids should have their own separated
+        scopes but share the same port and vlan.
         """
-        if port.props['type'] == 'ToWAN':
+        if port.props['type'].endswith('.WAN'):
             key = '%s.%d' % (port.name, mac.getVid())
         else:
             key = '%s.%d' % (port.name, vlan)

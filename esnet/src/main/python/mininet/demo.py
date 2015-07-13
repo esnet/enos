@@ -33,18 +33,14 @@ if __name__ == '__main__':
     else:
         net = TestbedTopology()
     # One-time setup for the VPN service
-    wi = WanIntent("esnet", net.builder.pops)
+    wi = WanIntent("esnet", net.builder.wan)
     wr = WanRenderer(wi)
     wr.execute()
     renderers.append(wr)
     rendererIndex[wr.name] = wr
 
     for site in net.builder.sites:
-        hosts = map(lambda h : h.props['enosNode'], site.props['hosts'])
-        borderRouter = site.props['borderRouter'].props['enosNode']
-        siteRouter = site.props['siteRouter'].props['enosNode']
-        links = map(lambda l : l.props['enosLink'], site.props['links'])
-        intent = SiteIntent(name=site.name, hosts=hosts, borderRouter=borderRouter, siteRouter=siteRouter, links=links)
+        intent = SiteIntent(name=site.name, site=site)
         sr = SiteRenderer(intent)
         suc = sr.execute() # no function without vpn information
         if not suc:
