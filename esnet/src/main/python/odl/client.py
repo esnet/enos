@@ -221,12 +221,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             # go to the controller
             ODLClient.logger.info('addFlow %r' % flow)
             res = self.odlController.addFlow(sw.node, flow)
-            print "True"
             return res.isSuccess()
-            # if success.isSuccess():
-            #     flowMod.switch.props['openFlowSwitch'].flowMods[flowMod] = flowMod
-
-            # get result
         else:
             print 'flowMod %r is not valid' % flowMod
         return False

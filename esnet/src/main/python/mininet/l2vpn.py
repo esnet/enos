@@ -11,6 +11,7 @@ from mininet.enos import TestbedTopology, TestbedHost, TestbedNode, TestbedPort,
 from net.es.netshell.api import GenericGraph, GenericHost
 from common.mac import MACAddress
 from common.utils import Logger
+import threading
 
 class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
     debug = False
@@ -39,7 +40,6 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.linkByPort = {}
         SDNPopsRenderer.instance = self
         self.scopeIndex = {} # [hwSwitch.name or swSwitch.name] = scope
-        self.tapsOnHwSwitch = set() # hwSwitch.name
 
     def tapFlowMod(self, flowmod):
         """
@@ -118,38 +118,40 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
     def tap(self, site):
         pop = site.props['pop']
         hwSwitch = pop.props['hwSwitch'].props['enosNode']
-        if hwSwitch.name in self.tapsOnHwSwitch:
-            SDNPopsRenderer.logger.warning("The site %s on VPN %s has been tapped" % (site.name, self.vpn.name))
-            return
-        self.tapsOnHwSwitch.add(hwSwitch.name)
         scope = self.scopeIndex[hwSwitch.name]
-        controller = scope.switch.props['controller']
-        # reset all flowmods on hwSwitch
-        self.backupFlowmodIndex = {}
-        for flowmod in scope.props['flowmodIndex'].values():
-            scope.delFlowMod(flowmod)
-            controller.delFlowMod(flowmod)
-            self.backupFlowmodIndex[flowmod.key()] = flowmod
-        for flowmod in self.backupFlowmodIndex.values():
-            self.tapFlowMod(flowmod)
+        with scope.props['lock']:
+            if scope.props['tap']:
+                SDNPopsRenderer.logger.warning("The site %s on VPN %s has been tapped" % (site.name, self.vpn.name))
+                return
+            scope.props['tap'] = True
+            controller = scope.switch.props['controller']
+            # reset all flowmods on hwSwitch
+            self.backupFlowmodIndex = {}
+            for flowmod in scope.props['flowmodIndex'].values():
+                scope.delFlowMod(flowmod)
+                controller.delFlowMod(flowmod)
+                self.backupFlowmodIndex[flowmod.key()] = flowmod
+            for flowmod in self.backupFlowmodIndex.values():
+                self.tapFlowMod(flowmod)
 
     def untap(self, site):
         pop = site.props['pop']
         hwSwitch = pop.props['hwSwitch'].props['enosNode']
-        if not hwSwitch.name in self.tapsOnHwSwitch:
-            SDNPopsRenderer.logger.warning("The site %s on VPN %s has been untapped" % (site.name, self.vpn.name))
-            return
-        self.tapsOnHwSwitch.remove(hwSwitch.name)
         scope = self.scopeIndex[hwSwitch.name]
-        controller = scope.switch.props['controller']
-        # reset all flowmods on hwSwitch
-        for flowmod in scope.props['flowmodIndex'].values():
-            scope.delFlowMod(flowmod)
-            controller.delFlowMod(flowmod)
-        for flowmod in self.backupFlowmodIndex.values():
-            scope.addFlowMod(flowmod)
-            controller.addFlowMod(flowmod)
-        self.backupFlowmodIndex = {}
+        with scope.props['lock']:
+            if not scope.props['tap']:
+                SDNPopsRenderer.logger.warning("The site %s on VPN %s is not tapped yet" % (site.name, self.vpn.name))
+                return
+            scope.props['tap'] = False
+            controller = scope.switch.props['controller']
+            # reset all flowmods on hwSwitch
+            for flowmod in scope.props['flowmodIndex'].values():
+                scope.delFlowMod(flowmod)
+                controller.delFlowMod(flowmod)
+            for flowmod in self.backupFlowmodIndex.values():
+                scope.addFlowMod(flowmod)
+                controller.addFlowMod(flowmod)
+            self.backupFlowmodIndex = {}
 
     def addSite(self, site, wanVlan):
         vid = self.vpn.props['vid']
@@ -157,6 +159,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         coreRouter = pop.props['coreRouter'].props['enosNode']
         hwSwitch = pop.props['hwSwitch'].props['enosNode']
         hwSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, hwSwitch.name), switch=hwSwitch, owner=self)
+        hwSwitchScope.props['tap'] = False
+        hwSwitchScope.props['lock'] = threading.Lock()
         self.scopeIndex[hwSwitch.name] = hwSwitchScope
         sitePort = hwSwitch.props['sitePortIndex'][site.name]
         hwSwitchScope.addEndpoint(sitePort, wanVlan)
@@ -346,14 +350,15 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         if key in self.flowmodIndex or key in self.backupFlowmodIndex:
             SDNPopsRenderer.logger.debug("flowmod %r exists already", mod.key())
             return True
-        if not switch.name in self.tapsOnHwSwitch:
-            scope.addFlowMod(mod)
-            if not controller.addFlowMod(mod):
-                success = False
-        else:
-            # the switch is tapped, should add flowmod in tap form
-            self.backupFlowmodIndex[key] = mod
-            success = self.tapFlowMod(mod)
+        with scope.props['lock']:
+            if not scope.props['tap']:
+                scope.addFlowMod(mod)
+                if not controller.addFlowMod(mod):
+                    success = False
+            else:
+                # the switch is tapped, should add flowmod in tap form
+                self.backupFlowmodIndex[key] = mod
+                success = self.tapFlowMod(mod)
         if not success:
             SDNPopsRenderer.logger.warning("Cannot push flowmod:" % mod)
         return success
