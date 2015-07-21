@@ -34,91 +34,19 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.macs = {}
         self.active = False
         self.activePorts = {}
+        self.siteEvents = {} # [site.name] = list of dl_src
+        self.popEvents = {} # [pop.name] = list of dl_src
+        self.flowmodByEvent = [] # list of flowmods
         self.flowmodIndex = {} # [FlowMod.key()] = FlowMod
-        self.backupFlowmodIndex = {} # [FlowMod.key()] = FlowMod
+        self.siteIndex = {} # [str(mac)] = site
         self.links = self.intent.links
-        self.linkByPort = {}
         SDNPopsRenderer.instance = self
-        self.scopeIndex = {} # [hwSwitch.name or swSwitch.name] = scope
-
-    def tapFlowMod(self, flowmod):
-        """
-        Create two types of flowmods: one is to redirect the flow to swSwitch;
-        the other is to dispatch the flow from swSwitch.
-        For example:
-        If the flowmod = {match:{dst:tm1},action:{vlan:11,dst:hm1,port:1}},
-        then add a set of flowmods = {match:{tm1,port:3*},action={port:4}} to
-        forwarding interested flow to swSwitch,
-        and add a new flowmod = {match:{tm1},action={vlan:11,dst:hm1,port:1}}
-        to handle flows from swSwitch.
-        (hm1: mac address of host 1)
-        (tm1: translated mac address of host 1)
-
-        Another example:
-        If the flowmod = {match:{dst:hm2,vlan:12},action:{dst:tm2,vlan:1000,port:3}},
-        then add a new flowmod = {match:{dst:hm2,vlan:12,port:1},action:{port:2}} to swSwitch,
-        and add a new flowmod = {match:{dst:hm2,vlan:12,port:2},action:{dst:tm2,vlan:1000,port:3}}
-        """
-        success = True
-        scope = flowmod.scope
-        hwSwitch = scope.switch
-        controller = scope.switch.props['controller']
-
-        wanToSite = flowmod.actions[0].props['out_port'].props['type'] == 'HwToCore'
-        # create a set of flowmod with match = original match, action = forwarding to swSwitch
-        in_ports = []
-        if wanToSite:
-            for in_port in hwSwitch.getPorts():
-                if in_port.props['type'] == 'HwToCore.WAN':
-                    in_ports.append(in_port)
-            sw_port = hwSwitch.props['toSwSwitchPort.WAN'].props['enosPort']
-        else:
-            for in_port in hwSwitch.getPorts():
-                if in_port.props['type'] == 'HwToCore':
-                    in_ports.append(in_port)
-            sw_port = hwSwitch.props['toSwSwitchPort'].props['enosPort']
-
-        for port in in_ports:
-            name = "%s.toSwSwitch" % flowmod.name
-            mod = FlowMod(name=name, scope=scope, switch=flowmod.switch)
-            mod.props['renderer'] = self
-            match = Match(name=name)
-            match.update(flowmod.match.props)
-            match.props['in_port'] = port
-            action = Action(name=name)
-            action.props['out_port'] = sw_port
-            mod.match = match
-            mod.actions = [action]
-            if scope.checkFlowMod(mod):
-                SDNPopsRenderer.logger.debug("%r existed already" % mod)
-                return
-            scope.addFlowMod(mod)
-            if not controller.addFlowMod(mod):
-                success = False
-
-        # create a new flowmod to dispatch packets from swSwitch
-        name = "%s.fromSwSwitch" % flowmod.name
-        mod = FlowMod(name=name, scope=scope, switch=flowmod.switch)
-        mod.props['renderer'] = self
-        match = Match(name=name)
-        match.update(flowmod.match.props)
-        match.props['in_port'] = sw_port
-        action = Action(name=name)
-        action.update(flowmod.actions[0].props)
-        mod.match = match
-        mod.actions = [action]
-        if scope.checkFlowMod(mod):
-            SDNPopsRenderer.logger.debug("%r existed already" % mod)
-            return
-        scope.addFlowMod(mod)
-        if not controller.addFlowMod(mod):
-            success = False
-        return success
+        self.props['scopeIndex'] = {} # [hwSwitch.name or swSwitch.name] = scope
 
     def tap(self, site):
         pop = site.props['pop']
         hwSwitch = pop.props['hwSwitch'].props['enosNode']
-        scope = self.scopeIndex[hwSwitch.name]
+        scope = self.props['scopeIndex'][hwSwitch.name]
         with scope.props['lock']:
             if scope.props['tap']:
                 SDNPopsRenderer.logger.warning("The site %s on VPN %s has been tapped" % (site.name, self.vpn.name))
@@ -126,18 +54,30 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             scope.props['tap'] = True
             controller = scope.switch.props['controller']
             # reset all flowmods on hwSwitch
-            self.backupFlowmodIndex = {}
             for flowmod in scope.props['flowmodIndex'].values():
-                scope.delFlowMod(flowmod)
-                controller.delFlowMod(flowmod)
-                self.backupFlowmodIndex[flowmod.key()] = flowmod
-            for flowmod in self.backupFlowmodIndex.values():
-                self.tapFlowMod(flowmod)
+                if 'dl_src' in flowmod.match.props:
+                    # broadcast related
+                    continue
+                if len(flowmod.actions) == 1 and 'out_port' in flowmod.actions[0].props:
+                    outPort = flowmod.actions[0].props['out_port']
+                    if outPort.props['type'] == 'HwToCore' or outPort.props['type'] == 'HwToCore.WAN':
+                        # replace dispatching flowmods with forwarding ones (to swSwitch)
+                        scope.delFlowMod(flowmod)
+                        controller.delFlowMod(flowmod)
+                        if 'in_port' in flowmod.match.props:
+                            inPort = flowmod.match.props['in_port']
+                            if inPort.props['type'].endswith('.WAN'):
+                                outPort = flowmod.switch.props['stitchedPortIndex.WAN'][inPort.name]
+                            else:
+                                outPort = flowmod.switch.props['stitchedPortIndex'][inPort.name]
+                            flowmod.actions = [Action(props={'out_port':outPort})]
+                            scope.addFlowMod(flowmod)
+                            controller.addFlowMod(flowmod)
 
     def untap(self, site):
         pop = site.props['pop']
         hwSwitch = pop.props['hwSwitch'].props['enosNode']
-        scope = self.scopeIndex[hwSwitch.name]
+        scope = self.props['scopeIndex'][hwSwitch.name]
         with scope.props['lock']:
             if not scope.props['tap']:
                 SDNPopsRenderer.logger.warning("The site %s on VPN %s is not tapped yet" % (site.name, self.vpn.name))
@@ -146,14 +86,41 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             controller = scope.switch.props['controller']
             # reset all flowmods on hwSwitch
             for flowmod in scope.props['flowmodIndex'].values():
-                scope.delFlowMod(flowmod)
-                controller.delFlowMod(flowmod)
-            for flowmod in self.backupFlowmodIndex.values():
-                scope.addFlowMod(flowmod)
-                controller.addFlowMod(flowmod)
-            self.backupFlowmodIndex = {}
+                if len(flowmod.actions) == 1 and 'out_port' in flowmod.actions[0].props and not 'dl_src' in flowmod.match.props:
+                    outPort = flowmod.actions[0].props['out_port']
+                    if outPort.props['type'] == 'HwToSw' or outPort.props['type'] == 'HwToSw.WAN':
+                        # replace forwarding flowmods (to swSwitch) with dispatching flowmods
+                        scope.delFlowMod(flowmod)
+                        controller.delFlowMod(flowmod)
+                        dl_dst = flowmod.match.props['dl_dst']
+                        vlan = flowmod.match.props['vlan']
+                        inPort = flowmod.match.props['in_port']
+                        # mac: original MAC address
+                        if inPort.props['type'].endswith('.WAN'):
+                            trans_mac = dl_dst
+                            mac = self.reverse(trans_mac)
+                        else:
+                            mac = dl_dst
+                            trans_mac = self.translate(mac)
+                        if not str(mac) in self.siteIndex:
+                            SDNPopsRenderer.logger.Warning("Unknown mac %r" % mac)
+                        site = self.siteIndex[str(mac)]
+                        pop = site.props['pop']
+                        myPop = hwSwitch.props['pop']
+                        if pop.name == myPop.name:
+                            outPort = hwSwitch.props['sitePortIndex'][site.name]
+                            outVlan = self.vpn.props['participantIndex'][site.name][2]
+                            outDst = mac
+                        else:
+                            outPort = hwSwitch.props['wanPortIndex'][pop.name]
+                            outVlan = outPort.props['links'][0].props['vlan']
+                            outDst = trans_mac
+                        flowmod.actions = [Action(props={'dl_dst': outDst, 'vlan':outVlan, 'out_port':outPort})]
+                        scope.addFlowMod(flowmod)
+                        controller.addFlowMod(flowmod)
 
     def addSite(self, site, wanVlan):
+        # could be invoked in CLI
         vid = self.vpn.props['vid']
         pop = site.props['pop']
         coreRouter = pop.props['coreRouter'].props['enosNode']
@@ -161,44 +128,58 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         hwSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, hwSwitch.name), switch=hwSwitch, owner=self)
         hwSwitchScope.props['tap'] = False
         hwSwitchScope.props['lock'] = threading.Lock()
-        self.scopeIndex[hwSwitch.name] = hwSwitchScope
+        self.props['scopeIndex'][hwSwitch.name] = hwSwitchScope
         sitePort = hwSwitch.props['sitePortIndex'][site.name]
         hwSwitchScope.addEndpoint(sitePort, wanVlan)
-        hwSwitchScope.addEndpoint(hwSwitch.props['toSwSwitchPort'], wanVlan)
-        hwSwitchScope.addEndpoint(hwSwitch.props['toSwSwitchPort.WAN'], vid)
+        swPort = hwSwitch.props['stitchedPortIndex'][sitePort.name]
+        hwSwitchScope.addEndpoint(swPort, wanVlan)
 
         swSwitch = pop.props['swSwitch'].props['enosNode']
         swSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, swSwitch.name),switch=swSwitch,owner=self)
-        self.scopeIndex[swSwitch.name] = swSwitchScope
-        swSwitchScope.addEndpoint(swSwitch.props['toHwSwitchPort'], wanVlan)
-        swSwitchScope.addEndpoint(swSwitch.props['toHwSwitchPort.WAN'], vid)
+        self.props['scopeIndex'][swSwitch.name] = swSwitchScope
+        swSwitchScope.addEndpoint(swSwitch.props['sitePortIndex'][site.name], wanVlan)
+        swSwitchScope.addEndpoint(swSwitch.props['vmPortIndex'][self.vpn.name])
 
         hwSwitch.props['siteVlanIndex'][vid] = wanVlan
         controller = hwSwitch.props['controller']
+        controller.addScope(hwSwitchScope)
+        controller.addScope(swSwitchScope)
 
         pop = hwSwitch.props['pop']
         for other_pop in self.pops:
-            """
-            Here we use (port, vid) instead of (port, vlan) as the index.
-            The reason is that VPNs all share the same port and vlan on the
-            'HwToCore.WAN' ports of HwSwitch, so we couldn't dispatch packets
-            to the scope based on vlan. The solution is temporary only.
-            """
-            link1 = hwSwitch.props['nextHop'][other_pop.name]
-            port1 = link1.props['portIndex'][hwSwitch.name]
-            hwSwitchScope.addEndpoint(port1, vid)
-            port1.props['scopeIndex'][vid] = hwSwitchScope
-
-            hwSwitch2 = other_pop.props['hwSwitch']
-            hwScope2 = self.scopeIndex[hwSwitch2.name]
-            link2 = hwSwitch2.props['nextHop'][pop.name]
-            port2 = link2.props['portIndex'][hwSwitch2.name]
-            hwScope2.addEndpoint(port2, vid)
-            port2.props['scopeIndex'][vid] = hwScope2
+            self.connectPop(pop, other_pop)
+            self.connectPop(other_pop, pop)
         self.pops.append(pop)
 
+    def connectPop(self, pop1, pop2):
+        """
+        Connect pop1 to pop2 (one way only)
+        Here we use (port, vid) instead of (port, vlan) as the index.
+        The reason is that VPNs all share the same port and vlan on the
+        'HwToCore.WAN' ports of HwSwitch, so we couldn't dispatch packets
+        to the scope based on vlan. The solution is temporary only.
+        """
+        # swSwitch[tohw_port]-[tosw_port]hwSwitch[tocore_port]-coreRouter
+        vid = self.vpn.props['vid']
+        hwSwitch = pop1.props['hwSwitch']
+        swSwitch = pop1.props['swSwitch']
+        hwSwitchScope = self.props['scopeIndex'][hwSwitch.name]
+        swSwitchScope = self.props['scopeIndex'][swSwitch.name]
+
+        tocore_port = hwSwitch.props['wanPortIndex'][pop2.name]
+        hwSwitchScope.addEndpoint(tocore_port, vid)
+        tocore_port.props['scopeIndex'][vid] = hwSwitchScope
+
+        tosw_port = hwSwitch.props['stitchedPortIndex.WAN'][tocore_port.name]
+        hwSwitchScope.addEndpoint(tosw_port, vid)
+        tosw_port.props['scopeIndex'][vid] = hwSwitchScope
+
+        tohw_port = swSwitch.props['wanPortIndex'][pop2.name]
+        swSwitchScope.addEndpoint(tohw_port, vid)
+        tohw_port.props['scopeIndex'][vid] = swSwitchScope
+
     def __str__(self):
-        return "SDNPopsRenderer(name=%r,scopeIndex=%r,flowmodIndex=%r)" % (self.name, self.scopeIndex, self.flowmodIndex.keys())
+        return "SDNPopsRenderer(name=%r,scopeIndex=%r,flowmodIndex=%r)" % (self.name, self.props['scopeIndex'], self.flowmodIndex.keys())
 
     def __repr__(self):
         return self.__str__()
@@ -218,46 +199,149 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
             dl_src = event.props['dl_src']
             dl_dst = event.props['dl_dst']
-            mac = dl_src
-            in_port = event.props['in_port'].props['enosPort']
-            switch = in_port.props['enosNode']
+            inPort = event.props['in_port'].props['enosPort']
+            switch = inPort.props['enosNode']
             vlan = event.props['vlan']
             controller = switch.props['controller']
-            scope = controller.getScope(in_port, vlan, dl_dst)
+            scope = controller.getScope(inPort, vlan, dl_dst)
             etherType = event.props['ethertype']
+            payload = event.props['payload']
             success = True
 
-            if switch.props['role'] == 'SwSwitch':
-                """
-                Here we can filter interested flow in upper layer (eg. HTTPS
-                packets) based on the packet, and send to serviceVm
+            # check if dl_src a new MAC address
+            if not inPort.props['type'].endswith('.WAN'):
+                if not str(dl_src) in self.siteIndex:
+                    # find the site where dl_src comes
+                    for participant in self.vpn.props['participants']:
+                        (site, hosts, siteVlan) = participant
+                        if siteVlan == vlan:
+                            self.siteIndex[str(dl_src)] = site
+                            break
 
-                Note: We didn't add any flowmod to swSwitch so that it could
-                monitor all flows. This hack should be fixed by complying
-                OpenFlow 1.3 (use group, table, ...etc to tap a flow)
-                """
-                interested = False
-                if interested:
-                    pass
-
-                # sendback to hwSwitch
-                packet = PacketOut(port=in_port,dl_src=dl_src,dl_dst=dl_dst,etherType=etherType,vlan=vlan,scope=scope,payload=event.props['payload'])
-                res = controller.send(packet)
-                if not res:
-                    SDNPopsRenderer.logger.warning("Cannot send packet %r" % packet)
-                return
-
-            #if not mac in self.macs:
-            if True:
-                # self.macs[mac.str()] = (dl_src,in_port)
-                # set the flow entry to forward packet to that MAC to this port
-                success = self.setMAC(port=in_port,switch=switch,scope=scope,vlan=vlan,mac=mac)
-                if not success:
-                    SDNPopsRenderer.logger.warning("Cannot set MAC %r on %s.%d" % (mac, in_port.name, vlan))
             if dl_dst.isBroadcast():
-                success = self.broadcast(inPort=in_port,switch=switch,scope=scope,inVlan=vlan,srcMac=mac,dstMac=dl_dst,etherType=etherType,payload=event.props['payload'])
-                if not success:
-                    print  "Cannot send broadcast packet"
+                if switch.props['role'] == 'HwSwitch':
+                    # forward to swSwitch
+                    if inPort.props['type'].endswith('.WAN'):
+                        outPort = switch.props['stitchedPortIndex.WAN'][inPort.name]
+                    else:
+                        outPort = switch.props['stitchedPortIndex'][inPort.name]
+                    mod = FlowMod.create(scope, switch, {'dl_src':dl_src,'vlan':vlan,'in_port':inPort,'dl_dst':dl_dst}, {'out_port':outPort})
+                    scope.addFlowMod(mod)
+                    if not controller.addFlowMod(mod):
+                        success = False
+                    packet = PacketOut(port=outPort,dl_src=dl_src,dl_dst=dl_dst,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
+                    if not controller.send(packet):
+                        success = False
+                    return success
+                elif switch.props['role'] == 'SwSwitch':
+                    # broadcast to all participants plus serviceVm
+                    mod = FlowMod.create(scope, switch, {'dl_src':dl_src,'vlan':vlan,'in_port':inPort,'dl_dst':dl_dst}, {})
+                    actions = []
+                    # forward to serviceVm
+                    outPort = switch.props['vmPortIndex'][self.vpn.name]
+                    actions.append(Action(props={'out_port':outPort}))
+                    packet = PacketOut(port=outPort,dl_src=dl_src,dl_dst=dl_dst,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
+                    if not controller.send(packet):
+                        success = False
+                    # forward to all participants
+                    myPop = switch.props['pop']
+                    if inPort.props['type'].endswith('.WAN'):
+                        trans_mac = dl_dst
+                        mac = self.reverse(trans_mac)
+                    else:
+                        mac = dl_dst
+                        trans_mac = self.translate(mac)
+                    for participant in self.vpn.props['participants']:
+                        (site, hosts, siteVlan) = participant
+                        pop = site.props['pop']
+                        if pop.name == myPop.name:
+                            # site and swSwitch are in the same pop
+                            outPort = switch.props['sitePortIndex'][site.name]
+                            outVlan = siteVlan
+                            outDst = mac
+                        else:
+                            # site is in the other pop
+                            outPort = switch.props['wanPortIndex'][pop.name]
+                            outVlan = outPort.props['links'][0].props['vlan']
+                            outDst = trans_mac
+                        if outVlan == vlan and outPort.name == inPort.name:
+                            continue
+                        actions.append(Action(props={'vlan':outVlan, 'out_port':outPort, 'dl_dst':outDst}))
+                        packet = PacketOut(port=outPort,dl_src=dl_src,dl_dst=outDst,etherType=etherType,vlan=outVlan,scope=scope,payload=payload)
+                        if not controller.send(packet):
+                            success = False
+                    mod.actions = actions
+                    scope.addFlowMod(mod)
+                    if not controller.addFlowMod(mod):
+                        success = False
+                return success
+            # else not broadcast
+
+            if switch.props['role'] == 'HwSwitch':
+                with scope.props['lock']:
+                    if scope.props['tap']:
+                        # forward to swSwitch (from coreRouter) or to coreRouter (from swSwitch)
+                        if inPort.props['type'].endswith('.WAN'):
+                            outPort = switch.props['stitchedPortIndex.WAN'][inPort.name]
+                        else:
+                            outPort = switch.props['stitchedPortIndex'][inPort.name]
+                        mod = FlowMod.create(scope, switch, {'dl_dst':dl_dst,'vlan':vlan,'in_port':inPort}, {'out_port':outPort})
+                        scope.addFlowMod(mod)
+                        if not controller.addFlowMod(mod):
+                            success = False
+                        packet = PacketOut(port=outPort,dl_src=dl_src,dl_dst=dl_dst,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
+                        if not controller.send(packet):
+                            success = False
+                        return
+            # else not tap or swSwitch: try to dispatch to the right port
+
+            # mac = original (untranslated) mac address
+            site_to_site = True
+            if inPort.props['type'].endswith('.WAN'): # from WAN
+                mac = self.reverse(dl_dst)
+                site_to_site = False
+            else: # from Site
+                mac = dl_dst
+            if not str(mac) in self.siteIndex:
+                SDNPopsRenderer.logger.warning("unknown dl_dst %r" % dl_dst)
+                return
+            site = self.siteIndex[str(mac)]
+            pop = site.props['pop']
+            myPop = switch.props['pop']
+            if pop.name == myPop.name: # to Site
+                outPort = switch.props['sitePortIndex'][site.name]
+                outVlan = self.vpn.props['participantIndex'][site.name][2] # siteVlan
+                outDst = mac
+            else: # to WAN
+                outPort = switch.props['wanPortIndex'][pop.name]
+                outVlan = outPort.props['links'][0].props['vlan']
+                outDst = self.translate(mac)
+                site_to_site = False
+            mod = FlowMod.create(scope, switch, {'dl_dst':dl_dst,'vlan':vlan,'in_port':inPort})
+            actions = []
+            if switch.props['role'] == 'SwSwitch':
+                # forward to serviceVm
+                vmPort = switch.props['vmPortIndex'][self.vpn.name]
+                action = Action(props={'out_port':vmPort})
+                actions.append(action)
+                packet = PacketOut(port=vmPort,dl_src=dl_src,dl_dst=outDst,etherType=etherType,vlan=outVlan,scope=scope,payload=payload)
+                if not controller.send(packet):
+                    success = False
+            # dispatch to responding port
+            action = Action(props={'vlan':outVlan, 'out_port':outPort})
+            if not site_to_site:
+                # Note: wan_to_wan should be a impossible case; 
+                # Therefore, only site_to_site case would remain dl_dst.
+                action.update({'dl_dst':outDst})
+            packet = PacketOut(port=outPort,dl_src=dl_src,dl_dst=outDst,etherType=etherType,vlan=outVlan,scope=scope,payload=payload)
+            if not controller.send(packet):
+                success = False
+            actions.append(action)
+            mod.actions = actions
+            scope.addFlowMod(mod)
+            if not controller.addFlowMod(mod):
+                success = False
+            return success
 
     def translate(self, mac):
         return self.vpn.props['mat'].translate(mac)
@@ -266,110 +350,19 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         return self.vpn.props['mat'].reverse(hid)
 
     def broadcast(self,inPort,inVlan,srcMac,dstMac,etherType,payload,switch,scope) :
-
-        switchController = switch.props['controller']
-        switch = inPort.props['enosNode']
-        scope = switchController.getScope(inPort, inVlan, dstMac)
-        success = True
-        endpoints = scope.props['endpoints']
-        if inPort.props['type'] == 'HwToCore':
-            # from site, broadcast to WANs
-            vid = self.vpn.props['vid']
-            lanVlan = self.vpn.props['lanVlan']
-            dstMac = MACAddress.createBroadcast(vid)
-            in_pop = switch.props['pop']
-            hwSwitch = in_pop.props['hwSwitch']
-            for participant in self.vpn.props['participants']:
-                (site, hosts, wanVlan) = participant
-                pop = site.props['pop']
-                if pop == in_pop:
-                    continue
-                link = hwSwitch.props['nextHop'][pop.name]
-                port = link.props['portIndex'][hwSwitch.name]
-                vlan = port.props['vlan']
-                packet = PacketOut(port=port, dl_src=srcMac, dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
-                if SDNPopsRenderer.debug:
-                    print packet
-                res = switchController.send(packet)
-                if not res:
-                    SDNPopsRenderer.logger.warning('switchController.send(%r) fail' % packet)
-                    success = False
-        elif inPort.props['type'] == 'HwToCore.WAN':
-            # from WAN, broadcast to site
-            assert(dstMac.getVid() == self.vpn.props['vid'])
-            vid = self.vpn.props['vid']
-            if not vid in switch.props['siteVlanIndex']:
-                SDNPopsRenderer.logger.warning('get unknown vid %r' % vid)
-                return False
-            vlan = switch.props['siteVlanIndex'][vid]
-            dstMac = self.reverse(dstMac) # 0xFF{vid}FFFF => 0xFFFFFFFFFFFF
-            vpn = self.vpn
-            link = switch.props['toCoreRouter'][0] # always choose the first link
-            port = link.props['portIndex'][switch.name]
-            packet = PacketOut(port=port,dl_src=srcMac,dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
-            if SDNPopsRenderer.debug:
-                print packet
-            res = switchController.send(packet)
-            if not res:
-                SDNPopsRenderer.logger.warning('switchController.send(%r) fail' % packet)
-                success = False
-        return success
-
-
-    def setMAC(self,port,vlan, mac,switch,scope):
-        if SDNPopsRenderer.debug:
-            print "SDNPopsRenderer: Set flow entries for MAC= " + mac.str() + " switch=" + switch.name + " port= " + port.name + " vlan= " + str(vlan)
-
-        controller = switch.props['controller']
-        success = True
-
-        mod = FlowMod(name=scope.name,scope=scope,switch=switch)
-        mod.props['renderer'] = self
-        match = Match(name=scope.name)
-        # check if the packet is from the site or the core
-        if port.props['type'] == 'HwToCore':
-            # set the flowmod = {match:{dst:trans_mac}, action:{dst:mac}}
-            match_mac = self.translate(mac)
-            action_mac = mac
-        elif port.get('type') == 'HwToCore.WAN':
-            # set the flowmod = {match:{dst:mac}, action:{dst:trans_mac}}
-            match.props['vlan'] = switch.props['siteVlanIndex'][self.vpn.props['vid']]
-            match_mac = mac
-            action_mac = self.translate(mac)
-        else:
-            SDNPopsRenderer.logger.warning('setMAC fail for the packet is from the port with unknown type')
-            return False
-        match.props['dl_dst'] = match_mac
-        action = Action(name=scope.name)
-        action.props['out_port'] = port
-        action.props['vlan'] = vlan
-        action.props['dl_dst'] = action_mac
-        mod.match = match
-        mod.actions = [action]
-        key = mod.key()
-        if key in self.flowmodIndex or key in self.backupFlowmodIndex:
-            SDNPopsRenderer.logger.debug("flowmod %r exists already", mod.key())
-            return True
-        with scope.props['lock']:
-            if not scope.props['tap']:
-                scope.addFlowMod(mod)
-                if not controller.addFlowMod(mod):
-                    success = False
-            else:
-                # the switch is tapped, should add flowmod in tap form
-                self.backupFlowmodIndex[key] = mod
-                success = self.tapFlowMod(mod)
-        if not success:
-            SDNPopsRenderer.logger.warning("Cannot push flowmod:" % mod)
-        return success
+        pass
+    def setMAC(self,port,vlan,dl_src,dl_dst,switch,scope):
+        pass
 
     def execute(self):
         """
+        This function might be useless since a VPN is built in the runtime
+
         Renders the intent.
         :return: Expectation when succcessful, None otherwise
         """
         # Add scopes to the controller
-        for scope in self.scopeIndex.values():
+        for scope in self.props['scopeIndex'].values():
             if not scope.switch.props['controller'].addScope(scope):
                 print "Cannot add", scope
                 return False
@@ -431,9 +424,9 @@ class SDNPopsIntent(ProvisioningIntent):
             links.append(link)
             # find the link stitched with the site
             hwSwitch = site.props['pop'].props['hwSwitch']
-            links.extend(hwSwitch.props['toCoreRouter'])
-            links.extend(hwSwitch.props['toSwSwitchLink'])
-            links.extend(hwSwitch.props['toSwSwitchLink.WAN'])
+            links.append(hwSwitch.props['toSwSwitchLink'])
+            links.append(hwSwitch.props['toSwSwitchLink.WAN'])
+        links.extend(wan.subsetLinks(pops))
 
         enosHosts = map(lambda host : host.props['enosNode'], hosts)
         enosLinks = map(lambda host : host.props['enosLink'], links)

@@ -11,7 +11,6 @@ def usage():
     print "vpn create vpnname vid lanVlan"
     print "vpn vpnindex addsite siteindex wanVlan"
     print "vpn vpnindex addhost hostindex"
-    print "vpn vpnindex execute"
     print "vpn vpnindex tap siteindex"
     print "vpn vpnindex untap siteindex"
 def toint(s):
@@ -46,7 +45,6 @@ def sample(args):
         addsite(['vpn1', 'addsite', 'anl.gov', '12'])
         addhost(['vpn1', 'addhost', 'dtn-1@lbl.gov'])
         addhost(['vpn1', 'addhost', 'dtn-1@anl.gov'])
-        execute(['vpn1', 'execute'])
         print "Reminder: you should add serviceVms on Mininet manually"
         print "mininet> px net.addVm('vpn1','lbl')"
         print "mininet> px net.addVm('vpn1','star')"
@@ -58,7 +56,6 @@ def sample(args):
         addsite(['vpn2', 'addsite', 'cern.ch', '23'])
         addhost(['vpn2', 'addhost', 'dtn-1@lbl.gov'])
         addhost(['vpn2', 'addhost', 'dtn-1@cern.ch'])
-        execute(['vpn2', 'execute'])
         print "Reminder: you should add serviceVms on Mininet manually"
         print "mininet> px net.addVm('vpn2','lbl')"
         print "mininet> px net.addVm('vpn2','cern')"
@@ -130,14 +127,9 @@ def addhost(args):
     vpn = get(vpns, vpnIndex, vpnindex)
     host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
     vpn.addHost(host)
-    sitename = host.props['connectTo'].name # siteRouter's name == site's name
+    sitename = host.props['site'].name
     siteRenderer = rendererIndex[sitename]
-    siteRenderer.addHost(host, vpn.props['lanVlan'], vpn.props['participantIndex'][sitename][2])
-def execute(args):
-    # args = [vpnindex, 'execute']
-    vpnindex = args[0]
-    vpn = get(vpns, vpnIndex, vpnindex)
-    vpn.props['renderer'].execute()
+    siteRenderer.addHost(host, vpn.props['lanVlan'])
 def tap(args):
     if len(args) < 3:
         print "invalid arguments."
@@ -177,8 +169,6 @@ def main():
         addsite(command_args[2:])
     elif command_args[3] == 'addhost':
         addhost(command_args[2:])
-    elif command_args[3] == 'execute':
-        execute(command_args[2:])
     elif command_args[3] == 'tap':
         tap(command_args[2:])
     elif command_args[3] == 'untap':

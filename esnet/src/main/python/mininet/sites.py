@@ -39,9 +39,9 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.active = False
         self.activePorts = {} # [portname] = TestbedPort
         self.flowmodIndex = {} # [FlowMod.key()] = FlowMod
-        self.lanVlanIndex = {} # [wanVlan] = lanVlan
-        self.wanVlanIndex = {} # [lanVlan] = wanVlan
-        self.portsIndex = {} # [lanVlan] = list of TestbedPort
+        self.props['lanVlanIndex'] = {} # [wanVlan] = lanVlan
+        self.props['wanVlanIndex'] = {} # [lanVlan] = wanVlan
+        self.props['portsIndex'] = {} # [lanVlan] = list of TestbedPort that participates in the VPN
         self.props['siteScope'] = None
         self.props['wanScope'] = None
         self.props['borderToSitePort'] = None # the port linking siteRouter and borderRouter
@@ -54,7 +54,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         for port in self.siteRouter.getPorts():
             self.activePorts[port.name] = port
             port.props['scope'] = scope
-        # scope.addEndpoint(port, vlan) # postpone until addVlan
+        scope.addEndpoint(self.siteRouter.props['toWanPort'])
         self.siteRouter.props['controller'].addScope(scope)
         # Create scope for the border router
         scope2 = L2SwitchScope(name="%s.wan" % intent.name,switch=self.borderRouter,owner=self)
@@ -63,8 +63,8 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         borderToSitePort = self.borderRouter.props['sitePortIndex'][self.site.name].props['enosPort']
         self.activePorts[borderToSitePort.name] = borderToSitePort
         borderToSitePort.props['scope'] = scope2
-        # scope2.addEndpoint(borderToSitePort) postpone until addVlan
-        borderToSDNPort = self.borderRouter.props['stitchedSitePortIndex'][borderToSitePort.name]
+        scope2.addEndpoint(borderToSitePort)
+        borderToSDNPort = self.borderRouter.props['stitchedPortIndex'][borderToSitePort.name]
         self.activePorts[borderToSDNPort.name] = borderToSDNPort
         borderToSDNPort.props['scope'] = scope2
         scope2.addEndpoint(borderToSDNPort)
@@ -74,36 +74,31 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
     def checkVlan(self, lanVlan, wanVlan):
         # could be invoked in CLI
         # if lanVlan or wanVlan exists already, they must exactly identical to original values
-        if (lanVlan in self.wanVlanIndex and self.wanVlanIndex[lanVlan] != wanVlan) or (wanVlan in self.lanVlanIndex and self.lanVlanIndex[wanVlan] != lanVlan):
+        if (lanVlan in self.props['wanVlanIndex'] and self.props['wanVlanIndex'][lanVlan] != wanVlan) or (wanVlan in self.props['lanVlanIndex'] and self.props['lanVlanIndex'][wanVlan] != lanVlan):
             SiteRenderer.logger.warning("different lanVlan and wanVlan is not allowed")
             return False
         return True
     def addVlan(self, lanVlan, wanVlan):
+        # could be invoked in CLI
         if not self.checkVlan(lanVlan, wanVlan):
             return
-        self.lanVlanIndex[wanVlan] = lanVlan
-        self.wanVlanIndex[lanVlan] = wanVlan
+        self.props['lanVlanIndex'][wanVlan] = lanVlan
+        self.props['wanVlanIndex'][lanVlan] = wanVlan
         self.stitch(wanVlan)
-    def addHost(self, host, lanVlan, wanVlan):
-        if not self.checkVlan(lanVlan, wanVlan):
-            SiteRenderer.logger.warning("check vlan (%d, %d) failed" % (lanVlan, wanVlan))
+    def addHost(self, host, lanVlan):
+        # could be invoked in CLI
+        if not lanVlan in self.props['wanVlanIndex']:
+            SiteRenderer.logger.warning("lanVlan %d not found" % lanVlan)
             return
-        if not lanVlan in self.portsIndex:
-            self.portsIndex[lanVlan] = []
-        # find the port to that host
-        link = host.props['ports'][1].props['links'][0] # assume host has only 1 port and 1 link
-        self.portsIndex[lanVlan].append(link.props['portIndex'][self.siteRouter.name].props['enosPort'])
+
+        toHostPort = self.siteRouter.props['hostPortIndex'][host.name].props['enosPort']
+
+        if not lanVlan in self.props['portsIndex']:
+            self.props['portsIndex'][lanVlan] = []
+        self.props['portsIndex'][lanVlan].append(toHostPort)
 
         scope = self.props['siteScope']
-        # find the port on siteRouter linking to the host
-        siteRouter = self.props['siteScope'].switch
-        host_port = host.props['ports'][1] # assume host has only one port
-        link = host_port.props['links'][0] # assume port has only one link
-        port = link.props['portIndex'][siteRouter.name].props['enosPort']
-        scope.addEndpoint(port, lanVlan)
-
-        toWanPort = siteRouter.props['toWanPort'].props['enosPort']
-        scope.addEndpoint(toWanPort, wanVlan)
+        scope.addEndpoint(toHostPort, lanVlan)
     def __str__(self):
         return "SiteRenderer(name=%s, activePorts=%r, siteScope=%r, wanScope=%r)" % (self.name, self.activePorts, self.props['siteScope'], self.props['wanScope'])
         desc = "SiteRenderer: " + self.name + "\n"
@@ -130,38 +125,28 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             # This is a PACKET_IN. Learn the source MAC address
             if not 'vlan' in event.props:
                 # no VLAN, reject
-                if SiteRenderer.debug:
-                    print "no VLAN, reject",event
+                SiteRenderer.logger.debug("no VLAN, reject %r" % event)
                 return
+            SiteRenderer.logger.debug("%r" % event)
             if SiteRenderer.debug:
-                print event
                 SiteRenderer.lastEvent = event
+            in_port = event.props['in_port'].props['enosPort']
             dl_src = event.props['dl_src']
-            port = event.props['in_port']
-            # switch = port.props['node']
-            in_port = self.activePorts[port.name]
-            if not in_port.props['type'] in ['SiteToHost','SiteToCore']:
-                # Discard (debug)
-                return
-            dl_dst = event.props['dl_dst']
-            dl_src = event.props['dl_src']
-            mac = dl_src
             vlan = event.props['vlan']
+            # set the flow entry to forward packet to that MAC to this port
+            success = self.setMAC(port=in_port, vlan=vlan, mac=dl_src)
+            if not success:
+                SiteRenderer.logger.warning("Cannot set MAC %s on %r.%r" % (dl_src, in_port, vlan))
+
+            dl_dst = event.props['dl_dst']
+            mac = dl_src
             etherType = event.props['ethertype']
-            success = True
-            #if not mac in self.macs:
-            if True:
-                # New MAC, install flow entries
-                # self.macs[mac.str()] = (dl_src, in_port)
-                in_port.props['macs'][mac.str()] = dl_src
-                # set the flow entry to forward packet to that MAC to this port
-                success = self.setMAC(port=in_port,vlan=vlan,mac=dl_src)
-                if not success:
-                    SiteRenderer.logger.warning("Cannot set MAC %s on %r.%r" % (dl_src, in_port, vlan))
             if dl_dst.isBroadcast():
                 success = self.broadcast(vlan=vlan, inPort=in_port,srcMac=dl_src,dstMac=dl_dst,etherType=etherType,payload=event.props['payload'])
                 if not success:
                     SiteRenderer.logger.warning("Cannot send broadcast packet")
+            else:
+                SiteRenderer.logger.warning("Unknown destination (%r) on site %r" % (event, self))
 
     def broadcast(self,vlan,inPort,srcMac,dstMac,etherType,payload) :
         switchController = self.siteRouter.props['controller']
@@ -170,16 +155,16 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         fromLAN = (inPort.props['type'] == 'SiteToHost')
         if fromLAN:
             lanVlan = vlan
-            wanVlan = self.wanVlanIndex[vlan]
+            wanVlan = self.props['wanVlanIndex'][vlan]
         else: # from WAN
-            lanVlan = self.lanVlanIndex[vlan]
+            lanVlan = self.props['lanVlanIndex'][vlan]
             wanVlan = vlan
         success = True
         for port in self.activePorts.values():
             if port == inPort:
                 # no need to send the broadcast back to itself
                 continue
-            if port.props['type'] == 'SiteToHost' and port in self.portsIndex[lanVlan]:
+            if port.props['type'] == 'SiteToHost' and port in self.props['portsIndex'][lanVlan]:
                 vlan = lanVlan
                 packet = PacketOut(port=port,dl_src=srcMac,dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=scope,payload=payload)
                 if not switchController.isPacketOutValid(packet):
@@ -199,33 +184,69 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
 
 
     def setMAC(self, port, vlan, mac):
+        """
+        Rules of adding flowmods:
+        from LAN:
+        1. match:{dst:mac,vlan:wanVlan},action:{vlan:lanVlan,output:port}
+        2. match:{dst:mac,vlan:lanVlan},action:{output:port}
+        3. match:{src:mac,dst:B,vlan:lanVlan,inport:port},action:{output:lanPorts,vlan:wanVlan,output:wanPort}
+        from WAN:
+        1. match:{dst:mac,vlan:lanVlan},action:{vlan:wanVlan,output:port}
+        3. match:{src:mac,dst:B,vlan:wanVlan,inport:port},action:{vlan:lanVlan,output:lanPorts}
+        """
         SiteRenderer.logger.debug("Set flow entries for MAC= %r port=%r vlan=%r" % (mac, port, vlan))
-        switch = port.props['enosNode']
         scope = port.props['scope']
+        switch = port.props['enosNode']
         controller = switch.props['controller']
-        fromWan = (port.props['type'] == 'SiteToCore')
-        if fromWan:
-            match_vlan = self.lanVlanIndex[vlan]
-            action_vlan = vlan
-        else:
-            match_vlan = self.wanVlanIndex[vlan]
-            action_vlan = vlan
+        if port.props['type'] == 'SiteToHost':
+            lanVlan = vlan
+            wanVlan = self.props['wanVlanIndex'][vlan]
+            oppVlan = wanVlan
+            oppPorts = [self.siteRouter.props['toWanPort']]
+        else: # 'SiteToCore'
+            wanVlan = vlan
+            lanVlan = self.props['lanVlanIndex'][vlan]
+            oppVlan = lanVlan
+            oppPorts = self.props['portsIndex'][lanVlan]
+        # 1. dispatch packets from opposite port
+        for oppPort in oppPorts:
+            mod = FlowMod.create(scope,switch,{'dl_dst':mac, 'vlan':oppVlan, 'in_port':oppPort},{'vlan':vlan, 'out_port':port})
+            mod.props['renderer'] = self
+            if scope.checkFlowMod(mod):
+                return True # existed already
+            success = True
+            scope.addFlowMod(mod)
+            if not controller.addFlowMod(mod):
+                success = False
 
-        name = '%r fr %s.%d' % (mac, port.name, vlan)
-        mod = FlowMod(name=name, scope=scope,switch=switch)
-        mod.props['renderer'] = self
-        match = Match(name=name)
-        match.props['dl_dst'] = mac
-        match.props['vlan'] = match_vlan
-        action = Action(name=name)
-        action.props['out_port'] = port
-        action.props['vlan'] = action_vlan
-        mod.match = match
-        mod.actions = [action]
-        if scope.checkFlowMod(mod):
-            return True # existed already
+        # 2. dispatch packets from lan to lan
+        if port.props['type'] == 'SiteToHost':
+            for lanPort in self.props['portsIndex'][lanVlan]:
+                if lanPort == port:
+                    continue
+                mod = FlowMod.create(scope,switch,{'dl_dst':mac, 'vlan':vlan, 'in_port':lanPort}, {'out_port':port})
+                scope.addFlowMod(mod)
+                if not controller.addFlowMod(mod):
+                    success = False
+
+        # 3. broadcast packets from lan
+        match = Match(props={'dl_src':mac, 'dl_dst':MACAddress.createBroadcast(), 'vlan':vlan, 'in_port':port})
+        if port.props['type'] == 'SiteToHost':
+            actions = []
+            if len(self.props['portsIndex'][lanVlan]) > 1:
+                excludeSelf = copy.copy(self.props['portsIndex'][lanVlan])
+                excludeSelf.remove(port)
+                actions.append(Action({'out_ports':excludeSelf}))
+            wanPort = self.siteRouter.props['toWanPort']
+            actions.append(Action(props={'vlan':wanVlan,'out_port':wanPort}))
+        else: # SiteToCore
+            action = Action(props={'vlan':lanVlan, 'out_ports':self.props['portsIndex'][lanVlan]})
+            actions = [action]
+        mod = FlowMod(scope=scope,switch=switch,match=match,actions=actions)
         scope.addFlowMod(mod)
-        return controller.addFlowMod(mod)
+        if not controller.addFlowMod(mod):
+            success = False
+        return success
     def stitch(self, wanVlan):
         siteScope = self.props['siteScope']
         siteRouterToWanPort = self.siteRouter.props['toWanPort'].props['enosPort']
@@ -257,7 +278,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
 
     def setBorderRouter(self):
         success = True
-        for wanVlan in self.wanVlanIndex.values():
+        for wanVlan in self.props['wanVlanIndex'].values():
             if not self.stitch(wanVlan):
                 success = False
         return success

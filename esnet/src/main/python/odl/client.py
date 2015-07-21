@@ -134,6 +134,17 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             return None
         return self.odlSwitchIndex[dpid]
 
+    def getNodeConn(self, odlNode, switch, port):
+        # Compose the port name, which comes from the mininet switch name ("s2") and our
+        # port name ("eth1").  We then need to look this up in the ODL SwitchManager,
+        # but that requires a pointer to the ODL Node.
+        portName = switch.props['mininetName'] + "-" + port.name.split("-")[-1]
+        nodeconn = self.odlController.getNodeConnector(odlNode, portName)
+        if not nodeconn:
+            ODLClient.logger.warning('%s not found at %r' % (portName, odlNode))
+            return None
+        return nodeconn
+
     def makeODLFlowEntry(self, flowMod, odlNode):
         """
         Given a FlowMod object, turn it into a Flow suitable for passing to ODL.
@@ -168,33 +179,28 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         # translations would happen here as well.  Then any action to forward
         # packets.
         actionList = LinkedList()
-
-        # Current code assumes there is only one action
-        if len(flowMod.actions) != 1:
-            # This implementation only supports a single action
-            return False
-
-        action = flowMod.actions[0]
-        if 'dl_dst' in action.props:
-            actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'].data)))
-        if 'dl_src' in action.props:
-            actionList.add(SetDlSrc(self.javaByteArray(action.props['dl_src'].data)))
-        if 'vlan' in action.props:
-            actionList.add(SetVlanId(action.props['vlan']))
-        if 'out_port' in action.props:
-            p = action.props['out_port']
-            # Compose the port name, which comes from the mininet switch name ("s2") and our
-            # port name ("eth1").  We then need to look this up in the ODL SwitchManager,
-            # but that requires a pointer to the ODL Node.
-            portName = flowMod.switch.props['mininetName'] + "-" + p.name.split("-")[-1]
-            nodeconn = self.odlController.getNodeConnector(odlNode, portName)
-            if not nodeconn:
-                ODLClient.logger.warning('%s not found at %r' % (portName, odlNode))
-                return False
-            actionList.add(Output(nodeconn))
-        else:
+        noOutPort = True
+        for action in flowMod.actions:
+            if 'dl_dst' in action.props:
+                actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'].data)))
+            if 'dl_src' in action.props:
+                actionList.add(SetDlSrc(self.javaByteArray(action.props['dl_src'].data)))
+            if 'vlan' in action.props:
+                actionList.add(SetVlanId(action.props['vlan']))
+            if 'out_port' in action.props:
+                p = action.props['out_port']
+                nodeconn = self.getNodeConn(odlNode, flowMod.switch, p)
+                actionList.add(Output(nodeconn))
+                noOutPort = False
+            elif 'out_ports' in action.props:
+                for p in action.props['out_ports']:
+                    nodeconn = self.getNodeConn(odlNode, flowMod.switch, p)
+                    actionList.add(Output(nodeconn))
+                noOutPort = False
+        if noOutPort:
             # This implementation requires all actions to contain a port_out
-            return False
+            ODLClient.logger.warning("no out_port or out_ports in flowMod")
+            return None
 
         # compose flow
         flow = Flow(match, actionList)
@@ -217,13 +223,32 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
 
             flow = self.makeODLFlowEntry(flowMod=flowMod, odlNode=sw.node)
             if not flow:
-                print "Cannot push flowmond onto",flowMod.switch
+                ODLClient.logger.warning("Cannot push flowmond onto %r" % flowMod.switch)
+                return False
             # go to the controller
             ODLClient.logger.info('addFlow %r' % flow)
             res = self.odlController.addFlow(sw.node, flow)
             return res.isSuccess()
         else:
             print 'flowMod %r is not valid' % flowMod
+        return False
+    def modifyFlowMod(self, oldFlowMod, newFlowMod):
+        if self.isFlowModValid(newFlowMod):
+            sw = self.findODLSwitch(flowMod.switch)
+            # print "flowMod.switch of type ", str(type(flowMod.switch))
+            if sw == None:
+                print flowMod,"cannot be pushed because the switch is not in inventory"
+                return False
+            newFlow = self.makeODLFlowEntry(flowMod=newFlowMod, odlNode=sw.node)
+            if not newFlow:
+                ODLClient.logger.warning("Cannot push flowmond onto %r" % newFlowMod.switch)
+                return False
+            # go to the controller
+            ODLClient.logger.info('addFlow %r' % flow)
+            res = self.odlController.modifyFlow(sw.node, oldFlow, newFlow)
+            return res.isSuccess()
+        else:
+            print 'flowMod %r is not valid' % newFlowMod
         return False
 
 
@@ -293,9 +318,7 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             # go to the controller
             ODLClient.logger.info('del %r' % flow)
             success = self.odlController.removeFlow(sw.node, flow)
-            print success
-            # get result
-            return True
+            return success.isSuccess()
         else:
             print 'flowMod %r is not valid' % flowMod
         return False
@@ -355,10 +378,10 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         except:
             exc = sys.exc_info()
             tid = threading.current_thread().ident
-            print '[%d]%r %r' % (tid, exc[0], exc[1])
+            print "[%d]%r %r" % (tid, exc[0], exc[1])
             tb = exc[2]
             while tb:
-                print '[%d]%r %r' % (tid, tb.tb_frame.f_code, tb.tb_lineno)
+                print "[%d]%r %r" % (tid, tb.tb_frame.f_code, tb.tb_lineno)
                 tb = tb.tb_next
     def tryCallback(self, rawPacket):
         """

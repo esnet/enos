@@ -76,6 +76,29 @@ class TestbedTopo(Topo):
         # Build topology
         self.builder = TopoBuilder(fileName)
         self.buildCore()
+    def addVm(self, vpnname, popname, wanVlan = 0):
+        """
+        Could be invoked in mininet CLI
+        :param popname:
+        """
+        if not popname in self.builder.popIndex:
+            print "pop %s not found" % popname
+            return
+        name = "%s-%s-vm" % (vpnname, popname)
+        host = ServiceVm(name=name)
+        self.builder.addHost(host)
+        self.builder.updateHost(host)
+        hostname = host.props['mininetName']
+        self.addHost(hostname, mac=str(host.props['mac']))
+        pop = self.builder.popIndex[popname]
+        swSwitch = pop.props['swSwitch']
+        link = Link.create(host, swSwitch, wanVlan)
+        self.builder.addLink(link)
+        port1 = link.props['endpoints'][0]
+        port2 = link.props['endpoints'][1]
+        node1 = port1.props['node']
+        node2 = port2.props['node']
+        self.addLink(node1.props['mininetName'],node2.props['mininetName'],port1.props['interfaceIndex'],port2.props['interfaceIndex'])
 
 
 class ESnetMininet(Mininet):
@@ -89,7 +112,16 @@ class ESnetMininet(Mininet):
         args['build'] = False
         Mininet.__init__(self, **args)
         self.ctrl = self.addController( 'c0', controller=RemoteController, ip=controllerIp, port=controllerPort)
-
+        if configFileName:
+            with open(configFileName, "r") as f:
+                for line in f:
+                    data = line.split()
+                    vpnname = data[0]
+                    popname = data[1]
+                    wanVlan = 0
+                    if len(data) >= 3:
+                        wanVlan = data[2]
+                    self.topo.addVm(vpnname, popname, wanVlan)
     def start(self):
         "Start controller and switches."
         if not self.built:
@@ -99,29 +131,6 @@ class ESnetMininet(Mininet):
     def listPop(self):
         for pop in self.topo.builder.pops:
             print pop
-    def addVm(self, vpnname, popname, wanVlan = 0):
-        """
-        Could be invoked in mininet CLI
-        :param popname:
-        """
-        if not popname in self.topo.builder.popIndex:
-            print "pop %s not found" % popname
-            return
-        name = "%s-%s-vm" % (vpnname, popname)
-        host = ServiceVm(name=name)
-        self.topo.builder.addHost(host)
-        self.topo.builder.updateHost(host)
-        hostname = host.props['mininetName']
-        self.addHost(hostname, mac=str(host.props['mac']))
-        pop = self.topo.builder.popIndex[popname]
-        swSwitch = pop.props['swSwitch']
-        link = Link.create(host, swSwitch, wanVlan)
-        self.topo.builder.addLink(link)
-        port1 = link.props['endpoints'][0]
-        port2 = link.props['endpoints'][1]
-        node1 = port1.props['node']
-        node2 = port2.props['node']
-        self.addLink(node1.props['mininetName'],node2.props['mininetName'],port1.props['interfaceIndex'],port2.props['interfaceIndex'])
 
 if __name__ == '__main__':
     opts, args = getopt.getopt(sys.argv[1:],"f:c:p:",['file=','controller=','port='])

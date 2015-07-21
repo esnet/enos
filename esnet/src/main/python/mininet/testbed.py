@@ -41,6 +41,11 @@ amst=["amst",'amst-tb-of-1',"amst-cr5",1]
 
 # Default locations
 locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
+
+# # prune topology for those development environment with insufficient RAM (4G)
+# locations=[lbl,star]
+# sites = [lblsite, anlsite]
+
 class TopoBuilder ():
 
     debug = False;
@@ -102,14 +107,12 @@ class TopoBuilder ():
 
     def addSDNPop(self, popname, hwswitchname, coreroutername, swswitchname, nbOfLinks):
         pop = SDNPop(popname, hwswitchname, coreroutername, swswitchname, nbOfLinks)
-        hwSwitch = pop.props['hwSwitch']
-        coreRouter = pop.props['coreRouter']
-        swSwitch = pop.props['swSwitch']
-        self.addSwitch(hwSwitch)
-        self.addSwitch(coreRouter)
-        self.addSwitch(swSwitch)
+        self.addSwitch(pop.props['hwSwitch'])
+        self.addSwitch(pop.props['coreRouter'])
+        self.addSwitch(pop.props['swSwitch'])
         self.addLinks(pop.props['links'])
-        return pop
+        self.popIndex[popname] = pop
+        self.pops.append(pop)
 
     def updateHost(self, host):
         host.update(self.getHostParams(host.name))
@@ -127,11 +130,10 @@ class TopoBuilder ():
             3.  All OpenFlow switches have the same controller object used to access them.
             4.  All OpenFlow switches can be represented by the same object class.
         """
+        # init self.pops
         for location in self.locations:
             (popname, hwswitchname, coreroutername, swswitchname, nbOfLinks) = (location[0], location[1], location[2], location[0] + "-ovs", location[3])
-            pop = self.addSDNPop(popname, hwswitchname, coreroutername, swswitchname, nbOfLinks)
-            self.popIndex[popname] = pop
-            self.pops.append(pop)
+            self.addSDNPop(popname, hwswitchname, coreroutername, swswitchname, nbOfLinks)
 
         # create mesh between core routers, attached to VLANs between the core routers and hardware switches
         self.wan.connectAll(self.pops, 1000)
@@ -151,26 +153,19 @@ class TopoBuilder ():
         for switch in self.switches:
             self.updateSwitch(switch)
     def addSite(self, sitename, popname, portno = 0):
+        # create the site
         site = Site(sitename)
-        siteRouter = site.props['siteRouter']
-        self.addSwitch(siteRouter)
+        self.addSwitch(site.props['siteRouter'])
+
+        # access the pop
         pop = self.popIndex[popname]
-        site.props['pop'] = pop
-        coreRouter = pop.props['coreRouter']
-        site.props['borderRouter'] = coreRouter
 
-        link = Link.create(siteRouter, coreRouter)
+        # connect site and pop
+        link = Link.create(site.props['siteRouter'], pop.props['coreRouter'])
         link.setPortType('SiteToCore', 'CoreToSite')
-        site.props['links'].append(link)
+        site.setPop(pop, link)
+        pop.addSite(site, link, portno)
 
-        siteRouter.props['toWanPort'] = link.props['endpoints'][0]
-        toSitePort = link.props['portIndex'][coreRouter.name]
-        coreRouter.props['sitePortIndex'][sitename] = toSitePort
-        toHwPort = coreRouter.props['toHwPorts'][portno]
-        coreRouter.props['stitchedSitePortIndex'][toSitePort.name] = toHwPort
-        hwlink = toHwPort.props['links'][0] # assume only one link
-        hwSwitch = pop.props['hwSwitch']
-        hwSwitch.props['sitePortIndex'][sitename] = hwlink.props['portIndex'][hwSwitch.name]
         self.siteIndex[sitename] = site
         self.sites.append(site)
         return site

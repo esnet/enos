@@ -42,11 +42,11 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
             self.links.append(link)
             (wanPort1, wanPort2) = link.props['endpoints']
             coreRouter1 = wanPort1.props['node']
-            corePort1 = coreRouter1.props['stitchedWanPortIndex'][wanPort1.name]
+            corePort1 = coreRouter1.props['stitchedPortIndex.WAN'][wanPort1.name]
             link1 = corePort1.props['links'][0].props['enosLink'] # assume only one link in the port
             self.links.append(link1)
             coreRouter2 = wanPort2.props['node']
-            corePort2 = coreRouter2.props['stitchedWanPortIndex'][wanPort2.name]
+            corePort2 = coreRouter2.props['stitchedPortIndex.WAN'][wanPort2.name]
             link2 = corePort2.props['links'][0].props['enosLink'] # assume only one link in the port
             self.links.append(link2)
         self.intentGraph=intent.graph
@@ -55,7 +55,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
         self.active=False
         self.activePorts={}
         self.flowmodIndex = {} # [FlowMod.key()] = FlowMod
-        self.scopes={}
+        self.props['scopeIndex'] = {} # [coreRouter.name] = L2SwitchScope
 
         # Create scopes for all of the places that we need to touch anything
         for pop in self.wan.props['pops']:
@@ -64,8 +64,6 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
 
             # Find the hardware router and core switch in both the topobuilder and base ENOS layers
             coreRouter = pop.props['coreRouter'].props['enosNode']
-            hwSwitch = pop.props['hwSwitch'].props['enosNode']
-
             # Create and add the scope
             scope=L2SwitchScope(name=intent.name+'-'+coreRouter.name, switch=coreRouter, owner=self,endpoints={})
             scope.props['intent'] = self.intent
@@ -77,7 +75,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
                 print coreRouter.name + ' scope', scope
             if not coreRouter.props['controller'].addScope(scope):
                 print "Cannot add " + str(scope)
-            self.scopes[coreRouter.name] = scope
+            self.props['scopeIndex'][coreRouter.name] = scope
         return
 
     def __str__(self):
@@ -109,7 +107,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
             for port1 in coreRouter.getPorts():
                 if port1.props['type'].endswith('.WAN'):
                     link1 = port1.props['links'][0].props['enosLink'] # assume only one link in the port
-                    port2 = coreRouter.props['stitchedWanPortIndex'][port1.name]
+                    port2 = coreRouter.props['stitchedPortIndex.WAN'][port1.name]
                     link2 = port2.props['links'][0].props['enosLink'] # assume only one link in the port
                     self.stitchVlans(coreRouter, link1, link2)
         expectation = WanExpectation(self.name,self,self.intent,self.buildGraph())
@@ -129,7 +127,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
         intf2 = link2.props['portIndex'][router.name].props['enosPort']
 
         if controller:
-            scope = self.scopes[router.name]
+            scope = self.props['scopeIndex'][router.name]
             if self.debug:
                 print "Scope id " + str(scope.id) + " " + str(scope)
                 print "Router DPID " + str(router.props['dpid'])

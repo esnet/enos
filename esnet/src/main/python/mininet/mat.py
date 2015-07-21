@@ -31,7 +31,11 @@ class MAT(Properties):
                     self.props['mac'][hid] = mac
         trans_mac = MACAddress()
         trans_mac.setVid(self.props['vid'])
-        trans_mac.setHid(self.props['hid'][str(mac)])
+        hid = self.props['hid'][str(mac)]
+        trans_mac.setHid(hid)
+        if hid > MAT.reserved:
+            # broadcast MAC address
+            trans_mac.data[0] = 0xFF
         return trans_mac
     def reverse(self, hid):
         if not hid in self.props['mac']:

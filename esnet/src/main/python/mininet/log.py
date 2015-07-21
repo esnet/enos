@@ -32,12 +32,16 @@ def log(args):
     args[1]: level (optional)
     """
     name = args[0]
-    level = Logger(name).level
+    if name == 'root':
+        logger = Logger()
+    else:
+        logger = Logger(name)
+    level = logger.level
     desc = "log level of %s = %d" % (name, level)
     if len(args) >= 2:
         try:
             new_level = int(args[1])
-            Logger(name).setLevel(new_level)
+            logger.setLevel(new_level)
             desc += "->%d" % new_level
         except:
             pass
@@ -52,7 +56,7 @@ def main():
     if not 'net' in globals():
         print "Please run demo first"
         return
-    supportedNames = ['ODLClient', 'SimpleController', 'SiteRenderer', 'SDNPopsRenderer', 'L2SwitchScope']
+    supportedNames = ['root', 'ODLClient', 'SimpleController', 'SiteRenderer', 'SDNPopsRenderer', 'L2SwitchScope']
     if len(command_args) < 3:
         usage()
     elif command_args[2] in supportedNames:
