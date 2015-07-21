@@ -1,3 +1,3 @@
-import net.es.netshell.odl.PacketHandler
-net.es.netshell.odl.PacketHandler.getInstance().setPacketInCallback(None)
+from net.es.netshell.odl import PacketHandler
+PacketHandler.getInstance().setPacketInCallback(None)
 

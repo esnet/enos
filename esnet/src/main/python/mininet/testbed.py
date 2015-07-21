@@ -42,9 +42,9 @@ amst=["amst",'amst-tb-of-1',"amst-cr5",1]
 # Default locations
 locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
 
-# # prune topology for those development environment with insufficient RAM (4G)
-# locations=[lbl,star]
-# sites = [lblsite, anlsite]
+# prune topology for those development environment with insufficient RAM (4G)
+locations=[lbl,star,cern]
+sites = [lblsite, anlsite, cernsite]
 
 class TopoBuilder ():
 

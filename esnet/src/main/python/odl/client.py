@@ -36,8 +36,8 @@ from common.openflow import SimpleController, PacketInEvent
 
 from org.opendaylight.controller.sal.core import Node
 
-import net.es.netshell.odl.Controller
-import net.es.netshell.odl.PacketHandler
+from net.es.netshell.odl import Controller
+from net.es.netshell.odl import PacketHandler
 
 from org.opendaylight.controller.sal.core import Node
 
@@ -62,10 +62,10 @@ from org.opendaylight.controller.sal.packet import PacketResult
 from org.opendaylight.controller.sal.flowprogrammer import Flow
 
 from org.opendaylight.controller.sal.utils import EtherTypes
-class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
+class ODLClient(SimpleController,PacketHandler.Callback):
     """
     Class that is an interface to the ENOS OpenDaylight client.
-    The real client functionality is the net.es.netshell.odl.Controller
+    The real client functionality is the Controller
     class (in Java).
     :param topology mininet.enos.TestbedTopology
     """
@@ -83,8 +83,8 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
         #super(ODLClient,self).__init__()
         SimpleController.__init__(self)
         self.__class__ = ODLClient
-        self.odlController = net.es.netshell.odl.Controller.getInstance()
-        self.odlPacketHandler = net.es.netshell.odl.PacketHandler.getInstance()
+        self.odlController = Controller.getInstance()
+        self.odlPacketHandler = PacketHandler.getInstance()
         ODLClient.topology = topology
         self.debug = 0
         self.dropLLDP = True
@@ -204,12 +204,13 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
 
         # compose flow
         flow = Flow(match, actionList)
+        flow.priority = flowMod.props['priority']
         return flow
 
     def addFlowMod(self, flowMod):
         """
         Implementation of addFlowMod for use with OpenDaylight.
-        Uses the net.es.netshell.odl.Controller.
+        Uses the Controller.
         :param flowMod:
         :return: True if successful, False if not
         """
@@ -377,11 +378,10 @@ class ODLClient(SimpleController,net.es.netshell.odl.PacketHandler.Callback):
             self.tryCallback(rawPacket)
         except:
             exc = sys.exc_info()
-            tid = threading.current_thread().ident
-            print "[%d]%r %r" % (tid, exc[0], exc[1])
+            ODLClient.logger.error("%r %r" % (exc[0], exc[1]))
             tb = exc[2]
             while tb:
-                print "[%d]%r %r" % (tid, tb.tb_frame.f_code, tb.tb_lineno)
+                ODLClient.logger.error("%r %r" % (tb.tb_frame.f_code, tb.tb_lineno))
                 tb = tb.tb_next
     def tryCallback(self, rawPacket):
         """

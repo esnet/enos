@@ -54,7 +54,6 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
 
         self.active=False
         self.activePorts={}
-        self.flowmodIndex = {} # [FlowMod.key()] = FlowMod
         self.props['scopeIndex'] = {} # [coreRouter.name] = L2SwitchScope
 
         # Create scopes for all of the places that we need to touch anything
@@ -126,21 +125,8 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
         vlan2 = link2.props['vlan']
         intf2 = link2.props['portIndex'][router.name].props['enosPort']
 
-        if controller:
-            scope = self.props['scopeIndex'][router.name]
-            if self.debug:
-                print "Scope id " + str(scope.id) + " " + str(scope)
-                print "Router DPID " + str(router.props['dpid'])
-
-            m1 = Match('')
-            m1.props['in_port'] = intf1
-            m1.props['vlan'] = vlan1
-            a1 = Action('')
-            a1.props['vlan'] = vlan2
-            a1.props['out_port'] = intf2
-            mod = FlowMod(scope, router, m1, "", [a1])
-            scope.addFlowMod(mod)
-            controller.addFlowMod(mod)
+        scope = self.props['scopeIndex'][router.name]
+        scope.forward(router, None, vlan1, intf1, None, vlan2, intf2)
 
     def addLinkIntoGraph(self, link, graph):
         """

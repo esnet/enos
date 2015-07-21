@@ -23,9 +23,11 @@ from common.intent import Intent
 
 def usage():
     print "usage:"
-    print "list flowmods: list names of all flowmods"
+    print "list entries: list names of all flow entries"
+    print "list entry $INDEX: list the entry (index could be number or name)"
     print "list expectations: list names of all expectations"
     print "list expecatation $INDEX: list a single expectation (by name)"
+    print "list flowmods: list names of all flowmods"
     print "list hosts: list names of all hosts"
     print "list host $INDEX: list the host (index could be number or name)"
     print "list intents: list names of all intents"
@@ -36,6 +38,8 @@ def usage():
     print "list pop $INDEX: list the pop (index could be number or name)"
     print "list ports: list names of all ports"
     print "list port $INDEX: list the port (index could be number or name)"
+    print "list renderers: list names of all rendererers"
+    print "list renderer $INDEX: list a single renderer"
     print "list scopes: list names of all scopes"
     print "list scope $INDEX: list the scope (index could be number or name)"
     print "list sites: list names of all sites"
@@ -77,15 +81,22 @@ def main():
         return
     if len(command_args) < 3:
         usage()
+    elif command_args[2] == 'entries':
+        i = 0
+        for vpn in vpns:
+            for status in vpn.props['renderer'].props['statusIndex'].values():
+                print "[%d] %r" % (i, status.props['flowEntry'])
+                i += 1
     elif command_args[2] == 'expectations':
         for i in sorted(Expectation.directory):
             print i
     elif command_args[2] == 'flowmods':
         i = 0
         for renderer in renderers:
-            for key in renderer.flowmodIndex.keys():
-                print "[%d] %s" % (i, key)
-                i += 1
+            for scope in renderer.props['scopeIndex'].values():
+                for flowmod in scope.props['flowmodIndex'].values():
+                    print "[%d] %r" % (i, flowmod)
+                    i += 1
     elif command_args[2] == 'hosts':
         showlist(net.builder.hosts)
     elif command_args[2] == 'intents':
@@ -115,6 +126,14 @@ def main():
         showobj(net.builder.wan)
     elif len(command_args) < 4:
         usage()
+    elif command_args[2] == 'entry':
+        entries = []
+        i = 0
+        for vpn in vpns:
+            for status in vpn.props['renderer'].props['statusIndex'].values():
+                entries.append(status)
+        status = get(entries, {}, command_args[3])
+        showobj(status)
     elif command_args[2] == 'expectation':
         expectation = get(None, Expectation.directory, command_args[3])
         showobj(expectation)

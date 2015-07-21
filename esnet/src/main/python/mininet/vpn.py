@@ -7,12 +7,16 @@ from mininet.l2vpn import SDNPopsIntent, SDNPopsRenderer
 
 def usage():
     print "usage:"
-    print "vpn sample built-in_sample_index"
-    print "vpn create vpnname vid lanVlan"
-    print "vpn vpnindex addsite siteindex wanVlan"
-    print "vpn vpnindex addhost hostindex"
-    print "vpn vpnindex tap siteindex"
-    print "vpn vpnindex untap siteindex"
+    print "vpn sample $built-in_sample_index"
+    print "vpn create $vpnname $vid $lanVlan"
+    print "vpn $vpnindex addsite $siteindex $wanVlan"
+    print "vpn $vpnindex addhost $hostindex"
+    print "vpn $vpnindex tapsite $siteindex"
+    print "vpn $vpnindex untapsite $siteindex"
+    print "vpn $vpnindex taphost $hostindex"
+    print "vpn $vpnindex untaphost $hostindex"
+    print "vpn $vpnindex tapmac $mac"
+    print "vpn $vpnindex untapmac $mac"
 def toint(s):
     try:
         return int(s)
@@ -45,22 +49,14 @@ def sample(args):
         addsite(['vpn1', 'addsite', 'anl.gov', '12'])
         addhost(['vpn1', 'addhost', 'dtn-1@lbl.gov'])
         addhost(['vpn1', 'addhost', 'dtn-1@anl.gov'])
-        print "Reminder: you should add serviceVms on Mininet manually"
-        print "mininet> px net.addVm('vpn1','lbl')"
-        print "mininet> px net.addVm('vpn1','star')"
-        print "mininet> switch s6 start"
-        print "mininet> switch s21 start"
     elif index == '2':
         create(['vpn2', '5678', '20'])
         addsite(['vpn2', 'addsite', 'lbl.gov', '21'])
+        addsite(['vpn2', 'addsite', 'anl.gov', '22'])
         addsite(['vpn2', 'addsite', 'cern.ch', '23'])
-        addhost(['vpn2', 'addhost', 'dtn-1@lbl.gov'])
-        addhost(['vpn2', 'addhost', 'dtn-1@cern.ch'])
-        print "Reminder: you should add serviceVms on Mininet manually"
-        print "mininet> px net.addVm('vpn2','lbl')"
-        print "mininet> px net.addVm('vpn2','cern')"
-        print "mininet> switch s6 start"
-        print "mininet> switch s18 start"
+        addhost(['vpn2', 'addhost', 'dtn-2@lbl.gov'])
+        addhost(['vpn2', 'addhost', 'dtn-2@anl.gov'])
+        addhost(['vpn2', 'addhost', 'dtn-2@cern.ch'])
     else:
         print "index %s is not implemented" % index
 def create(args):
@@ -130,26 +126,87 @@ def addhost(args):
     sitename = host.props['site'].name
     siteRenderer = rendererIndex[sitename]
     siteRenderer.addHost(host, vpn.props['lanVlan'])
-def tap(args):
+
+def tapsite(args):
     if len(args) < 3:
         print "invalid arguments."
         usage()
         return
-    # args = [vpnindex, 'tap', siteindex]
+    # args = [vpnindex, 'tapsite', siteindex]
     (vpnindex, siteindex) = [args[0], args[2]]
     vpn = get(vpns, vpnIndex, vpnindex)
     site = get(net.builder.sites, net.builder.siteIndex, siteindex)
-    vpn.props['renderer'].tap(site=site)
-def untap(args):
+    vpn.props['renderer'].tapSite(site)
+
+def untapsite(args):
     if len(args) < 3:
         print "invalid arguments."
         usage()
         return
-    # args = [vpnindex, 'untap', siteindex]
+    # args = [vpnindex, 'untapsite', siteindex]
     (vpnindex, siteindex) = [args[0], args[2]]
     vpn = get(vpns, vpnIndex, vpnindex)
     site = get(net.builder.sites, net.builder.siteIndex, siteindex)
-    vpn.props['renderer'].untap(site=site)
+    vpn.props['renderer'].untapSite(site)
+
+def taphost(args):
+    if len(args) < 3:
+        print "invalid arguments."
+        usage()
+        return
+    # args = [vpnindex, 'taphost', hostindex]
+    (vpnindex, hostindex) = [args[0], args[2]]
+    vpn = get(vpns, vpnIndex, vpnindex)
+    host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
+    vpn.props['renderer'].tapHost(host)
+
+def untaphost(args):
+    if len(args) < 3:
+        print "invalid arguments."
+        usage()
+        return
+    # args = [vpnindex, 'untaphost', hostindex]
+    (vpnindex, hostindex) = [args[0], args[2]]
+    vpn = get(vpns, vpnIndex, vpnindex)
+    host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
+    vpn.props['renderer'].untapHost(host)
+
+def tapmac(args):
+    if len(args) < 3:
+        print "invalid arguments."
+        usage()
+        return
+    # args = [vpnindex, 'tapmac', mac]
+    (vpnindex, mac) = [args[0], args[2]]
+    vpn = get(vpns, vpnIndex, vpnindex)
+    try:
+        m = MACAddress(mac)
+    except:
+        try:
+            m = MACAddress(int(mac))
+        except:
+            print "invalid mac"
+            return
+    vpn.props['renderer'].tapMac(m)
+
+def untapmac(args):
+    if len(args) < 3:
+        print "invalid arguments."
+        usage()
+        return
+    # args = [vpnindex, 'untapmac', mac]
+    (vpnindex, mac) = [args[0], args[2]]
+    vpn = get(vpns, vpnIndex, vpnindex)
+    try:
+        m = MACAddress(mac)
+    except:
+        try:
+            m = MACAddress(int(mac))
+        except:
+            print "invalid mac"
+            return
+    vpn.props['renderer'].untapMac(m)
+
 def main():
     if not net:
         print 'Please run demo first'
@@ -169,10 +226,18 @@ def main():
         addsite(command_args[2:])
     elif command_args[3] == 'addhost':
         addhost(command_args[2:])
-    elif command_args[3] == 'tap':
-        tap(command_args[2:])
-    elif command_args[3] == 'untap':
-        untap(command_args[2:])
+    elif command_args[3] == 'tapsite':
+        tapsite(command_args[2:])
+    elif command_args[3] == 'untapsite':
+        untapsite(command_args[2:])
+    elif command_args[3] == 'taphost':
+        taphost(command_args[2:])
+    elif command_args[3] == 'untaphost':
+        untaphost(command_args[2:])
+    elif command_args[3] == 'tapmac':
+        tapmac(command_args[2:])
+    elif command_args[3] == 'untapmac':
+        untapmac(command_args[2:])
     else:
         print "unknown command"
         usage()

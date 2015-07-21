@@ -1,5 +1,5 @@
-import net.es.netshell.odl.PacketHandler
-net.es.netshell.odl.PacketHandler.getInstance().setPacketInCallback(None)
+from net.es.netshell.odl import PacketHandler
+PacketHandler.getInstance().setPacketInCallback(None)
 
 import common.intent
 reload (common.intent)
@@ -46,6 +46,7 @@ reload (common.openflow)
 from common.openflow import L2SwitchScope
 from common.openflow import PacketInEvent
 from common.openflow import SimpleController
+from common.openflow import FlowEntry
 
 import mininet.enos
 reload (mininet.enos)
@@ -60,7 +61,7 @@ import mininet.l2vpn
 reload (mininet.l2vpn)
 from mininet.l2vpn import SDNPopsIntent
 from mininet.l2vpn import SDNPopsRenderer
-
+from mininet.l2vpn import FlowStatus
 import mininet.wan
 reload (mininet.wan)
 from mininet.wan import WanIntent

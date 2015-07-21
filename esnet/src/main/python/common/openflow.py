@@ -26,7 +26,6 @@ class Match(Properties):
 
     Layer2:
         "in_port": Port ingress port on the swith
-        "dl_src" : array('B') source MAC
         "dl_dst" : array('B') destination MAC
         "vlan"   : int VLAN
 
@@ -35,7 +34,9 @@ class Match(Properties):
     """
     def __init__(self,name=None,props={}):
         Properties.__init__(self,name,props)
-
+        # dl_dst might None only on coreRouter
+        if 'dl_dst' in self.props and not self.props['dl_dst']:
+            self.props.pop('dl_dst')
     def __str__(self):
         global debug
         if not debug:
@@ -43,8 +44,6 @@ class Match(Properties):
         desc = "Match: "
         if 'in_port' in self.props:
             desc += " in_port= " + self.props['in_port'].name
-        if 'dl_src' in self.props:
-            desc += " dl_src= %s" % self.props['dl_src']
         if 'dl_dst' in self.props:
             desc += " dl_dst= %s" % self.props['dl_dst']
         if 'vlan' in self.props:
@@ -60,7 +59,6 @@ class Action(Properties):
     The base class defines the following key / values:
 
     Layer 2:
-        "dl_src": array('B') rewrite the source MAC with the provided MAC
         "dl_dst": array('B') rewrite the destination MAC with the provided MAC
         "vlan": int rewrite the VLAN with the provided vlan
         "out_port": Port egress ports
@@ -69,7 +67,9 @@ class Action(Properties):
     """
     def __init__(self,name=None,props={}):
         Properties.__init__(self,name,props)
-
+        # dl_dst might be None only on coreRouter
+        if 'dl_dst' in self.props and not self.props['dl_dst']:
+            self.props.pop('dl_dst')
     def __str__(self):
         global debug
         if not debug:
@@ -77,8 +77,6 @@ class Action(Properties):
         desc = "action " + self.name
         if 'out_port' in self.props:
             desc += " out_port= " + self.props['out_port'].name
-        if 'dl_src' in self.props:
-            desc += " dl_src= %s" % self.props['dl_src']
         if 'dl_dst' in self.props:
             desc += " dl_dst= %s" % self.props['dl_dst']
         if 'vlan' in self.props:
@@ -89,6 +87,19 @@ class Action(Properties):
     def __repr__(self):
         return 'Action(%s)' % ','.join(['%s=%r' % (prop[0], prop[1]) for prop in self.props.items()])
 
+class FlowEntry:
+    def __init__(self, mac, vlan, port):
+        self.mac = mac
+        self.vlan = vlan
+        self.port = port
+    def get(self):
+        return (self.mac, self.vlan, self.port)
+    def isBroadcast(self):
+        return self.mac.isBroadcast()
+    def key(self):
+        return "{mac:%r,vlan:%d,port:%s}" % (self.mac, self.vlan, self.port)
+    def __repr__(self):
+        return self.key()
 
 class FlowMod(Properties):
     """
@@ -107,6 +118,7 @@ class FlowMod(Properties):
         self.switch = switch
         self.actions = actions
         self.match = match
+        self.props['priority'] = 0 # only configured in TapEntryWithSrcMac
         self.id = generateId()
         if not name:
             self.name = str(self.id)
@@ -117,37 +129,20 @@ class FlowMod(Properties):
         flow = FlowMod(scope, switch, name=name, match=m, actions=[a])
         return flow
     def key(self):
-        key = "{match:{"
+        k = "{"
         if 'in_port' in self.match.props:
-            key += "port:%s," % self.match.props['in_port'].name
+            k += "port:%s," % self.match.props['in_port'].name
         if 'dl_src' in self.match.props:
-            key += "src:%s," % self.match.props['dl_src']
+            k += "src:%r," % self.match.props['dl_src']
         if 'dl_dst' in self.match.props:
-            key += "dst:%s," % self.match.props['dl_dst']
+            k += "mac:%r," % self.match.props['dl_dst']
         if 'vlan' in self.match.props:
-            key += "vlan:%d," % self.match.props['vlan']
-        key = key.strip(',')
-        key += "},actions:["
-        for action in self.actions:
-            key += "{"
-            if 'out_port' in action.props:
-                key += "port:%s," % action.props['out_port'].name
-            if 'out_ports' in action.props:
-                key += "ports:["
-                for out_port in action.props['out_ports']:
-                    key += out_port.name + ','
-                key.strip(',')
-                key += "],"
-            if 'dl_src' in action.props:
-                key += "src:%s," % action.props['dl_src']
-            if 'dl_dst' in action.props:
-                key += "dst:%s," % action.props['dl_dst']
-            if 'vlan' in action.props:
-                key += "vlan:%d," % action.props['vlan']
-            key += "},"
-        key = key.strip(',')
-        key += "]}}"
-        return key
+            k += "vlan:%d," % self.match.props['vlan']
+        k = k.strip(',')
+        k += "}"
+        return k
+    def getOutFlowEntry(self):
+        return FlowEntry(self.actions[0].props['dl_dst'], self.actions[0].props['vlan'], self.actions[0].props['out_port'])
     def __str__(self):
         global debug
         if not debug:
@@ -381,24 +376,72 @@ class L2SwitchScope(Scope):
         self.props['endpoints'].update(endpoints) # ['portname'] = [vlans]
         self.props['flowmodIndex'] = {} # [flowmod.key()] = FlowMod # used in vpn hw scope only
         self.props.update(props)
-    def checkFlowMod(self, flowmod):
-        key = flowmod.key()
-        return key in self.owner.flowmodIndex
-    def addFlowMod(self, flowmod):
-        """
-        :return: False if existed already
-        """
-        key = flowmod.key()
-        if key in self.owner.flowmodIndex:
-            # existed already
+
+    def send(self, switch, port, srcMac, dstMac, etherType, vlan, payload):
+        controller = switch.props['controller']
+        packet = PacketOut(port=port,dl_src=srcMac,dl_dst=dstMac,etherType=etherType,vlan=vlan,scope=self,payload=payload)
+        if not controller.isPacketOutValid(packet):
+            L2SwitchScope.logger.warning("%r is not valid in %r" % (packet, self))
             return False
-        self.props['flowmodIndex'][key] = flowmod
-        self.owner.flowmodIndex[key] = flowmod
+        if not controller.send(packet):
+            L2SwitchScope.logger.warning("Cannot send packet %r" % packet)
+            return False
         return True
+
+    def forward(self, switch, inMac, inVlan, inPort, outMac, outVlan, outPort):
+        flowmod = FlowMod.create(self, switch, {'dl_dst':inMac, 'vlan':inVlan, 'in_port':inPort}, {'dl_dst':outMac, 'vlan':outVlan, 'out_port':outPort})
+        flowmod.props['renderer'] = self.owner
+        self.addFlowMod(flowmod)
+        return flowmod
+
+    def tapWithSrcMac(self, switch, inMac, inVlan, inPort, outMac, outVlan, outPort, srcMac, vmPort):
+        flowmod = FlowMod.create(self, switch, {'dl_src':srcMac, 'dl_dst':inMac, 'vlan':inVlan, 'in_port':inPort}, {})
+        flowmod.props['renderer'] = self.owner
+        flowmod.props['priority'] = 1
+        actions = []
+        actions.append(Action(props={'dl_dst':inMac, 'vlan':inVlan, 'out_port':vmPort}))
+        actions.append(Action(props={'dl_dst':outMac, 'vlan':outVlan, 'out_port':outPort}))
+        flowmod.actions = actions
+        self.addFlowMod(flowmod)
+        return flowmod
+
+    def copy(self, flowmod, outPort):
+        flowmod.actions.append(Action(props={'dl_dst':flowmod.match.props['dl_dst'], 'vlan':flowmod.match.props['vlan'], 'out_port':outPort}))
+        self.addFlowMod(flowmod)
+        return flowmod
+
+    def restore(self, flowmod):
+        flowmod.actions.pop()
+        self.addFlowMod(flowmod)
+        return flowmod
+
+    def multicast(self, switch, inMac, inVlan, inPort, outputs):
+        """
+        :param outputs: list of (outMac, outVlan, outPort)
+        :param vm: True to indicate the flowmod would send a copy to serviceVm
+        """
+        flowmod = FlowMod.create(self, switch, {'dl_dst':inMac, 'vlan':inVlan, 'in_port':inPort}, {})
+        flowmod.props['renderer'] = self.owner
+        flowmod.actions = []
+        for (outMac, outVlan, outPort) in outputs:
+            flowmod.actions.append(Action(props={'dl_dst':outMac, 'vlan':outVlan, 'out_port':outPort}))
+        self.addFlowMod(flowmod)
+        return flowmod
+
+    def addFlowMod(self, flowmod):
+        key = flowmod.key()
+        self.props['flowmodIndex'][key] = flowmod
+        L2SwitchScope.logger.info("%r.addFlowMod %r" % (self, flowmod))
+        controller = flowmod.switch.props['controller']
+        if controller:
+            controller.addFlowMod(flowmod)
     def delFlowMod(self, flowmod):
         key = flowmod.key()
         self.props['flowmodIndex'].pop(key)
-        self.owner.flowmodIndex.pop(key)
+        L2SwitchScope.logger.info("%r.delFlowMod %r" % (self, flowmod))
+        controller = flowmod.switch.props['controller']
+        if controller:
+            controller.delFlowMod(flowmod)
     def __str__(self):
         global debug
         if not debug:
@@ -489,8 +532,8 @@ class L2SwitchScope(Scope):
 
         flowModEndpoints = self.props['endpoints']
         # See if it's for the same switch.  If not, it can't be valid.
-        if flowModSwitch != self.switch:
-            SimpleController.logger.warning("%r is for a different switch than this scope's switch %r was %r" % (flowMod,self.switch,flowMod.switch))
+        if flowModSwitch.name != self.switch.name:
+            L2SwitchScope.logger.warning("%r is for a different switch than this scope's switch %r was %r" % (flowMod,self.switch,flowMod.switch))
             return False
 
         # If no endpoints, then the scope includes all VLANs and ports and the flow must be valid.
@@ -527,25 +570,21 @@ class L2SwitchScope(Scope):
 
         # check actions
         for action in flowModActions:
-            if 'out_port' in action.props:
-                out_ports = [action.props['out_port']]
-            elif 'out_ports' in action.props:
-                out_ports = action.props['out_ports']
-            for out_port in out_ports:
-                out_vlan = action.get('vlan')
-                valid = False
-                for (portname, vlans) in flowModEndpoints.items():
-                    if portname != out_port.name:
-                        continue
-                    if vlans and out_vlan and not out_vlan in vlans and out_vlan != out_port.props['vlan']:
-                        print flowMod,"VLAN is not included in this scope",self
-                        return False
-                    else:
-                        valid = True
-                        break
-                if not valid:
-                    print flowMod,"contains at least one action out_port/vlan that is not contained in this scope:",self
+            out_port = action.props['out_port']
+            out_vlan = action.props['vlan']
+            valid = False
+            for (portname, vlans) in flowModEndpoints.items():
+                if portname != out_port.name:
+                    continue
+                if vlans and out_vlan and not out_vlan in vlans and out_vlan != out_port.props['vlan']:
+                    print flowMod,"VLAN is not included in this scope",self
                     return False
+                else:
+                    valid = True
+                    break
+            if not valid:
+                print flowMod,"contains at least one action out_port/vlan that is not contained in this scope:",self
+                return False
         return True
 
     def addEndpoint(self, port, vlan = 0):
@@ -608,7 +647,7 @@ class SimpleController(Controller):
     IMPORTANT: this currentl implementation relies on having static state. In otherwords, only one
     controller extending SimpleController may run at the same time. This limitation should be fixed later.
     """
-
+    logger = Logger('SimpleController')
     scopes = None
     forbiddenScopes = None
     switches = None
@@ -744,7 +783,7 @@ class SimpleController(Controller):
             # try to check if the port includes all vlans
             key = port.name
         if not key in self.scopeIndex:
-            Logger().warning('(%s, %d, %r) not found in %r.scopeIndex' % (port.name, vlan, mac, self))
+            SimpleController.logger.warning('(%s, %d, %r) not found in %r.scopeIndex' % (port.name, vlan, mac, self))
             return None
         return self.scopeIndex[key]
 
@@ -763,14 +802,14 @@ class SimpleController(Controller):
         vlan = packetIn.props['vlan']
         dl_dst = packetIn.props['dl_dst']
         if vlan == 0:
-            Logger().debug('vlan == 0 not interested...')
+            SimpleController.logger.debug('vlan == 0 not interested...')
             return
-        Logger().info('recv packet %r' % packetIn)
+        SimpleController.logger.info('recv packet %r' % packetIn)
         scope = self.getScope(port, vlan, dl_dst)
         if scope and scope.switch == port.get('enosNode') and scope.includes(packetIn):
             scope.owner.eventListener(packetIn)
         else:
-            Logger().warning('No scope for %r', packetIn)
+            SimpleController.logger.warning('No scope for %r', packetIn)
 
     @staticmethod
     def makeL2FlowMod(scope, switch, inPort, inVlan, outPort, outVlan):

@@ -100,6 +100,7 @@ class CoreRouter(Switch):
         self.props['stitchedPortIndex.WAN'][hwport.name] = wanport
     def addLink(self, hwlink):
         self.props['toHwPorts'].append(hwlink.props['portIndex'][self.name])
+
 class HwSwitch(Switch):
     def __init__(self, name, props={}):
         super(HwSwitch, self).__init__(name, props=props)
@@ -107,7 +108,6 @@ class HwSwitch(Switch):
         self.props['toCorePorts'] = [] # list of Port toward to coreRouter
         self.props['toSwPorts'] = [] # list of Port toward to swSwitch
         self.props['stitchedPortIndex'] = {} # [(hw|sw)_port.name] = (sw|hw)_port
-        self.props['stitchedPortIndex.WAN'] = {} # [(hw|sw)_port.name] = (sw|hw)_port
         self.props['pop'] = None
         self.props['siteVlanIndex'] = {} # [vid] = vlan
         self.props['sitePortIndex'] = {} # [sitename] = stitched port to core
@@ -118,8 +118,8 @@ class HwSwitch(Switch):
         self.props['wanPortIndex'][pop.name] = hwlink.props['portIndex'][self.name]
         hwport = hwlink.props['portIndex'][self.name]
         swport = swlink.props['portIndex'][self.name]
-        self.props['stitchedPortIndex.WAN'][hwport.name] = swport
-        self.props['stitchedPortIndex.WAN'][swport.name] = hwport
+        self.props['stitchedPortIndex'][hwport.name] = swport
+        self.props['stitchedPortIndex'][swport.name] = hwport
     def addLink(self, hwlink, swlink):
         hwport = hwlink.props['portIndex'][self.name]
         swport = swlink.props['portIndex'][self.name]
@@ -127,6 +127,7 @@ class HwSwitch(Switch):
         self.props['toSwPorts'].append(swport)
         self.props['stitchedPortIndex'][hwport.name] = swport
         self.props['stitchedPortIndex'][swport.name] = hwport
+
 class SwSwitch(Switch):
     def __init__(self, name, props={}):
         super(SwSwitch, self).__init__(name, props=props)
@@ -142,9 +143,11 @@ class SwSwitch(Switch):
         self.props['wanPortIndex'][pop.name] = link.props['portIndex'][self.name]
     def addLink(self, swlink):
         self.props['toHwPorts'].append(swlink.props['portIndex'][self.name])
+
 class SDNPop(Properties):
     def __init__(self, name, hwswitchname, coreroutername, swswitchname, nbOfLinks=1, props={}):
         super(SDNPop, self).__init__(name, props=props)
+        self.props['sites'] = []
         self.props['links'] = []
         hwSwitch = HwSwitch(hwswitchname)
         hwSwitch.props['pop'] = self
@@ -173,6 +176,7 @@ class SDNPop(Properties):
         self.props['coreRouter'].addSite(site, link, portno)
         self.props['hwSwitch'].addSite(site, portno)
         self.props['swSwitch'].addSite(site, portno)
+        self.props['sites'].append(site)
     def connectPop(self, pop, link, vlan):
         # hw[tocore_port] --<hwlink>-- [core_port]core[wanPort] --<wanlink with vlan>-- pop
         coreRouter = self.props['coreRouter']
@@ -194,25 +198,29 @@ class VPN(Properties):
         self.props['lanVlan'] = lanVlan # int
         self.props['participants'] = [] # list of (site, hosts, wanVlan)
         self.props['participantIndex'] = {} # [sitename] = (site, hosts, wanVlan)
+        self.props['siteIndex'] = {} # [hwToCorePort.siteVlan] = site
         self.props['serviceVms'] = [] # list of ServiceVm
         self.props['serviceVmIndex'] = {} # [sitename] = ServiceVm
         self.props['links'] = []
         self.props['mat'] = None # MAC Address Translation
         self.props['renderer'] = None # SDNPopsRenderer
-    def addSite(self, site, wanVlan):
+    def addSite(self, site, siteVlan):
         # could be invoked in CLI
         pop = site.props['pop']
         serviceVm = ServiceVm('%s-%s-vm' % (self.name, pop.name))
         self.props['serviceVms'].append(serviceVm)
         self.props['serviceVmIndex'][site.name] = serviceVm
         swSwitch = pop.props['swSwitch']
-        link = Link.create(serviceVm, swSwitch, wanVlan)
+        link = Link.create(serviceVm, swSwitch, siteVlan)
         link.setPortType('SwToVm', 'VmToSw')
         swSwitch.props['vmPortIndex'][self.name] = link.props['portIndex'][swSwitch.name]
         self.props['links'].append(link)
-        participant = (site, [], wanVlan)
+        participant = (site, [], siteVlan)
         self.props['participants'].append(participant)
         self.props['participantIndex'][site.name] = participant
+        hwSwitch = pop.props['hwSwitch']
+        port = hwSwitch.props['sitePortIndex'][site.name]
+        self.props['siteIndex']["%s.%d" % (port.name, siteVlan)] = site
         return (serviceVm, link)
     def addHost(self, host):
         sitename = host.props['site'].name
