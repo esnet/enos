@@ -408,9 +408,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         return result
 
     def tapHost(self, host):
-        tapMac(self, host.props['mac'])
+        self.tapMac(host.props['mac'])
     def untapHost(self, host):
-        untapMac(self, host.props['mac'])
+        self.untapMac(host.props['mac'])
 
     def tapMac(self, mac):
         with self.lock:
