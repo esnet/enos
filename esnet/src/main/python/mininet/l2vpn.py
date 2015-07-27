@@ -113,6 +113,12 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 if not inSite.name in self.props['flowEntriesIndex']:
                     self.props['flowEntriesIndex'][inSite.name] = []
                 self.props['flowEntriesIndex'][inSite.name].append(flowEntry)
+            else: # from WAN
+                toSite = self.getDstSite(self.reverse(inMac))
+                if toSite:
+                    if not toSite.name in self.props['flowEntriesIndex']:
+                        self.props['flowEntriesIndex'][toSite.name] = []
+                    self.props['flowEntriesIndex'][toSite.name].append(flowEntry)
 
     def tapEntry(self, flowEntry):
         """
@@ -252,9 +258,10 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
             # copy to serviceVm and dispatch in swSwitch if src is matched (higher priority)
             vmPort = swSwitch.props['vmPortIndex'][self.vpn.name]
-            for srcMac in self.props['tappedMacsIndex'][inSite.name]:
-                mod = swScope.tapWithSrcMac(swSwitch, inMac, inVlan, swInPort, outMac, outVlan, swOutPort, srcMac, vmPort)
-                flowmods.append(mod)
+            if inSite and inSite.name in self.props['tappedMacsIndex']:
+                for srcMac in self.props['tappedMacsIndex'][inSite.name]:
+                    mod = swScope.tapWithSrcMac(swSwitch, inMac, inVlan, swInPort, outMac, outVlan, swOutPort, srcMac, vmPort)
+                    flowmods.append(mod)
 
             # dispatch in swSwitch if no src is matched (lower priority)
             mod = swScope.forward(swSwitch, inMac, inVlan, swInPort, outMac, outVlan, swOutPort)
@@ -274,13 +281,14 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             stitchedInPort = hwSwitch.props['stitchedPortIndex'][inPort.name]
             swInPort = stitchedInPort.props['links'][0].props['portIndex'][swSwitch.name]
             vmPort = swSwitch.props['vmPortIndex'][self.vpn.name]
-            for srcMac in self.props['tappedMacsIndex'][inSite.name]:
-                mod = swScope.tapWithSrcMac(swSwitch, inMac, inVlan, swInPort, outMac, outVlan, swOutPort, srcMac, vmPort)
-                flowmods.append(mod)
+            if inSite and inSite.name in self.props['tappedMacsIndex']:
+                for srcMac in self.props['tappedMacsIndex'][inSite.name]:
+                    mod = swScope.tapWithSrcMac(swSwitch, inMac, inVlan, swInPort, outMac, outVlan, swOutPort, srcMac, vmPort)
+                    flowmods.append(mod)
 
             # stop copy to serviceVm
             flowmodSw = flowStatus.props['flowmods'][-2]
-            flowmodSw.scope.restore(flowmodSw, vmPort)
+            flowmodSw.scope.restore(flowmodSw)
             flowmods.append(flowmodSw)
 
             flowmods.append(flowStatus.props['flowmods'][-1]) # forwarding from core to sw in hw
@@ -430,8 +438,16 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 if flowEntry.isBroadcast():
                     self.tapBroadcastEntry(flowEntry)
                 else:
-                    if not site in self.props['tappedSites']:
-                        self.TapEntryWithSrcMac(flowEntry)
+                    (inMac, inVlan, inPort) = flowEntry.get()
+                    if inPort.props['type'].endswith('.WAN'):
+                        originalMac = self.reverse(inMac)
+                    else:
+                        oritinalMac = inMac
+                    if originalMac == mac:
+                        self.tapEntry(flowEntry)
+                    else:
+                        if not site in self.props['tappedSites']:
+                            self.TapEntryWithSrcMac(flowEntry)
 
     def untapMac(self, mac):
         with self.lock:
@@ -482,7 +498,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                     else:
                         self.untapEntry(flowEntry)
 
-    def addSite(self, site, wanVlan):
+    def addSite(self, site, siteVlan):
         # could be invoked in CLI
         vid = self.vpn.props['vid']
         pop = site.props['pop']
@@ -491,17 +507,17 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         hwSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, hwSwitch.name), switch=hwSwitch, owner=self)
         self.props['scopeIndex'][hwSwitch.name] = hwSwitchScope
         sitePort = hwSwitch.props['sitePortIndex'][site.name]
-        hwSwitchScope.addEndpoint(sitePort, wanVlan)
+        hwSwitchScope.addEndpoint(sitePort, siteVlan)
         swPort = hwSwitch.props['stitchedPortIndex'][sitePort.name]
-        hwSwitchScope.addEndpoint(swPort, wanVlan)
+        hwSwitchScope.addEndpoint(swPort, siteVlan)
 
         swSwitch = pop.props['swSwitch'].props['enosNode']
         swSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, swSwitch.name),switch=swSwitch,owner=self)
         self.props['scopeIndex'][swSwitch.name] = swSwitchScope
-        swSwitchScope.addEndpoint(swSwitch.props['sitePortIndex'][site.name], wanVlan)
+        swSwitchScope.addEndpoint(swSwitch.props['sitePortIndex'][site.name], siteVlan)
         swSwitchScope.addEndpoint(swSwitch.props['vmPortIndex'][self.vpn.name])
 
-        hwSwitch.props['siteVlanIndex'][vid] = wanVlan
+        hwSwitch.props['siteVlanIndex'][vid] = siteVlan
         controller = hwSwitch.props['controller']
         controller.addScope(hwSwitchScope)
         controller.addScope(swSwitchScope)
@@ -630,6 +646,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         Renders the intent.
         :return: Expectation when succcessful, None otherwise
         """
+        # update graph
+        self.intent.updateGraph()
+        return
         # Add scopes to the controller
         for scope in self.props['scopeIndex'].values():
             if not scope.switch.props['controller'].addScope(scope):
@@ -649,6 +668,11 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
 class SDNPopsIntent(ProvisioningIntent):
     def __init__(self, name, vpn, wan):
+        super(SDNPopsIntent, self).__init__(name=name, graph=None)
+        self.vpn = vpn
+        self.wan = wan
+        self.updateGraph()
+    def updateGraph(self):
         """
         Creates a provisioning intent providing a GenericGraph of the logical view of the
         topology that is intended to be created.
@@ -656,59 +680,50 @@ class SDNPopsIntent(ProvisioningIntent):
         :param wan: Wan which contains information of all links in WAN
         """
         pops = []
-        hosts = []
-        for participant in vpn.props['participants']:
+        nodes = []
+        links = []
+        for participant in self.vpn.props['participants']:
             (site, hosts_in_site, wanVlan) = participant
             pop = site.props['pop']
-            pops.append(pop)
-            # note: hosts will be translated to enosNode later
-            hosts.append(site.props['siteRouter'])
-            hosts.extend(hosts_in_site)
-            hosts.append(pop.props['coreRouter'])
-            hosts.append(pop.props['hwSwitch'])
-            hosts.append(pop.props['swSwitch'])
-            hosts.extend(vpn.props['serviceVms'])
+            if not pop in pops:
+                pops.append(pop)
+            # note: nodes and links will be translated to enosNode later
+            hwSwitch = pop.props['hwSwitch']
+            coreRouter = pop.props['coreRouter']
+            nodes.append(site.props['siteRouter'])
+            nodes.extend(hosts_in_site)
+            nodes.append(coreRouter)
+            nodes.append(hwSwitch)
+            nodes.append(pop.props['swSwitch'])
+            nodes.extend(self.vpn.props['serviceVms'])
+            # links between serviceVms and swSwitch
+            links.extend(map(lambda vm:vm.props['ports'][1].props['links'][0], self.vpn.props['serviceVms']))
+            # links between host and site
+            links.extend(map(lambda host:host.props['ports'][1].props['links'][0], hosts_in_site))
+            # link between site and border
+            links.append(site.props['siteRouter'].props['toWanPort'].props['links'][0])
+            # link between core and hw
+            sitePortInCore = coreRouter.props['sitePortIndex'][site.name]
+            linkBetweenCoreAndHw = coreRouter.props['stitchedPortIndex'][sitePortInCore.name].props['links'][0]
+            links.append(linkBetweenCoreAndHw)
+            # link between hw and sw
+            toSitePortInHw = linkBetweenCoreAndHw.props['portIndex'][hwSwitch.name]
+            links.append(hwSwitch.props['stitchedPortIndex'][toSitePortInHw.name].props['links'][0])
+        links.extend(self.wan.subsetLinks(pops))
 
-        # filter links between pops in this VPN
-        coreRouters = map(lambda pop : pop.props['coreRouter'], pops)
-        links = filter(lambda link : link.props['endpoints'][0].props['node'] in coreRouters and link.props['endpoints'][1].props['node'] in coreRouters, wan.props['links'])
-        vlans = map(lambda link : link.props['vlan'], links)
-        # only keep those whose vlan is interested by the VPN
-        links = filter(lambda link : link.props['vlan'] in vlans, wan.props['links'])
-
-        links.extend(vpn.props['links']) # vm - sw
-        for participant in vpn.props['participants']:
-            (site, hosts_in_site, wanVlan) = participant
-            siteRouter = site.props['siteRouter']
-            for host in hosts_in_site:
-                port = host.props['ports'][1] # assume only one port in the host
-                link = port.props['links'][0] # assume only one link in the port
-                links.append(link)
-            # find the link between siteRouter and borderRouter
-            port = siteRouter.props['toWanPort']
-            link = port.props['links'][0] # assume only one link in the port
-            links.append(link)
-            # find the link stitched with the site
-            hwSwitch = site.props['pop'].props['hwSwitch']
-            links.append(hwSwitch.props['toSwSwitchLink'])
-            links.append(hwSwitch.props['toSwSwitchLink.WAN'])
-        links.extend(wan.subsetLinks(pops))
-
-        enosHosts = map(lambda host : host.props['enosNode'], hosts)
+        enosNodes = map(lambda host : host.props['enosNode'], nodes)
         enosLinks = map(lambda host : host.props['enosLink'], links)
-        self.vpn = vpn
-        self.wan = wan
         self.pops = pops
-        self.hosts = enosHosts
+        self.nodes = enosNodes
         self.links = enosLinks
         self.graph = self.getGraph()
-        ProvisioningIntent.__init__(self,name=name,graph=self.graph)
+        self.props['topology'] = self.graph
 
     def getGraph(self):
         graph = GenericGraph()
 
-        for host in self.hosts:
-            graph.addVertex(host)
+        for node in self.nodes:
+            graph.addVertex(node)
 
         for link in self.links:
             node1 = link.getSrcNode()

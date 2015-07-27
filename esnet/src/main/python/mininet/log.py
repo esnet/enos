@@ -58,7 +58,7 @@ def main():
         return
     supportedNames = ['root', 'ODLClient', 'SimpleController', 'SiteRenderer', 'SDNPopsRenderer', 'L2SwitchScope']
     if len(command_args) < 3:
-        usage()
+        usage(supportedNames)
     elif command_args[2] in supportedNames:
         log(command_args[2:])
     else:

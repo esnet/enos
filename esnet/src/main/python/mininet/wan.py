@@ -109,7 +109,7 @@ class WanRenderer(ProvisioningRenderer, ScopeOwner):
                     port2 = coreRouter.props['stitchedPortIndex.WAN'][port1.name]
                     link2 = port2.props['links'][0].props['enosLink'] # assume only one link in the port
                     self.stitchVlans(coreRouter, link1, link2)
-        expectation = WanExpectation(self.name,self,self.intent,self.buildGraph())
+        expectation = WanExpectation(self.name,self,self.intent,self.graph)
         return expectation
 
     def stitchVlans(self, router, link1, link2):
@@ -171,7 +171,6 @@ class WanIntent(ProvisioningIntent):
         self.links=map(lambda link : link.props['enosLink'], links)
         self.graph=self.buildGraph()
         ProvisioningIntent.__init__(self, name=name, graph=self.graph)
-        return
 
     def __str__(self):
         desc = "WanIntent: " + self.name + "\n"
@@ -201,8 +200,8 @@ class WanExpectation(ProvisioningExpectation):
 
     def __str__(self):
         desc = "WanExpectation: " + self.name + "\n"
-        desc += "\tPOPs: " + str.join (", ", (i.name for i in self.renderer.pops)) + "\n"
-        desc += "\tRouters: " + str.join (", ", (i.name for i in self.renderer.coreRouters)) + "\n"
+        desc += "\tPOPs: " + str.join (", ", (pop.name for pop in self.intent.wan.props['pops'])) + "\n"
+        desc += "\tRouters: " + str.join (", ", (pop.props['coreRouter'].name for pop in self.intent.wan.props['pops'])) + "\n"
 
         return desc
 

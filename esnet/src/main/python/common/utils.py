@@ -32,7 +32,7 @@ def generateId():
     """
     return uuid.uuid4()
 
-def InitLogger(level=logging.INFO):
+def InitLogger(level=logging.WARNING):
     logger = logging.getLogger()
     logger.setLevel(level)
     for handler in logger.handlers:

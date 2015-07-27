@@ -26,7 +26,7 @@ def usage():
     print "list entries: list names of all flow entries"
     print "list entry $INDEX: list the entry (index could be number or name)"
     print "list expectations: list names of all expectations"
-    print "list expecatation $INDEX: list a single expectation (by name)"
+    print "list expectation $INDEX: list a single expectation (by name)"
     print "list flowmods: list names of all flowmods"
     print "list hosts: list names of all hosts"
     print "list host $INDEX: list the host (index could be number or name)"

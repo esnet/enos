@@ -2,6 +2,7 @@ from common.utils import generateId
 from common.api import Properties
 
 class Intent(Properties):
+    directory = {}
     """
     An intent is the description of what is needed to be done, the intention of the caller, rather than the
     prescription, or telling what to do. Intents are rendered by renderer that know how to implement the intent,
@@ -14,10 +15,7 @@ class Intent(Properties):
         Properties.__init__(self,name=name,props=props)
         self.id = generateId()
         self.name = name
-        self.props = props
         Intent.directory[name] = self
-
-    directory = {}
 
 
 class Expectation(Properties):
@@ -29,7 +27,6 @@ class Expectation(Properties):
         Properties.__init__(self,name=name,props=props)
         self.id = generateId()
         self.name = name
-        self.props = props
         self.intent = intent
         self.renderer = renderer
         Expectation.directory[name] = self

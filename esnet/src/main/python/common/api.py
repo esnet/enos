@@ -59,7 +59,6 @@ class ServiceVm(Node):
     def __init__(self, name, props={}):
         super(ServiceVm, self).__init__(name)
         self.props['role'] = 'ServiceVm'
-        self.props['vlan'] = 0
         self.update(props)
 
 class Switch(Node):

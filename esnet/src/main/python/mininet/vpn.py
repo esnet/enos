@@ -8,6 +8,7 @@ from mininet.l2vpn import SDNPopsIntent, SDNPopsRenderer
 def usage():
     print "usage:"
     print "vpn sample $built-in_sample_index"
+    print "vpn $vpnindex execute"
     print "vpn create $vpnname $vid $lanVlan"
     print "vpn $vpnindex addsite $siteindex $wanVlan"
     print "vpn $vpnindex addhost $hostindex"
@@ -49,6 +50,7 @@ def sample(args):
         addsite(['vpn1', 'addsite', 'anl.gov', '12'])
         addhost(['vpn1', 'addhost', 'dtn-1@lbl.gov'])
         addhost(['vpn1', 'addhost', 'dtn-1@anl.gov'])
+        execute(['vpn1', 'execute'])
     elif index == '2':
         create(['vpn2', '5678', '20'])
         addsite(['vpn2', 'addsite', 'lbl.gov', '21'])
@@ -57,6 +59,7 @@ def sample(args):
         addhost(['vpn2', 'addhost', 'dtn-2@lbl.gov'])
         addhost(['vpn2', 'addhost', 'dtn-2@anl.gov'])
         addhost(['vpn2', 'addhost', 'dtn-2@cern.ch'])
+        execute(['vpn2', 'execute'])
     else:
         print "index %s is not implemented" % index
 def create(args):
@@ -91,6 +94,16 @@ def create(args):
     rendererIndex[renderer.name] = renderer
     vpns.append(vpn)
     vpnIndex[vpn.name] = vpn
+
+def execute(args):
+    if len(args) < 2:
+        print "invalid arguments."
+        usage()
+        return
+    # args = [vpnindex, 'execute']
+    vpnindex = args[0]
+    vpn = get(vpns, vpnIndex, vpnindex)
+    vpn.props['renderer'].execute()
 
 def addsite(args):
     if len(args) < 4:
@@ -220,6 +233,8 @@ def main():
         sample(command_args[3:])
     elif command_args[2] == 'create':
         create(command_args[3:])
+    elif command_args[2] == 'execute':
+        execute(command_args[3:])
     elif len(command_args) < 4:
         usage()
     elif command_args[3] == 'addsite':

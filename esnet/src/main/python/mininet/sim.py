@@ -21,6 +21,7 @@
 from org.opendaylight.controller.sal.packet import Ethernet
 from org.opendaylight.controller.sal.packet import IEEE8021Q
 from org.opendaylight.controller.sal.utils import EtherTypes
+from common.mac import MACAddress
 import jarray, struct
 def javaByteArray(a):
     b = jarray.zeros(len(a), 'b')
