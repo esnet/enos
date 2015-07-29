@@ -46,6 +46,11 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.props['borderToSitePort'] = None # the port linking siteRouter and borderRouter
         self.props['borderToSDNPort'] = None # the port linking borderRouter and hwSwitch
 
+        # cheating by awaring all the hosts to avoid any possible missed packet
+        for host in self.site.props['hosts']:
+            port = host.props['ports'][1].props['links'][0].props['portIndex'][self.siteRouter.name]
+            self.props['portIndex'][str(host.props['mac'])] = port.props['enosPort']
+
         # Create scope for the site router
         siteScope = L2SwitchScope(name=intent.name,switch=self.siteRouter,owner=self)
         siteScope.props['intent'] = self.intent
@@ -155,7 +160,9 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             else:
                 if not str(dstMac) in self.props['portIndex']:
                     SiteRenderer.logger.warning("Unknown destination (%r) on site %r" % (event, self))
-                    return
+                    # return
+                    # hack that all unknown mac should go to wan
+                    self.props['portIndex'][str(dstMac)] = switch.props['toWanPort']
                 outPort = self.props['portIndex'][str(dstMac)]
                 if outPort.props['type'] == 'SiteToCore':
                     outVlan = siteVlan

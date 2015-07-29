@@ -222,8 +222,9 @@ class VPN(Properties):
         self.props['siteIndex']["%s.%d" % (port.name, siteVlan)] = site
         return (serviceVm, link)
     def addHost(self, host):
-        sitename = host.props['site'].name
-        self.props['participantIndex'][sitename][1].append(host)
+        site = host.props['site']
+        self.props['participantIndex'][site.name][1].append(host)
+        self.props['renderer'].addHost(host)
 class Site(Properties):
     def __init__(self, name, props={}):
         super(Site, self).__init__(name)

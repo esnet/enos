@@ -49,6 +49,7 @@ def sample(args):
         addsite(['vpn1', 'addsite', 'lbl.gov', '11'])
         addsite(['vpn1', 'addsite', 'anl.gov', '12'])
         addhost(['vpn1', 'addhost', 'dtn-1@lbl.gov'])
+        addhost(['vpn1', 'addhost', 'dtn-2@lbl.gov'])
         addhost(['vpn1', 'addhost', 'dtn-1@anl.gov'])
         execute(['vpn1', 'execute'])
     elif index == '2':

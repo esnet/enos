@@ -116,6 +116,7 @@ class TopoBuilder ():
 
     def updateHost(self, host):
         host.update(self.getHostParams(host.name))
+
     def updateSwitch(self, switch):
         switch.update(self.getSwitchParams(switch.name))
         role = switch.get('role')
