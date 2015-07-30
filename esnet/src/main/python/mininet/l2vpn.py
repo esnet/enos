@@ -17,19 +17,30 @@ import copy
 
 class FlowStatus(Properties):
     """
-    TappedBroadcast:
-        flowmods[0:N]: forwarding from swSwitch to coreRouter in hwSwitch
-        flowmods[N]: copying to serviceVm and dispatching in swSwitch (multicast)
-        flowmods[N+1]: forwarding from coreRouter to swSwitch in hwSwitch
+    Untapped:
+        flowmods[0]: dispatching in hwSwitch
+    Tapped:
+        flowmods[2]: forwarding from coreRouter to swSwitch in hwSwitch
+        flowmods[1]: copying to serviceVm and dispatching in swSwitch
+        flowmods[0]: forwarding from swSwitch to coreRouter in hwSwitch
+    TappedWithSrcMac:
+        flowmods[-1]: forwarding from coreRouter to swSwitch in hwSwitch
+        flowmods[-2]: dispatching in swSwitch
+        flowmods[1:N+1]: copying to serviceVm and dispatching in swSwitch with dl_src in match and higher priority
+        flowmods[0]: forwarding from swSwitch to coreRouter in hwSwitch
     UntappedBroadcast:
-        flowmods[0:N]: forwarding from swSwitch to coreRouter in hwSwitch
-        flowmods[N]: dispatching in swSwitch (multicast)
         flowmods[N+1]: forwarding from coreRouter to swSwitch in hwSwitch
+        flowmods[N]: dispatching in swSwitch (multicast)
+        flowmods[0:N]: forwarding from swSwitch to coreRouter in hwSwitch
+    TappedBroadcast:
+        flowmods[N+1]: forwarding from coreRouter to swSwitch in hwSwitch
+        flowmods[N]: copying to serviceVm and dispatching in swSwitch (multicast)
+        flowmods[0:N]: forwarding from swSwitch to coreRouter in hwSwitch
     """
     def __init__(self, flowEntry, status, flowmods):
         super(FlowStatus, self).__init__(flowEntry.key())
         self.props['flowEntry'] = flowEntry
-        self.props['status'] = status # str: 'Tapped', 'TappedWithSrcMac', 'Untapped', 'TappedBroadcast', 'UntappedBroadcast'
+        self.props['status'] = status # str: 'Init', 'Tapped', 'TappedWithSrcMac', 'Untapped', 'TappedBroadcast', 'UntappedBroadcast'
         self.props['flowmods'] = flowmods
 
 class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
@@ -87,6 +98,11 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         return siteVlan == vlan and sitePort.name == port.name
 
     def getOutput(self, flowEntry):
+        """
+        Get the output where the flowEntry should go.
+        :param flowEntry: a tuple of (mac, vlan, port). mac should be NOT broadcast, and port should be on hwSwitch.
+        :return: the output based on flowEntry
+        """
         (mac, vlan, port) = flowEntry.get()
         switch = port.props['node']
         myPop = switch.props['pop']
@@ -114,6 +130,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.props['flowEntriesIndex'][site.name].append(flowEntry)
 
     def updateFlowEntry(self, flowEntry):
+        """
+        Create a FlowStatus if the flowEntry is new
+        """
         k = flowEntry.key()
         if not k in self.props['statusIndex']:
             self.props['statusIndex'][k] = FlowStatus(flowEntry, "Init", [])
@@ -130,10 +149,23 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
     def tapEntry(self, flowEntry):
         """
+        This method might be invoked when tapsite, tapmac, or taphost happens.
+        An entry would be tapped if:
+            1. the src site (based on vlan, inport) in tappedSites, or
+            2. the dst site (based on mac) is local and in tappedSites, or
+            3. the dst mac is local and in tappedMacs
+        Some scenarios might be:
+        When we receive an single-cast entry (mac, vlan, port) satisfying the
+        criteria listed above, it is tapped.
+        When we tap a site, all local single-cast entries from this site and to
+        this site would be tapped.
+        When we tap a mac, all local single-cast entries toward to the mac
+        would be tapped.
+
         flowStatus.props['flowmods'] in result:
-         [0]: forwarding from swSwitch to coreRouter in hwSwitch
-         [1]: copying to serviceVm and dispatching in swSwitch
          [2]: forwarding from coreRouter to swSwitch in hwSwitch
+         [1]: copying to serviceVm and dispatching in swSwitch
+         [0]: forwarding from swSwitch to coreRouter in hwSwitch
         """
         self.updateFlowEntry(flowEntry)
         (inMac, inVlan, inPort) = flowEntry.get()
@@ -155,7 +187,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         stitchedOutPort = hwSwitch.props['stitchedPortIndex'][outPort.name]
 
         if flowStatus.props['status'] == "Untapped" or flowStatus.props['status'] == "Init":
-            # no need to preserve oldFlowmods
+            # no need to preserve oldFlowmods since they'll be replaced by new one
             flowmods = []
 
             # forward from swSwitch to coreRouter
@@ -197,6 +229,25 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
     def untapEntry(self, flowEntry):
         """
+        This method might be invoked when untapsite, untapmac/host happens.
+        An entry would be untapped if:
+            1. not satisfied the condition of being tapped, and
+            2. not satisfied the condition of being tapped with src mac.
+        Some scenarios might be:
+        When we receive an single-cast entry (mac, vlan, port) satisfying the
+        criteria listed above, it is untapped.
+        When we untap a site, we check if the site in tappedSitesWithSrcMac.
+        If yes, we untap those local single-cast entries to this site but mac
+        is not in tappedMacs.
+        If not, we untap all local single-cast entries from this site and to
+        the site.
+        When we untap a mac belonging to a specific site, if the site is not in
+        tappedSites, and if the mac is the only tapped mac in the site, then
+        the site would be popped from the tappedSitesWithSrcMac, then we untap
+        all local single-cast entries from this site and to the site. Otherwise,
+        if the mac is not the only tapped mac in the site, then we just untap
+        the local single-cast entry to the mac.
+
         flowStatus.props['flowmods'] in result:
          [0]: dispatching in hwSwitch
         """
@@ -230,6 +281,22 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
     def tapEntryWithSrcMac(self, flowEntry):
         """
+        This method might be invoked when untapsite or tapmac/host happens.
+        An entry would be tapped with src mac if:
+            1. not satisfied the condition of being tapped, and
+            2. the src site (based on vlan, inport) is in tappedSitesWithSrcMac
+        Some scenarios might be:
+        When we receive an single-cast entry (mac, vlan, port) satisfying the
+        criteria listed above, it is tapped with src mac.
+        When we untap a site, we check if the site in tappedSitesWithSrcMac.
+        If yes, we tap all local single-cast entries with src mac from this
+        site.
+        When we tap a mac belonging to a specific site, if the site is not in
+        tappedSites, and if the mac is the first tapped mac in the site, then
+        the site would be added into the tappedSitesWithSrcMac, then we tap all
+        local single-cast entries from this site with src mac excluding the
+        entry to the specific mac.
+
         flowStatus.props['flowmods'] in result:
          [0]: forwarding from swSwitch to coreRouter in hwSwitch
          [1:N]: copying to serviceVm and dispatching in swSwitch with srcMac (with higher priority)
@@ -378,8 +445,20 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
     def tapBroadcastEntry(self, flowEntry):
         """
-        flowStatus.props['flowmods'][-2]: dispatching in swSwitch
-        flowStatus.props['flowmods'][-1]: forwarding from coreRouter to swSwitch in hwSwitch
+        This method might be invoked when tapsite or tapmac/host happens.
+        An broadcast entry would be tapped if:
+            1. any local site is in tappedSites, or
+            2. any local mac is in tappedMacs
+        Some scenarios might be:
+        When we receive an broadcast entry (mac, vlan, port) satisfying the
+        criteria listed above, it is tapped.
+        When we tap a local site, we tap all local broadcast entries.
+        When we tap a local mac, we tap all local broadcast entries.
+
+        flowStatus.props['flowmods'] in result:
+         [0:N]: forwarding from swSwitch to coreRouter in hwSwitch
+         [-2]: copying to serviceVm and dispatching in swSwitch (multicast)
+         [-1]: forwarding from coreRouter to swSwitch in hwSwitch
         """
         k = flowEntry.key()
         if not k in self.props['statusIndex']:
@@ -402,8 +481,22 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
     def untapBroadcastEntry(self, flowEntry):
         """
-        flowStatus.props['flowmods'][-2]: dispatching in swSwitch
-        flowStatus.props['flowmods'][-1]: forwarding from coreRouter to swSwitch in hwSwitch
+        This method might be invoked when untapsite or untapmac/host happens.
+        An broadcast entry would be untapped if:
+            1. no local site in tappedSites, or
+            2. no local mac is in tappedMacs
+        Some scenarios might be:
+        When we receive an broadcast entry (mac, vlan, port) satisfying the
+        criteria listed above, it is tapped.
+        When we untap a site, if it's the last local site in tappedSites and no
+        local mac is in tappedMacs, we untap all local broadcast entries.
+        When we untap a mac, if it's the last local mac in tappedMacs and no
+        local site is in tappedSites, we untap all local broadcast entries.
+
+        flowStatus.props['flowmods'] in result:
+         [0:N]: forwarding from swSwitch to coreRouter in hwSwitch
+         [-2]: dispatching in swSwitch (multicast)
+         [-1]: forwarding from coreRouter to swSwitch in hwSwitch
         """
         k = flowEntry.key()
         if not k in self.props['statusIndex']:
@@ -429,6 +522,16 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.untapMac(host.props['mac'])
 
     def tapMac(self, mac):
+        """
+        Invoked from CLI.
+        Note: mac should be not broadcast. (not FF:FF:FF:FF:FF:FF)
+        When we tap a mac belonging to a site, we will tap all local single-
+        cast entries to this mac (category 2); moreover, we will tap all local
+        broadcast entries (category 3).
+        A special case would be that the mac is the first tapped mac in the
+        site. In this case, we will tap all the entries in the site with src
+        mac. (category 1)
+        """
         with self.lock:
             if mac in self.props['tappedMacs']:
                 SDNPopsRenderer.logger.warning("The mac %r on VPN %s has been tapped" % (mac, self.vpn.name))
@@ -460,6 +563,17 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                             self.tapEntryWithSrcMac(flowEntry)
 
     def untapMac(self, mac):
+        """
+        Invoked from CLI.
+        Note: mac should be not broadcast. (not FF:FF:FF:FF:FF:FF)
+        When we untap a mac belonging to a site, and the site is not in
+        tappedSites (otherwise, it's still tapped):
+        we will untap all local single-cast entries to this mac (category 2);
+        moreover, if the mac is the only tapped mac in the site, then the site
+        would be popped from tappedSitesWithSrcMac, so that we will untap all
+        entries from the site (category 1). Further, if there is no local site
+        in tappedSites, we untap all local broadcast entries (category 3).
+        """
         with self.lock:
             if not mac in self.props['tappedMacs']:
                 SDNPopsRenderer.logger.warning("The mac %r on VPN %s is not tapped yet" % (mac, self.vpn.name))
@@ -478,6 +592,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if site.name in self.props['flowEntriesIndex']:
                 for flowEntry in self.props['flowEntriesIndex'][site.name]:
                     if flowEntry.isBroadcast(): # category 3
+                        # TODO check if ALL local sites are not in tappedSites and not in tappedSitesWithSrcMac
                         if not site in self.props['tappedSitesWithSrcMac']:
                             self.untapBroadcastEntry(flowEntry)
                     else:
@@ -491,6 +606,12 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                                 self.untapEntry(flowEntry)
 
     def tapSite(self, site):
+        """
+        Invoked from CLI.
+        When we tap a site, we will tap all local single-cast entries from the
+        site (category 1) and to the site (category2); we will tap all local
+        broadcast entries from the site (category 3) as well.
+        """
         with self.lock:
             if site in self.props['tappedSites']:
                 SDNPopsRenderer.logger.warning("The site %s on VPN %s has been tapped" % (site.name, self.vpn.name))
@@ -500,12 +621,22 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
             if site.name in self.props['flowEntriesIndex']:
                 for flowEntry in self.props['flowEntriesIndex'][site.name]:
-                    if flowEntry.isBroadcast():
+                    if flowEntry.isBroadcast(): # category 3
                         self.tapBroadcastEntry(flowEntry)
-                    else:
+                    else: # category 1 and 2
                         self.tapEntry(flowEntry)
 
     def untapSite(self, site):
+        """
+        Invoked from CLI.
+        When we untap a site, we will untap those local single-cast entries to
+        the site with mac not in tappedMacs (category 2).
+        If the site is in tappedSitesWithSrcMac, then we will tap those local
+        single-cast entries from the site with src mac; otherwise, we untap
+        them (category 1).
+        If there is no local site in tappedSites and no local mac in
+        tappedMacs, we untap all local broadcast entries (category 3).
+        """
         with self.lock:
             if not site in self.props['tappedSites']:
                 SDNPopsRenderer.logger.warning("The site %s on VPN %s is not tapped yet" % (site.name, self.vpn.name))
@@ -516,6 +647,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if site.name in self.props['flowEntriesIndex']:
                 for flowEntry in self.props['flowEntriesIndex'][site.name]:
                     if flowEntry.isBroadcast(): # category 3
+                        # TODO check ALL sites not in tappedSites and not in tappedSitesWithSrcMac
                         if not site in self.props['tappedSitesWithSrcMac']:
                             self.untapBroadcastEntry(flowEntry)
                     else:
@@ -602,6 +734,10 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         The implementation of this class is expected to overwrite this method if it desires
         to receive events from the controller such as PACKET_IN
         :param event: ScopeEvent
+
+        When receiving an event:
+        1. check if the src exists already; if not, update the information which site the src belongs.
+        2. add flow entry and flow status corespondingly
         """
         if event.__class__ != PacketInEvent:
             SDNPopsRenderer.logger.info("unknown %r, reject by %r" % (event, self))
@@ -650,9 +786,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                     outFlowEntry = self.tapBroadcastEntry(flowEntry)
                 else:
                     outFlowEntry = self.untapBroadcastEntry(flowEntry)
-            else:
+            else: # singlecast
                 toSite = self.getDstSite(originalMac)
-                if inPort.props['type'].endswith('.WAN'):
+                if inPort.props['type'].endswith('.WAN'): # from WAN
                     if dstMac in self.props['tappedMacs']:
                         outFlowEntry = self.tapEntry(flowEntry)
                     elif toSite in self.props['tappedSites']:
@@ -661,15 +797,22 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                         outFlowEntry = self.untapEntry(flowEntry)
                 else: # from site
                     if toSite.props['pop'].name == myPop.name:
-                        # from site to site: might not support yet
-                        if toSite in self.props['tappedSites'] or originalMac in self.props['tappedMacs']:
+                        # from site to site: won't happen in our testbed, so the code here is not tested yet
+                        SDNPopsRenderer.logger.warning("multiple sites in the same pop might not be supported yet")
+                        if inSite in self.props['tappedSites'] or toSite in self.props['tappedSites'] or originalMac in self.props['tappedMacs']:
                             outFlowEntry = self.tapEntry(flowEntry)
-                    elif inSite in self.props['tappedSites']:
-                        outFlowEntry = self.tapEntry(flowEntry)
-                    elif inSite in self.props['tappedSitesWithSrcMac']:
-                        outFlowEntry = self.tapEntryWithSrcMac(flowEntry)
+                        elif inSite in self.props['tappedSitesWithSrcMac'] or toSite in self.props['tappedSitesWithSrcMac']:
+                            outFlowEntry = self.tapEntryWithSrcMac(flowEntry)
+                        else:
+                            outFlowEntry = self.untapEntry(flowEntry)
                     else:
-                        outFlowEntry = self.untapEntry(flowEntry)
+                        # from WAN to site
+                        if inSite in self.props['tappedSites']:
+                        outFlowEntry = self.tapEntry(flowEntry)
+                        elif inSite in self.props['tappedSitesWithSrcMac']:
+                            outFlowEntry = self.tapEntryWithSrcMac(flowEntry)
+                        else:
+                            outFlowEntry = self.untapEntry(flowEntry)
             (outMac, outVlan, outPort) = outFlowEntry.get()
             scope.send(switch, outPort, srcMac, outMac, etherType, outVlan, payload)
 
@@ -679,28 +822,26 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         hid = trans_mac.getHid()
         return self.vpn.props['mat'].reverse(hid)
 
-    def broadcast(self,inPort,inVlan,srcMac,dstMac,etherType,payload,switch,scope) :
-        pass
-    def setMAC(self,port,vlan,dl_src,dl_dst,switch,scope):
-        pass
-
     def execute(self):
         """
-        This function might be useless since a VPN is built in the runtime
-
         Renders the intent.
         :return: Expectation when succcessful, None otherwise
         """
         # update graph
         self.intent.updateGraph()
-        return
-        # Add scopes to the controller
-        for scope in self.props['scopeIndex'].values():
-            if not scope.switch.props['controller'].addScope(scope):
-                print "Cannot add", scope
-                return False
-        self.active = True
         return True
+
+        """
+        The code is commented out because the scope has been added into the
+        controller already while 'vpn addsite'.
+        """
+        # # Add scopes to the controller
+        # for scope in self.props['scopeIndex'].values():
+        #     if not scope.switch.props['controller'].addScope(scope):
+        #         print "Cannot add", scope
+        #         return False
+        # self.active = True
+        # return True
 
 
     def destroy(self):
@@ -713,6 +854,10 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
 class SDNPopsIntent(ProvisioningIntent):
     def __init__(self, name, vpn, wan):
+        """
+        :param vpn: VPN which contains information of participants (site and hosts)
+        :param wan: Wan which contains information of all links in WAN
+        """
         super(SDNPopsIntent, self).__init__(name=name, graph=None)
         self.vpn = vpn
         self.wan = wan
@@ -721,8 +866,6 @@ class SDNPopsIntent(ProvisioningIntent):
         """
         Creates a provisioning intent providing a GenericGraph of the logical view of the
         topology that is intended to be created.
-        :param vpn: VPN which contains information of participants (site and hosts)
-        :param wan: Wan which contains information of all links in WAN
         """
         pops = []
         nodes = []
