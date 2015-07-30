@@ -2,6 +2,7 @@
 demo should be run first so that net, renderers, rendererIndex, vpns, vpnIndex
 are available.
 """
+from common.mac import MACAddress
 from common.api import VPN
 from mininet.l2vpn import SDNPopsIntent, SDNPopsRenderer
 

@@ -12,7 +12,7 @@ class MACAddress(object):
         if isinstance(v, MACAddress):
             self.data = copy.copy(v.data)
             return
-        if isinstance(v, str):
+        if isinstance(v, str) or isinstance(v, unicode):
             # format: 01:02:03:04:05:06
             self.data = map(lambda x : int(x, 16), v.split(":"))
             return
