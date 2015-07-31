@@ -808,7 +808,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                     else:
                         # from WAN to site
                         if inSite in self.props['tappedSites']:
-                        outFlowEntry = self.tapEntry(flowEntry)
+                            outFlowEntry = self.tapEntry(flowEntry)
                         elif inSite in self.props['tappedSitesWithSrcMac']:
                             outFlowEntry = self.tapEntryWithSrcMac(flowEntry)
                         else:

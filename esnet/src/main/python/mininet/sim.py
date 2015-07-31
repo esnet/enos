@@ -30,11 +30,14 @@ def javaByteArray(a):
     return b
 def usage():
     print "usage:"
-    print "sim $SRCMAC $DSTMAC $VLAN $SWITCH $PORT: simulating to send a packet with vlan from src to dst to the port"
+    print "sim $SRCMAC $DSTMAC $VLAN $SWITCH $PORT $DIR: simulating to send a packet with vlan from src to dst to the port"
     print " MAC: B for broadcast (FF:FF:FF:FF:FF:FF)"
-    print " For example, sim 1 3 10 lbl.gov 2 would send a packet with src=00:00:00:00:00:01, dst=00:00:00:00:00:03, and vlan=10 to the port lbl.gov-eth2"
+    print " DIR: in/out"
+    print " For example, 'sim 1 3 10 lbl.gov 2 in' would send a packet with src=00:00:00:00:00:01, dst=00:00:00:00:00:03, and vlan=10 to the port lbl.gov-eth2"
 
 def parseMac(mac):
+    if mac == 'B':
+        return MACAddress.createBroadcast()
     try:
         return MACAddress(int(mac))
     except:
@@ -43,14 +46,12 @@ def parseMac(mac):
         return MACAddress(mac)
     except:
         pass
-    if mac == 'B':
-        return MACAddress.createBroadcast()
     return None
 def main():
     if not 'net' in globals():
         print "Please run demo first"
         return
-    if len(command_args) < 7:
+    if len(command_args) < 8:
         usage()
         return
     srcMac = parseMac(command_args[2])
@@ -82,6 +83,9 @@ def main():
     except:
         print "interfaceIndex %s can not be found" % command_args[6]
         return
+    if command_args[7] != 'in' and command_args[7] != 'out':
+        print "invalid DIR, should be in or out"
+        return
     # create a packet
     etherType=2048
     payload=[0]
@@ -104,8 +108,12 @@ def main():
         cp.setPayload(cvp)
         cp.setEtherType(EtherTypes.VLANTAGGED.shortValue())
     rp = net.controller.odlPacketHandler.encodeDataPacket(cp)
-    rp.setIncomingNodeConnector(nodeconn)
-    net.controller.callback(rp)
+    if command_args[7] == 'in':
+        rp.setIncomingNodeConnector(nodeconn)
+        net.controller.callback(rp)
+    else:
+        rp.setOutgoingNodeConnector(nodeconn)
+        net.controller.odlPacketHandler.transmitDataPacket(rp)
 
 if __name__ == '__main__':
     main()
