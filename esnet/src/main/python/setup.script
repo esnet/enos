@@ -2,5 +2,5 @@ h1 ./vlan.sh 1 10
 h2 ./vlan.sh 2 10
 h3 ./vlan.sh 3 10
 h2 ./vlan.sh 2 20
-h4 ./vlan.sh 4 20
 h6 ./vlan.sh 6 20
+h8 ./vlan.sh 8 20

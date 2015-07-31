@@ -13,9 +13,13 @@ from common.mac import MACAddress
 
 # All switches including site routers, core routers, hw switches, and sw switches should
 # not have the same name so that the name of each port could be unique.
-lblsite = ["lbl.gov",['dtn-1', 'dtn-2'],"lbl"]
-anlsite = ["anl.gov",['dtn-1', 'dtn-2'],"star"]
-cernsite = ["cern.ch",['dtn-1', 'dtn-2'],"cern"]
+# site = [siteRouterName, [hostNames], popName, portNo]
+# Note: Since flowmod could not forward a packet to where it comes from,
+#  multiple sites in the same pop must have different portNo! (otherwise, the broadcast won't work.)
+lblsite = ["lbl.gov",['dtn-1', 'dtn-2'],"lbl", 0]
+anlsite = ["anl.gov",['dtn-1', 'dtn-2'],"star", 0]
+cernsite = ["cern.ch",['dtn-1', 'dtn-2'],"cern", 0]
+cern2site = ["cern2.ch",['dtn-1', 'dtn-2'],"cern", 1]
 sites = [lblsite, anlsite, cernsite]
 
 # Default Locations with hardware openflow switch
@@ -36,7 +40,7 @@ denv=["denv",'denv-tb-of-1',"denv-cr5",1]
 wash=["wash",'wash-tb-of-1',"wash-cr5",1]
 aofa=["aofa",'aofa-tb-of-1',"aofa-cr5",1]
 star=["star",'star-tb-of-4',"star-cr5",1]
-cern=["cern",'cern-tb-of-1',"cern-cr5",1]
+cern=["cern",'cern-tb-of-1',"cern-cr5",2]
 amst=["amst",'amst-tb-of-1',"amst-cr5",1]
 
 # Default locations
@@ -44,7 +48,7 @@ locations=[atla,lbl,denv,wash,aofa,star,cern,amst]
 
 # prune topology for those development environment with insufficient RAM (4G)
 locations=[lbl,star,cern]
-sites = [lblsite, anlsite, cernsite]
+sites = [lblsite, anlsite, cernsite, cern2site]
 
 class TopoBuilder ():
 
@@ -140,8 +144,8 @@ class TopoBuilder ():
         self.wan.connectAll(self.pops, 1000)
         self.addLinks(self.wan.props['links'])
 
-        for (sitename, hostnames, popname) in self.sitesConfig:
-            site = self.addSite(sitename, popname)
+        for (sitename, hostnames, popname, portno) in self.sitesConfig:
+            site = self.addSite(sitename, popname, portno)
             for name in hostnames:
                 hostname = name + "@" + sitename
                 host = Host(name=hostname)

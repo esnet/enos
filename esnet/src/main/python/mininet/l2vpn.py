@@ -672,29 +672,36 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         pop = site.props['pop']
         coreRouter = pop.props['coreRouter'].props['enosNode']
         hwSwitch = pop.props['hwSwitch'].props['enosNode']
-        hwSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, hwSwitch.name), switch=hwSwitch, owner=self)
-        self.props['scopeIndex'][hwSwitch.name] = hwSwitchScope
+        multipleSites = False
+        if not hwSwitch.name in self.props['scopeIndex']:
+            hwSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, hwSwitch.name), switch=hwSwitch, owner=self)
+            self.props['scopeIndex'][hwSwitch.name] = hwSwitchScope
+        else:
+            multipleSites = True
+        hwSwitchScope = self.props['scopeIndex'][hwSwitch.name]
         sitePort = hwSwitch.props['sitePortIndex'][site.name]
         hwSwitchScope.addEndpoint(sitePort, siteVlan)
         swPort = hwSwitch.props['stitchedPortIndex'][sitePort.name]
         hwSwitchScope.addEndpoint(swPort, siteVlan)
 
         swSwitch = pop.props['swSwitch'].props['enosNode']
-        swSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, swSwitch.name),switch=swSwitch,owner=self)
-        self.props['scopeIndex'][swSwitch.name] = swSwitchScope
+        if not swSwitch.name in self.props['scopeIndex']:
+            swSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, swSwitch.name),switch=swSwitch,owner=self)
+            self.props['scopeIndex'][swSwitch.name] = swSwitchScope
+        swSwitchScope = self.props['scopeIndex'][swSwitch.name]
         swSwitchScope.addEndpoint(swSwitch.props['sitePortIndex'][site.name], siteVlan)
         swSwitchScope.addEndpoint(swSwitch.props['vmPortIndex'][self.vpn.name])
 
-        hwSwitch.props['siteVlanIndex'][vid] = siteVlan
-        controller = hwSwitch.props['controller']
-        controller.addScope(hwSwitchScope)
-        controller.addScope(swSwitchScope)
+        if not multipleSites:
+            controller = hwSwitch.props['controller']
+            controller.addScope(hwSwitchScope)
+            controller.addScope(swSwitchScope)
 
-        pop = hwSwitch.props['pop']
-        for other_pop in self.pops:
-            self.connectPop(pop, other_pop)
-            self.connectPop(other_pop, pop)
-        self.pops.append(pop)
+            pop = hwSwitch.props['pop']
+            for other_pop in self.pops:
+                self.connectPop(pop, other_pop)
+                self.connectPop(other_pop, pop)
+            self.pops.append(pop)
 
     def connectPop(self, pop1, pop2):
         """

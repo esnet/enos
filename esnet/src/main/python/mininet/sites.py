@@ -71,7 +71,13 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         borderToSDNPort = self.borderRouter.props['stitchedPortIndex'][borderToSitePort.name]
         self.activePorts[borderToSDNPort.name] = borderToSDNPort
         borderToSDNPort.props['scope'] = wanScope
-        wanScope.addEndpoint(borderToSDNPort)
+        """
+        The reason we comment out this line is:
+        Since we'd like to support multiple sites, borderToSDNPort could be shared.
+        Therefore, we can not occupy it alone.
+        The scope should be added later while 'vpn addsite'.
+        """
+        # wanScope.addEndpoint(borderToSDNPort)
         self.props['borderToSitePort'] = borderToSitePort
         self.props['borderToSDNPort'] = borderToSDNPort
         self.borderRouter.props['controller'].addScope(wanScope)

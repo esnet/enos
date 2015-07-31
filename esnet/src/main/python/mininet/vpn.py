@@ -56,11 +56,11 @@ def sample(args):
     elif index == '2':
         create(['vpn2', '5678', '20'])
         addsite(['vpn2', 'addsite', 'lbl.gov', '21'])
-        addsite(['vpn2', 'addsite', 'anl.gov', '22'])
         addsite(['vpn2', 'addsite', 'cern.ch', '23'])
+        addsite(['vpn2', 'addsite', 'cern2.ch', '24'])
         addhost(['vpn2', 'addhost', 'dtn-2@lbl.gov'])
-        addhost(['vpn2', 'addhost', 'dtn-2@anl.gov'])
         addhost(['vpn2', 'addhost', 'dtn-2@cern.ch'])
+        addhost(['vpn2', 'addhost', 'dtn-2@cern2.ch'])
         execute(['vpn2', 'execute'])
     else:
         print "index %s is not implemented" % index
