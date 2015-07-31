@@ -8,7 +8,7 @@
 import struct,binascii
 from array import array
 
-from common.api import Node, SDNPop, Link, Port, Site, Wan, VPN, Host, ServiceVm, SiteRouter, CoreRouter, HwSwitch, SwSwitch
+from common.api import Node, SDNPop, Link, Port, Site, Wan, VPN, Host, SiteRouter, CoreRouter, HwSwitch, SwSwitch
 from common.mac import MACAddress
 
 # All switches including site routers, core routers, hw switches, and sw switches should
@@ -114,6 +114,7 @@ class TopoBuilder ():
         self.addSwitch(pop.props['hwSwitch'])
         self.addSwitch(pop.props['coreRouter'])
         self.addSwitch(pop.props['swSwitch'])
+        self.addHost(pop.props['serviceVm'])
         self.addLinks(pop.props['links'])
         self.popIndex[popname] = pop
         self.pops.append(pop)

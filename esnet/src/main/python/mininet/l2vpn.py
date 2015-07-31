@@ -176,6 +176,10 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         hwScope = self.props['scopeIndex'][hwSwitch.name]
         swSwitch = hwSwitch.props['pop'].props['swSwitch']
         swScope = self.props['scopeIndex'][swSwitch.name]
+        if inPort.props['type'].endswith('.WAN'):
+            vmPort = swSwitch.props['vmPort.WAN']
+        else:
+            vmPort = swSwitch.props['vmPort']
 
         flowStatus = self.props['statusIndex'][flowEntry.key()]
         if flowStatus.props['status'] == 'Tapped': # tapped already
@@ -200,7 +204,6 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             swOutPort = stitchedOutPort.props['links'][0].props['portIndex'][swSwitch.name]
             swScope.forward(swSwitch, inMac, inVlan, swInPort, outMac, outVlan, swOutPort)
             outputs.append((outMac, outVlan, swOutPort))
-            vmPort = swSwitch.props['vmPortIndex'][self.vpn.name]
             outputs.append((inMac, inVlan, vmPort))
             mod = swScope.multicast(swSwitch, inMac, inVlan, swInPort, outputs)
             flowmods.append(mod)
@@ -212,7 +215,6 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         elif flowStatus.props['status'] == 'TappedWithSrcMac':
             # copy to serviceVm in addition to dispatch in swSwitch
             flowmodSw = flowStatus.props['flowmods'][-2]
-            vmPort = flowmodSw.switch.props['vmPortIndex'][self.vpn.name]
             flowmodSw.scope.copy(flowmodSw, vmPort)
 
             # tear down other flowmods with src
@@ -332,7 +334,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             flowmods.append(mod)
 
             # copy to serviceVm and dispatch in swSwitch if src is matched (higher priority)
-            vmPort = swSwitch.props['vmPortIndex'][self.vpn.name]
+            vmPort = swSwitch.props['vmPort']
             if inSite and inSite.name in self.props['tappedMacsIndex']:
                 for srcMac in self.props['tappedMacsIndex'][inSite.name]:
                     mod = swScope.tapWithSrcMac(swSwitch, inMac, inVlan, swInPort, outMac, outVlan, swOutPort, srcMac, vmPort)
@@ -355,7 +357,10 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             swOutPort = stitchedOutPort.props['links'][0].props['portIndex'][swSwitch.name]
             stitchedInPort = hwSwitch.props['stitchedPortIndex'][inPort.name]
             swInPort = stitchedInPort.props['links'][0].props['portIndex'][swSwitch.name]
-            vmPort = swSwitch.props['vmPortIndex'][self.vpn.name]
+            if swInPort.props['type'].endswith('.WAN'):
+                vmPort = swSwitch.props['vmPort.WAN']
+            else:
+                vmPort = swSwitch.props['vmPort']
             if inSite and inSite.name in self.props['tappedMacsIndex']:
                 for srcMac in self.props['tappedMacsIndex'][inSite.name]:
                     mod = swScope.tapWithSrcMac(swSwitch, inMac, inVlan, swInPort, outMac, outVlan, swOutPort, srcMac, vmPort)
@@ -427,7 +432,10 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         stitchedInPort = hwSwitch.props['stitchedPortIndex'][inPort.name]
         swInPort = stitchedInPort.props['links'][0].props['portIndex'][swSwitch.name]
         if tapped:
-            vmPort = swSwitch.props['vmPortIndex'][self.vpn.name]
+            if inPort.props['type'].endswith('.WAN'):
+                vmPort = swSwitch.props['vmPort.WAN']
+            else:
+                vmPort = swSwitch.props['vmPort']
             outputs.append((inMac, inVlan, vmPort))
         mod = swScope.multicast(swSwitch, inMac, inVlan, swInPort, outputs)
         flowmods.append(mod)
@@ -473,7 +481,11 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
         # copy to serviceVm
         flowmodSw = flowStatus.props['flowmods'][-2]
-        vmPort = flowmodSw.switch.props['vmPortIndex'][self.vpn.name]
+        (_, _, inPort) = flowEntry.get()
+        if inPort.props['type'].endswith('.WAN'):
+            vmPort = flowmodSw.switch.props['vmPort.WAN']
+        else:
+            vmPort = flowmodSw.switch.props['vmPort']
         flowmodSw.scope.copy(flowmodSw, vmPort)
 
         flowStatus.props['status'] = "TappedBroadcast"
@@ -687,10 +699,11 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         swSwitch = pop.props['swSwitch'].props['enosNode']
         if not swSwitch.name in self.props['scopeIndex']:
             swSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, swSwitch.name),switch=swSwitch,owner=self)
+            swSwitchScope.addEndpoint(swSwitch.props['vmPort.WAN'], vid)
             self.props['scopeIndex'][swSwitch.name] = swSwitchScope
         swSwitchScope = self.props['scopeIndex'][swSwitch.name]
         swSwitchScope.addEndpoint(swSwitch.props['sitePortIndex'][site.name], siteVlan)
-        swSwitchScope.addEndpoint(swSwitch.props['vmPortIndex'][self.vpn.name])
+        swSwitchScope.addEndpoint(swSwitch.props['vmPort'], siteVlan)
 
         if not multipleSites:
             controller = hwSwitch.props['controller']
@@ -880,19 +893,20 @@ class SDNPopsIntent(ProvisioningIntent):
         for participant in self.vpn.props['participants']:
             (site, hosts_in_site, wanVlan) = participant
             pop = site.props['pop']
-            if not pop in pops:
-                pops.append(pop)
-            # note: nodes and links will be translated to enosNode later
             hwSwitch = pop.props['hwSwitch']
             coreRouter = pop.props['coreRouter']
+            serviceVm = pop.props['serviceVm']
+            if not pop in pops:
+                pops.append(pop)
+                nodes.append(coreRouter)
+                nodes.append(hwSwitch)
+                nodes.append(pop.props['swSwitch'])
+                nodes.append(serviceVm)
+            # note: nodes and links will be translated to enosNode later
             nodes.append(site.props['siteRouter'])
             nodes.extend(hosts_in_site)
-            nodes.append(coreRouter)
-            nodes.append(hwSwitch)
-            nodes.append(pop.props['swSwitch'])
-            nodes.extend(self.vpn.props['serviceVms'])
-            # links between serviceVms and swSwitch
-            links.extend(map(lambda vm:vm.props['ports'][1].props['links'][0], self.vpn.props['serviceVms']))
+            # links (siteLink and wanLink) between serviceVm and swSwitch
+            links.extend(map(lambda vmPort:vmPort.props['links'][0], serviceVm.props['ports'].values()))
             # links between host and site
             links.extend(map(lambda host:host.props['ports'][1].props['links'][0], hosts_in_site))
             # link between site and border

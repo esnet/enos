@@ -119,11 +119,7 @@ def addsite(args):
         return
     vpn = get(vpns, vpnIndex, vpnindex)
     site = get(net.builder.sites, net.builder.siteIndex, siteindex)
-    (serviceVm, link) = vpn.addSite(site, wanVlan)
-    net.builder.addHost(serviceVm)
-    net.builder.addLink(link)
-    net.buildHost(serviceVm)
-    net.buildLink(link)
+    vpn.addSite(site, wanVlan)
     siteRenderer = rendererIndex[site.name]
     siteRenderer.addVlan(vpn.props['lanVlan'], wanVlan)
     popsRenderer = rendererIndex[vpn.name]

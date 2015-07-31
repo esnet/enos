@@ -540,52 +540,56 @@ class L2SwitchScope(Scope):
         if len(flowModEndpoints) == 0:
             return True
 
-        """"
-        This code is currently disabled: SDNPropsRenderer is simplified and currently needs to have a generic
-        flow mod, i.e, without any other match than dl_dst. This will have to be fixed
-
-        if not 'in_port' in match.props:
-            # This controller rejects matches that do not include an in_port"
-            print flowMod,"does not include an in_port in the macth. Not supported."
+        # check match
+        if 'dl_dst' in flowModMatch.props:
+            inMac = flowModMatch.props['dl_dst']
+        else:
+            inMac = None
+        inVlan = flowModMatch.props['vlan']
+        inPort = flowModMatch.props['in_port']
+        if not L2SwitchScope.isValid(inMac, inVlan, inPort, flowModEndpoints):
             return False
-
-        in_port = match.props['in_port'].name
-        in_vlan = match.props['vlan']
-        valid = False
-        # checks match
-        for endpoint in endpoints:
-            port = endpoint[0]
-            if port != in_port:
-                continue
-            vlans = endpoint[1]
-            for vlan in vlans:
-                if vlan == in_vlan:
-                    # authorized vlan
-                    valid = True
-                    break
-        if not valid:
-            print flowMod,"contains at least one match in_port/vlan that is not contained in this scope:",self
-            return False
-        """""
-
         # check actions
         for action in flowModActions:
-            out_port = action.props['out_port']
-            out_vlan = action.props['vlan']
-            valid = False
-            for (portname, vlans) in flowModEndpoints.items():
-                if portname != out_port.name:
-                    continue
-                if vlans and out_vlan and not out_vlan in vlans and out_vlan != out_port.props['vlan']:
-                    print flowMod,"VLAN is not included in this scope",self
-                    return False
-                else:
-                    valid = True
-                    break
-            if not valid:
-                print flowMod,"contains at least one action out_port/vlan that is not contained in this scope:",self
+            if 'dl_dst' in action.props:
+                outMac = action.props['dl_dst']
+            else:
+                outMac = None
+            outVlan = action.props['vlan']
+            outPort = action.props['out_port']
+            if not L2SwitchScope.isValid(outMac, outVlan, outPort, flowModEndpoints):
                 return False
         return True
+
+    @staticmethod
+    def isValid(mac, vlan, port, endpoints):
+        if len(endpoints) == 0:
+            return True # empty means all
+        if not port.name in endpoints.keys():
+            L2SwitchScope.logger.warning("port %s not found in endpoints %s" % (port.name, endpoints))
+            return False
+        acceptedVals = endpoints[port.name]
+        if len(acceptedVals) == 0:
+            return True # empty means all
+        if port.props['type'].endswith('.WAN') and not port.props['type'].startswith('Core'):
+            # the reason we exclude coreRouter's WAN ports here is that:
+            # they just forward flows, and should not capable of analyzing vid.
+            # They could use vlan for validation directly.
+            if not mac:
+                L2SwitchScope.logger.warning("mac %s vlan %s port %s endpoints %s" % (mac,vlan,port,endpoints))
+                return False
+            vid = mac.getVid()
+            if vid in acceptedVals:
+                return True
+            else:
+                L2SwitchScope.logger.warning("vid %s not found in endpoints[port] %s" % (vid, acceptedVals))
+                return False
+        else:
+            if vlan in acceptedVals:
+                return True
+            else:
+                L2SwitchScope.logger.warning("vlan %s not found in endpoints[port] %s" % (vlan, acceptedVals))
+                return False
 
     def addEndpoint(self, port, vlan = 0):
         if not port.name in self.props['endpoints']:
