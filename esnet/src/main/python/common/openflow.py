@@ -598,6 +598,18 @@ class L2SwitchScope(Scope):
             self.props['endpoints'][port.name].add(vlan)
         port.props['node'].props['controller'].addScopeIndex(self, port, vlan)
 
+    def delEndpoint(self, port, vlan = 0):
+        if not port.name in self.props['endpoints']:
+            L2SwitchScope.logger.warning("%s not found in %s.endpoints" % (port.name, self.name))
+            return
+        if not vlan:
+            self.props['endpoints'].pop(port.name)
+        else:
+            self.props['endpoints'][port.name].remove(vlan)
+            if len(self.props['endpoints'][port.name]) == 0:
+                self.props['endpoints'].pop(port.name)
+        port.props['node'].props['controller'].delScopeIndex(port, vlan)
+
 class OpenFlowSwitch(Node):
     """
     This class represents an OpenFlowSwitch. It contains the list of flowmods that is set on the switch.
@@ -796,6 +808,11 @@ class SimpleController(Controller):
             self.scopeIndex['%s' % port.name] = scope
         else:
             self.scopeIndex['%s.%d' % (port.name, vlan)] = scope
+    def delScopeIndex(self, port, vlan = 0):
+        if not vlan:
+            self.scopeIndex.pop('%s' % port.name)
+        else:
+            self.scopeIndex.pop('%s.%d' % (port.name, vlan))
 
     def dispatchPacketIn(self,packetIn):
         """

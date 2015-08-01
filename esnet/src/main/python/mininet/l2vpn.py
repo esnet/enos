@@ -590,6 +590,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if not mac in self.props['tappedMacs']:
                 SDNPopsRenderer.logger.warning("The mac %r on VPN %s is not tapped yet" % (mac, self.vpn.name))
                 return
+
             # update tappedMacs and tappedSitesWithSrcMac
             self.props['tappedMacs'].remove(mac)
             site = self.getDstSite(mac)
@@ -677,7 +678,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
     def addHost(self, host):
         # cheating here to avoid any possible missed packet from controller
         self.props['siteIndex'][str(host.props['mac'])] = host.props['site']
-
+    def delHost(self, host):
+        # do nothing, since nothing could stop appearance of a new mac
+        pass
     def addSite(self, site, siteVlan):
         # could be invoked in CLI
         vid = self.vpn.props['vid']

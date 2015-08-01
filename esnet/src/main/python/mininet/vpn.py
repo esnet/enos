@@ -13,6 +13,7 @@ def usage():
     print "vpn create $vpnname $vid $lanVlan"
     print "vpn $vpnindex addsite $siteindex $wanVlan"
     print "vpn $vpnindex addhost $hostindex"
+    print "vpn $vpnindex delhost $hostindex"
     print "vpn $vpnindex tapsite $siteindex"
     print "vpn $vpnindex untapsite $siteindex"
     print "vpn $vpnindex taphost $hostindex"
@@ -133,10 +134,27 @@ def addhost(args):
     (vpnindex, hostindex) = [args[0], args[2]]
     vpn = get(vpns, vpnIndex, vpnindex)
     host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
-    vpn.addHost(host)
+    if not vpn.addHost(host):
+        print "something wrong while adding the host; Please make sure that the site of the host joined the VPN."
+        return
     sitename = host.props['site'].name
     siteRenderer = rendererIndex[sitename]
     siteRenderer.addHost(host, vpn.props['lanVlan'])
+
+def delhost(args):
+    if len(args) < 3:
+        print "invalid arguments."
+        usage()
+        return
+    (vpnindex, hostindex) = [args[0], args[2]]
+    vpn = get(vpns, vpnIndex, vpnindex)
+    host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
+    if not vpn.delHost(host):
+        print "something wrong while deleting the host; Please make sure that the host joined the VPN."
+        return
+    sitename = host.props['site'].name
+    siteRenderer = rendererIndex[sitename]
+    siteRenderer.delHost(host, vpn.props['lanVlan'])
 
 def tapsite(args):
     if len(args) < 3:
@@ -239,6 +257,8 @@ def main():
         addsite(command_args[2:])
     elif command_args[3] == 'addhost':
         addhost(command_args[2:])
+    elif command_args[3] == 'delhost':
+        delhost(command_args[2:])
     elif command_args[3] == 'tapsite':
         tapsite(command_args[2:])
     elif command_args[3] == 'untapsite':

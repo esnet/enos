@@ -38,6 +38,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.macs = {}
         self.active = False
         self.activePorts = {} # [portname] = TestbedPort
+        self.lock = threading.Lock()
         self.props['lanVlanIndex'] = {} # [siteVlan] = lanVlan
         self.props['siteVlanIndex'] = {} # [lanVlan] = siteVlan
         self.props['portsIndex'] = {} # [lanVlan] = list of TestbedPort that allows lanVlan to pass
@@ -97,18 +98,52 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.stitch(siteVlan)
     def addHost(self, host, lanVlan):
         # could be invoked in CLI
-        if not lanVlan in self.props['siteVlanIndex']:
-            SiteRenderer.logger.warning("lanVlan %d not found" % lanVlan)
-            return
+        with self.lock:
+            if not lanVlan in self.props['siteVlanIndex']:
+                SiteRenderer.logger.warning("lanVlan %d not found" % lanVlan)
+                return
 
-        toHostPort = self.siteRouter.props['hostPortIndex'][host.name].props['enosPort']
+            toHostPort = self.siteRouter.props['hostPortIndex'][host.name].props['enosPort']
 
-        if not lanVlan in self.props['portsIndex']:
-            self.props['portsIndex'][lanVlan] = []
-        self.props['portsIndex'][lanVlan].append(toHostPort)
+            if not lanVlan in self.props['portsIndex']:
+                self.props['portsIndex'][lanVlan] = []
+            self.props['portsIndex'][lanVlan].append(toHostPort)
 
-        siteScope = self.props['scopeIndex'][self.siteRouter.name]
-        siteScope.addEndpoint(toHostPort, lanVlan)
+            siteScope = self.props['scopeIndex'][self.siteRouter.name]
+            siteScope.addEndpoint(toHostPort, lanVlan)
+    def delHost(self, host, lanVlan):
+        # could be invoked in CLI
+        with self.lock:
+            if not lanVlan in self.props['siteVlanIndex']:
+                SiteRenderer.logger.warning("lanVlan %d not found" % lanVlan)
+                return
+
+            toHostPort = self.siteRouter.props['hostPortIndex'][host.name].props['enosPort']
+            if not toHostPort in self.props['portsIndex'][lanVlan]:
+                SiteRenderer.logger.warning("host %s not exists" % host.name)
+                return
+            self.props['portsIndex'][lanVlan].remove(toHostPort)
+
+            siteScope = self.props['scopeIndex'][self.siteRouter.name]
+            # the easiest way is to remove all
+            for (key, flowmod) in siteScope.props['flowmodIndex'].items():
+                found = False
+                if flowmod.match.props['in_port'].name == toHostPort.name and flowmod.match.props['vlan'] == lanVlan:
+                    found = True
+                if not found:
+                    for action in flowmod.actions:
+                        if action.props['out_port'].name == toHostPort.name and action.props['vlan'] == lanVlan:
+                            found = True
+                            break
+                if not found:
+                    if flowmod.match.props['dl_dst'].isBroadcast():
+                        found = True
+                if not found:
+                    # here we try to keep some flowmods that are not related to the host for sure
+                    continue
+                siteScope.delFlowMod(flowmod)
+            siteScope.delEndpoint(toHostPort, lanVlan)
+
     def __str__(self):
         return "SiteRenderer(name=%s, activePorts=%r, scopeIndex=%r)" % (self.name, self.activePorts, self.props['scopeIndex'])
 
@@ -121,8 +156,9 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         to receive events from the controller such as PACKET_IN
         :param event: ScopeEvent
         """
-        if event.__class__ == PacketInEvent:
-            # This is a PACKET_IN. Learn the source MAC address
+        if event.__class__ != PacketInEvent:
+            SiteRenderer.logger.warning("%s is not a PACKET_IN." % event)
+        with self.lock:
             if not 'vlan' in event.props:
                 # no VLAN, reject
                 SiteRenderer.logger.debug("no VLAN, reject %r" % event)
@@ -130,6 +166,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             SiteRenderer.logger.debug("eventListener: %r" % event)
             if SiteRenderer.debug:
                 SiteRenderer.lastEvent = event
+
             inPort = event.props['in_port'].props['enosPort']
             srcMac = event.props['dl_src']
             dstMac = event.props['dl_dst']

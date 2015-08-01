@@ -224,9 +224,29 @@ class VPN(Properties):
         port = hwSwitch.props['sitePortIndex'][site.name]
         self.props['siteIndex']["%s.%d" % (port.name, siteVlan)] = site
     def addHost(self, host):
+        # could be invoked in CLI
+        if not 'site' in host.props:
+            # this might be a serviceVm?
+            return False
         site = host.props['site']
+        if not site.name in self.props['participantIndex']:
+            return False
         self.props['participantIndex'][site.name][1].append(host)
         self.props['renderer'].addHost(host)
+        return True
+    def delHost(self, host):
+        # could be invoked in CLI
+        if not 'site' in host.props:
+            # this might be a serviceVm?
+            return False
+        site = host.props['site']
+        if not site.name in self.props['participantIndex']:
+            return False
+        if not host in self.props['participantIndex'][site.name][1]:
+            return False
+        self.props['participantIndex'][site.name][1].remove(host)
+        self.props['renderer'].delHost(host)
+        return True
 class Site(Properties):
     def __init__(self, name, props={}):
         super(Site, self).__init__(name)
