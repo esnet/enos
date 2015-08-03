@@ -59,7 +59,6 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.intent = intent
         self.vpn = intent.vpn
         self.wan = intent.wan
-        self.pops = intent.pops
 
         self.lock = threading.Lock() # protection for tapping/untapping
         self.active = False
@@ -78,6 +77,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             # 2. singlecast to local site: tap if mac in tappedMacs; untap otherwise
             # 3. broadcast from local site: tap if site in tappedSites or site in tappedSitesWithSrcMac; untap otherwise
             # Note: There is at most one flow entry in category 3
+        self.props['popIndex'] = {} # [SDNPop.name] = SDNPop
         self.links = self.intent.links
         SDNPopsRenderer.instance = self
     def getSrcSite(self, vlan, port):
@@ -128,6 +128,22 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         if not site.name in self.props['flowEntriesIndex']:
             self.props['flowEntriesIndex'][site.name] = []
         self.props['flowEntriesIndex'][site.name].append(flowEntry)
+
+    def delFlowEntry(self, flowEntry):
+        if not flowEntry.key() in self.props['statusIndex']:
+            SDNPopsRenderer.logger.warning("flowEntry %s is not found in %s.statusIndex" % (flowEntry, self))
+            return
+        status = self.props['statusIndex'][flowEntry.key()]
+        (inMac, inVlan, inPort) = flowEntry.get()
+        if not inMac.isBroadcast():
+            if inPort.props['type'].endswith('.WAN'):
+                site = self.getDstSite(self.reverse(inMac))
+            else:
+                site = self.getSrcSite(inVlan, inPort)
+            self.props['flowEntriesIndex'][site.name].remove(flowEntry)
+        for flowmod in status.props['flowmods']:
+            flowmod.scope.delFlowMod(flowmod)
+        self.props['statusIndex'].pop(flowEntry.key())
 
     def updateFlowEntry(self, flowEntry):
         """
@@ -681,43 +697,127 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
     def delHost(self, host):
         # do nothing, since nothing could stop appearance of a new mac
         pass
+
     def addSite(self, site, siteVlan):
-        # could be invoked in CLI
-        vid = self.vpn.props['vid']
-        pop = site.props['pop']
-        coreRouter = pop.props['coreRouter'].props['enosNode']
-        hwSwitch = pop.props['hwSwitch'].props['enosNode']
-        multipleSites = False
-        if not hwSwitch.name in self.props['scopeIndex']:
+        """
+        This function could be invoked in CLI.
+        Add endpoints related to the site including: HwToCore ports, HwToSw
+        ports, SwToHw ports, and the SwToVm port.
+        """
+        with self.lock:
+            pop = site.props['pop']
+            if not pop.name in self.props['popIndex']:
+                SDNPopsRenderer.logger.warning("The SDNPop of the site is not added yet")
+                return False
+            vid = self.vpn.props['vid']
+            coreRouter = pop.props['coreRouter'].props['enosNode']
+            hwSwitch = pop.props['hwSwitch'].props['enosNode']
+            hwSwitchScope = self.props['scopeIndex'][hwSwitch.name]
+            sitePort = hwSwitch.props['sitePortIndex'][site.name]
+            hwSwitchScope.addEndpoint(sitePort, siteVlan)
+            swPort = hwSwitch.props['stitchedPortIndex'][sitePort.name]
+            hwSwitchScope.addEndpoint(swPort, siteVlan)
+
+            swSwitch = pop.props['swSwitch'].props['enosNode']
+            swSwitchScope = self.props['scopeIndex'][swSwitch.name]
+            swSwitchScope.addEndpoint(swSwitch.props['sitePortIndex'][site.name], siteVlan)
+            swSwitchScope.addEndpoint(swSwitch.props['vmPort'], siteVlan)
+            return True
+
+    def delSite(self, site):
+        """
+        This function could be invoked in CLI.
+        Del endpoints related to the site including: HwToCore ports, HwToSw
+        ports, SwToHw ports, and the SwToVm port.
+        """
+        with self.lock:
+            if not site.name in self.vpn.props['participantIndex']:
+                SDNPopsRenderer.logger.warning("The site did not participate in the VPN")
+                return False
+            # clean up all flowEntries related to the site
+            for status in self.props['statusIndex'].values():
+                flowEntry = status.props['flowEntry']
+                related = False
+                (inMac, inVlan, inPort) = flowEntry.get()
+                if not related:
+                    related = inMac.isBroadcast()
+                if not related:
+                    if inPort.props['type'].endswith('.WAN'):
+                        related = (self.getDstSite(self.reverse(inMac)).name == site.name)
+                    else:
+                        related = (self.getSrcSite(inVlan, inPort).name == site.name) or (self.getDstSite(inMac).name == site.name)
+                if not related:
+                    continue
+                self.delFlowEntry(flowEntry)
+
+            (_, hosts, siteVlan) = self.vpn.props['participantIndex'][site.name]
+            pop = site.props['pop']
+            hwSwitch = pop.props['hwSwitch'].props['enosNode']
+            hwSwitchScope = self.props['scopeIndex'][hwSwitch.name]
+            sitePort = hwSwitch.props['sitePortIndex'][site.name]
+            hwSwitchScope.delEndpoint(sitePort, siteVlan)
+            swPort = hwSwitch.props['stitchedPortIndex'][sitePort.name]
+            hwSwitchScope.delEndpoint(swPort, siteVlan)
+
+            swSwitch = pop.props['swSwitch'].props['enosNode']
+            swSwitchScope = self.props['scopeIndex'][swSwitch.name]
+            swSwitchScope.delEndpoint(swSwitch.props['sitePortIndex'][site.name], siteVlan)
+            swSwitchScope.delEndpoint(swSwitch.props['vmPort'], siteVlan)
+            return True
+
+    def addPop(self, pop):
+        """
+        This function could be invoked in CLI.
+        Add endpoints related to the pop including: HwToCore.WAN ports,
+        HwToSw.WAN ports, and SwToHw.WAN ports, and the SwToVm.WAN port.
+        """
+        with self.lock:
+            if pop.name in self.props['popIndex']:
+                SDNPopsRenderer.logger.warning("The SDNPop did not participate in the VPN yet")
+                return False
+            vid = self.vpn.props['vid']
+            coreRouter = pop.props['coreRouter'].props['enosNode']
+            hwSwitch = pop.props['hwSwitch'].props['enosNode']
             hwSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, hwSwitch.name), switch=hwSwitch, owner=self)
             self.props['scopeIndex'][hwSwitch.name] = hwSwitchScope
-        else:
-            multipleSites = True
-        hwSwitchScope = self.props['scopeIndex'][hwSwitch.name]
-        sitePort = hwSwitch.props['sitePortIndex'][site.name]
-        hwSwitchScope.addEndpoint(sitePort, siteVlan)
-        swPort = hwSwitch.props['stitchedPortIndex'][sitePort.name]
-        hwSwitchScope.addEndpoint(swPort, siteVlan)
+            hwSwitch.props['controller'].addScope(hwSwitchScope)
 
-        swSwitch = pop.props['swSwitch'].props['enosNode']
-        if not swSwitch.name in self.props['scopeIndex']:
+            swSwitch = pop.props['swSwitch'].props['enosNode']
             swSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, swSwitch.name),switch=swSwitch,owner=self)
             swSwitchScope.addEndpoint(swSwitch.props['vmPort.WAN'], vid)
             self.props['scopeIndex'][swSwitch.name] = swSwitchScope
-        swSwitchScope = self.props['scopeIndex'][swSwitch.name]
-        swSwitchScope.addEndpoint(swSwitch.props['sitePortIndex'][site.name], siteVlan)
-        swSwitchScope.addEndpoint(swSwitch.props['vmPort'], siteVlan)
+            swSwitch.props['controller'].addScope(swSwitchScope)
 
-        if not multipleSites:
-            controller = hwSwitch.props['controller']
-            controller.addScope(hwSwitchScope)
-            controller.addScope(swSwitchScope)
-
-            pop = hwSwitch.props['pop']
-            for other_pop in self.pops:
+            for other_pop in self.props['popIndex'].values():
                 self.connectPop(pop, other_pop)
                 self.connectPop(other_pop, pop)
-            self.pops.append(pop)
+            self.props['popIndex'][pop.name] = pop
+            return True
+
+    def delPop(self, pop):
+        with self.lock:
+            if not pop.name in self.props['popIndex']:
+                SDNPopsRenderer.logger.warning("The SDNPop did not participate in the VPN yet")
+                return False
+            for (site, hosts, siteVlan) in self.vpn.props['participants']:
+                if site.props['pop'].name == pop.name:
+                    SDNPopsRenderer.logger.warning("Some sites in the SDNPop is still in the VPNs, must delete them first")
+                    return False
+            for other_pop in self.props['popIndex'].values():
+                if other_pop.name == pop.name:
+                    continue
+                self.disconnectPop(pop, other_pop)
+                self.disconnectPop(other_pop, pop)
+            hwSwitch = pop.props['hwSwitch'].props['enosNode']
+            hwSwitchScope = self.props['scopeIndex'][hwSwitch.name]
+            swSwitch = pop.props['swSwitch'].props['enosNode']
+            swSwitchScope = self.props['scopeIndex'][swSwitch.name]
+            self.props['popIndex'].pop(pop.name)
+            self.props['scopeIndex'].pop(hwSwitch.name)
+            self.props['scopeIndex'].pop(swSwitch.name)
+            hwSwitch.props['controller'].delScope(hwSwitchScope)
+            swSwitch.props['controller'].delScope(swSwitchScope)
+            return True
 
     def connectPop(self, pop1, pop2):
         """
@@ -744,6 +844,33 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
         tohw_port = swSwitch.props['wanPortIndex'][pop2.name]
         swSwitchScope.addEndpoint(tohw_port, vid)
+        tohw_port.props['scopeIndex'][vid] = swSwitchScope
+
+    def disconnectPop(self, pop1, pop2):
+        """
+        Disonnect pop1 to pop2 (one way only)
+        Here we use (port, vid) instead of (port, vlan) as the index.
+        The reason is that VPNs all share the same port and vlan on the
+        'HwToCore.WAN' ports of HwSwitch, so we couldn't dispatch packets
+        to the scope based on vlan. The solution is temporary only.
+        """
+        # swSwitch[tohw_port]-[tosw_port]hwSwitch[tocore_port]-coreRouter
+        vid = self.vpn.props['vid']
+        hwSwitch = pop1.props['hwSwitch']
+        swSwitch = pop1.props['swSwitch']
+        hwSwitchScope = self.props['scopeIndex'][hwSwitch.name]
+        swSwitchScope = self.props['scopeIndex'][swSwitch.name]
+
+        tocore_port = hwSwitch.props['wanPortIndex'][pop2.name]
+        hwSwitchScope.delEndpoint(tocore_port, vid)
+        tocore_port.props['scopeIndex'][vid] = hwSwitchScope
+
+        tosw_port = hwSwitch.props['stitchedPortIndex'][tocore_port.name]
+        hwSwitchScope.delEndpoint(tosw_port, vid)
+        tosw_port.props['scopeIndex'][vid] = hwSwitchScope
+
+        tohw_port = swSwitch.props['wanPortIndex'][pop2.name]
+        swSwitchScope.delEndpoint(tohw_port, vid)
         tohw_port.props['scopeIndex'][vid] = swSwitchScope
 
     def __str__(self):
@@ -884,7 +1011,7 @@ class SDNPopsIntent(ProvisioningIntent):
         super(SDNPopsIntent, self).__init__(name=name, graph=None)
         self.vpn = vpn
         self.wan = wan
-        self.updateGraph()
+        self.updateGraph() # pops, nodes, links, graph, props['topology']
     def updateGraph(self):
         """
         Creates a provisioning intent providing a GenericGraph of the logical view of the

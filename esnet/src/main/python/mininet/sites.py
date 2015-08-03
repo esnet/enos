@@ -96,6 +96,44 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         self.props['lanVlanIndex'][siteVlan] = lanVlan
         self.props['siteVlanIndex'][lanVlan] = siteVlan
         self.stitch(siteVlan)
+    def delVlan(self, lanVlan, siteVlan):
+        # could be invoked in CLI
+        if not self.checkVlan(lanVlan, siteVlan):
+            return
+        self.props['lanVlanIndex'].pop(siteVlan)
+        self.props['siteVlanIndex'].pop(lanVlan)
+        siteScope = self.props['scopeIndex'][self.siteRouter.name]
+        for (key, flowmod) in siteScope.props['flowmodIndex'].items():
+            found = False
+            if not found:
+                found = flowmod.match.props['dl_dst'].isBroadcast()
+            if not found:
+                if flowmod.match.props['in_port'].props['type'] == 'SiteToHost':
+                    found = flowmod.match.props['vlan'] == lanVlan
+                else:
+                    found = flowmod.match.props['vlan'] == siteVlan
+            if not found:
+                for action in flowmod.actions:
+                    if action.props['out_port'].props['type'] == 'SiteToHost':
+                        if action.props['vlan'] == lanVlan:
+                            found = True
+                            break
+                    else:
+                        if action.props['vlan'] == siteVlan:
+                            found = True
+                            break
+            if not found:
+                # here we try to keep some flowmods that are not related to the site at all
+                continue
+            siteScope.delFlowMod(flowmod)
+        for port in self.siteRouter.props['ports'].values():
+            if port.props['type'] == 'SiteToHost':
+                siteScope.delEndpoint(port, lanVlan)
+            else:
+                siteScope.delEndpoint(port, siteVlan)
+        if lanVlan in self.props['portsIndex']:
+            self.props['portsIndex'].pop(lanVlan)
+        self.cut(siteVlan)
     def addHost(self, host, lanVlan):
         # could be invoked in CLI
         with self.lock:
@@ -125,22 +163,24 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
             self.props['portsIndex'][lanVlan].remove(toHostPort)
 
             siteScope = self.props['scopeIndex'][self.siteRouter.name]
-            # the easiest way is to remove all
             for (key, flowmod) in siteScope.props['flowmodIndex'].items():
                 found = False
-                if flowmod.match.props['in_port'].name == toHostPort.name and flowmod.match.props['vlan'] == lanVlan:
-                    found = True
+                if not found:
+                    found = flowmod.match.props['in_port'].name == toHostPort.name and flowmod.match.props['vlan'] == lanVlan
                 if not found:
                     for action in flowmod.actions:
                         if action.props['out_port'].name == toHostPort.name and action.props['vlan'] == lanVlan:
                             found = True
                             break
                 if not found:
-                    if flowmod.match.props['dl_dst'].isBroadcast():
-                        found = True
-                if not found:
-                    # here we try to keep some flowmods that are not related to the host for sure
+                    # here we try to keep some flowmods that are not related to the host at all
                     continue
+                """
+                A possible improvement here might be:
+                Try to modify the broadcast flowmod instead of deleting it.
+                However, neither site router nor broadcast is our concern in
+                the demo, so I just delete it directly.
+                """
                 siteScope.delFlowMod(flowmod)
             siteScope.delEndpoint(toHostPort, lanVlan)
 
@@ -226,8 +266,24 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         wanScope.addEndpoint(outPort, siteVlan)
         success = True
         for (direction, port1, port2) in [('site_to_hw', inPort, outPort), ('hw_to_site', outPort, inPort)]:
-            name = "%s(%d)@%s" % (direction, siteVlan, self.borderRouter.name)
             if not wanScope.forward(self.borderRouter, None, siteVlan, port1, None, siteVlan, port2):
+                success = False
+        return success
+
+    def cut(self, siteVlan):
+        siteScope = self.props['scopeIndex'][self.siteRouter.name]
+        siteRouterToWanPort = self.siteRouter.props['toWanPort'].props['enosPort']
+        siteScope.delEndpoint(siteRouterToWanPort, siteVlan)
+
+        inPort = self.props['borderToSitePort']
+        outPort = self.props['borderToSDNPort']
+        controller = self.borderRouter.props['controller']
+        wanScope = self.props['scopeIndex'][self.borderRouter.name]
+        wanScope.delEndpoint(inPort, siteVlan)
+        wanScope.delEndpoint(outPort, siteVlan)
+        success = True
+        for (direction, port1, port2) in [('site_to_hw', inPort, outPort), ('hw_to_site', outPort, inPort)]:
+            if not wanScope.stopForward(self.borderRouter, None, siteVlan, port1, None, siteVlan, port2):
                 success = False
         return success
 

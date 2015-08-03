@@ -98,6 +98,10 @@ class FlowEntry:
         return self.mac.isBroadcast()
     def key(self):
         return "{mac:%r,vlan:%d,port:%s}" % (self.mac, self.vlan, self.port)
+    def __eq__(self, other):
+        return self.key() == other.key()
+    def __ne__(self, other):
+        return self.key() != other.key()
     def __repr__(self):
         return self.key()
 
@@ -394,6 +398,12 @@ class L2SwitchScope(Scope):
         self.addFlowMod(flowmod)
         return flowmod
 
+    def stopForward(self, switch, inMac, inVlan, inPort, outMac, outVlan, outPort):
+        flowmod = FlowMod.create(self, switch, {'dl_dst':inMac, 'vlan':inVlan, 'in_port':inPort}, {'dl_dst':outMac, 'vlan':outVlan, 'out_port':outPort})
+        flowmod.props['renderer'] = self.owner
+        self.delFlowMod(flowmod)
+        return flowmod
+
     def tapWithSrcMac(self, switch, inMac, inVlan, inPort, outMac, outVlan, outPort, srcMac, vmPort):
         flowmod = FlowMod.create(self, switch, {'dl_src':srcMac, 'dl_dst':inMac, 'vlan':inVlan, 'in_port':inPort}, {})
         flowmod.props['renderer'] = self.owner
@@ -478,6 +488,14 @@ class L2SwitchScope(Scope):
         return not vals or val in vals
 
     def overlaps(self, scope):
+        """
+        We need a format to represent a empty scope in the case that the scope
+        might not be ready yet. Therefore, here I replace the meanings of
+        empty endpoints as super scope (in charge of all ports and vlans) with
+        empty scope (in charge of nothing, and no overlaps of course).
+        If you want a super scope, you can still achieve that by adding all
+        ports into endpoints.
+        """
         endpoints1 = self.props['endpoints']
         if not 'endpoints' in scope.props:
             # not a L2SwitchScope
@@ -487,9 +505,10 @@ class L2SwitchScope(Scope):
         # If not the same switch, they don't overlap
         if self.switch != scope.switch:
             return False
-        # If either set of endpoints is empty, they trivially overlap
+
+        # If either set of endpoints is empty, they trivially NOT overlap
         if len(endpoints1) == 0 or len(endpoints2) == 0:
-            return True
+            return False
         for (port, vlans1) in endpoints1.items():
             if not port in endpoints2:
                 continue
@@ -600,11 +619,15 @@ class L2SwitchScope(Scope):
 
     def delEndpoint(self, port, vlan = 0):
         if not port.name in self.props['endpoints']:
-            L2SwitchScope.logger.warning("%s not found in %s.endpoints" % (port.name, self.name))
+            L2SwitchScope.logger.debug("%s not found in %r.endpoints" % (port.name, self))
             return
         if not vlan:
             self.props['endpoints'].pop(port.name)
         else:
+            if not vlan in self.props['endpoints'][port.name]:
+                # this might happen when delsite, since we have no information of hosts in the site
+                L2SwitchScope.logger.debug("%s not found in %s.endpoints" % (vlan, self.name))
+                return
             self.props['endpoints'][port.name].remove(vlan)
             if len(self.props['endpoints'][port.name]) == 0:
                 self.props['endpoints'].pop(port.name)
@@ -720,10 +743,15 @@ class SimpleController(Controller):
             return False
         self.scopes[scope.id] = scope
         return True
-    def removeScope(self,scope):
+
+    def delScope(self, scope):
         self.scopes.pop(scope.id)
-        for (portname, vlans) in scope.props['endpoints']:
-            del self.scopesIndex[portname]
+        # for (portname, vlans) in scope.props['endpoints'].items():
+        #     if len(vlans) == 0:
+        #         self.scopesIndex.pop('%s' % portname)
+        #     else:
+        #         for vlan in vlans:
+        #             self.scopesIndex.pop('%s.%d' % (portname, vlan))
 
     def addForbiddenScope(self,scope):
         """

@@ -214,8 +214,14 @@ class VPN(Properties):
         self.props['links'] = []
         self.props['mat'] = None # MAC Address Translation
         self.props['renderer'] = None # SDNPopsRenderer
+
+    def checkSite(self, site):
+        return site.name in self.props['participantIndex']
+
     def addSite(self, site, siteVlan):
         # could be invoked in CLI
+        if site.name in self.props['participantIndex']:
+            return False
         pop = site.props['pop']
         participant = (site, [], siteVlan)
         self.props['participants'].append(participant)
@@ -223,6 +229,22 @@ class VPN(Properties):
         hwSwitch = pop.props['hwSwitch']
         port = hwSwitch.props['sitePortIndex'][site.name]
         self.props['siteIndex']["%s.%d" % (port.name, siteVlan)] = site
+        return True
+
+    def delSite(self, site):
+        # could be invoked in CLI
+        if not site.name in self.props['participantIndex']:
+            return False
+        siteVlan = self.props['participantIndex'][site.name][2]
+        s = self.props['participantIndex'].pop(site.name)
+        self.props['participants'].remove(s)
+
+        pop = site.props['pop']
+        hwSwitch = pop.props['hwSwitch']
+        port = hwSwitch.props['sitePortIndex'][site.name]
+        self.props['siteIndex'].pop("%s.%d" % (port.name, siteVlan))
+        return True
+
     def addHost(self, host):
         # could be invoked in CLI
         if not 'site' in host.props:
@@ -234,6 +256,7 @@ class VPN(Properties):
         self.props['participantIndex'][site.name][1].append(host)
         self.props['renderer'].addHost(host)
         return True
+
     def delHost(self, host):
         # could be invoked in CLI
         if not 'site' in host.props:
@@ -247,6 +270,7 @@ class VPN(Properties):
         self.props['participantIndex'][site.name][1].remove(host)
         self.props['renderer'].delHost(host)
         return True
+
 class Site(Properties):
     def __init__(self, name, props={}):
         super(Site, self).__init__(name)
