@@ -11,6 +11,7 @@ def usage():
     print "vpn sample $built-in_sample_index"
     print "vpn $vpnindex execute"
     print "vpn create $vpnname $vid $lanVlan"
+    print "vpn delete $vpnname"
     print "vpn $vpnindex addpop $popindex"
     print "vpn $vpnindex delpop $popindex"
     print "vpn $vpnindex addsite $siteindex $wanVlan"
@@ -96,7 +97,7 @@ def create(args):
     vpn = VPN(vpnname, vid, lanVlan)
     intent = SDNPopsIntent(name=vpn.name, vpn=vpn, wan=net.builder.wan)
     renderer = SDNPopsRenderer(intent)
-    renderer.execute() # no function since no scope
+    renderer.execute() # no function since no scope yet
     vpn.props['renderer'] = renderer
     vpn.props['mat'] = MAT(vpn.props['vid'])
 
@@ -104,6 +105,25 @@ def create(args):
     rendererIndex[renderer.name] = renderer
     vpns.append(vpn)
     vpnIndex[vpn.name] = vpn
+
+def delete(args):
+    if len(args) < 1:
+        print "invalid arguments."
+        usage()
+        return
+    vpnname = args[0]
+    if not vpnname in vpnIndex:
+        print "vpn name %s not found" % vpnname
+        return
+    vpn = vpnIndex[vpnname]
+    renderer = vpn.props['renderer']
+    if not renderer.clean():
+        print "Something's wrong while deleting the VPN. Please make sure all pop is deleted in the VPN"
+        return
+    vpnIndex.pop(vpn.name)
+    vpns.remove(vpn)
+    rendererIndex.pop(renderer.name)
+    renderers.remove(renderer)
 
 def execute(args):
     if len(args) < 2:
@@ -313,6 +333,8 @@ def main():
         sample(command_args[3:])
     elif command_args[2] == 'create':
         create(command_args[3:])
+    elif command_args[2] == 'delete':
+        delete(command_args[3:])
     elif command_args[2] == 'execute':
         execute(command_args[3:])
     elif len(command_args) < 4:

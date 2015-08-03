@@ -993,6 +993,11 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         # self.active = True
         # return True
 
+    def clean(self):
+        if len(self.props['popIndex']) != 0:
+            SDNPopsRenderer.logger.warning("There are some Pops still in the VPN")
+            return False
+        return True
 
     def destroy(self):
         """
