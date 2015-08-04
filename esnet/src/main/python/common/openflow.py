@@ -92,6 +92,20 @@ class FlowEntry:
         self.mac = mac
         self.vlan = vlan
         self.port = port
+    def serialize(self):
+        obj = {}
+        obj['mac'] = str(self.mac)
+        obj['vlan'] = self.vlan
+        obj['port'] = self.port.name
+        return obj
+
+    @staticmethod
+    def deserialize(obj, net):
+        mac = MACAddress(obj['mac'])
+        vlan = obj['vlan']
+        port = net.builder.portIndex[obj['port']]
+        return FlowEntry(mac, vlan, port)
+
     def get(self):
         return (self.mac, self.vlan, self.port)
     def isBroadcast(self):
@@ -362,6 +376,7 @@ class ScopeOwner(Properties):
         return self.__str__()
 
 class L2SwitchScope(Scope):
+    VERSION = 1
     logger = Logger('L2SwitchScope')
     """
     This class is the base class of any Scope that defines a layer 2 switch
@@ -378,8 +393,35 @@ class L2SwitchScope(Scope):
         Scope.__init__(self,name,switch,owner)
         self.props['endpoints'] = {}
         self.props['endpoints'].update(endpoints) # ['portname'] = [vlans]
-        self.props['flowmodIndex'] = {} # [flowmod.key()] = FlowMod # used in vpn hw scope only
+        self.props['flowmodIndex'] = {} # [flowmod.key()] = FlowMod
         self.props.update(props)
+
+    def serialize(self):
+        obj = {}
+        obj['version'] = L2SwitchScope.VERSION
+        obj['name'] = self.name
+        obj['switch'] = self.switch.name
+        obj['owner'] = self.owner.name
+        obj['endpoints'] = copy.copy(self.props['endpoints'])
+        obj['flowmods'] = []
+        for flowmod in self.props['flowmodIndex'].values():
+            obj['flowmods'].append(flowmod.serialize())
+        return obj
+
+    @staticmethod
+    def deserialize(obj):
+        if obj['version'] != L2SwitchScope.VERSION:
+            L2SwitchScope.logger.warning("version is not matched while loading scope")
+            return None
+        name = obj['name']
+        switch = net.builder.switchIndex[obj['switch']]
+        owner = rendererIndex[obj['renderer']]
+        scope = L2SwitchScope(name, switch, owner)
+        scope.props['endpoints'].update(obj['endpoints'])
+        for flowmod in obj['flowmods']:
+            mod = FlowMod.deserialize(flowmod)
+            scope.addFlowMod(mod)
+        return scope
 
     def send(self, switch, port, srcMac, dstMac, etherType, vlan, payload):
         controller = switch.props['controller']

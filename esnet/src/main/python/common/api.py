@@ -204,6 +204,7 @@ class SDNPop(Properties):
         swSwitch.connectPop(pop, swlink)
         return (hwlink, swlink)
 class VPN(Properties):
+    VERSION = 1
     def __init__(self, name, vid, lanVlan, props={}):
         super(VPN, self).__init__(name, props=props)
         self.props['vid'] = vid # int
@@ -211,9 +212,50 @@ class VPN(Properties):
         self.props['participants'] = [] # list of (site, hosts, wanVlan)
         self.props['participantIndex'] = {} # [sitename] = (site, hosts, wanVlan)
         self.props['siteIndex'] = {} # [hwToCorePort.siteVlan] = site
-        self.props['links'] = []
         self.props['mat'] = None # MAC Address Translation
         self.props['renderer'] = None # SDNPopsRenderer
+
+    def serialize(self):
+        obj = {}
+        obj['version'] = VPN.VERSION
+        obj['name'] = self.name
+        obj['vid'] = self.props['vid']
+        obj['lanVlan'] = self.props['lanVlan']
+
+        # store participants' name
+        obj['participants'] = []
+        for (site, hosts, siteVlan) in self.props['participants']:
+            hostnames = map(lambda host:host.name, hosts)
+            obj['participants'].append((site.name, hostnames, siteVlan))
+
+        obj['siteIndex'] = {}
+        for (key, value) in self.props['siteIndex'].items():
+            obj['siteIndex'][key] = value.name
+
+        obj['renderer'] = self.props['renderer'].serialize()
+        obj['mat'] = self.props['mat'].serialize()
+        return obj
+
+    @staticmethod
+    def deserialize(obj, net):
+        if obj['version'] != VPN.VERSION:
+            return None
+        vpn = VPN(obj['name'], obj['vid'], obj['lanVlan'])
+        for (sitename, hostnames, siteVlan) in obj['participants']:
+            site = net.builder.siteIndex[sitename]
+            hosts = map(lambda hostname:net.builder.hostIndex[hostname], hostnames)
+            participant = (site, hosts, siteVlan)
+            vpn.props['participants'].append(participant)
+            vpn.props['participantIndex'][sitename] = participant
+        for (key, value) in obj['siteIndex'].items():
+            vpn.props['siteIndex'][key] = net.builder.siteIndex[value]
+        if obj['mat']:
+            from mininet.mat import MAT
+            vpn.props['mat'] = MAT.deserialize(obj['mat'])
+        if obj['renderer']:
+            from mininet.l2vpn import SDNPopsRenderer
+            vpn.props['renderer'] = SDNPopsRenderer.deserialize(obj['renderer'], vpn, net)
+        return vpn
 
     def checkSite(self, site):
         return site.name in self.props['participantIndex']

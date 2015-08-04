@@ -44,6 +44,7 @@ class FlowStatus(Properties):
         self.props['flowmods'] = flowmods
 
 class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
+    VERSION = 1
     debug = False
     lastEvent = None
     instance = None
@@ -80,6 +81,56 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.props['popIndex'] = {} # [SDNPop.name] = SDNPop
         self.links = self.intent.links
         SDNPopsRenderer.instance = self
+
+    def serialize(self):
+        obj = {}
+        obj['version'] = SDNPopsRenderer.VERSION
+        obj['siteIndex'] = {}
+        for (mac, site) in self.props['siteIndex'].items():
+            obj['siteIndex'][mac] = site.name
+        obj['tappedMacs'] = map(lambda mac:str(mac), self.props['tappedMacs'])
+        obj['tappedSites'] = map(lambda site:site.name, self.props['tappedSites'])
+        obj['flowEntries'] = map(lambda status:status.props['flowEntry'].serialize(), self.props['statusIndex'].values())
+        return obj
+
+    @staticmethod
+    def deserialize(obj, vpn, net):
+        if obj['version'] != SDNPopsRenderer.VERSION:
+            SDNPopsRenderer.logger.warning("version is not matched while deserializing")
+            return
+        intent = SDNPopsIntent(name=vpn.name, vpn=vpn, wan=net.builder.wan)
+        renderer = SDNPopsRenderer(intent)
+        for (mac, sitename) in obj['siteIndex'].items():
+            renderer.props['siteIndex'][mac] = net.builder.siteIndex[sitename]
+        for (site, hosts, siteVlan) in renderer.vpn.props['participants']:
+            pop = site.props['pop']
+            if not pop.name in renderer.props['popIndex']:
+                renderer.addPop(pop)
+            renderer.addSite(site, siteVlan)
+            # Here we don't use hosts.props['mac'] to update siteIndex because
+            # mac might come from unknown hosts in the future
+            # for host in hosts:
+            #   renderer.props['siteIndex'][str(host.props['mac'])] = host.props['site']
+
+        for sitename in obj['tappedSites']:
+            renderer.props['tappedSites'].append(net.builder.siteIndex[sitename])
+        for mac in obj['tappedMacs']:
+            renderer.addTappedMac(MACAddress(mac))
+        for flowEntry in obj['flowEntries']:
+            flow = FlowEntry.deserialize(flowEntry, net)
+            renderer.parseFlowEntry(flow)
+        return renderer
+
+    def addTappedMac(self, mac):
+        # update tappedMacs, tappedMacsIndex, and tappedSitesWithSrcMac
+        self.props['tappedMacs'].append(mac)
+        site = self.getDstSite(mac)
+        if not site.name in self.props['tappedMacsIndex']:
+            self.props['tappedMacsIndex'][site.name] = []
+        self.props['tappedMacsIndex'][site.name].append(mac)
+        if not site in self.props['tappedSitesWithSrcMac']:
+            self.props['tappedSitesWithSrcMac'].append(site)
+
     def getSrcSite(self, vlan, port):
         k = "%s.%d" % (port.name, vlan)
         if not k in self.vpn.props['siteIndex']:
@@ -564,15 +615,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if mac in self.props['tappedMacs']:
                 SDNPopsRenderer.logger.warning("The mac %r on VPN %s has been tapped" % (mac, self.vpn.name))
                 return
-            # update tappedMacs, tappedMacsIndex, and tappedSitesWithSrcMac
-            self.props['tappedMacs'].append(mac)
-            site = self.getDstSite(mac)
-            if not site.name in self.props['tappedMacsIndex']:
-                self.props['tappedMacsIndex'][site.name] = []
-            self.props['tappedMacsIndex'][site.name].append(mac)
-            if not site in self.props['tappedSitesWithSrcMac']:
-                self.props['tappedSitesWithSrcMac'].append(site)
 
+            self.addTappedMac(mac)
+            site = self.getDstSite(mac)
             if site in self.props['tappedSites']:
                 SDNPopsRenderer.logger.debug("The site has been tapped, tap a mac won't change anything")
                 return
@@ -909,12 +954,6 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             scope = controller.getScope(inPort, inVlan, dstMac)
             etherType = event.props['ethertype']
             payload = event.props['payload']
-            if inPort.props['type'].endswith('.WAN'): # from WAN
-                transMac = dstMac
-                originalMac = self.reverse(transMac)
-            else: # from Site
-                originalMac = dstMac
-                transMac = self.translate(originalMac)
 
             if not inPort.props['type'].startswith('HwToCore'):
                 SDNPopsRenderer.logger.warning("Unknown packet should come from coreRouter only")
@@ -925,46 +964,60 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 if not self.getDstSite(srcMac):
                     self.props['siteIndex'][str(srcMac)] = inSite
 
-            if dstMac.isBroadcast():
-                # check if any site or any mac in the same pop is tapped
-                involved = False
-                for site in myPop.props['sites']:
-                    if site in self.props['tappedSites'] or site in self.props['tappedSitesWithSrcMac']:
-                        involved = True
-                        break
-                if involved:
-                    outFlowEntry = self.tapBroadcastEntry(flowEntry)
-                else:
-                    outFlowEntry = self.untapBroadcastEntry(flowEntry)
-            else: # singlecast
-                toSite = self.getDstSite(originalMac)
-                if inPort.props['type'].endswith('.WAN'): # from WAN
-                    if dstMac in self.props['tappedMacs']:
-                        outFlowEntry = self.tapEntry(flowEntry)
-                    elif toSite in self.props['tappedSites']:
-                        outFlowEntry = self.tapEntry(flowEntry)
-                    else:
-                        outFlowEntry = self.untapEntry(flowEntry)
-                else: # from site
-                    if toSite.props['pop'].name == myPop.name:
-                        # from site to site: won't happen in our testbed, so the code here is not tested yet
-                        SDNPopsRenderer.logger.warning("multiple sites in the same pop might not be supported yet")
-                        if inSite in self.props['tappedSites'] or toSite in self.props['tappedSites'] or originalMac in self.props['tappedMacs']:
-                            outFlowEntry = self.tapEntry(flowEntry)
-                        elif inSite in self.props['tappedSitesWithSrcMac'] or toSite in self.props['tappedSitesWithSrcMac']:
-                            outFlowEntry = self.tapEntryWithSrcMac(flowEntry)
-                        else:
-                            outFlowEntry = self.untapEntry(flowEntry)
-                    else:
-                        # from WAN to site
-                        if inSite in self.props['tappedSites']:
-                            outFlowEntry = self.tapEntry(flowEntry)
-                        elif inSite in self.props['tappedSitesWithSrcMac']:
-                            outFlowEntry = self.tapEntryWithSrcMac(flowEntry)
-                        else:
-                            outFlowEntry = self.untapEntry(flowEntry)
+            outFlowEntry = self.parseFlowEntry(flowEntry)
             (outMac, outVlan, outPort) = outFlowEntry.get()
             scope.send(switch, outPort, srcMac, outMac, etherType, outVlan, payload)
+
+    def parseFlowEntry(self, flowEntry):
+        (inMac, inVlan, inPort) = flowEntry.get()
+        inSite = self.getSrcSite(inVlan, inPort)
+        switch = inPort.props['node'].props['enosNode'] # must be hwSwitch
+        myPop = switch.props['pop']
+        if inPort.props['type'].endswith('.WAN'): # from WAN
+            transMac = inMac
+            originalMac = self.reverse(transMac)
+        else: # from Site
+            originalMac = inMac
+            transMac = self.translate(originalMac)
+        if inMac.isBroadcast():
+            # check if any site or any mac in the same pop is tapped
+            involved = False
+            for site in myPop.props['sites']:
+                if site in self.props['tappedSites'] or site in self.props['tappedSitesWithSrcMac']:
+                    involved = True
+                    break
+            if involved:
+                outFlowEntry = self.tapBroadcastEntry(flowEntry)
+            else:
+                outFlowEntry = self.untapBroadcastEntry(flowEntry)
+        else: # singlecast
+            toSite = self.getDstSite(originalMac)
+            if inPort.props['type'].endswith('.WAN'): # from WAN
+                if inMac in self.props['tappedMacs']:
+                    outFlowEntry = self.tapEntry(flowEntry)
+                elif toSite in self.props['tappedSites']:
+                    outFlowEntry = self.tapEntry(flowEntry)
+                else:
+                    outFlowEntry = self.untapEntry(flowEntry)
+            else: # from site
+                if toSite.props['pop'].name == myPop.name:
+                    # from site to site: won't happen in our testbed, so the code here is not tested yet
+                    SDNPopsRenderer.logger.warning("multiple sites in the same pop might not be supported yet")
+                    if inSite in self.props['tappedSites'] or toSite in self.props['tappedSites'] or originalMac in self.props['tappedMacs']:
+                        outFlowEntry = self.tapEntry(flowEntry)
+                    elif inSite in self.props['tappedSitesWithSrcMac'] or toSite in self.props['tappedSitesWithSrcMac']:
+                        outFlowEntry = self.tapEntryWithSrcMac(flowEntry)
+                    else:
+                        outFlowEntry = self.untapEntry(flowEntry)
+                else:
+                    # from WAN to site
+                    if inSite in self.props['tappedSites']:
+                        outFlowEntry = self.tapEntry(flowEntry)
+                    elif inSite in self.props['tappedSitesWithSrcMac']:
+                        outFlowEntry = self.tapEntryWithSrcMac(flowEntry)
+                    else:
+                        outFlowEntry = self.untapEntry(flowEntry)
+        return outFlowEntry
 
     def translate(self, mac):
         return self.vpn.props['mat'].translate(mac)

@@ -72,6 +72,8 @@ class TopoBuilder ():
         self.switchIndex = {} # [switchname] = Switch
         self.links = [] # all links including those in sites, pops, vpns, and wan
         self.linkIndex = {} # [linkname] = Link
+        self.ports = [] # all ports
+        self.portIndex = {} # [portname] = Port
         self.sites = []
         self.siteIndex = {} # [sitename] = Site
         self.sitesConfig = []
@@ -184,9 +186,15 @@ class TopoBuilder ():
     def addLink(self, link):
         self.links.append(link)
         self.linkIndex[link.name] = link
+        self.addPort(link.props['endpoints'][0])
+        self.addPort(link.props['endpoints'][1])
     def addLinks(self, links):
         for link in links:
             self.addLink(link)
+    def addPort(self, port):
+        if not port.name in self.portIndex:
+            self.ports.append(port)
+            self.portIndex[port.name] = port
     def getHostParams(self,name):
         index = self.hostID
         self.hostID +=  1

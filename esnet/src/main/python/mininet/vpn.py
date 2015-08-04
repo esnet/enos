@@ -4,6 +4,7 @@ are available.
 """
 from common.mac import MACAddress
 from common.api import VPN
+from mininet.utils import loadObject, saveObject
 from mininet.l2vpn import SDNPopsIntent, SDNPopsRenderer
 
 def usage():
@@ -12,6 +13,8 @@ def usage():
     print "vpn $vpnindex execute"
     print "vpn create $vpnname $vid $lanVlan"
     print "vpn delete $vpnname"
+    print "vpn load $conf"
+    print "vpn $vpnindex save $conf"
     print "vpn $vpnindex addpop $popindex"
     print "vpn $vpnindex delpop $popindex"
     print "vpn $vpnindex addsite $siteindex $wanVlan"
@@ -45,6 +48,7 @@ def get(l, d, index):
         print "%r not found" % index
         usage()
         sys.exit()
+
 def sample(args):
     if len(args) < 1:
         index = '1'
@@ -62,8 +66,8 @@ def sample(args):
         execute(['vpn1', 'execute'])
     elif index == '2':
         create(['vpn2', '5678', '20'])
-        addpop(['vpn1', 'addpop', 'lbl'])
-        addpop(['vpn1', 'addpop', 'cern'])
+        addpop(['vpn2', 'addpop', 'lbl'])
+        addpop(['vpn2', 'addpop', 'cern'])
         addsite(['vpn2', 'addsite', 'lbl.gov', '21'])
         addsite(['vpn2', 'addsite', 'cern.ch', '23'])
         addsite(['vpn2', 'addsite', 'cern2.ch', '24'])
@@ -73,6 +77,42 @@ def sample(args):
         execute(['vpn2', 'execute'])
     else:
         print "index %s is not implemented" % index
+
+def addVpn(vpn):
+    renderer = vpn.props['renderer']
+    renderers.append(renderer)
+    rendererIndex[renderer.name] = renderer
+    vpns.append(vpn)
+    vpnIndex[vpn.name] = vpn
+
+def save(args):
+    if len(args) < 3:
+        print "invalid arguments."
+        usage()
+        return
+    # vpn vpnindex save confname
+    (vpnindex, confname) = [args[0], args[2]]
+    vpn = get(vpns, vpnIndex, vpnindex)
+    obj = vpn.serialize()
+    saveObject(obj, confname)
+
+def load(args):
+    if len(args) < 1:
+        print "invalid arguments."
+        usage()
+        return
+    confname = args[0]
+    obj = loadObject(confname)
+    vpn = VPN.deserialize(obj, net)
+    lanVlan = vpn.props['lanVlan']
+    for (sitename, hostnames, siteVlan) in obj['participants']:
+        site = net.builder.siteIndex[sitename]
+        siteRenderer = rendererIndex[sitename]
+        siteRenderer.addVlan(lanVlan, siteVlan)
+        for hostname in hostnames:
+            siteRenderer.addHost(net.builder.hostIndex[hostname], lanVlan)
+    addVpn(vpn)
+
 def create(args):
     if len(args) < 3:
         print "invalid arguments."
@@ -100,11 +140,7 @@ def create(args):
     renderer.execute() # no function since no scope yet
     vpn.props['renderer'] = renderer
     vpn.props['mat'] = MAT(vpn.props['vid'])
-
-    renderers.append(renderer)
-    rendererIndex[renderer.name] = renderer
-    vpns.append(vpn)
-    vpnIndex[vpn.name] = vpn
+    addVpn(vpn)
 
 def delete(args):
     if len(args) < 1:
@@ -337,6 +373,8 @@ def main():
         delete(command_args[3:])
     elif command_args[2] == 'execute':
         execute(command_args[3:])
+    elif command_args[2] == 'load':
+        load(command_args[3:])
     elif len(command_args) < 4:
         usage()
     elif command_args[3] == 'addpop':
@@ -363,6 +401,8 @@ def main():
         tapmac(command_args[2:])
     elif command_args[3] == 'untapmac':
         untapmac(command_args[2:])
+    elif command_args[3] == 'save':
+        save(command_args[2:])
     else:
         print "unknown command"
         usage()

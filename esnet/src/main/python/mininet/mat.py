@@ -4,6 +4,7 @@ from common.mac import MACAddress
 import threading
 
 class MAT(Properties):
+    VERSION = 1
     reserved = 0xFF00 - 1 # Hid after this value are reserved for multicast
     def __init__(self, vid):
         super(MAT, self).__init__(name='MAT[%d]' % vid)
@@ -20,6 +21,23 @@ class MAT(Properties):
         # related to vid
         # ...
         # Note: MAT.reserved might need to be changed if necessary
+    def serialize(self):
+        obj = {}
+        obj['vid'] = self.props['vid']
+        obj['hid'] = self.props['hid']
+        obj['mac'] = {}
+        for (hid, mac) in self.props['mac'].items():
+            obj['mac'][hid] = str(mac)
+        return obj
+
+    @staticmethod
+    def deserialize(obj):
+        mat = MAT(obj['vid'])
+        mat.props['hid'] = obj['hid']
+        for (hid, mac) in obj['mac'].items():
+            mat.props['mac'][hid] = MACAddress(mac)
+        return mat
+
     def translate(self, mac):
         if not str(mac) in self.props['hid']:
             with self.props['lock']:

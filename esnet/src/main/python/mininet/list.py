@@ -107,11 +107,7 @@ def main():
     elif command_args[2] == 'pops':
         showlist(net.builder.pops)
     elif command_args[2] == 'ports':
-        ports = []
-        for switch in net.builder.switches:
-            ports.extend(switch.props['ports'].values())
-        # not interested in ports on host
-        showlist(ports)
+        showlist(net.builder.ports)
     elif command_args[2] == 'renderers':
         showlist(renderers)
     elif command_args[2] == 'scopes':
@@ -150,13 +146,7 @@ def main():
         pop = get(net.builder.pops, net.builder.popIndex, command_args[3])
         showobj(pop)
     elif command_args[2] == 'port':
-        ports = []
-        for switch in net.builder.switches:
-            ports.extend(switch.props['ports'].values())
-        portIndex = {}
-        for port in ports:
-            portIndex[port.name] = port
-        port = get(ports, portIndex, command_args[3])
+        port = get(net.builder.ports, net.builder.portIndex, command_args[3])
         showobj(port)
     elif command_args[2] == 'renderer':
         renderer = get(renderers, rendererIndex, command_args[3])
