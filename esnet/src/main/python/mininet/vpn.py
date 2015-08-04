@@ -13,6 +13,7 @@ def usage():
     print "vpn $vpnindex execute"
     print "vpn create $vpnname $vid $lanVlan"
     print "vpn delete $vpnname"
+    print "vpn kill $vpnname"
     print "vpn load $conf"
     print "vpn $vpnindex save $conf"
     print "vpn $vpnindex addpop $popindex"
@@ -161,6 +162,25 @@ def delete(args):
     rendererIndex.pop(renderer.name)
     renderers.remove(renderer)
 
+def kill(args):
+    if len(args) < 1:
+        print "invalid arguments."
+        usage()
+        return
+    vpnname = args[0]
+    if not vpnname in vpnIndex:
+        print "vpn name %s not found" % vpnname
+        return
+    vpn = vpnIndex[vpnname]
+    for (site, hosts, siteVlan) in vpn.props['participantIndex'].values():
+        for host in hosts:
+            delhost([vpn.name, 'delhost', host.name])
+        delsite([vpn.name, 'delsite', site.name])
+    renderer = vpn.props['renderer']
+    for pop in renderer.props['popIndex'].values():
+        delpop([vpn.name, 'delpop', pop.name])
+    delete([vpn.name])
+
 def execute(args):
     if len(args) < 2:
         print "invalid arguments."
@@ -192,7 +212,7 @@ def delpop(args):
         print "invalid arguments."
         usage()
         return
-    # args = [vpnindex, 'addpop', popindex]
+    # args = [vpnindex, 'delpop', popindex]
     (vpnindex, popindex) = [args[0], args[2]]
 
     vpn = get(vpns, vpnIndex, vpnindex)
@@ -208,6 +228,7 @@ def addsite(args):
         print "invalid arguments."
         usage()
         return
+    # args = [vpnindex, 'addsite', siteindex, siteVlan]
     (vpnindex, siteindex, siteVlan) = [args[0], args[2], toint(args[3])]
 
     if siteVlan < 0:
@@ -232,6 +253,7 @@ def delsite(args):
         print "invalid arguments."
         usage()
         return
+    # args = [vpnindex, 'delsite', siteindex]
     (vpnindex, siteindex) = [args[0], args[2]]
 
     vpn = get(vpns, vpnIndex, vpnindex)
@@ -251,6 +273,7 @@ def addhost(args):
         print "invalid arguments."
         usage()
         return
+    # args = [vpnindex, 'addhost', hostindex]
     (vpnindex, hostindex) = [args[0], args[2]]
     vpn = get(vpns, vpnIndex, vpnindex)
     host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
@@ -266,6 +289,7 @@ def delhost(args):
         print "invalid arguments."
         usage()
         return
+    # args = [vpnindex, 'delhost', hostindex]
     (vpnindex, hostindex) = [args[0], args[2]]
     vpn = get(vpns, vpnIndex, vpnindex)
     host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
@@ -357,7 +381,7 @@ def untapmac(args):
     vpn.props['renderer'].untapMac(m)
 
 def main():
-    if not net:
+    if not 'net' in globals():
         print 'Please run demo first'
         return
 
@@ -371,6 +395,8 @@ def main():
         create(command_args[3:])
     elif command_args[2] == 'delete':
         delete(command_args[3:])
+    elif command_args[2] == 'kill':
+        kill(command_args[3:])
     elif command_args[2] == 'execute':
         execute(command_args[3:])
     elif command_args[2] == 'load':
