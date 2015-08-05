@@ -66,6 +66,7 @@ def main():
             Logger().warning('%r.execute() fail', sr)
         renderers.append(sr)
         rendererIndex[sr.name] = sr
+    print "Now the demo environment is ready."
 
 if __name__ == '__main__':
     main()

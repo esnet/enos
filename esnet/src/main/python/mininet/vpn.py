@@ -20,7 +20,7 @@ def usage():
     print "vpn $vpnindex delpop $popindex"
     print "vpn $vpnindex addsite $siteindex $wanVlan"
     print "vpn $vpnindex delsite $siteindex"
-    print "vpn $vpnindex addhost $hostindex"
+    print "vpn $vpnindex addhost $hostindex [$cheating]"
     print "vpn $vpnindex delhost $hostindex"
     print "vpn $vpnindex tapsite $siteindex"
     print "vpn $vpnindex untapsite $siteindex"
@@ -33,6 +33,8 @@ def toint(s):
         return int(s)
     except:
         return -1
+def tobool(s):
+    return s.lower() in ('yes', 'true', '1', 't')
 def get(l, d, index):
     """
     :param l: a list of objects
@@ -61,9 +63,9 @@ def sample(args):
         addpop(['vpn1', 'addpop', 'star'])
         addsite(['vpn1', 'addsite', 'lbl.gov', '11'])
         addsite(['vpn1', 'addsite', 'anl.gov', '12'])
-        addhost(['vpn1', 'addhost', 'dtn-1@lbl.gov'])
-        addhost(['vpn1', 'addhost', 'dtn-2@lbl.gov'])
-        addhost(['vpn1', 'addhost', 'dtn-1@anl.gov'])
+        addhost(['vpn1', 'addhost', 'dtn-1@lbl.gov', 'False'])
+        addhost(['vpn1', 'addhost', 'dtn-2@lbl.gov', 'False'])
+        addhost(['vpn1', 'addhost', 'dtn-1@anl.gov', 'False'])
         execute(['vpn1', 'execute'])
     elif index == '2':
         create(['vpn2', '5678', '20'])
@@ -142,6 +144,7 @@ def create(args):
     vpn.props['renderer'] = renderer
     vpn.props['mat'] = MAT(vpn.props['vid'])
     addVpn(vpn)
+    print "VPN %s is created successfully." % vpn.name
 
 def delete(args):
     if len(args) < 1:
@@ -206,6 +209,7 @@ def addpop(args):
         print "something's wrong while adding the pop."
         # possible issues: duplicated pop
         return
+    print "Pop %s is added into VPN %s successfully." % (pop.name, vpn.name)
 
 def delpop(args):
     if len(args) < 3:
@@ -236,17 +240,18 @@ def addsite(args):
         return
     vpn = get(vpns, vpnIndex, vpnindex)
     site = get(net.builder.sites, net.builder.siteIndex, siteindex)
-    if not vpn.addSite(site, siteVlan):
-        print "something's wrong while adding the site."
-        # possible issues: duplicated site
-        return
     popsRenderer = rendererIndex[vpn.name]
     if not popsRenderer.addSite(site, siteVlan):
         print "something's wrong while adding the site."
         # possible issues: site.props['pop'] is not added into the VPN yet
         return
+    if not vpn.addSite(site, siteVlan):
+        print "something's wrong while adding the site."
+        # possible issues: duplicated site
+        return
     siteRenderer = rendererIndex[site.name]
     siteRenderer.addVlan(vpn.props['lanVlan'], siteVlan)
+    print "The site %s is added into VPN %s successfully" % (site.name, vpn.name)
 
 def delsite(args):
     if len(args) < 3:
@@ -273,16 +278,20 @@ def addhost(args):
         print "invalid arguments."
         usage()
         return
-    # args = [vpnindex, 'addhost', hostindex]
+    # args = [vpnindex, 'addhost', hostindex, cheating(optional)]
     (vpnindex, hostindex) = [args[0], args[2]]
+    cheating = False
+    if len(args) >= 4:
+        cheating = tobool(args[3])
     vpn = get(vpns, vpnIndex, vpnindex)
     host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
-    if not vpn.addHost(host):
+    if not vpn.addHost(host, cheating):
         print "something wrong while adding the host; Please make sure that the site of the host joined the VPN."
         return
     sitename = host.props['site'].name
     siteRenderer = rendererIndex[sitename]
     siteRenderer.addHost(host, vpn.props['lanVlan'])
+    print "The host %s is added into VPN %s successfully" % (host.name, vpn.name)
 
 def delhost(args):
     if len(args) < 3:

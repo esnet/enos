@@ -26,22 +26,35 @@ class FlowStatus(Properties):
     TappedWithSrcMac:
         flowmods[-1]: forwarding from coreRouter to swSwitch in hwSwitch
         flowmods[-2]: dispatching in swSwitch
-        flowmods[1:N+1]: copying to serviceVm and dispatching in swSwitch with dl_src in match and higher priority
+        flowmods[1:N+1]: N copying to serviceVm and dispatching in swSwitch with dl_src in match and higher priority
         flowmods[0]: forwarding from swSwitch to coreRouter in hwSwitch
     UntappedBroadcast:
-        flowmods[N+1]: forwarding from coreRouter to swSwitch in hwSwitch
-        flowmods[N]: dispatching in swSwitch (multicast)
-        flowmods[0:N]: forwarding from swSwitch to coreRouter in hwSwitch
+        flowmods[N]: forwarding from coreRouter to swSwitch in hwSwitch
+        flowmods[0:N]: N forwarding from swSwitch to coreRouter in hwSwitch
+        sampleFlowmod & srcMacs: M dispatching in swSwitch (multicast) with dl_src in match
     TappedBroadcast:
-        flowmods[N+1]: forwarding from coreRouter to swSwitch in hwSwitch
-        flowmods[N]: copying to serviceVm and dispatching in swSwitch (multicast)
-        flowmods[0:N]: forwarding from swSwitch to coreRouter in hwSwitch
+        flowmods[N]: forwarding from coreRouter to swSwitch in hwSwitch
+        flowmods[0:N]: N forwarding from swSwitch to coreRouter in hwSwitch
+        sampleFlowmod & srcMacs: M copying to serviceVm and dispatching in swSwitch (multicast) with dl_src in match
     """
     def __init__(self, flowEntry, status, flowmods):
         super(FlowStatus, self).__init__(flowEntry.key())
         self.props['flowEntry'] = flowEntry
         self.props['status'] = status # str: 'Init', 'Tapped', 'TappedWithSrcMac', 'Untapped', 'TappedBroadcast', 'UntappedBroadcast'
         self.props['flowmods'] = flowmods
+        # for broadcast only
+        self.props['sampleFlowmod'] = None # used as a sample in swSwitch
+        self.props['broadcastFlowmods'] = []
+        self.props['srcMacs'] = []
+    def addMac(self, mac, vmPort):
+        self.props['srcMacs'].append(mac)
+        mod = copy.copy(self.props['sampleFlowmod'])
+        mod.match.props['dl_src'] = mac
+        if self.props['status'].startswith('Tapped'):
+            mod.actions.append(Action(props={'dl_dst':mod.match.props['dl_dst'], 'vlan':mod.match.props['vlan'], 'out_port':vmPort}))
+        self.props['broadcastFlowmods'].append(mod)
+        print self.props['broadcastFlowmods']
+        return mod
 
 class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
     VERSION = 1
@@ -498,14 +511,12 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         # broadcast in swSwitch (and copy to serviceVm optionally)
         stitchedInPort = hwSwitch.props['stitchedPortIndex'][inPort.name]
         swInPort = stitchedInPort.props['links'][0].props['portIndex'][swSwitch.name]
-        if tapped:
-            if inPort.props['type'].endswith('.WAN'):
-                vmPort = swSwitch.props['vmPort.WAN']
-            else:
-                vmPort = swSwitch.props['vmPort']
-            outputs.append((inMac, inVlan, vmPort))
-        mod = swScope.multicast(swSwitch, inMac, inVlan, swInPort, outputs)
-        flowmods.append(mod)
+
+        sampleFlowmod = FlowMod.create(swScope, swSwitch, {'dl_dst':inMac, 'vlan':inVlan, 'in_port':swInPort}, {})
+        sampleFlowmod.props['renderer'] = self
+        sampleFlowmod.actions = []
+        for (outMac, outVlan, outPort) in outputs:
+            sampleFlowmod.actions.append(Action(props={'dl_dst':outMac, 'vlan':outVlan, 'out_port':outPort}))
 
         # forward to swSwitch
         mod = hwScope.forward(hwSwitch, inMac, inVlan, inPort, inMac, inVlan, stitchedInPort)
@@ -515,7 +526,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             status = 'TappedBroadcast'
         else:
             status = 'UntappedBroadcast'
-        self.props['statusIndex'][flowEntry.key()] = FlowStatus(flowEntry, status, flowmods)
+        flowStatus = FlowStatus(flowEntry, status, flowmods)
+        flowStatus.props['sampleFlowmod'] = sampleFlowmod
+        self.props['statusIndex'][flowEntry.key()] = flowStatus
         return FlowEntry(inMac, inVlan, stitchedInPort)
 
     def tapBroadcastEntry(self, flowEntry):
@@ -531,8 +544,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         When we tap a local mac, we tap all local broadcast entries.
 
         flowStatus.props['flowmods'] in result:
-         [0:N]: forwarding from swSwitch to coreRouter in hwSwitch
-         [-2]: copying to serviceVm and dispatching in swSwitch (multicast)
+         [0:N]: N forwarding from swSwitch to coreRouter in hwSwitch
+         [-M:-2]: M copying to serviceVm and dispatching in swSwitch (multicast)
          [-1]: forwarding from coreRouter to swSwitch in hwSwitch
         """
         k = flowEntry.key()
@@ -545,15 +558,18 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             return result
 
         SDNPopsRenderer.logger.info("%r.tapBroadcastEntry(%r)" % (self.name, flowEntry))
-
-        # copy to serviceVm
-        flowmodSw = flowStatus.props['flowmods'][-2]
-        (_, _, inPort) = flowEntry.get()
+        inPort = flowEntry.port
+        outPort = result.port
+        swSwitch = outPort.props['node'].props['pop'].props['swSwitch']
+        swScope = self.props['scopeIndex'][swSwitch.name]
         if inPort.props['type'].endswith('.WAN'):
-            vmPort = flowmodSw.switch.props['vmPort.WAN']
+            vmPort = swSwitch.props['vmPort.WAN']
         else:
-            vmPort = flowmodSw.switch.props['vmPort']
-        flowmodSw.scope.copy(flowmodSw, vmPort)
+            vmPort = swSwitch.props['vmPort']
+        # copy to serviceVm
+        print flowStatus.props['broadcastFlowmods']
+        for flowmod in flowStatus.props['broadcastFlowmods']:
+            swScope.copy(flowmod, vmPort)
 
         flowStatus.props['status'] = "TappedBroadcast"
         return result
@@ -588,9 +604,19 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
         SDNPopsRenderer.logger.info("%r.untapBroadcastEntry(%r)" % (self.name, flowEntry))
 
+        inPort = flowEntry.port
+        outPort = result[2]
+        swSwitch = outPort.props['node'].props['pop'].props['SwSwitch']
+        swScope = self.props['scopeIndex'][swSwitch.name]
+        if inPort.props['type'].endswith('.WAN'):
+            vmPort = swSwitch.props['vmPort.WAN']
+        else:
+            vmPort = swSwitch.props['vmPort']
+
         # stop copying to serviceVm
-        flowmodSw = flowStatus.props['flowmods'][-2]
-        flowmodSw.scope.restore(flowmodSw)
+        print flowStatus.props['broadcastFlowmods']
+        for flowmod in flowStatus.props['broadcastFlowmods']:
+            flowmod.scope.restore(flowmod)
 
         flowStatus.props['status'] = "UntappedBroadcast"
         return result
@@ -736,9 +762,10 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                             else:
                                 self.untapEntry(flowEntry)
 
-    def addHost(self, host):
+    def addHost(self, host, cheating):
         # cheating here to avoid any possible missed packet from controller
-        self.props['siteIndex'][str(host.props['mac'])] = host.props['site']
+        if cheating:
+            self.props['siteIndex'][str(host.props['mac'])] = host.props['site']
     def delHost(self, host):
         # do nothing, since nothing could stop appearance of a new mac
         pass
@@ -924,6 +951,49 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
     def __repr__(self):
         return self.__str__()
 
+    def updateSrcMac(self, srcMac, inVlan, inPort):
+        # update the information of which site the mac belongs
+        if not inPort.props['type'].endswith('.WAN'): # from site
+            if not self.getDstSite(srcMac):
+                self.props['siteIndex'][str(srcMac)] = self.getSrcSite(inVlan, inPort)
+
+    def swSwitchEventListener(self, event):
+        # no lock because it's locked in eventListener already
+        # find the matched inPort in hwSwitch
+        srcMac = event.props['dl_src']
+        dstMac = event.props['dl_dst']
+        inVlan = event.props['vlan']
+        swInPort = event.props['in_port'].props['enosPort']
+        swSwitch = swInPort.props['node'].props['enosNode']
+        if swInPort.props['type'].endswith('.WAN'):
+            vmPort = swSwitch.props['vmPort.WAN']
+        else:
+            vmPort = swSwitch.props['vmPort']
+        myPop = swSwitch.props['pop']
+        hwSwitch = myPop.props['hwSwitch']
+        link = swInPort.props['links'][0]
+        hwPort = link.props['portIndex'][hwSwitch.name]
+        hwInPort = hwSwitch.props['stitchedPortIndex'][hwPort.name]
+        self.updateSrcMac(srcMac, inVlan, hwInPort)
+
+        controller = swSwitch.props['controller']
+        swScope = controller.getScope(swInPort, inVlan, dstMac)
+        etherType = event.props['ethertype']
+        payload = event.props['payload']
+        flowEntry = FlowEntry(dstMac, inVlan, hwInPort)
+        if not flowEntry.key() in self.props['statusIndex']:
+            SDNPopsRenderer.logger.warning("Unknown packet %s received by swSwitch %s" % (event, swSwitch.name))
+            return
+        flowStatus = self.props['statusIndex'][flowEntry.key()]
+        mod = flowStatus.addMac(srcMac, vmPort)
+        swScope.addFlowMod(mod)
+        sampleFlowmod = flowStatus.props['sampleFlowmod']
+        for action in sampleFlowmod.actions:
+            outMac = action.props['dl_dst']
+            outVlan = action.props['vlan']
+            outPort = action.props['out_port']
+            swScope.send(swSwitch, outPort, srcMac, outMac, etherType, outVlan, payload)
+
     def eventListener(self,event):
         """
         The implementation of this class is expected to overwrite this method if it desires
@@ -945,24 +1015,23 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             srcMac = event.props['dl_src']
             dstMac = event.props['dl_dst']
             inPort = event.props['in_port'].props['enosPort']
+            if not inPort.props['type'].startswith('HwToCore'):
+                # Then this should be a broadcast packet received by swSwitch
+                # a special case to handle broadcast issues
+                self.swSwitchEventListener(event)
+                return
+
             inVlan = event.props['vlan']
             flowEntry = FlowEntry(dstMac, inVlan, inPort)
             inSite = self.getSrcSite(inVlan, inPort)
-            switch = inPort.props['node'].props['enosNode'] # must be hwSwitch
+            switch = inPort.props['node'].props['enosNode']
             myPop = switch.props['pop']
             controller = switch.props['controller']
             scope = controller.getScope(inPort, inVlan, dstMac)
             etherType = event.props['ethertype']
             payload = event.props['payload']
 
-            if not inPort.props['type'].startswith('HwToCore'):
-                SDNPopsRenderer.logger.warning("Unknown packet should come from coreRouter only")
-                return
-
-            # update the information of which site the srcMac belongs
-            if not inPort.props['type'].endswith('.WAN'): # from site
-                if not self.getDstSite(srcMac):
-                    self.props['siteIndex'][str(srcMac)] = inSite
+            self.updateSrcMac(srcMac, inVlan, inPort)
 
             outFlowEntry = self.parseFlowEntry(flowEntry)
             (outMac, outVlan, outPort) = outFlowEntry.get()
