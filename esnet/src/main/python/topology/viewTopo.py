@@ -35,6 +35,8 @@ import sys
 topology = TopologyFactory.instance()
 topo = topology.retrieveTopologyProvider("localLayer2")
 
+command_args = sys.argv
+
 if len(command_args) == 2:
     graph = topo.getGraph(TopologyProvider.WeightType.TrafficEngineering)
     viewer = GraphViewer(graph)
