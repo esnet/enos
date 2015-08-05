@@ -287,7 +287,7 @@ class VPN(Properties):
         self.props['siteIndex'].pop("%s.%d" % (port.name, siteVlan))
         return True
 
-    def addHost(self, host, cheating):
+    def addHost(self, host):
         # could be invoked in CLI
         if not 'site' in host.props:
             # this might be a serviceVm?
@@ -296,7 +296,6 @@ class VPN(Properties):
         if not site.name in self.props['participantIndex']:
             return False
         self.props['participantIndex'][site.name][1].append(host)
-        self.props['renderer'].addHost(host, cheating)
         return True
 
     def delHost(self, host):
@@ -310,7 +309,6 @@ class VPN(Properties):
         if not host in self.props['participantIndex'][site.name][1]:
             return False
         self.props['participantIndex'][site.name][1].remove(host)
-        self.props['renderer'].delHost(host)
         return True
 
 class Site(Properties):

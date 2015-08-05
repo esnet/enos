@@ -4,6 +4,7 @@ are available.
 """
 from common.mac import MACAddress
 from common.api import VPN
+from mininet.mat import MAT
 from mininet.utils import loadObject, saveObject
 from mininet.l2vpn import SDNPopsIntent, SDNPopsRenderer
 
@@ -20,7 +21,7 @@ def usage():
     print "vpn $vpnindex delpop $popindex"
     print "vpn $vpnindex addsite $siteindex $wanVlan"
     print "vpn $vpnindex delsite $siteindex"
-    print "vpn $vpnindex addhost $hostindex [$cheating]"
+    print "vpn $vpnindex addhost $hostindex"
     print "vpn $vpnindex delhost $hostindex"
     print "vpn $vpnindex tapsite $siteindex"
     print "vpn $vpnindex untapsite $siteindex"
@@ -28,6 +29,7 @@ def usage():
     print "vpn $vpnindex untaphost $hostindex"
     print "vpn $vpnindex tapmac $mac"
     print "vpn $vpnindex untapmac $mac"
+    print "vpn $vpnindex settimeout $timeout"
 def toint(s):
     try:
         return int(s)
@@ -278,14 +280,11 @@ def addhost(args):
         print "invalid arguments."
         usage()
         return
-    # args = [vpnindex, 'addhost', hostindex, cheating(optional)]
+    # args = [vpnindex, 'addhost', hostindex]
     (vpnindex, hostindex) = [args[0], args[2]]
-    cheating = False
-    if len(args) >= 4:
-        cheating = tobool(args[3])
     vpn = get(vpns, vpnIndex, vpnindex)
     host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
-    if not vpn.addHost(host, cheating):
+    if not vpn.addHost(host):
         print "something wrong while adding the host; Please make sure that the site of the host joined the VPN."
         return
     sitename = host.props['site'].name
@@ -318,7 +317,7 @@ def tapsite(args):
     (vpnindex, siteindex) = [args[0], args[2]]
     vpn = get(vpns, vpnIndex, vpnindex)
     site = get(net.builder.sites, net.builder.siteIndex, siteindex)
-    vpn.props['renderer'].tapSite(site)
+    vpn.props['renderer'].tapSiteCLI(site)
 
 def untapsite(args):
     if len(args) < 3:
@@ -329,7 +328,7 @@ def untapsite(args):
     (vpnindex, siteindex) = [args[0], args[2]]
     vpn = get(vpns, vpnIndex, vpnindex)
     site = get(net.builder.sites, net.builder.siteIndex, siteindex)
-    vpn.props['renderer'].untapSite(site)
+    vpn.props['renderer'].untapSiteCLI(site)
 
 def taphost(args):
     if len(args) < 3:
@@ -340,7 +339,7 @@ def taphost(args):
     (vpnindex, hostindex) = [args[0], args[2]]
     vpn = get(vpns, vpnIndex, vpnindex)
     host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
-    vpn.props['renderer'].tapHost(host)
+    vpn.props['renderer'].tapHostCLI(host)
 
 def untaphost(args):
     if len(args) < 3:
@@ -351,7 +350,7 @@ def untaphost(args):
     (vpnindex, hostindex) = [args[0], args[2]]
     vpn = get(vpns, vpnIndex, vpnindex)
     host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
-    vpn.props['renderer'].untapHost(host)
+    vpn.props['renderer'].untapHostCLI(host)
 
 def tapmac(args):
     if len(args) < 3:
@@ -388,6 +387,24 @@ def untapmac(args):
             print "invalid mac"
             return
     vpn.props['renderer'].untapMac(m)
+
+def settimeout(args):
+    if len(args) < 3:
+        print "invalid arguments."
+        usage()
+        return
+    # args = [vpnindex, 'settimeout', timeout]
+    (vpnindex, timeout) = [args[0], args[2]]
+    vpn = get(vpns, vpnIndex, vpnindex)
+    try:
+        timeout = float(timeout)
+    except:
+        print "invalid timeout"
+        return
+    if timeout < 0:
+        print "invalid timeout"
+        return
+    vpn.props['renderer'].setTimeout(timeout)
 
 def main():
     if not 'net' in globals():
@@ -436,6 +453,8 @@ def main():
         tapmac(command_args[2:])
     elif command_args[3] == 'untapmac':
         untapmac(command_args[2:])
+    elif command_args[3] == 'settimeout':
+        settimeout(command_args[2:])
     elif command_args[3] == 'save':
         save(command_args[2:])
     else:
