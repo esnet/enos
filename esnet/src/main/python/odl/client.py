@@ -372,7 +372,6 @@ class ODLClient(SimpleController,PacketHandler.Callback):
         :return: string representation
         """
         return str.join(":", ("%02x" % i for i in a))
-
     def callback(self, rawPacket):
         try:
             self.tryCallback(rawPacket)

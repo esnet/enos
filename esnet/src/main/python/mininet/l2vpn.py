@@ -13,7 +13,10 @@ from net.es.netshell.api import GenericGraph, GenericHost
 from common.mac import MACAddress
 from common.utils import Logger
 import threading
+import time
 import copy
+import sys
+import inspect
 
 class FlowStatus(Properties):
     """
@@ -53,7 +56,6 @@ class FlowStatus(Properties):
         if self.props['status'].startswith('Tapped'):
             mod.actions.append(Action(props={'dl_dst':mod.match.props['dl_dst'], 'vlan':mod.match.props['vlan'], 'out_port':vmPort}))
         self.props['broadcastFlowmods'].append(mod)
-        print self.props['broadcastFlowmods']
         return mod
 
 class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
@@ -567,7 +569,6 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         else:
             vmPort = swSwitch.props['vmPort']
         # copy to serviceVm
-        print flowStatus.props['broadcastFlowmods']
         for flowmod in flowStatus.props['broadcastFlowmods']:
             swScope.copy(flowmod, vmPort)
 
@@ -602,11 +603,11 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         if flowStatus.props['status'] == "UntappedBroadcast":
             return result
 
-        SDNPopsRenderer.logger.info("%r.untapBroadcastEntry(%r)" % (self.name, flowEntry))
+        SDNPopsRenderer.logger.info("%s.untapBroadcastEntry(%s)" % (self.name, flowEntry))
 
         inPort = flowEntry.port
-        outPort = result[2]
-        swSwitch = outPort.props['node'].props['pop'].props['SwSwitch']
+        outPort = result.port
+        swSwitch = outPort.props['node'].props['pop'].props['swSwitch']
         swScope = self.props['scopeIndex'][swSwitch.name]
         if inPort.props['type'].endswith('.WAN'):
             vmPort = swSwitch.props['vmPort.WAN']
@@ -614,7 +615,6 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             vmPort = swSwitch.props['vmPort']
 
         # stop copying to serviceVm
-        print flowStatus.props['broadcastFlowmods']
         for flowmod in flowStatus.props['broadcastFlowmods']:
             flowmod.scope.restore(flowmod)
 
@@ -626,9 +626,13 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
     def untapHost(self, host):
         self.untapMac(host.props['mac'])
 
+    def tapMacCLI(self, mac):
+        # Invoked from CLI.
+        with self.lock:
+            self.tapMac(mac)
+
     def tapMac(self, mac):
         """
-        Invoked from CLI.
         Note: mac should be not broadcast. (not FF:FF:FF:FF:FF:FF)
         When we tap a mac belonging to a site, we will tap all local single-
         cast entries to this mac (category 2); moreover, we will tap all local
@@ -637,33 +641,52 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         site. In this case, we will tap all the entries in the site with src
         mac. (category 1)
         """
+        if mac in self.props['tappedMacs']:
+            SDNPopsRenderer.logger.warning("The mac %r on VPN %s has been tapped" % (mac, self.vpn.name))
+            return
+
+        self.addTappedMac(mac)
+        site = self.getDstSite(mac)
+        if site in self.props['tappedSites']:
+            SDNPopsRenderer.logger.debug("The site has been tapped, tap a mac won't change anything")
+            return
+
+        if site.name in self.props['flowEntriesIndex']:
+            for flowEntry in self.props['flowEntriesIndex'][site.name]:
+                if flowEntry.isBroadcast(): # category 3
+                    self.tapBroadcastEntry(flowEntry)
+                else:
+                    (inMac, inVlan, inPort) = flowEntry.get()
+                    if inPort.props['type'].endswith('.WAN'): # category 2
+                        originalMac = self.reverse(inMac)
+                        if originalMac == mac:
+                            self.tapEntry(flowEntry)
+                    else: # category 1
+                        self.tapEntryWithSrcMac(flowEntry)
+
+    def untapMacTimer(self, dummy, mac):
+        """
+        Unknown Issue: without dummy (str), the timer seems fail to work.
+        """
+        try:
+            SDNPopsRenderer.logger.info("time's up to untap the mac %s in %s" % (mac, self))
+            with self.lock:
+                self.untapMac(mac)
+        except:
+            exc = sys.exc_info()
+            SDNPopsRenderer.logger.error("%r %r" % (exc[0], exc[1]))
+            tb = exc[2]
+            while tb:
+                SDNPopsRenderer.logger.error("%r %r" % (tb.tb_frame.f_code, tb.tb_lineno))
+                tb = tb.tb_next
+
+    def untapMacCLI(self, mac):
+        # Invoked from CLI.
         with self.lock:
-            if mac in self.props['tappedMacs']:
-                SDNPopsRenderer.logger.warning("The mac %r on VPN %s has been tapped" % (mac, self.vpn.name))
-                return
-
-            self.addTappedMac(mac)
-            site = self.getDstSite(mac)
-            if site in self.props['tappedSites']:
-                SDNPopsRenderer.logger.debug("The site has been tapped, tap a mac won't change anything")
-                return
-
-            if site.name in self.props['flowEntriesIndex']:
-                for flowEntry in self.props['flowEntriesIndex'][site.name]:
-                    if flowEntry.isBroadcast(): # category 3
-                        self.tapBroadcastEntry(flowEntry)
-                    else:
-                        (inMac, inVlan, inPort) = flowEntry.get()
-                        if inPort.props['type'].endswith('.WAN'): # category 2
-                            originalMac = self.reverse(inMac)
-                            if originalMac == mac:
-                                self.tapEntry(flowEntry)
-                        else: # category 1
-                            self.tapEntryWithSrcMac(flowEntry)
+            self.untapMac(mac)
 
     def untapMac(self, mac):
         """
-        Invoked from CLI.
         Note: mac should be not broadcast. (not FF:FF:FF:FF:FF:FF)
         When we untap a mac belonging to a site, and the site is not in
         tappedSites (otherwise, it's still tapped):
@@ -673,37 +696,36 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         entries from the site (category 1). Further, if there is no local site
         in tappedSites, we untap all local broadcast entries (category 3).
         """
-        with self.lock:
-            if not mac in self.props['tappedMacs']:
-                SDNPopsRenderer.logger.warning("The mac %r on VPN %s is not tapped yet" % (mac, self.vpn.name))
-                return
+        if not mac in self.props['tappedMacs']:
+            SDNPopsRenderer.logger.warning("The mac %r on VPN %s is not tapped yet" % (mac, self.vpn.name))
+            return
 
-            # update tappedMacs and tappedSitesWithSrcMac
-            self.props['tappedMacs'].remove(mac)
-            site = self.getDstSite(mac)
-            self.props['tappedMacsIndex'][site.name].remove(mac)
-            if not self.props['tappedMacsIndex'][site.name]:
-                self.props['tappedSitesWithSrcMac'].remove(site)
+        # update tappedMacs and tappedSitesWithSrcMac
+        self.props['tappedMacs'].remove(mac)
+        site = self.getDstSite(mac)
+        self.props['tappedMacsIndex'][site.name].remove(mac)
+        if not self.props['tappedMacsIndex'][site.name]:
+            self.props['tappedSitesWithSrcMac'].remove(site)
 
-            if site in self.props['tappedSites']:
-                SDNPopsRenderer.logger.debug("The site is still tapped, untap a mac won't change anything")
-                return
+        if site in self.props['tappedSites']:
+            SDNPopsRenderer.logger.debug("The site is still tapped, untap a mac won't change anything")
+            return
 
-            if site.name in self.props['flowEntriesIndex']:
-                for flowEntry in self.props['flowEntriesIndex'][site.name]:
-                    if flowEntry.isBroadcast(): # category 3
-                        # TODO check if ALL local sites are not in tappedSites and not in tappedSitesWithSrcMac
+        if site.name in self.props['flowEntriesIndex']:
+            for flowEntry in self.props['flowEntriesIndex'][site.name]:
+                if flowEntry.isBroadcast(): # category 3
+                    # TODO check if ALL local sites are not in tappedSites and not in tappedSitesWithSrcMac
+                    if not site in self.props['tappedSitesWithSrcMac']:
+                        self.untapBroadcastEntry(flowEntry)
+                else:
+                    (inMac, inVlan, inPort) = flowEntry.get()
+                    if inPort.props['type'].endswith('.WAN'): # category 2
+                        originalMac = self.reverse(inMac)
+                        if originalMac == mac:
+                            self.untapEntry(flowEntry)
+                    else: # category 1
                         if not site in self.props['tappedSitesWithSrcMac']:
-                            self.untapBroadcastEntry(flowEntry)
-                    else:
-                        (inMac, inVlan, inPort) = flowEntry.get()
-                        if inPort.props['type'].endswith('.WAN'): # category 2
-                            originalMac = self.reverse(inMac)
-                            if originalMac == mac:
-                                self.untapEntry(flowEntry)
-                        else: # category 1
-                            if not site in self.props['tappedSitesWithSrcMac']:
-                                self.untapEntry(flowEntry)
+                            self.untapEntry(flowEntry)
 
     def tapSite(self, site):
         """
@@ -956,6 +978,10 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         if not inPort.props['type'].endswith('.WAN'): # from site
             if not self.getDstSite(srcMac):
                 self.props['siteIndex'][str(srcMac)] = self.getSrcSite(inVlan, inPort)
+                # a new srcMac is detected, try to tap it for a while
+                SDNPopsRenderer.logger.info("New mac %s is detected" % srcMac)
+                self.tapMac(srcMac)
+                threading.Timer(10, self.untapMacTimer, ("src", srcMac)).start()
 
     def swSwitchEventListener(self, event):
         # no lock because it's locked in eventListener already
@@ -1034,12 +1060,14 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             self.updateSrcMac(srcMac, inVlan, inPort)
 
             outFlowEntry = self.parseFlowEntry(flowEntry)
+            if not outFlowEntry:
+                # unknown destination
+                return
             (outMac, outVlan, outPort) = outFlowEntry.get()
             scope.send(switch, outPort, srcMac, outMac, etherType, outVlan, payload)
 
     def parseFlowEntry(self, flowEntry):
         (inMac, inVlan, inPort) = flowEntry.get()
-        inSite = self.getSrcSite(inVlan, inPort)
         switch = inPort.props['node'].props['enosNode'] # must be hwSwitch
         myPop = switch.props['pop']
         if inPort.props['type'].endswith('.WAN'): # from WAN
@@ -1059,16 +1087,20 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 outFlowEntry = self.tapBroadcastEntry(flowEntry)
             else:
                 outFlowEntry = self.untapBroadcastEntry(flowEntry)
-        else: # singlecast
+        else: # singlecast to local site
             toSite = self.getDstSite(originalMac)
+            if not toSite:
+                SDNPopsRenderer.logger.warning("unknown destination %s" % originalMac)
+                return None
             if inPort.props['type'].endswith('.WAN'): # from WAN
-                if inMac in self.props['tappedMacs']:
+                if originalMac in self.props['tappedMacs']:
                     outFlowEntry = self.tapEntry(flowEntry)
                 elif toSite in self.props['tappedSites']:
                     outFlowEntry = self.tapEntry(flowEntry)
                 else:
                     outFlowEntry = self.untapEntry(flowEntry)
             else: # from site
+                inSite = self.getSrcSite(inVlan, inPort)
                 if toSite.props['pop'].name == myPop.name:
                     # from site to site: won't happen in our testbed, so the code here is not tested yet
                     SDNPopsRenderer.logger.warning("multiple sites in the same pop might not be supported yet")

@@ -362,14 +362,14 @@ def tapmac(args):
     (vpnindex, mac) = [args[0], args[2]]
     vpn = get(vpns, vpnIndex, vpnindex)
     try:
-        m = MACAddress(mac)
+        m = MACAddress(int(mac))
     except:
         try:
-            m = MACAddress(int(mac))
+            m = MACAddress(mac)
         except:
             print "invalid mac"
             return
-    vpn.props['renderer'].tapMac(m)
+    vpn.props['renderer'].tapMacCLI(m)
 
 def untapmac(args):
     if len(args) < 3:
@@ -380,10 +380,10 @@ def untapmac(args):
     (vpnindex, mac) = [args[0], args[2]]
     vpn = get(vpns, vpnIndex, vpnindex)
     try:
-        m = MACAddress(mac)
+        m = MACAddress(int(mac))
     except:
         try:
-            m = MACAddress(int(mac))
+            m = MACAddress(mac)
         except:
             print "invalid mac"
             return

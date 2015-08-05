@@ -1,2 +1,5 @@
-h4 arp -d 192.168.10.5
-h5 arp -d 192.168.10.4
+h4 ./clearArp.sh
+h5 ./clearArp.sh
+h6 ./clearArp.sh
+h8 ./clearArp.sh
+h10 ./clearArp.sh

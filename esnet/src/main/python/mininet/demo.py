@@ -4,25 +4,20 @@ Global variables such as net, renderers and rendererIndex are shared
 to CLI environment.
 """
 from mininet.sites import SiteIntent, SiteRenderer
-from common.openflow import SimpleController
 from mininet.enos import TestbedTopology
 from mininet.l2vpn import SDNPopsRenderer,SDNPopsIntent
 from mininet.wan import WanRenderer, WanIntent
-from net.es.netshell.api import GenericGraphViewer
-
-import copy
 
 import random
 from common.utils import InitLogger, Logger
-from mininet.mat import MAT
 
 # TODO collect into a global variable demo might be a good idea
 try:
-    if net == TestbedTopology():
+    if net == TestbedTopology(): # singleton
         print "Please reload first"
-    else:
+    else: # rare situation; net might be reloaded in python interactive intepreter manually
         net = None
-except:
+except: # the case that net is not existed (in the very begining) yet
     net = None
     renderers = []
     rendererIndex = {}
