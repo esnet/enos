@@ -79,93 +79,95 @@ def main():
     if not 'net' in globals():
         print "Please run demo first"
         return
-    if len(command_args) < 3:
+    if len(sys.argv) < 2:
         usage()
-    elif command_args[2] == 'entries':
-        i = 0
-        for vpn in vpns:
-            for status in vpn.props['renderer'].props['statusIndex'].values():
-                print "[%d] %r" % (i, status.props['flowEntry'])
-                i += 1
-    elif command_args[2] == 'expectations':
-        for i in sorted(Expectation.directory):
-            print i
-    elif command_args[2] == 'flowmods':
-        i = 0
-        for renderer in renderers:
-            for scope in renderer.props['scopeIndex'].values():
-                for flowmod in scope.props['flowmodIndex'].values():
-                    print "[%d] %r" % (i, flowmod)
+    else:
+        command = sys.argv[1].lower()
+        if command == 'entries':
+            i = 0
+            for vpn in vpns:
+                for status in vpn.props['renderer'].props['statusIndex'].values():
+                    print "[%d] %r" % (i, status.props['flowEntry'])
                     i += 1
-    elif command_args[2] == 'hosts':
-        showlist(net.builder.hosts)
-    elif command_args[2] == 'intents':
-        for i in sorted(Intent.directory):
-            print i
-    elif command_args[2] == 'links':
-        showlist(net.builder.links)
-    elif command_args[2] == 'pops':
-        showlist(net.builder.pops)
-    elif command_args[2] == 'ports':
-        showlist(net.builder.ports)
-    elif command_args[2] == 'renderers':
-        showlist(renderers)
-    elif command_args[2] == 'scopes':
-        showlist(net.controller.scopes.values())
-    elif command_args[2] == 'sites':
-        showlist(net.builder.sites)
-    elif command_args[2] == 'switches':
-        showlist(net.builder.switches)
-    elif command_args[2] == 'vpns':
-        showlist(vpns)
-    elif command_args[2] == 'wan':
-        showobj(net.builder.wan)
-    elif len(command_args) < 4:
-        usage()
-    elif command_args[2] == 'entry':
-        entries = []
-        i = 0
-        for vpn in vpns:
-            for status in vpn.props['renderer'].props['statusIndex'].values():
-                entries.append(status)
-        status = get(entries, {}, command_args[3])
-        showobj(status)
-    elif command_args[2] == 'expectation':
-        expectation = get(None, Expectation.directory, command_args[3])
-        showobj(expectation)
-    elif command_args[2] == 'host':
-        host = get(net.builder.hosts, net.builder.hostIndex, command_args[3])
-        showobj(host)
-    elif command_args[2] == 'intent':
-        intent = get(None, Intent.directory, command_args[3])
-        showobj(intent)
-    elif command_args[2] == 'link':
-        link = get(net.builder.links, net.builder.linkIndex, command_args[3])
-        showobj(link)
-    elif command_args[2] == 'pop':
-        pop = get(net.builder.pops, net.builder.popIndex, command_args[3])
-        showobj(pop)
-    elif command_args[2] == 'port':
-        port = get(net.builder.ports, net.builder.portIndex, command_args[3])
-        showobj(port)
-    elif command_args[2] == 'renderer':
-        renderer = get(renderers, rendererIndex, command_args[3])
-        showobj(renderer)
-    elif command_args[2] == 'scope':
-        scopeIndex = {}
-        for scope in net.controller.scopes.values():
-            scopeIndex[scope.name] = scope
-        scope = get(net.controller.scopes.values(), scopeIndex, command_args[3])
-        showobj(scope)
-    elif command_args[2] == 'site':
-        site = get(net.builder.sites, net.builder.siteIndex, command_args[3])
-        showobj(site)
-    elif command_args[2] == 'switch':
-        switch = get(net.builder.switches, net.builder.switchIndex, command_args[3])
-        showobj(switch)
-    elif command_args[2] == 'vpn':
-        vpn = get(vpns, vpnIndex, command_args[3])
-        showobj(vpn)
+        elif command == 'expectations':
+            for i in sorted(Expectation.directory):
+                print i
+        elif command == 'flowmods':
+            i = 0
+            for renderer in renderers:
+                for scope in renderer.props['scopeIndex'].values():
+                    for flowmod in scope.props['flowmodIndex'].values():
+                        print "[%d] %r" % (i, flowmod)
+                        i += 1
+        elif command == 'hosts':
+            showlist(net.builder.hosts)
+        elif command == 'intents':
+            for i in sorted(Intent.directory):
+                print i
+        elif command == 'links':
+            showlist(net.builder.links)
+        elif command == 'pops':
+            showlist(net.builder.pops)
+        elif command == 'ports':
+            showlist(net.builder.ports)
+        elif command == 'renderers':
+            showlist(renderers)
+        elif command == 'scopes':
+            showlist(net.controller.scopes.values())
+        elif command == 'sites':
+            showlist(net.builder.sites)
+        elif command == 'switches':
+            showlist(net.builder.switches)
+        elif command == 'vpns':
+            showlist(vpns)
+        elif command == 'wan':
+            showobj(net.builder.wan)
+        elif len(sys.argv) < 3:
+            usage()
+        elif command == 'entry':
+            entries = []
+            i = 0
+            for vpn in vpns:
+                for status in vpn.props['renderer'].props['statusIndex'].values():
+                    entries.append(status)
+            status = get(entries, {}, sys.argv[2])
+            showobj(status)
+        elif command == 'expectation':
+            expectation = get(None, Expectation.directory, sys.argv[2])
+            showobj(expectation)
+        elif command == 'host':
+            host = get(net.builder.hosts, net.builder.hostIndex, sys.argv[2])
+            showobj(host)
+        elif command == 'intent':
+            intent = get(None, Intent.directory, sys.argv[2])
+            showobj(intent)
+        elif command == 'link':
+            link = get(net.builder.links, net.builder.linkIndex, sys.argv[2])
+            showobj(link)
+        elif command == 'pop':
+            pop = get(net.builder.pops, net.builder.popIndex, sys.argv[2])
+            showobj(pop)
+        elif command == 'port':
+            port = get(net.builder.ports, net.builder.portIndex, sys.argv[2])
+            showobj(port)
+        elif command == 'renderer':
+            renderer = get(renderers, rendererIndex, sys.argv[2])
+            showobj(renderer)
+        elif command == 'scope':
+            scopeIndex = {}
+            for scope in net.controller.scopes.values():
+                scopeIndex[scope.name] = scope
+            scope = get(net.controller.scopes.values(), scopeIndex, sys.argv[2])
+            showobj(scope)
+        elif command == 'site':
+            site = get(net.builder.sites, net.builder.siteIndex, sys.argv[2])
+            showobj(site)
+        elif command == 'switch':
+            switch = get(net.builder.switches, net.builder.switchIndex, sys.argv[2])
+            showobj(switch)
+        elif command == 'vpn':
+            vpn = get(vpns, vpnIndex, sys.argv[2])
+            showobj(vpn)
 
 if __name__ == '__main__':
     main()

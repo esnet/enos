@@ -1046,7 +1046,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                     else:
                         outFlowEntry = self.untapEntry(flowEntry)
                 else:
-                    # from WAN to site
+                    # from site to WAN
                     if inSite in self.props['tappedSites']:
                         outFlowEntry = self.tapEntry(flowEntry)
                     elif inSite in self.props['tappedSitesWithSrcMac']:

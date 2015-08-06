@@ -49,18 +49,17 @@ def log(args):
 
 def main():
     """
-    command_args[0]: python
-    command_args[1]: .../log.py
-    command_args[2:]: customized arguments
+    sys.argv[0]: .../log.py
+    sys.argv[1:]: customized arguments
     """
     if not 'net' in globals():
         print "Please run demo first"
         return
     supportedNames = ['root', 'ODLClient', 'SimpleController', 'SiteRenderer', 'SDNPopsRenderer', 'L2SwitchScope']
-    if len(command_args) < 3:
+    if len(sys.argv) < 2:
         usage(supportedNames)
-    elif command_args[2] in supportedNames:
-        log(command_args[2:])
+    elif sys.argv[1] in supportedNames:
+        log(sys.argv[1:])
     else:
         print "unknown command..."
         usage(supportedNames)

@@ -11,11 +11,11 @@ from mininet.l2vpn import SDNPopsIntent, SDNPopsRenderer
 def usage():
     print "usage:"
     print "vpn sample $built-in_sample_index"
-    print "vpn $vpnindex execute"
     print "vpn create $vpnname $vid $lanVlan"
     print "vpn delete $vpnname"
     print "vpn kill $vpnname"
     print "vpn load $conf"
+    print "vpn $vpnindex execute"
     print "vpn $vpnindex save $conf"
     print "vpn $vpnindex addpop $popindex"
     print "vpn $vpnindex delpop $popindex"
@@ -30,13 +30,31 @@ def usage():
     print "vpn $vpnindex tapmac $mac"
     print "vpn $vpnindex untapmac $mac"
     print "vpn $vpnindex settimeout $timeout"
+    print "Note: vpnindex should not be any keyword such as sample, create, delete, kill, or load"
 def toint(s):
     try:
         return int(s)
     except:
-        return -1
+        print "%s is an invalid integer" % s
+        sys.exit(1)
 def tobool(s):
     return s.lower() in ('yes', 'true', '1', 't')
+def tofloat(s):
+    try:
+        return float(s)
+    except:
+        print "%s is an invalid value" % s
+        sys.exit(1)
+def tomac(s):
+    try:
+        mac = MACAddress(int(s))
+    except:
+        try:
+            mac = MACAddress(s)
+        except:
+            print "%s is an invalid MAC address" % s
+            sys.exit(1)
+    return mac
 def get(l, d, index):
     """
     :param l: a list of objects
@@ -50,38 +68,43 @@ def get(l, d, index):
     try:
         return d[index]
     except:
-        print "%r not found" % index
-        usage()
-        sys.exit()
+        print "%s not found" % index
+        sys.exit(1)
+def tovpn(s):
+    return get(vpns, vpnIndex, s)
+def topop(s):
+    return get(net.builder.pops, net.builder.popIndex, s)
+def tosite(s):
+    return get(net.builder.sites, net.builder.siteIndex, s)
+def tohost(s):
+    return get(net.builder.hosts, net.builder.hostIndex, s)
 
-def sample(args):
-    if len(args) < 1:
-        index = '1'
+def sample(sampleindex):
+    if sampleindex == '1':
+        create('vpn1', 1234, 10)
+        vpn = tovpn('vpn1')
+        addpop(vpn, topop('lbl'))
+        addpop(vpn, topop('star'))
+        addsite(vpn, tosite('lbl.gov'), 11)
+        addsite(vpn, tosite('anl.gov'), 12)
+        addhost(vpn, tohost('dtn-1@lbl.gov'))
+        addhost(vpn, tohost('dtn-2@lbl.gov'))
+        addhost(vpn, tohost('dtn-1@anl.gov'))
+        execute(vpn)
+    elif sampleindex == '2':
+        create('vpn2', 5678, 20)
+        vpn = tovpn('vpn2')
+        addpop(vpn, topop('lbl'))
+        addpop(vpn, topop('cern'))
+        addsite(vpn, tosite('lbl.gov'), 21)
+        addsite(vpn, tosite('cern.ch'), 23)
+        addsite(vpn, tosite('cern2.ch'), 24)
+        addhost(vpn, tohost('dtn-2@lbl.gov'))
+        addhost(vpn, tohost('dtn-2@cern.ch'))
+        addhost(vpn, tohost('dtn-2@cern2.ch'))
+        execute(vpn)
     else:
-        index = args[0]
-    if index == '1':
-        create(['vpn1', '1234', '10'])
-        addpop(['vpn1', 'addpop', 'lbl'])
-        addpop(['vpn1', 'addpop', 'star'])
-        addsite(['vpn1', 'addsite', 'lbl.gov', '11'])
-        addsite(['vpn1', 'addsite', 'anl.gov', '12'])
-        addhost(['vpn1', 'addhost', 'dtn-1@lbl.gov', 'False'])
-        addhost(['vpn1', 'addhost', 'dtn-2@lbl.gov', 'False'])
-        addhost(['vpn1', 'addhost', 'dtn-1@anl.gov', 'False'])
-        execute(['vpn1', 'execute'])
-    elif index == '2':
-        create(['vpn2', '5678', '20'])
-        addpop(['vpn2', 'addpop', 'lbl'])
-        addpop(['vpn2', 'addpop', 'cern'])
-        addsite(['vpn2', 'addsite', 'lbl.gov', '21'])
-        addsite(['vpn2', 'addsite', 'cern.ch', '23'])
-        addsite(['vpn2', 'addsite', 'cern2.ch', '24'])
-        addhost(['vpn2', 'addhost', 'dtn-2@lbl.gov'])
-        addhost(['vpn2', 'addhost', 'dtn-2@cern.ch'])
-        addhost(['vpn2', 'addhost', 'dtn-2@cern2.ch'])
-        execute(['vpn2', 'execute'])
-    else:
-        print "index %s is not implemented" % index
+        print "index %s is not implemented" % sampleindex
 
 def addVpn(vpn):
     renderer = vpn.props['renderer']
@@ -90,23 +113,11 @@ def addVpn(vpn):
     vpns.append(vpn)
     vpnIndex[vpn.name] = vpn
 
-def save(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # vpn vpnindex save confname
-    (vpnindex, confname) = [args[0], args[2]]
-    vpn = get(vpns, vpnIndex, vpnindex)
+def save(vpn, confname):
     obj = vpn.serialize()
     saveObject(obj, confname)
 
-def load(args):
-    if len(args) < 1:
-        print "invalid arguments."
-        usage()
-        return
-    confname = args[0]
+def load(confname):
     obj = loadObject(confname)
     vpn = VPN.deserialize(obj, net)
     lanVlan = vpn.props['lanVlan']
@@ -118,17 +129,12 @@ def load(args):
             siteRenderer.addHost(net.builder.hostIndex[hostname], lanVlan)
     addVpn(vpn)
 
-def create(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    (vpnname, vid, lanVlan) = [args[0], toint(args[1]), toint(args[2])]
+def create(vpnname, vid, lanVlan):
     if vid < 1 or vid >= 2**24:
         print "vid should be in the range 1 to 2^24"
         return
-    if lanVlan < 0:
-        print "lanVlan should be greater or equal than 0"
+    if lanVlan <= 0:
+        print "lanVlan should be greater 0"
         return
 
     if vpnname in vpnIndex:
@@ -148,12 +154,7 @@ def create(args):
     addVpn(vpn)
     print "VPN %s is created successfully." % vpn.name
 
-def delete(args):
-    if len(args) < 1:
-        print "invalid arguments."
-        usage()
-        return
-    vpnname = args[0]
+def delete(vpnname):
     if not vpnname in vpnIndex:
         print "vpn name %s not found" % vpnname
         return
@@ -167,12 +168,7 @@ def delete(args):
     rendererIndex.pop(renderer.name)
     renderers.remove(renderer)
 
-def kill(args):
-    if len(args) < 1:
-        print "invalid arguments."
-        usage()
-        return
-    vpnname = args[0]
+def kill(vpnname):
     if not vpnname in vpnIndex:
         print "vpn name %s not found" % vpnname
         return
@@ -186,26 +182,10 @@ def kill(args):
         delpop([vpn.name, 'delpop', pop.name])
     delete([vpn.name])
 
-def execute(args):
-    if len(args) < 2:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'execute']
-    vpnindex = args[0]
-    vpn = get(vpns, vpnIndex, vpnindex)
+def execute(vpn):
     vpn.props['renderer'].execute()
 
-def addpop(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'addpop', popindex]
-    (vpnindex, popindex) = [args[0], args[2]]
-
-    vpn = get(vpns, vpnIndex, vpnindex)
-    pop = get(net.builder.pops, net.builder.popIndex, popindex)
+def addpop(vpn, pop):
     popsRenderer = rendererIndex[vpn.name]
     if not popsRenderer.addPop(pop):
         print "something's wrong while adding the pop."
@@ -213,35 +193,17 @@ def addpop(args):
         return
     print "Pop %s is added into VPN %s successfully." % (pop.name, vpn.name)
 
-def delpop(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'delpop', popindex]
-    (vpnindex, popindex) = [args[0], args[2]]
-
-    vpn = get(vpns, vpnIndex, vpnindex)
-    pop = get(net.builder.pops, net.builder.popIndex, popindex)
+def delpop(vpn, pop):
     popsRenderer = rendererIndex[vpn.name]
     if not popsRenderer.delPop(pop):
         print "something's wrong while deleting the pop."
         # possible issues: pop not empty
         return
 
-def addsite(args):
-    if len(args) < 4:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'addsite', siteindex, siteVlan]
-    (vpnindex, siteindex, siteVlan) = [args[0], args[2], toint(args[3])]
-
+def addsite(vpn, site, siteVlan):
     if siteVlan < 0:
         print "siteVlan should be greater or equal than 0"
         return
-    vpn = get(vpns, vpnIndex, vpnindex)
-    site = get(net.builder.sites, net.builder.siteIndex, siteindex)
     popsRenderer = rendererIndex[vpn.name]
     if not popsRenderer.addSite(site, siteVlan):
         print "something's wrong while adding the site."
@@ -255,16 +217,7 @@ def addsite(args):
     siteRenderer.addVlan(vpn.props['lanVlan'], siteVlan)
     print "The site %s is added into VPN %s successfully" % (site.name, vpn.name)
 
-def delsite(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'delsite', siteindex]
-    (vpnindex, siteindex) = [args[0], args[2]]
-
-    vpn = get(vpns, vpnIndex, vpnindex)
-    site = get(net.builder.sites, net.builder.siteIndex, siteindex)
+def delsite(vpn, site):
     siteVlan = vpn.props['participantIndex'][site.name][2]
     if not vpn.checkSite(site):
         print "site not found in the vpn"
@@ -275,15 +228,7 @@ def delsite(args):
     popsRenderer.delSite(site)
     vpn.delSite(site)
 
-def addhost(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'addhost', hostindex]
-    (vpnindex, hostindex) = [args[0], args[2]]
-    vpn = get(vpns, vpnIndex, vpnindex)
-    host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
+def addhost(vpn, host):
     if not vpn.addHost(host):
         print "something wrong while adding the host; Please make sure that the site of the host joined the VPN."
         return
@@ -292,15 +237,7 @@ def addhost(args):
     siteRenderer.addHost(host, vpn.props['lanVlan'])
     print "The host %s is added into VPN %s successfully" % (host.name, vpn.name)
 
-def delhost(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'delhost', hostindex]
-    (vpnindex, hostindex) = [args[0], args[2]]
-    vpn = get(vpns, vpnIndex, vpnindex)
-    host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
+def delhost(vpn, host):
     if not vpn.delHost(host):
         print "something wrong while deleting the host; Please make sure that the host joined the VPN."
         return
@@ -308,99 +245,25 @@ def delhost(args):
     siteRenderer = rendererIndex[sitename]
     siteRenderer.delHost(host, vpn.props['lanVlan'])
 
-def tapsite(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'tapsite', siteindex]
-    (vpnindex, siteindex) = [args[0], args[2]]
-    vpn = get(vpns, vpnIndex, vpnindex)
-    site = get(net.builder.sites, net.builder.siteIndex, siteindex)
+def tapsite(vpn, site):
     vpn.props['renderer'].tapSiteCLI(site)
 
-def untapsite(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'untapsite', siteindex]
-    (vpnindex, siteindex) = [args[0], args[2]]
-    vpn = get(vpns, vpnIndex, vpnindex)
-    site = get(net.builder.sites, net.builder.siteIndex, siteindex)
+def untapsite(vpn, site):
     vpn.props['renderer'].untapSiteCLI(site)
 
-def taphost(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'taphost', hostindex]
-    (vpnindex, hostindex) = [args[0], args[2]]
-    vpn = get(vpns, vpnIndex, vpnindex)
-    host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
+def taphost(vpn, host):
     vpn.props['renderer'].tapHostCLI(host)
 
-def untaphost(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'untaphost', hostindex]
-    (vpnindex, hostindex) = [args[0], args[2]]
-    vpn = get(vpns, vpnIndex, vpnindex)
-    host = get(net.builder.hosts, net.builder.hostIndex, hostindex)
+def untaphost(vpn, host):
     vpn.props['renderer'].untapHostCLI(host)
 
-def tapmac(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'tapmac', mac]
-    (vpnindex, mac) = [args[0], args[2]]
-    vpn = get(vpns, vpnIndex, vpnindex)
-    try:
-        m = MACAddress(int(mac))
-    except:
-        try:
-            m = MACAddress(mac)
-        except:
-            print "invalid mac"
-            return
-    vpn.props['renderer'].tapMacCLI(m)
+def tapmac(vpn, mac):
+    vpn.props['renderer'].tapMacCLI(mac)
 
-def untapmac(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'untapmac', mac]
-    (vpnindex, mac) = [args[0], args[2]]
-    vpn = get(vpns, vpnIndex, vpnindex)
-    try:
-        m = MACAddress(int(mac))
-    except:
-        try:
-            m = MACAddress(mac)
-        except:
-            print "invalid mac"
-            return
+def untapmac(vpn, mac):
     vpn.props['renderer'].untapMac(m)
 
-def settimeout(args):
-    if len(args) < 3:
-        print "invalid arguments."
-        usage()
-        return
-    # args = [vpnindex, 'settimeout', timeout]
-    (vpnindex, timeout) = [args[0], args[2]]
-    vpn = get(vpns, vpnIndex, vpnindex)
-    try:
-        timeout = float(timeout)
-    except:
-        print "invalid timeout"
-        return
+def settimeout(vpn, timeout):
     if timeout < 0:
         print "invalid timeout"
         return
@@ -410,55 +273,78 @@ def main():
     if not 'net' in globals():
         print 'Please run demo first'
         return
-
-    if len(command_args) < 3:
-        usage()
-        return
-
-    if command_args[2] == 'sample':
-        sample(command_args[3:])
-    elif command_args[2] == 'create':
-        create(command_args[3:])
-    elif command_args[2] == 'delete':
-        delete(command_args[3:])
-    elif command_args[2] == 'kill':
-        kill(command_args[3:])
-    elif command_args[2] == 'execute':
-        execute(command_args[3:])
-    elif command_args[2] == 'load':
-        load(command_args[3:])
-    elif len(command_args) < 4:
-        usage()
-    elif command_args[3] == 'addpop':
-        addpop(command_args[2:])
-    elif command_args[3] == 'delpop':
-        delpop(command_args[2:])
-    elif command_args[3] == 'addsite':
-        addsite(command_args[2:])
-    elif command_args[3] == 'delsite':
-        delsite(command_args[2:])
-    elif command_args[3] == 'addhost':
-        addhost(command_args[2:])
-    elif command_args[3] == 'delhost':
-        delhost(command_args[2:])
-    elif command_args[3] == 'tapsite':
-        tapsite(command_args[2:])
-    elif command_args[3] == 'untapsite':
-        untapsite(command_args[2:])
-    elif command_args[3] == 'taphost':
-        taphost(command_args[2:])
-    elif command_args[3] == 'untaphost':
-        untaphost(command_args[2:])
-    elif command_args[3] == 'tapmac':
-        tapmac(command_args[2:])
-    elif command_args[3] == 'untapmac':
-        untapmac(command_args[2:])
-    elif command_args[3] == 'settimeout':
-        settimeout(command_args[2:])
-    elif command_args[3] == 'save':
-        save(command_args[2:])
-    else:
-        print "unknown command"
+    try:
+        command = sys.argv[1].lower()
+        if command == 'sample':
+            sampleindex = sys.argv[2]
+            sample(sampleindex)
+        elif command == 'create':
+            vpnname = sys.argv[2]
+            vid = toint(sys.argv[3])
+            lanVlan = toint(sys.argv[4])
+            create(vpnname, vid, lanVlan)
+        elif command == 'delete':
+            vpnname = sys.argv[2]
+            delete(vpnname)
+        elif command == 'kill':
+            vpnname = sys.argv[2]
+            kill(vpnname)
+        elif command == 'load':
+            confname = sys.argv[2]
+            load(confname)
+        else:
+            vpn = get(vpns, vpnIndex, sys.argv[1])
+            command = sys.argv[2].lower()
+            if command == 'execute':
+                execute(vpn)
+            elif command == 'addpop':
+                pop = topop(sys.argv[3])
+                addpop(vpn, pop)
+            elif command == 'delpop':
+                pop = topop(sys.argv[3])
+                delpop(vpn, pop)
+            elif command == 'addsite':
+                site = tosite(sys.argv[3])
+                siteVlan = toint(sys.argv[4])
+                addsite(vpn, site, siteVlan)
+            elif command == 'delsite':
+                site = tosite(sys.argv[3])
+                delsite(vpn, site)
+            elif command == 'addhost':
+                host = tohost(sys.argv[3])
+                addhost(vpn, host)
+            elif command == 'delhost':
+                host = tohost(sys.argv[3])
+                delhost(vpn, host)
+            elif command == 'tapsite':
+                site = tosite(sys.argv[3])
+                tapsite(vpn, site)
+            elif command == 'untapsite':
+                site = tosite(sys.argv[3])
+                untapsite(vpn, site)
+            elif command == 'taphost':
+                host = tohost(sys.argv[3])
+                taphost(vpn, host)
+            elif command == 'untaphost':
+                host = tohost(sys.argv[3])
+                untaphost(vpn, host)
+            elif command == 'tapmac':
+                mac = tomac(sys.argv[3])
+                tapmac(vpn, mac)
+            elif command == 'untapmac':
+                mac = tomac(sys.argv[3])
+                untapmac(vpn, mac)
+            elif command == 'settimeout':
+                timeout = tofloat(sys.argv[3])
+                settimeout(vpn, timeout)
+            elif command == 'save':
+                confname = sys.argv[3]
+                save(vpn, confname)
+            else:
+                print "unknown command"
+                usage()
+    except:
+        print "Invalid arguments"
         usage()
 if __name__ == '__main__':
     main()

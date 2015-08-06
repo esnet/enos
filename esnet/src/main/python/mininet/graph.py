@@ -54,18 +54,18 @@ def showobj(obj):
             print "%s: %r" % (prop[0], prop[1])
 
 def main():
-    if not net:
+    if not 'net' in globals():
         print "Please run demo first"
         return
-    elif len(command_args) < 4:
+    elif len(sys.argv) < 3:
         usage()
-    elif command_args[2] == 'expectation':
-        expectation = get(None, Expectation.directory, command_args[3])
+    elif sys.argv[1] == 'expectation':
+        expectation = get(None, Expectation.directory, sys.argv[2])
         g = expectation.props['topology']
         gv = GenericGraphViewer(g)
         gv.display()
-    elif command_args[2] == 'intent':
-        intent = get(None, Intent.directory, command_args[3])
+    elif sys.argv[1] == 'intent':
+        intent = get(None, Intent.directory, sys.argv[2])
         g = intent.graph
         gv = GenericGraphViewer(g)
         gv.display()

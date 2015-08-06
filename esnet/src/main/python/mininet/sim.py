@@ -51,39 +51,39 @@ def main():
     if not 'net' in globals():
         print "Please run demo first"
         return
-    if len(command_args) < 8:
+    if len(sys.argv) < 7:
         usage()
         return
-    srcMac = parseMac(command_args[2])
+    srcMac = parseMac(sys.argv[1])
     if not srcMac:
-        print "srcMac %s can not be parsed" % command_args[2]
+        print "srcMac %s can not be parsed" % sys.argv[1]
         return
-    dstMac = parseMac(command_args[3])
+    dstMac = parseMac(sys.argv[2])
     if not dstMac:
-        print "dstMac %s can not be parsed" % command_args[3]
+        print "dstMac %s can not be parsed" % sys.argv[2]
         return
     try:
-        vlan = int(command_args[4])
+        vlan = int(sys.argv[3])
     except:
-        print "vlan %s should be integer" % command_args[4]
+        print "vlan %s should be integer" % sys.argv[3]
         return
     try:
-        switchName = command_args[5]
+        switchName = sys.argv[4]
         switch = net.builder.switchIndex[switchName]
     except:
         try:
-            switchIndex = int(command_args[5])
+            switchIndex = int(sys.argv[4])
             switch = net.builder.switches[switchIndex]
         except:
-            print "switch %s can not be found" % command_args[5]
+            print "switch %s can not be found" % sys.argv[4]
             return
     try:
-        interfaceIndex = int(command_args[6])
+        interfaceIndex = int(sys.argv[5])
         port = switch.props['ports'][interfaceIndex]
     except:
-        print "interfaceIndex %s can not be found" % command_args[6]
+        print "interfaceIndex %s can not be found" % sys.argv[5]
         return
-    if command_args[7] != 'in' and command_args[7] != 'out':
+    if sys.argv[6] != 'in' and sys.argv[6] != 'out':
         print "invalid DIR, should be in or out"
         return
     # create a packet
@@ -108,7 +108,7 @@ def main():
         cp.setPayload(cvp)
         cp.setEtherType(EtherTypes.VLANTAGGED.shortValue())
     rp = net.controller.odlPacketHandler.encodeDataPacket(cp)
-    if command_args[7] == 'in':
+    if sys.argv[6] == 'in':
         rp.setIncomingNodeConnector(nodeconn)
         net.controller.callback(rp)
     else:
