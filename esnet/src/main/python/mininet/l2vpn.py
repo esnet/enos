@@ -60,15 +60,12 @@ class FlowStatus(Properties):
 
 class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
     VERSION = 1
-    debug = False
-    lastEvent = None
-    instance = None
     logger = Logger('SDNPopsRenderer')
-
+    index = {}
     def __init__(self, intent):
         """
         Generic constructor. Translate the intent
-        :param intent: SiteIntent
+        :param intent: SDNpopsIntent
         :return:
         """
         ScopeOwner.__init__(self,name=intent.name)
@@ -98,8 +95,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.props['popIndex'] = {} # [SDNPop.name] = SDNPop
         self.props['timeout'] = 30 # timeout (seconds) for tapping a new src MAC
         self.links = self.intent.links
-        SDNPopsRenderer.instance = self
-
+        SDNPopsRenderer.index[self.vpn.name] = self
     def serialize(self):
         obj = {}
         obj['version'] = SDNPopsRenderer.VERSION
@@ -666,11 +662,21 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         with self.lock:
             self.untapMac(mac)
 
-    def untapMacTimer(self, mac):
+    @staticmethod
+    def untapMacTimer(vpnname, mac):
         try:
-            SDNPopsRenderer.logger.info("time's up to untap the mac %s in %s" % (mac, self))
-            with self.lock:
-                self.untapMac(mac)
+            """
+            Note: During the period before timeout, anything could happen including the SDNPopsRender might be outdated.
+            If you want to get rid of error messages, you might have to:
+              1. make sure self (SDNPopsRenderer) is still alive
+              2. make sure mac is still in siteIndex
+              ...etc
+            """
+            SDNPopsRenderer.logger.info("time's up to untap the mac %s in %s" % (mac, vpnname))
+            if not vpnname in SDNPopsRenderer.index:
+                SDNPopsRenderer.logger.warning("vpn %s no longer exists" % vpnname)
+                return
+            SDNPopsRenderer.index[vpnname].untapMacCLI(mac)
         except:
             exc = sys.exc_info()
             SDNPopsRenderer.logger.error("%r %r" % (exc[0], exc[1]))
@@ -680,6 +686,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 tb = tb.tb_next
 
     def tapMac(self, mac):
+        if not str(mac) in self.props['siteIndex']:
+            SDNPopsRenderer.logger.warning("The mac %r on VPN %s not exists" % (mac, self.vpn.name))
+            return
         if mac in self.props['tappedMacs']:
             SDNPopsRenderer.logger.warning("The mac %r on VPN %s has been tapped" % (mac, self.vpn.name))
             return
@@ -917,7 +926,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 SDNPopsRenderer.logger.info("New mac %s is detected" % srcMac)
                 if self.props['timeout'] > 0:
                     self.tapMac(srcMac)
-                    threading.Timer(self.props['timeout'], self.untapMacTimer, [srcMac]).start()
+                    threading.Timer(self.props['timeout'], SDNPopsRenderer.untapMacTimer, [self.vpn.name, srcMac]).start()
 
     def swSwitchEventListener(self, event):
         # no lock because it's locked in eventListener already

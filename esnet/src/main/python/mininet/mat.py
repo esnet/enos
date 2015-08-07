@@ -35,7 +35,9 @@ class MAT(Properties):
         mat = MAT(obj['vid'])
         mat.props['hid'] = obj['hid']
         for (hid, mac) in obj['mac'].items():
-            mat.props['mac'][hid] = MACAddress(mac)
+            # Note: json file can only use str as key
+            # so we need to transfer hid back to int first
+            mat.props['mac'][int(hid)] = MACAddress(mac)
         return mat
 
     def translate(self, mac):

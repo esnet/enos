@@ -175,12 +175,12 @@ def kill(vpnname):
     vpn = vpnIndex[vpnname]
     for (site, hosts, siteVlan) in vpn.props['participantIndex'].values():
         for host in hosts:
-            delhost([vpn.name, 'delhost', host.name])
-        delsite([vpn.name, 'delsite', site.name])
+            delhost(vpn, host)
+        delsite(vpn, site)
     renderer = vpn.props['renderer']
     for pop in renderer.props['popIndex'].values():
-        delpop([vpn.name, 'delpop', pop.name])
-    delete([vpn.name])
+        delpop(vpn, pop)
+    delete(vpnname)
 
 def execute(vpn):
     vpn.props['renderer'].execute()

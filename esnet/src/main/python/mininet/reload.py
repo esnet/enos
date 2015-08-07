@@ -81,3 +81,6 @@ reload(mininet.demo)
 
 import mininet.vpn
 reload(mininet.vpn)
+
+import mininet.utils
+reload(mininet.utils)

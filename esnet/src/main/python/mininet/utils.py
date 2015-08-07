@@ -19,13 +19,18 @@
 # to permit others to do so.
 #
 
-from java import io
+"""
+	Note:
+	json key should be str only; it's your responsibility to make sure this.
+	For example, if obj = {1:'a'}, the output file of saveObject would be 
+	{'1':'a'}, and loaded obj of loadObject would be {'1':'a'} which is not
+	exactly the same as the original obj.
+"""
+
+import simplejson as json
 def saveObject(obj, filename):
-    outs = io.ObjectOutputStream(io.FileOutputStream(filename))
-    outs.writeObject(obj)
-    outs.close()
+	with open(filename, "w") as f:
+		json.dump(obj, f, indent=4)
 def loadObject(filename):
-    ins = io.ObjectInputStream(io.FileInputStream(filename))
-    obj = ins.readObject()
-    ins.close()
-    return obj
+	with open(filename, "r") as f:
+		return json.load(f)
