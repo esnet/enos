@@ -52,6 +52,7 @@ public class ESnetPort extends Port {
 
     public void setId(String id) {
         this.id = id;
+        this.setResourceName(id);
     }
 
     public String getCapacity() {
@@ -120,5 +121,10 @@ public class ESnetPort extends Port {
 
     public List<ESnetLink> getLinks() {
         return links;
+    }
+
+    @Override
+    public String toString() {
+        return this.getId();
     }
 }
