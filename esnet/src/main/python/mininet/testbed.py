@@ -102,9 +102,9 @@ class TopoBuilder ():
         print "\n\n"
 
     def displayHosts(self,vpn):
-        print "\nName\t\tIPv4 Address\tVLAN\tMininet Name\t"
+        print "\nName\t\tIPv4 Address\tMininet Name\t"
         for host in self.hosts:
-            print h.name,"\t",h.props['ip'],"\t",vpn.props['lanVlan'],"\t",h.props['mininetName']
+            print h.name,"\t",h.props['ip'],"\t",h.props['mininetName']
         print "\n\n"
 
     def addSwitch(self, switch):

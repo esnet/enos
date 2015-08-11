@@ -1,3 +1,6 @@
+import threading
+import random
+
 class Properties(object):
     def __init__(self, name,props={}):
         self.name = name
@@ -205,12 +208,19 @@ class SDNPop(Properties):
         return (hwlink, swlink)
 class VPN(Properties):
     VERSION = 1
-    def __init__(self, name, vid, lanVlan, props={}):
+    vids = [] # existed vid
+    lock = threading.Lock()
+    def __init__(self, name, vid=None, props={}):
         super(VPN, self).__init__(name, props=props)
-        self.props['vid'] = vid # int
-        self.props['lanVlan'] = lanVlan # int
-        self.props['participants'] = [] # list of (site, hosts, wanVlan)
-        self.props['participantIndex'] = {} # [sitename] = (site, hosts, wanVlan)
+        with VPN.lock:
+            if not vid:
+                vid = random.randint(1, 2**24)
+                while vid in VPN.vids:
+                    vid = random.randint(1, 2**24)
+            self.props['vid'] = vid # int
+            VPN.vids.append(vid)
+        self.props['participants'] = [] # list of (site, hosts, lanVlan, siteVlan)
+        self.props['participantIndex'] = {} # [sitename] = (site, hosts, lanVlan, siteVlan)
         self.props['siteIndex'] = {} # [hwToCorePort.siteVlan] = site
         self.props['mat'] = None # MAC Address Translation
         self.props['renderer'] = None # SDNPopsRenderer
@@ -220,13 +230,12 @@ class VPN(Properties):
         obj['version'] = VPN.VERSION
         obj['name'] = self.name
         obj['vid'] = self.props['vid']
-        obj['lanVlan'] = self.props['lanVlan']
 
         # store participants' name
         obj['participants'] = []
-        for (site, hosts, siteVlan) in self.props['participants']:
+        for (site, hosts, lanVlan, siteVlan) in self.props['participants']:
             hostnames = map(lambda host:host.name, hosts)
-            obj['participants'].append((site.name, hostnames, siteVlan))
+            obj['participants'].append((site.name, hostnames, lanVlan, siteVlan))
 
         obj['siteIndex'] = {}
         for (key, value) in self.props['siteIndex'].items():
@@ -240,11 +249,11 @@ class VPN(Properties):
     def deserialize(obj, net):
         if obj['version'] != VPN.VERSION:
             return None
-        vpn = VPN(obj['name'], obj['vid'], obj['lanVlan'])
-        for (sitename, hostnames, siteVlan) in obj['participants']:
+        vpn = VPN(obj['name'], obj['vid'])
+        for (sitename, hostnames, lanVlan, siteVlan) in obj['participants']:
             site = net.builder.siteIndex[sitename]
             hosts = map(lambda hostname:net.builder.hostIndex[hostname], hostnames)
-            participant = (site, hosts, siteVlan)
+            participant = (site, hosts, lanVlan, siteVlan)
             vpn.props['participants'].append(participant)
             vpn.props['participantIndex'][sitename] = participant
         for (key, value) in obj['siteIndex'].items():
@@ -260,12 +269,12 @@ class VPN(Properties):
     def checkSite(self, site):
         return site.name in self.props['participantIndex']
 
-    def addSite(self, site, siteVlan):
+    def addSite(self, site, lanVlan, siteVlan):
         # could be invoked in CLI
         if site.name in self.props['participantIndex']:
             return False
         pop = site.props['pop']
-        participant = (site, [], siteVlan)
+        participant = (site, [], lanVlan, siteVlan)
         self.props['participants'].append(participant)
         self.props['participantIndex'][site.name] = participant
         hwSwitch = pop.props['hwSwitch']
@@ -277,7 +286,7 @@ class VPN(Properties):
         # could be invoked in CLI
         if not site.name in self.props['participantIndex']:
             return False
-        siteVlan = self.props['participantIndex'][site.name][2]
+        siteVlan = self.props['participantIndex'][site.name][3]
         s = self.props['participantIndex'].pop(site.name)
         self.props['participants'].remove(s)
 

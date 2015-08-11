@@ -11,7 +11,7 @@ from mininet.l2vpn import SDNPopsIntent, SDNPopsRenderer
 def usage():
     print "usage:"
     print "vpn sample $built-in_sample_index"
-    print "vpn create $vpnname $vid $lanVlan"
+    print "vpn create $vpnname"
     print "vpn delete $vpnname"
     print "vpn kill $vpnname"
     print "vpn load $conf"
@@ -19,7 +19,7 @@ def usage():
     print "vpn $vpnindex save $conf"
     print "vpn $vpnindex addpop $popindex"
     print "vpn $vpnindex delpop $popindex"
-    print "vpn $vpnindex addsite $siteindex $wanVlan"
+    print "vpn $vpnindex addsite $siteindex $lanVlan $siteVlan"
     print "vpn $vpnindex delsite $siteindex"
     print "vpn $vpnindex addhost $hostindex"
     print "vpn $vpnindex delhost $hostindex"
@@ -81,24 +81,24 @@ def tohost(s):
 
 def sample(sampleindex):
     if sampleindex == '1':
-        create('vpn1', 1234, 10)
+        create('vpn1')
         vpn = tovpn('vpn1')
         addpop(vpn, topop('lbl'))
         addpop(vpn, topop('star'))
-        addsite(vpn, tosite('lbl.gov'), 11)
-        addsite(vpn, tosite('anl.gov'), 12)
+        addsite(vpn, tosite('lbl.gov'), 10, 11)
+        addsite(vpn, tosite('anl.gov'), 10, 12)
         addhost(vpn, tohost('dtn-1@lbl.gov'))
         addhost(vpn, tohost('dtn-2@lbl.gov'))
         addhost(vpn, tohost('dtn-1@anl.gov'))
         execute(vpn)
     elif sampleindex == '2':
-        create('vpn2', 5678, 20)
+        create('vpn2')
         vpn = tovpn('vpn2')
         addpop(vpn, topop('lbl'))
         addpop(vpn, topop('cern'))
-        addsite(vpn, tosite('lbl.gov'), 21)
-        addsite(vpn, tosite('cern.ch'), 23)
-        addsite(vpn, tosite('cern2.ch'), 24)
+        addsite(vpn, tosite('lbl.gov'), 20, 21)
+        addsite(vpn, tosite('cern.ch'), 20, 23)
+        addsite(vpn, tosite('cern2.ch'), 20, 24)
         addhost(vpn, tohost('dtn-2@lbl.gov'))
         addhost(vpn, tohost('dtn-2@cern.ch'))
         addhost(vpn, tohost('dtn-2@cern2.ch'))
@@ -120,8 +120,7 @@ def save(vpn, confname):
 def load(confname):
     obj = loadObject(confname)
     vpn = VPN.deserialize(obj, net)
-    lanVlan = vpn.props['lanVlan']
-    for (sitename, hostnames, siteVlan) in obj['participants']:
+    for (sitename, hostnames, lanVlan, siteVlan) in obj['participants']:
         site = net.builder.siteIndex[sitename]
         siteRenderer = rendererIndex[sitename]
         siteRenderer.addVlan(lanVlan, siteVlan)
@@ -129,23 +128,12 @@ def load(confname):
             siteRenderer.addHost(net.builder.hostIndex[hostname], lanVlan)
     addVpn(vpn)
 
-def create(vpnname, vid, lanVlan):
-    if vid < 1 or vid >= 2**24:
-        print "vid should be in the range 1 to 2^24"
-        return
-    if lanVlan <= 0:
-        print "lanVlan should be greater 0"
-        return
-
+def create(vpnname):
     if vpnname in vpnIndex:
         print "vpn %r exists already" % vpnname
         return
 
-    if filter(lambda vpn : vpn.props['vid'] == vid, vpns):
-        print "vid %r exists already" % vid
-        return
-
-    vpn = VPN(vpnname, vid, lanVlan)
+    vpn = VPN(vpnname)
     intent = SDNPopsIntent(name=vpn.name, vpn=vpn, wan=net.builder.wan)
     renderer = SDNPopsRenderer(intent)
     renderer.execute() # no function since no scope yet
@@ -173,7 +161,7 @@ def kill(vpnname):
         print "vpn name %s not found" % vpnname
         return
     vpn = vpnIndex[vpnname]
-    for (site, hosts, siteVlan) in vpn.props['participantIndex'].values():
+    for (site, hosts, lanVlan, siteVlan) in vpn.props['participantIndex'].values():
         for host in hosts:
             delhost(vpn, host)
         delsite(vpn, site)
@@ -200,30 +188,34 @@ def delpop(vpn, pop):
         # possible issues: pop not empty
         return
 
-def addsite(vpn, site, siteVlan):
-    if siteVlan < 0:
-        print "siteVlan should be greater or equal than 0"
+def addsite(vpn, site, lanVlan, siteVlan):
+    if lanVlan <= 0:
+        print "siteVlan should be greater than 0"
+        return
+    if siteVlan <= 0:
+        print "siteVlan should be greater than 0"
         return
     popsRenderer = rendererIndex[vpn.name]
     if not popsRenderer.addSite(site, siteVlan):
         print "something's wrong while adding the site."
         # possible issues: site.props['pop'] is not added into the VPN yet
         return
-    if not vpn.addSite(site, siteVlan):
+    if not vpn.addSite(site, lanVlan, siteVlan):
         print "something's wrong while adding the site."
         # possible issues: duplicated site
         return
     siteRenderer = rendererIndex[site.name]
-    siteRenderer.addVlan(vpn.props['lanVlan'], siteVlan)
+    siteRenderer.addVlan(lanVlan, siteVlan)
     print "The site %s is added into VPN %s successfully" % (site.name, vpn.name)
 
 def delsite(vpn, site):
-    siteVlan = vpn.props['participantIndex'][site.name][2]
+    lanVlan = vpn.props['participantIndex'][site.name][2]
+    siteVlan = vpn.props['participantIndex'][site.name][3]
     if not vpn.checkSite(site):
         print "site not found in the vpn"
         return
     siteRenderer = rendererIndex[site.name]
-    siteRenderer.delVlan(vpn.props['lanVlan'], siteVlan)
+    siteRenderer.delVlan(lanVlan, siteVlan)
     popsRenderer = rendererIndex[vpn.name]
     popsRenderer.delSite(site)
     vpn.delSite(site)
@@ -234,7 +226,7 @@ def addhost(vpn, host):
         return
     sitename = host.props['site'].name
     siteRenderer = rendererIndex[sitename]
-    siteRenderer.addHost(host, vpn.props['lanVlan'])
+    siteRenderer.addHost(host, vpn.props['participantIndex'][sitename][2])
     print "The host %s is added into VPN %s successfully" % (host.name, vpn.name)
 
 def delhost(vpn, host):
@@ -243,7 +235,7 @@ def delhost(vpn, host):
         return
     sitename = host.props['site'].name
     siteRenderer = rendererIndex[sitename]
-    siteRenderer.delHost(host, vpn.props['lanVlan'])
+    siteRenderer.delHost(host, vpn.props['participantIndex'][sitename][2])
 
 def tapsite(vpn, site):
     vpn.props['renderer'].tapSiteCLI(site)
@@ -280,9 +272,7 @@ def main():
             sample(sampleindex)
         elif command == 'create':
             vpnname = sys.argv[2]
-            vid = toint(sys.argv[3])
-            lanVlan = toint(sys.argv[4])
-            create(vpnname, vid, lanVlan)
+            create(vpnname)
         elif command == 'delete':
             vpnname = sys.argv[2]
             delete(vpnname)
@@ -305,8 +295,9 @@ def main():
                 delpop(vpn, pop)
             elif command == 'addsite':
                 site = tosite(sys.argv[3])
-                siteVlan = toint(sys.argv[4])
-                addsite(vpn, site, siteVlan)
+                lanVlan = toint(sys.argv[4])
+                siteVlan = toint(sys.argv[5])
+                addsite(vpn, site, lanVlan, siteVlan)
             elif command == 'delsite':
                 site = tosite(sys.argv[3])
                 delsite(vpn, site)
@@ -344,7 +335,7 @@ def main():
                 print "unknown command"
                 usage()
     except:
-        print "Invalid arguments"
-        usage()
+       print "Invalid arguments"
+       usage()
 if __name__ == '__main__':
     main()

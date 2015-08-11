@@ -116,11 +116,11 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         renderer = SDNPopsRenderer(intent)
         for (mac, sitename) in obj['siteIndex'].items():
             renderer.props['siteIndex'][mac] = net.builder.siteIndex[sitename]
-        for (site, hosts, siteVlan) in renderer.vpn.props['participants']:
+        for (site, hosts, lanVlan, siteVlan) in renderer.vpn.props['participants']:
             pop = site.props['pop']
             if not pop.name in renderer.props['popIndex']:
                 renderer.addPop(pop)
-            renderer.addSite(site, siteVlan)
+            renderer.addSite(site, lanVlan, siteVlan)
             # Here we don't use hosts.props['mac'] to update siteIndex because
             # mac might come from unknown hosts in the future
             # for host in hosts:
@@ -162,7 +162,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
     def check(self, site, vlan, port):
         sitePort = site.props['pop'].props['hwSwitch'].props['sitePortIndex'][site.name]
-        siteVlan = self.vpn.props['participantIndex'][site.name][2]
+        siteVlan = self.vpn.props['participantIndex'][site.name][3]
         return siteVlan == vlan and sitePort.name == port.name
 
     def getOutput(self, flowEntry):
@@ -184,7 +184,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         pop = site.props['pop']
         if pop.name == myPop.name:
             outPort = switch.props['sitePortIndex'][site.name]
-            outVlan = self.vpn.props['participantIndex'][site.name][2]
+            outVlan = self.vpn.props['participantIndex'][site.name][3]
             outMac = originalMac
         else:
             outPort = switch.props['wanPortIndex'][pop.name]
@@ -488,7 +488,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         if inPort.props['type'].endswith('.WAN'): # from WAN
             transMac = inMac
             originalMac = self.reverse(transMac)
-            for (site, hosts, siteVlan) in self.vpn.props['participants']:
+            for (site, hosts, lanVlan, siteVlan) in self.vpn.props['participants']:
                 pop = site.props['pop']
                 if pop.name == myPop.name: # to site
                     outPort = hwSwitch.props['sitePortIndex'][site.name]
@@ -500,7 +500,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         else: # from site
             originalMac = inMac
             transMac = self.translate(originalMac)
-            for (site, hosts, siteVlan) in self.vpn.props['participants']:
+            for (site, hosts, lanVlan, siteVlan) in self.vpn.props['participants']:
                 pop = site.props['pop']
                 if pop.name == myPop.name: # to site
                     outPort = hwSwitch.props['sitePortIndex'][site.name]
@@ -788,7 +788,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                     continue
                 self.delFlowEntry(flowEntry)
 
-            (_, hosts, siteVlan) = self.vpn.props['participantIndex'][site.name]
+            (_, hosts, lanVlan, siteVlan) = self.vpn.props['participantIndex'][site.name]
             pop = site.props['pop']
             hwSwitch = pop.props['hwSwitch'].props['enosNode']
             hwSwitchScope = self.props['scopeIndex'][hwSwitch.name]
@@ -1124,7 +1124,7 @@ class SDNPopsIntent(ProvisioningIntent):
         nodes = []
         links = []
         for participant in self.vpn.props['participants']:
-            (site, hosts_in_site, wanVlan) = participant
+            (site, hosts_in_site, lanVlan, siteVlan) = participant
             pop = site.props['pop']
             hwSwitch = pop.props['hwSwitch']
             coreRouter = pop.props['coreRouter']
