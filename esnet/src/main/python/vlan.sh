@@ -2,9 +2,10 @@
 hostid=$1
 
 ifid=eth1
-vlanid=$2
+subip=$2
+vlanid=$3
 
 vconfig add h${hostid}-${ifid} ${vlanid}
 ifconfig h${hostid}-${ifid}.${vlanid} up
-ifconfig h${hostid}-${ifid}.${vlanid} 192.168.1.${hostid}/24
+ifconfig h${hostid}-${ifid}.${vlanid} 192.168.${subip}.${hostid}/24
 

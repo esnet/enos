@@ -1,6 +1,6 @@
-h4 ./vlan.sh 4 10
-h5 ./vlan.sh 5 10
-h6 ./vlan.sh 6 10
-h5 ./vlan.sh 5 20
-h9 ./vlan.sh 9 20
-h11 ./vlan.sh 11 20
+h4 ./vlan.sh 4 10 10
+h5 ./vlan.sh 5 10 10
+h6 ./vlan.sh 6 10 10
+h5 ./vlan.sh 5 20 20
+h9 ./vlan.sh 9 20 20
+h11 ./vlan.sh 11 20 20
