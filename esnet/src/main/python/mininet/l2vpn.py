@@ -199,6 +199,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         status = self.props['statusIndex'][flowEntry.key()]
         for flowmod in status.props['flowmods']:
             flowmod.scope.delFlowMod(flowmod)
+        for flowmod in status.props['broadcastFlowmods']:
+            flowmod.scope.delFlowMod(flowmod)
         self.props['statusIndex'].pop(flowEntry.key())
         for category in self.getCategories(flowEntry):
             category.append(flowEntry)
