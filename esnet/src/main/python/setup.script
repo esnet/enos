@@ -1,6 +1,6 @@
-h4 ./vlan.sh 4 10 10
-h5 ./vlan.sh 5 10 10
-h6 ./vlan.sh 6 10 10
-h5 ./vlan.sh 5 20 20
-h9 ./vlan.sh 9 20 20
-h11 ./vlan.sh 11 20 20
+h4 ./vlan.sh h4-eth1 192.168.10.4 10
+h5 ./vlan.sh h5-eth1 192.168.10.5 10
+h6 ./vlan.sh h6-eth1 192.168.10.6 10
+h5 ./vlan.sh h5-eth1 192.168.20.5 20
+h9 ./vlan.sh h9-eth1 192.168.20.9 20
+h11 ./vlan.sh h11-eth1 192.168.20.11 20

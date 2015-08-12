@@ -1,11 +1,15 @@
 #! /bin/sh
-hostid=$1
 
-ifid=eth1
-subip=$2
+# syntax vlan.sh <interface>  <ip> <vlan>. i.e. vlan.sh h4-eth1 192.168.1.4 10
+
+ifid=$1
+
+ip=$2
+
 vlanid=$3
 
-vconfig add h${hostid}-${ifid} ${vlanid}
-ifconfig h${hostid}-${ifid}.${vlanid} up
-ifconfig h${hostid}-${ifid}.${vlanid} 192.168.${subip}.${hostid}/24
 
+
+vconfig add ${ifid} ${vlanid}
+
+ifconfig ${ifid}.${vlanid} ${ip} up
