@@ -100,6 +100,7 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
         # could be invoked in CLI
         if not self.checkVlan(lanVlan, siteVlan):
             return
+        self.cut(siteVlan)
         self.props['lanVlanIndex'].pop(siteVlan)
         self.props['siteVlanIndex'].pop(lanVlan)
         siteScope = self.props['scopeIndex'][self.siteRouter.name]
@@ -133,7 +134,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
                 siteScope.delEndpoint(port, siteVlan)
         if lanVlan in self.props['portsIndex']:
             self.props['portsIndex'].pop(lanVlan)
-        self.cut(siteVlan)
     def addHost(self, host, lanVlan):
         # could be invoked in CLI
         with self.lock:
@@ -260,7 +260,6 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
 
         inPort = self.props['borderToSitePort']
         outPort = self.props['borderToSDNPort']
-        controller = self.borderRouter.props['controller']
         wanScope = self.props['scopeIndex'][self.borderRouter.name]
         wanScope.addEndpoint(inPort, siteVlan)
         wanScope.addEndpoint(outPort, siteVlan)
@@ -273,18 +272,18 @@ class SiteRenderer(ProvisioningRenderer,ScopeOwner):
     def cut(self, siteVlan):
         siteScope = self.props['scopeIndex'][self.siteRouter.name]
         siteRouterToWanPort = self.siteRouter.props['toWanPort'].props['enosPort']
-        siteScope.delEndpoint(siteRouterToWanPort, siteVlan)
+
+        wanScope = self.props['scopeIndex'][self.borderRouter.name]
 
         inPort = self.props['borderToSitePort']
         outPort = self.props['borderToSDNPort']
-        controller = self.borderRouter.props['controller']
-        wanScope = self.props['scopeIndex'][self.borderRouter.name]
-        wanScope.delEndpoint(inPort, siteVlan)
-        wanScope.delEndpoint(outPort, siteVlan)
         success = True
         for (direction, port1, port2) in [('site_to_hw', inPort, outPort), ('hw_to_site', outPort, inPort)]:
             if not wanScope.stopForward(self.borderRouter, None, siteVlan, port1, None, siteVlan, port2):
                 success = False
+        siteScope.delEndpoint(siteRouterToWanPort, siteVlan)
+        wanScope.delEndpoint(inPort, siteVlan)
+        wanScope.delEndpoint(outPort, siteVlan)
         return success
 
     def setBorderRouter(self):

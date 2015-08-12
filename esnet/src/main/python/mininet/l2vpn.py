@@ -116,11 +116,11 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         renderer = SDNPopsRenderer(intent)
         for (mac, sitename) in obj['siteIndex'].items():
             renderer.props['siteIndex'][mac] = net.builder.siteIndex[sitename]
-        for (site, hosts, lanVlan, siteVlan) in renderer.vpn.props['participants']:
+        for (site, hosts, lanVlan, siteVlan) in vpn.props['participants']:
             pop = site.props['pop']
             if not pop.name in renderer.props['popIndex']:
                 renderer.addPop(pop)
-            renderer.addSite(site, lanVlan, siteVlan)
+            renderer.addSite(site, siteVlan)
             # Here we don't use hosts.props['mac'] to update siteIndex because
             # mac might come from unknown hosts in the future
             # for host in hosts:

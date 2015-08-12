@@ -14,6 +14,7 @@ from common.utils import Logger
 import binascii
 import sys
 
+
 debug = False
 def setDebug(val):
     global debug
