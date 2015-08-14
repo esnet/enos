@@ -30,6 +30,7 @@ def usage():
     print "vpn $vpnindex tapmac $mac"
     print "vpn $vpnindex untapmac $mac"
     print "vpn $vpnindex settimeout $timeout"
+    print "vpn $vpnindex visualize $conf"
     print "Note: vpnindex should not be any keyword such as sample, create, delete, kill, or load"
 def toint(s):
     try:
@@ -115,6 +116,84 @@ def addVpn(vpn):
 
 def save(vpn, confname):
     obj = vpn.serialize()
+    saveObject(obj, confname)
+
+def getNode(node, nodeIndex):
+    if node.name in nodeIndex:
+        return nodeIndex[node.name]
+    nodeIndex[node.name] = {'name':node.name, 'info':[]}
+    return nodeIndex[node.name]
+def linkname(node1, node2):
+    if node1.name <= node2.name:
+        return node1.name + ":" + node2.name
+    else:
+        return node2.name + ":" + node1.name
+def getLink(node1, node2, linkIndex):
+    name = linkname(node1, node2)
+    if name in linkIndex:
+        return linkIndex[name]
+    linkIndex[name] = {'name':name, 'endpoint1':node1.name, 'endpoint2':node2.name, 'info':[]}
+    return linkIndex[name]
+def visualize(vpn, confname):
+    obj = {}
+    nodeIndex = {}
+    linkIndex = {}
+    pops = []
+    for (site, hosts, lanVlan, siteVlan) in vpn.props['participants']:
+        siteRouter = site.props['siteRouter']
+        getNode(siteRouter, nodeIndex)['info'].append({'type':'text', 'attr':'role', 'value':"Site Router"})
+        for host in hosts:
+            getNode(host, nodeIndex)['info'].append({'type':'text', 'attr':'role', 'value':"End User"})
+            getLink(host, siteRouter, linkIndex)['info'].append({'type':'text','attr':'vlan','value':lanVlan})
+        pop = site.props['pop']
+        if not pop in pops:
+            coreRouter = pop.props['coreRouter']
+            getNode(coreRouter, nodeIndex)['info'].append({'type':'text', 'attr':'role', 'value':"Core Router"})
+            getLink(coreRouter, siteRouter, linkIndex)['info'].append({'type':'text','attr':'vlan','value':siteVlan})
+            hwSwitch = pop.props['hwSwitch']
+            getNode(hwSwitch, nodeIndex)['info'].append({'type':'text', 'attr':'role', 'value':"Hardware Switch"})
+            port = hwSwitch.props['sitePortIndex'][site.name]
+            getLink(coreRouter, hwSwitch, linkIndex)['info'].append({'type':'text','attr':'vlan','value':siteVlan})
+            swSwitch = pop.props['swSwitch']
+            getNode(swSwitch, nodeIndex)['info'].append({'type':'text', 'attr':'role', 'value':"Software Switch"})
+            getLink(swSwitch, hwSwitch, linkIndex)['info'].append({'type':'text','attr':'vlan','value':siteVlan})
+            serviceVm = pop.props['serviceVm']
+            getNode(serviceVm, nodeIndex)['info'].append({'type':'text', 'attr':'role', 'value':"Service Virtual Machine"})
+            getLink(swSwitch, serviceVm, linkIndex)['info'].append({'type':'text','attr':'vlan','value':siteVlan})
+            renderer = vpn.props['renderer']
+            hwScope = renderer.props['scopeIndex'][hwSwitch.name]
+            for flowmod in hwScope.props['flowmodIndex'].values():
+                getNode(hwSwitch, nodeIndex)['info'].append({'type':'text', 'attr':'flowmod', 'value':flowmod.visualize()})
+            swScope = renderer.props['scopeIndex'][swSwitch.name]
+            for flowmod in swScope.props['flowmodIndex'].values():
+                getNode(swSwitch, nodeIndex)['info'].append({'type':'text', 'attr':'flowmod', 'value':flowmod.visualize()})
+            for otherPop in pops:
+                vlan = coreRouter.props['wanPortIndex'][otherPop.name].props['links'][0].props['vlan']
+
+                otherCoreRouter = otherPop.props['coreRouter']
+                otherHwSwitch = otherPop.props['hwSwitch']
+                otherSwSwitch = otherPop.props['swSwitch']
+                otherServiceVm = otherPop.props['serviceVm']
+
+                getLink(coreRouter, otherCoreRouter, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
+                # pop
+                getLink(coreRouter, hwSwitch, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
+                getLink(swSwitch, hwSwitch, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
+                getLink(swSwitch, serviceVm, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
+                # other pop
+                getLink(otherCoreRouter, otherHwSwitch, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
+                getLink(otherSwSwitch, otherHwSwitch, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
+                getLink(otherSwSwitch, otherServiceVm, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
+            pops.append(pop)
+
+    nodes = []
+    for node in nodeIndex.values():
+        nodes.append(node)
+    links = []
+    for link in linkIndex.values():
+        links.append(link)
+    obj['nodes'] = nodes
+    obj['links'] = links
     saveObject(obj, confname)
 
 def load(confname):
@@ -331,11 +410,14 @@ def main():
             elif command == 'save':
                 confname = sys.argv[3]
                 save(vpn, confname)
+            elif command == 'visualize':
+                confname = sys.argv[3]
+                visualize(vpn, confname)
             else:
                 print "unknown command"
                 usage()
     except:
-       print "Invalid arguments"
-       usage()
+        print "Invalid arguments"
+        usage()
 if __name__ == '__main__':
     main()

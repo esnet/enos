@@ -22,7 +22,7 @@
 """
 	Note:
 	json key should be str only; it's your responsibility to make sure this.
-	For example, if obj = {1:'a'}, the output file of saveObject would be 
+	For example, if obj = {1:'a'}, the output file of saveObject would be
 	{'1':'a'}, and loaded obj of loadObject would be {'1':'a'} which is not
 	exactly the same as the original obj.
 """

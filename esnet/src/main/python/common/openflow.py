@@ -160,6 +160,17 @@ class FlowMod(Properties):
         k = k.strip(',')
         k += "}"
         return k
+    def visualize(self):
+        if len(self.actions) == 1:
+            return "match:{mac:%s,vlan:%s,inPort:%s},action:{mac:%s,vlan:%s,outPort:%s}" % (
+                    self.match.props['dl_dst'], self.match.props['vlan'], self.match.props['in_port'],
+                    self.actions[0].props['dl_dst'], self.actions[0].props['vlan'], self.actions[0].props['out_port'] )
+        else:
+            result = "match:{mac:%s,vlan:%s,inPort:%s},actions:[" % (self.match.props['dl_dst'], self.match.props['vlan'], self.match.props['in_port'])
+            for action in self.actions:
+                result += "{mac:%s,vlan:%s,outPort:%s}" % (aciton.props['dl_dst'], action.props['vlan'], action.props['out_port'])
+            result += "]"
+            return result
     def getOutFlowEntry(self):
         return FlowEntry(self.actions[0].props['dl_dst'], self.actions[0].props['vlan'], self.actions[0].props['out_port'])
     def __str__(self):
