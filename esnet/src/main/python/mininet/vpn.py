@@ -253,7 +253,7 @@ def tapmac(vpn, mac):
     vpn.props['renderer'].tapMacCLI(mac)
 
 def untapmac(vpn, mac):
-    vpn.props['renderer'].untapMac(m)
+    vpn.props['renderer'].untapMacCLI(mac)
 
 def settimeout(vpn, timeout):
     if timeout < 0:
