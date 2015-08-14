@@ -22,8 +22,8 @@
 def usage(supportedNames):
     print "usage:"
     for name in supportedNames:
-        print "log %s: show the level of controller log" % name
-        print "log %s $LEVEL: set the level of controller log" % name
+        print "log %s: show the level of %s.logger" % (name, name)
+        print "log %s $LEVEL: set the level of %s.log" % (name, name)
     print "LEVEL: 10: debug; 20: info; 30: warning; 40: error"
 
 def log(args):

@@ -93,7 +93,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         4. broadcast from local site: tap if any site in the same pop in tappedSites or in tappedSitesWithSrcMac; untap otherwise
         """
         self.props['popIndex'] = {} # [SDNPop.name] = SDNPop
-        self.props['timeout'] = 30 # timeout (seconds) for tapping a new src MAC
+        self.props['timeout'] = 0 # timeout (seconds) for tapping a new src MAC; 0 means disable
         self.links = self.intent.links
         SDNPopsRenderer.index[self.vpn.name] = self
     def serialize(self):
