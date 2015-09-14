@@ -20,8 +20,8 @@
 #
 from net.es.netshell.api import GenericGraphViewer
 
-from common.intent import Expectation
-from common.intent import Intent
+from layer2.common.intent import Expectation
+from layer2.common.intent import Intent
 
 def usage():
     print "usage:"

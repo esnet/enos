@@ -3,13 +3,13 @@ demo should be run no more than once to initialize the topology.
 Global variables such as net, renderers and rendererIndex are shared
 to CLI environment.
 """
-from mininet.sites import SiteIntent, SiteRenderer
-from mininet.enos import TestbedTopology
-from mininet.l2vpn import SDNPopsRenderer,SDNPopsIntent
-from mininet.wan import WanRenderer, WanIntent
+from layer2.vpn.sites import SiteIntent, SiteRenderer
+from layer2.testbed.topology import TestbedTopology
+from layer2.vpn.l2vpn import SDNPopsRenderer,SDNPopsIntent
+from layer2.vpn.wan import WanRenderer, WanIntent
 
 import random
-from common.utils import InitLogger, Logger
+from layer2.common.utils import InitLogger, Logger
 
 # TODO collect into a global variable demo might be a good idea
 try:

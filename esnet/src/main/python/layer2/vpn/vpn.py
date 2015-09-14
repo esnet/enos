@@ -2,11 +2,11 @@
 demo should be run first so that net, renderers, rendererIndex, vpns, vpnIndex
 are available.
 """
-from common.mac import MACAddress
-from common.api import VPN
-from mininet.mat import MAT
-from mininet.utils import loadObject, saveObject
-from mininet.l2vpn import SDNPopsIntent, SDNPopsRenderer
+from layer2.common.mac import MACAddress
+from layer2.common.api import VPN
+from layer2.vpn.mat import MAT
+from layer2.vpn.utils import loadObject, saveObject
+from layer2.vpn.l2vpn import SDNPopsIntent, SDNPopsRenderer
 
 def usage():
     print "usage:"

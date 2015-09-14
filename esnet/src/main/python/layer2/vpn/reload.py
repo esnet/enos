@@ -1,86 +1,86 @@
 from net.es.netshell.odl import PacketHandler
 PacketHandler.getInstance().setPacketInCallback(None)
 
-import common.intent
-reload (common.intent)
-from common.intent import Intent
-from common.intent import Expectation
+import layer2.common.intent
+reload (layer2.common.intent)
+from layer2.common.intent import Intent
+from layer2.common.intent import Expectation
 
-import common.utils
-reload (common.utils)
-from common.utils import InitLogger
-from common.utils import Logger
+import layer2.common.utils
+reload (layer2.common.utils)
+from layer2.common.utils import InitLogger
+from layer2.common.utils import Logger
 
-import common.api
-reload (common.api)
+import layer2.common.api
+reload (layer2.common.api)
 
-from common.api import Link
-from common.api import Port
-from common.api import Node
-from common.api import Host
-from common.api import ServiceVm
-from common.api import SiteRouter
-from common.api import CoreRouter
-from common.api import HwSwitch
-from common.api import SwSwitch
-from common.api import Site
-from common.api import SDNPop
-from common.api import VPN
-from common.api import Wan
-from common.mac import MACAddress
+from layer2.common.api import Link
+from layer2.common.api import Port
+from layer2.common.api import Node
+from layer2.common.api import Host
+from layer2.common.api import ServiceVm
+from layer2.common.api import SiteRouter
+from layer2.common.api import CoreRouter
+from layer2.common.api import HwSwitch
+from layer2.common.api import SwSwitch
+from layer2.common.api import Site
+from layer2.common.api import SDNPop
+from layer2.common.api import VPN
+from layer2.common.api import Wan
+from layer2.common.mac import MACAddress
 
-import common.mac
-reload (common.mac)
+import layer2.common.mac
+reload (layer2.common.mac)
 
-from common.mac import MACAddress
+from layer2.common.mac import MACAddress
 
-import mininet.mat
-reload (mininet.mat)
-from mininet.mat import MAT
+import layer2.vpn.mat
+reload (layer2.vpn.mat)
+from layer2.vpn.mat import MAT
 
-import common.intent
-reload (common.intent)
-import common.openflow
-reload (common.openflow)
+import layer2.common.intent
+reload (layer2.common.intent)
+import layer2.common.openflow
+reload (layer2.common.openflow)
 
-from common.openflow import L2SwitchScope
-from common.openflow import PacketInEvent
-from common.openflow import SimpleController
-from common.openflow import FlowEntry
+from layer2.common.openflow import L2SwitchScope
+from layer2.common.openflow import PacketInEvent
+from layer2.common.openflow import SimpleController
+from layer2.common.openflow import FlowEntry
 
-import mininet.enos
-reload (mininet.enos)
+import layer2.vpn.topology
+reload (layer2.mininet.enos)
 
-from mininet.enos import TestbedTopology
+from layer2.vpn.topology import TestbedTopology
 
-import odl.client
-reload (odl.client)
-from odl.client import ODLClient
+import layer2.odl.client
+reload (layer2.odl.client)
+from layer2.odl.client import ODLClient
 
-import mininet.l2vpn
-reload (mininet.l2vpn)
-from mininet.l2vpn import SDNPopsIntent
-from mininet.l2vpn import SDNPopsRenderer
-from mininet.l2vpn import FlowStatus
-import mininet.wan
-reload (mininet.wan)
-from mininet.wan import WanIntent
-from mininet.wan import WanRenderer
+import layer2.vpn.l2vpn
+reload (layer2.vpn.l2vpn)
+from layer2.vpn.l2vpn import SDNPopsIntent
+from layer2.vpn.l2vpn import SDNPopsRenderer
+from layer2.vpn.l2vpn import FlowStatus
+import layer2.vpn.wan
+reload (layer2.vpn.wan)
+from layer2.vpn.wan import WanIntent
+from layer2.vpn.wan import WanRenderer
 
-import mininet.sites
-reload (mininet.sites)
-from mininet.sites import SiteIntent
-from mininet.sites import SiteRenderer
+import layer2.vpn.sites
+reload (layer2.vpn.sites)
+from layer2.vpn.sites import SiteIntent
+from layer2.vpn.sites import SiteRenderer
 
-import mininet.testbed
-reload (mininet.testbed)
-from mininet.testbed import TopoBuilder
+import vpnlayer2..testbed
+reload (layer2.vpn.testbed)
+from layer2.vpn.testbed import TopoBuilder
 
-import mininet.demo
-reload(mininet.demo)
+import layer2.vpn.demo
+reload(layer2.vpn.demo)
 
-import mininet.vpn
-reload(mininet.vpn)
+import layer2.vpn.vpn
+reload(layer2.vpn.vpn)
 
-import mininet.utils
-reload(mininet.utils)
+import layer2.vpn.utils
+reload(layer2.vpn.utils)

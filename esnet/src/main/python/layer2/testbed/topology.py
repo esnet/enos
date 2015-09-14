@@ -5,7 +5,7 @@ from layer2.testbed.builder import TopoBuilder
 from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
 from layer2.common.api import Properties, Port
 from layer2.common.openflow import Match, Action, FlowMod, Scope, SimpleController
-from odl.client import ODLClient
+from layer2.odl.client import ODLClient
 from layer2.common.utils import singleton
 
 from layer2.common.mac import MACAddress

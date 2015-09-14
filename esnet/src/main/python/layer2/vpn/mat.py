@@ -1,6 +1,6 @@
 import random
-from common.api import Properties
-from common.mac import MACAddress
+from layer2.common.api import Properties
+from layer2.common.mac import MACAddress
 import threading
 
 class MAT(Properties):

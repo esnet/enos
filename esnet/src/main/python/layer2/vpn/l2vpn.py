@@ -1,17 +1,17 @@
 from array import array
 import binascii
 
-from common.intent import ProvisioningRenderer, ProvisioningIntent
-from common.api import Site, Properties
-from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut, SimpleController
-from common.openflow import FlowEntry
-from odl.client import ODLClient
+from layer2.common.intent import ProvisioningRenderer, ProvisioningIntent
+from layer2.common.api import Site, Properties
+from layer2.common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut, SimpleController
+from layer2.common.openflow import FlowEntry
+from layer2.odl.client import ODLClient
 
-from mininet.enos import TestbedTopology, TestbedHost, TestbedNode, TestbedPort, TestbedLink
+from vpn.topologu import TestbedTopology, TestbedHost, TestbedNode, TestbedPort, TestbedLink
 
 from net.es.netshell.api import GenericGraph, GenericHost
-from common.mac import MACAddress
-from common.utils import Logger
+from layer2.common.mac import MACAddress
+from layer2.common.utils import Logger
 import threading
 import time
 import copy

@@ -1,14 +1,14 @@
 from array import array
 import binascii
 
-from common.intent import ProvisioningRenderer, ProvisioningIntent, ProvisioningExpectation
-from common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut, SimpleController
-from mininet.enos import TestbedTopology
-from mininet.enos import TestbedHost, TestbedNode, TestbedPort, TestbedLink
+from layer2.common.intent import ProvisioningRenderer, ProvisioningIntent, ProvisioningExpectation
+from layer2.common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut, SimpleController
+from layer2.vpn.topology import TestbedTopology
+from layer2.vpn.topology import TestbedHost, TestbedNode, TestbedPort, TestbedLink
 
 from net.es.netshell.api import GenericGraph
-from common.utils import Logger
-from common.mac import MACAddress
+from layer2.common.utils import Logger
+from layer2.common.mac import MACAddress
 import threading
 class SiteRenderer(ProvisioningRenderer,ScopeOwner):
     """

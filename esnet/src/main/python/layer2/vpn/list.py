@@ -18,8 +18,8 @@
 # distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
 #
-from common.intent import Expectation
-from common.intent import Intent
+from layer2.common.intent import Expectation
+from layer2.common.intent import Intent
 
 def usage():
     print "usage:"

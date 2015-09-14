@@ -2,12 +2,12 @@ from string import join
 
 from net.es.netshell.api import GenericGraph
 
-from common.intent import ProvisioningRenderer, ProvisioningIntent, ProvisioningExpectation
-from common.openflow import ScopeOwner, L2SwitchScope, Match, Action, FlowMod
+from layer2.common.intent import ProvisioningRenderer, ProvisioningIntent, ProvisioningExpectation
+from layer2.common.openflow import ScopeOwner, L2SwitchScope, Match, Action, FlowMod
 
-from odl.client import ODLClient
-from mininet.enos import TestbedTopology
-from common.mac import MACAddress
+from layer2.odl.client import ODLClient
+from layer2.vpn.topology import TestbedTopology
+from layer2.common.mac import MACAddress
 
 class WanRenderer(ProvisioningRenderer, ScopeOwner):
     """
