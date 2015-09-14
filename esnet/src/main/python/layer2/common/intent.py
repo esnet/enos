@@ -1,5 +1,5 @@
-from common.utils import generateId
-from common.api import Properties
+from layer2.common.utils import generateId
+from layer2.common.api import Properties
 
 class Intent(Properties):
     directory = {}

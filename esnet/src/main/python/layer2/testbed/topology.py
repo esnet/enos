@@ -1,13 +1,14 @@
 #!/usr/bin/python
 import sys
 
+from layer2.testbed.builder import TopoBuilder
 from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
-from common.api import Properties, Port
-from common.openflow import Match, Action, FlowMod, Scope, SimpleController
+from layer2.common.api import Properties, Port
+from layer2.common.openflow import Match, Action, FlowMod, Scope, SimpleController
 from odl.client import ODLClient
-from common.utils import singleton
+from layer2.common.utils import singleton
 
-from common.mac import MACAddress
+from layer2.common.mac import MACAddress
 
 class TestbedNode(GenericNode,Properties):
     def __init__(self,name,props={}):
@@ -102,7 +103,7 @@ class TestbedTopology (GenericTopologyProvider):
         self.buildVpns()
         if not controller:
             # now that self.builder is ready
-            self.controller.init()
+            self.controller.init(self)
 
 if __name__ == '__main__':
     # todo: real argument parsing.

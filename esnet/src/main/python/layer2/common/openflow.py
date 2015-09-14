@@ -5,11 +5,11 @@ __author__ = 'lomax'
 """
 from array import array
 
-from common.utils import generateId
-from common.api import Properties, Node
+from layer2.common.utils import generateId
+from layer2.common.api import Properties, Node
 
-from common.mac import MACAddress
-from common.utils import Logger
+from layer2.common.mac import MACAddress
+from layer2.common.utils import Logger
 
 import binascii
 import sys

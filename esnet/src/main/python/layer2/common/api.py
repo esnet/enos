@@ -1,13 +1,21 @@
 import threading
 import random
 
+db = {}
+
 class Properties(object):
     def __init__(self, name,props={}):
         self.name = name
         self.props = {}
         self.update(props)
+
     def update(self, props):
-        self.props.update(props)
+        if len(props) > 0:
+            global db
+            db['self'] = self
+            db['props'] = props
+            self.props.update(props)
+
     def get(self, prop):
         if prop in self.props:
             return self.props[prop]
@@ -103,8 +111,44 @@ class SwSwitch(Switch):
         self.props['vmPort'] = sitelink.props['portIndex'][self.name]
         self.props['vmPort.WAN'] = wanlink.props['portIndex'][self.name]
 
+class CoreRouter(Switch):
+    def __init__(self, name, props={}):
+        super(CoreRouter, self).__init__(name)
+        self.props['role'] = 'CoreRouter'
+        self.props['pop'] = None
+        """
+        self.props['toHwPorts'] = [] # nbOfLinks 'CoreToHw' ports
+        self.props['stitchedPortIndex'] = {} # [lanport.name] = stitched port (to hw)
+        self.props['stitchedPortIndex.WAN'] = {} # [wanport.name] = stitched port (to hw or to wan) (2 ways)
+        self.props['sitePortIndex'] = {} # [sitename] = tosite_port
+        self.props['wanPortIndex'] = {} # [popname] = towan_port
+        """
+        self.props.update(props)
+
+    def addSite(self, site, link, portno):
+        """
+        to_site_port = link.props['portIndex'][self.name] # CoreToSite
+        to_hw_port = self.props['toHwPorts'][portno] # CoreToHw
+        self.props['sitePortIndex'][site.name] = to_site_port
+        self.props['stitchedPortIndex'][to_site_port.name] = to_hw_port
+        """
+
+    def connectPop(self, pop, wanlink, hwlink):
+        """
+        wanport = wanlink.props['portIndex'][self.name]
+        hwport = hwlink.props['portIndex'][self.name]
+        self.props['wanPortIndex'][pop.name] = wanport
+        self.props['stitchedPortIndex.WAN'][wanport.name] = hwport
+        self.props['stitchedPortIndex.WAN'][hwport.name] = wanport
+        """
+
+    def addLink(self, hwlink):
+        """
+        self.props['toHwPorts'].append(hwlink.props['portIndex'][self.name])
+        """
+
 class SDNPop(Properties):
-    def __init__(self, name, hwswitchname, swswitchname, props={}):
+    def __init__(self, name, hwswitchname, coreroutername, swswitchname, props={}):
         super(SDNPop, self).__init__(name, props=props)
         self.props['sites'] = []
         self.props['links'] = []
@@ -113,10 +157,13 @@ class SDNPop(Properties):
         swSwitch = SwSwitch(swswitchname)
         swSwitch.props['pop'] = self
         serviceVm = ServiceVm('%s-vm' % self.name)
+        coreRouter = CoreRouter(coreroutername)
+        coreRouter.props['pop'] = self
 
         self.props['hwSwitch'] = hwSwitch
         self.props['swSwitch'] = swSwitch
         self.props['serviceVm'] = serviceVm
+        self.props['coreRouter'] = coreRouter
 
     def addSite(self, site, link, portno):
         self.props['hwSwitch'].addSite(site, portno)
@@ -324,8 +371,8 @@ class Link(Properties):
         for port in ports:
             self.props['portIndex'] [port.props['node'].name] = port
             if vlan:
-            port.props['vlan'] = vlan
-            port.props['links'].append(self)
+                port.props['vlan'] = vlan
+        port.props['links'].append(self)
         self.props['vlan'] = vlan
         self.update(props)
 

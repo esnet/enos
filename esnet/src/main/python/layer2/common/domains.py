@@ -1,4 +1,4 @@
-from common.api import Properties
+from layer2.common.api import Properties
 
 class Directory (Properties):
     """
