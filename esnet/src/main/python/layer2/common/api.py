@@ -314,29 +314,24 @@ class Wan(Properties):
                 port2 = coreRouter2.props['wanPortIndex'][pop1.name]
                 links.append(coreRouter2.props['stitchedPortIndex.WAN'][port2.name].props['links'][0])
         return links
+
 class Link(Properties):
-    def __init__(self, name, props={}):
+    def __init__(self, name, ports, vlan=0,props={}):
         super(Link, self).__init__(name)
-        self.props['endpoints'] = [] # [Port, Port]
         self.props['portIndex'] = {} # [nodename] = Port
         self.props['vlan'] = 0
+        self.props['endpoints'] = ports
+        for port in ports:
+            self.props['portIndex'] [port.props['node'].name] = port
+            if vlan:
+            port.props['vlan'] = vlan
+            port.props['links'].append(self)
+        self.props['vlan'] = vlan
         self.update(props)
-    @staticmethod
-    def create(node1, node2, vlan=0, interfaceIndex1=0, interfaceIndex2=0):
-        port1 = node1.getPort(interfaceIndex1)
-        port2 = node2.getPort(interfaceIndex2)
-        link = Link(name='%s:%s' % (port1.name, port2.name))
-        link.props['endpoints'] = [port1, port2]
-        link.props['portIndex'] = {node1.name:port1, node2.name:port2}
-        link.props['vlan'] = vlan
-        if vlan:
-            port1.props['vlan'] = vlan
-            port2.props['vlan'] = vlan
-        port1.props['links'].append(link)
-        port2.props['links'].append(link)
-        return link
+
     def setPortType(self, type1, type2):
         self.props['endpoints'][0].props['type'] = type1
         self.props['endpoints'][1].props['type'] = type2
+
     def __repr__(self):
         return '%s.%r' % (self.name, self.props['vlan'])
