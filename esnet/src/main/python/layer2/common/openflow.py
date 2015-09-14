@@ -914,34 +914,3 @@ class SimpleController(Controller):
         else:
             SimpleController.logger.warning('No scope for %r', packetIn)
 
-    @staticmethod
-    def makeL2FlowMod(scope, switch, inPort, inVlan, outPort, outVlan):
-        """
-        Convenience method to make a flow entry for Layer 2 / VLAN translation.
-        Note that the returned flow entry only handles one direction of
-        translation / forwarding; for use in a bidirectional circuit (i.e.
-        OSCARS semantics), two of these are required.
-        :param switch: the switch to which this flow entry applies
-        :param inPort: input port
-        :param inVlan: input VLAN tag
-        :param outPort: output port
-        :param outVlan: output VLAN tag
-        :return: FlowMod
-        """
-        match = Match()
-        match.props['in_port'] = inPort
-        match.props['vlan'] = inVlan
-
-        actions = Action()
-        actions.props['vlan'] = outVlan
-        actions.props['out_port'] = { outPort }
-
-        flow = FlowMod(scope=scope, switch=switch, match=match, actions=actions)
-        return flow
-
-
-
-
-
-
-
