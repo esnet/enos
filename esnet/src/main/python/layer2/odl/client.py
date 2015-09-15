@@ -24,15 +24,15 @@ import sys
 import inspect
 import binascii
 import threading
-from common.mac import MACAddress
-from common.utils import Logger
+from layer2.common.mac import MACAddress
+from layer2.common.utils import Logger
 
 from java.lang import Short
 from java.lang import Long
 from java.util import LinkedList
 from java.nio import ByteBuffer
 
-from common.openflow import SimpleController, PacketInEvent
+from layer2.common.openflow import SimpleController, PacketInEvent
 
 from org.opendaylight.controller.sal.core import Node
 
