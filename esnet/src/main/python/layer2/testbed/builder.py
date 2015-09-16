@@ -5,25 +5,45 @@ from array import array
 
 from layer2.common.api import Node, SDNPop, Link, Port, Site, Wan, VPN, Host, HwSwitch, SwSwitch
 from layer2.common.mac import MACAddress
+from layer2.testbed import dpid
 
 # All switches including site routers, core routers, hw switches, and sw switches should
 # not have the same name so that the name of each port could be unique.
 # site = [siteRouterName, [hostNames], popName, portNo]
 # Note: Since flowmod could not forward a packet to where it comes from,
 #  multiple sites in the same pop must have different portNo! (otherwise, the broadcast won't work.)
+
+# Simulated sites ESnet production diskpt's
 lblsite = ["lbl.gov",['lbl-diskpt1'],"denv"]
 anlsite = ["anl.gov",['lbl-diskpt1'],"wash"]
 bnlsite = ["cern.ch",['lbl-diskpt1'],"aofa"]
 
 sites = [lblsite, anlsite, bnlsite]
 
+# DENV
 denv=["denv",'denv-tb-of-1',"denv-cr5"]
+
+denvlinks=[
+    ["denv-cr5","9/1/4","denv-tb-of-1","23"],
+    ["denv-cr5","9/1/5","denv-tb-of-1","24"],
+    ["denv-ovs","eth10","denv-tb-of-1","1"],
+    ["denv-ovs","eth11","denv-tb-of-1","2"]
+]
+
+# WASH
 wash=["wash",'wash-tb-of-1',"wash-cr5"]
+
+washlinks = [
+    ["wash-cr5","9/1/4","wash-tb-of-1","23"],
+]
+
+# AOFA
 aofa=["aofa",'aofa-tb-of-1',"aofa-cr5"]
 
 
 # Default locations
 locations=[denv,wash,aofa]
+
 
 class TopoBuilder ():
 
@@ -73,13 +93,40 @@ class TopoBuilder ():
         self.hosts.append(host)
         self.hostIndex[host.name] = host
 
+    def addPort(self, port):
+        if not port.name in self.portIndex:
+            self.ports.append(port)
+            self.portIndex[port.name] = port
+
+    def addLink(self, link):
+        self.links.append(link)
+        self.linkIndex[link.name] = link
+        self.addPort(link.props['endpoints'][0])
+        self.addPort(link.props['endpoints'][1])
+
+    def addLinks(self, links):
+        for link in links:
+            self.addLink(link)
+
     def addSDNPop(self, popname, hwswitchname, coreroutername, swswitchname):
-        pop = SDNPop(name=popname, hwswitchname=hwswitchname, coreroutername=coreroutername, swswitchname=swswitchname)
-        self.addSwitch(pop.props['hwSwitch'])
+        pop = SDNPop(name=popname,
+                     hwswitchname=hwswitchname,
+                     coreroutername=coreroutername,
+                     swswitchname=swswitchname)
+        hwSwitch = pop.props['hwSwitch']
+        swSwitch = pop.props['swSwitch']
+        hwSwitch.props['dpid'] = dpid.encodeDPID(location=popname,
+                                                 vendor=dpid.Vendors.Corsa,
+                                                 role=dpid.Roles.POPHwSwitch,
+                                                 id=1)
+        swSwitch.props['dpid'] = dpid.encodeDPID(location=popname,
+                                                 vendor=dpid.Vendors.OVS,
+                                                 role=dpid.Roles.POPSwSwitch,
+                                                 id=1)
+        self.addSwitch(hwSwitch)
         self.addSwitch(pop.props['coreRouter'])
-        self.addSwitch(pop.props['swSwitch'])
+        self.addSwitch(swSwitch)
         self.addHost(pop.props['serviceVm'])
-        # self.addLinks(pop.props['links'])
         self.popIndex[popname] = pop
         self.pops.append(pop)
 
@@ -87,7 +134,8 @@ class TopoBuilder ():
         print "\nName\t\t\tDPID\t\tODL Name\n"
         for sw in self.switches:
             if 'dpid' in sw.props:
-                print sw.name,"\t",binascii.hexlify(sw.props['dpid']),"\topenflow:" + str(sw.props['dpid'][7])
+                hexdpid = binascii.hexlify(sw.props['dpid'])
+                print sw.name,"\t",hexdpid,"\topenflow:" + str(int(hexdpid,16))
         print "\n\n"
 
     def loadDefault(self):

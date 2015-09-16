@@ -12,13 +12,12 @@ class Roles:
     UserSwSwitch = 3   # Software switch connnect to the SwSwitch, but managed by end-user controller (i.e. not ENOS)
 
 
-def encodeDPID (switchName,location,vendor,role, id):
+def encodeDPID (location,vendor,role, id):
     """
     Generates a DPID that is encoded as follow:
     DPID format: byte7 byte6   byte5   byte4 byte3 byte2 byte1 byte0
                  vendor type  reserved  <--- ASCII Name ------>  id
 
-    :param switchName: name of the switch
     :param location: 4 letters max. location (i.e. STAR, LBNL).
     :param vendor: Must be part of the Vendors class
     :param role: Must be part of Roles
@@ -37,6 +36,8 @@ def decodeDPID (dpid):
     id = dpid [7]
     location = dpid [3:7].tostring()
     return (vendor,role,location,id)
+
+
 
 
 
