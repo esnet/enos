@@ -21,25 +21,31 @@ bnlsite = ["cern.ch",['lbl-diskpt1'],"aofa"]
 sites = [lblsite, anlsite, bnlsite]
 
 # DENV
-denv=["denv",'denv-tb-of-1',"denv-cr5"]
-
 denvlinks=[
     ["denv-cr5","9/1/4","denv-tb-of-1","23"],
     ["denv-cr5","9/1/5","denv-tb-of-1","24"],
     ["denv-ovs","eth10","denv-tb-of-1","1"],
     ["denv-ovs","eth11","denv-tb-of-1","2"]
 ]
+denv=["denv",'denv-tb-of-1',"denv-cr5",denvlinks]
+
 
 # WASH
-wash=["wash",'wash-tb-of-1',"wash-cr5"]
-
 washlinks = [
-    ["wash-cr5","9/1/4","wash-tb-of-1","23"],
+    ["wash-cr5","10/1/11","wash-tb-of-1","23"],
+    ["wash-cr5","10/1/12","wash-tb-of-1","24"],
+    ["wash-ovs","eth10","wash-tb-of-1","1"],
+    ["wash-ovs","eth11","wash-tb-of-1","2"]
 ]
+wash=["wash",'wash-tb-of-1',"wash-cr5", washlinks]
 
 # AOFA
-aofa=["aofa",'aofa-tb-of-1',"aofa-cr5"]
-
+aofalinks = [
+    ["aofa-cr5","10/1/3","aofa-tb-of-1","23"],
+    ["aofa-cr5","10/1/4","aofa-tb-of-1","24"],
+    ["aofa-ovs","eth10","aofa-tb-of-1","1"],
+    ["aofa-ovs","eth11","aofa-tb-of-1","2"]
+]aofa=["aofa",'aofa-tb-of-1',"aofa-cr5",aofalinks]
 
 # Default locations
 locations=[denv,wash,aofa]
@@ -108,7 +114,7 @@ class TopoBuilder ():
         for link in links:
             self.addLink(link)
 
-    def addSDNPop(self, popname, hwswitchname, coreroutername, swswitchname):
+    def addSDNPop(self, popname, hwswitchname, coreroutername, swswitchname,links):
         pop = SDNPop(name=popname,
                      hwswitchname=hwswitchname,
                      coreroutername=coreroutername,
@@ -130,6 +136,7 @@ class TopoBuilder ():
         self.popIndex[popname] = pop
         self.pops.append(pop)
 
+
     def displaySwitches(self):
         print "\nName\t\t\tDPID\t\tODL Name\n"
         for sw in self.switches:
@@ -143,7 +150,9 @@ class TopoBuilder ():
         # init self.pops
         for location in self.locations:
             (popname, hwswitchname, coreroutername, swswitchname) = (location[0], location[1], location[2], location[0] + "-ovs")
-            self.addSDNPop(popname, hwswitchname, coreroutername, swswitchname)
+            self.addSDNPop(popname, hwswitchname, coreroutername, swswitchname,links)
+
+        # Create links
 
         # create mesh between core routers, attached to VLANs between the core routers and hardware switches
         """
