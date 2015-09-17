@@ -45,7 +45,8 @@ aofalinks = [
     ["aofa-cr5","10/1/4","aofa-tb-of-1","24"],
     ["aofa-ovs","eth10","aofa-tb-of-1","1"],
     ["aofa-ovs","eth11","aofa-tb-of-1","2"]
-]aofa=["aofa",'aofa-tb-of-1',"aofa-cr5",aofalinks]
+]
+aofa=["aofa",'aofa-tb-of-1',"aofa-cr5",aofalinks]
 
 # Default locations
 locations=[denv,wash,aofa]
@@ -118,9 +119,12 @@ class TopoBuilder ():
         pop = SDNPop(name=popname,
                      hwswitchname=hwswitchname,
                      coreroutername=coreroutername,
-                     swswitchname=swswitchname)
+                     swswitchname=swswitchname,
+                     links=links)
+
         hwSwitch = pop.props['hwSwitch']
         swSwitch = pop.props['swSwitch']
+        coreRouter = pop.props['coreRouter']
         hwSwitch.props['dpid'] = dpid.encodeDPID(location=popname,
                                                  vendor=dpid.Vendors.Corsa,
                                                  role=dpid.Roles.POPHwSwitch,
@@ -130,12 +134,32 @@ class TopoBuilder ():
                                                  role=dpid.Roles.POPSwSwitch,
                                                  id=1)
         self.addSwitch(hwSwitch)
-        self.addSwitch(pop.props['coreRouter'])
+        self.addSwitch(coreRouter)
         self.addSwitch(swSwitch)
         self.addHost(pop.props['serviceVm'])
         self.popIndex[popname] = pop
         self.pops.append(pop)
-
+        for l in links:
+            (n1,p1,n2,p2) = (self.switchIndex[l[0]],
+                             Port(l[1]),
+                             self.switchIndex[l[2]],
+                             Port(l[3]))
+            p1.props['node'] = n1
+            n1.props['ports'][p1.name] = p1
+            p2.props['node'] = n2
+            n2.props['ports'][p2.name] = p2
+            self.addPort(p1)
+            self.addPort(p2)
+            link = Link(name='%s:%s-%s:%s' % (n1.name,p1.name,n2.name,n2.name),ports=[p1,p2])
+            if hwSwitch.name == n1.name and swSwitch.name == n2.name:
+                link.setPortType('HwToSw.WAN', 'SwToHw.WAN')
+            elif hwSwitch.name == n2.name and swSwitch.name == n1.name:
+                link.setPortType('SwToHw.WAN', 'HwToSw.WAN')
+            elif hwSwitch.name == n1.name and coreRouter.name == n2.name:
+                link.setPortType('HwToCore.WAN', 'CoreToHw.WAN')
+            elif hwSwitch.name == n2.name and coreRouter.name == n1.name:
+                link.setPortType('CoreToCore.WAN', 'HwToCore.WAN')
+            self.addLink(link)
 
     def displaySwitches(self):
         print "\nName\t\t\tDPID\t\tODL Name\n"
@@ -149,7 +173,12 @@ class TopoBuilder ():
 
         # init self.pops
         for location in self.locations:
-            (popname, hwswitchname, coreroutername, swswitchname) = (location[0], location[1], location[2], location[0] + "-ovs")
+            (popname, hwswitchname, coreroutername, swswitchname,links) = (location[0],
+                                                                           location[1],
+                                                                           location[2],
+                                                                           location[0] + "-ovs",
+                                                                           location[3]
+                                                                           )
             self.addSDNPop(popname, hwswitchname, coreroutername, swswitchname,links)
 
         # Create links

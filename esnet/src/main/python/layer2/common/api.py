@@ -116,13 +116,11 @@ class CoreRouter(Switch):
         super(CoreRouter, self).__init__(name)
         self.props['role'] = 'CoreRouter'
         self.props['pop'] = None
-        """
         self.props['toHwPorts'] = [] # nbOfLinks 'CoreToHw' ports
         self.props['stitchedPortIndex'] = {} # [lanport.name] = stitched port (to hw)
         self.props['stitchedPortIndex.WAN'] = {} # [wanport.name] = stitched port (to hw or to wan) (2 ways)
         self.props['sitePortIndex'] = {} # [sitename] = tosite_port
         self.props['wanPortIndex'] = {} # [popname] = towan_port
-        """
         self.props.update(props)
 
     def addSite(self, site, link, portno):
@@ -148,7 +146,7 @@ class CoreRouter(Switch):
         """
 
 class SDNPop(Properties):
-    def __init__(self, name, hwswitchname, coreroutername, swswitchname, props={}):
+    def __init__(self, name, hwswitchname, coreroutername, swswitchname, links,props={}):
         super(SDNPop, self).__init__(name, props=props)
         self.props['sites'] = []
         self.props['links'] = []
@@ -164,6 +162,7 @@ class SDNPop(Properties):
         self.props['swSwitch'] = swSwitch
         self.props['serviceVm'] = serviceVm
         self.props['coreRouter'] = coreRouter
+        self.props['links'] = links
 
     def addSite(self, site, link, portno):
         self.props['hwSwitch'].addSite(site, portno)
@@ -319,6 +318,7 @@ class Site(Properties):
         self.props['borderRouter'] = pop.props['coreRouter']
         self.props['siteRouter'].setWanLink(link)
         self.props['links'].append(link)
+
 class Wan(Properties):
     def __init__(self, name, props={}):
         super(Wan, self).__init__(name)
