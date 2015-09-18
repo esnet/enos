@@ -37,7 +37,7 @@ class TestbedHost(GenericHost,Properties):
         self.props['links'] = []
 
 class TestbedPort(GenericPort,Port):
-    def __init__(self,port):
+    def __init__(self,port,node=None):
         GenericPort.__init__(self,port.name)
         Port.__init__(self,name=port.name,props=port.props)
         self.props['macs'] = {} # [mac] = port
@@ -69,9 +69,11 @@ class TestbedTopology (GenericTopologyProvider):
         node2 = n2.props['enosNode']
         port1 = TestbedPort(port=p1)
         port1.props['enosNode'] = node1
+        port1.setNode(node1)
         p1.props['enosPort'] = port1
         port2 = TestbedPort(port=p2)
         port2.props['enosNode'] = node2
+        port2.setNode(node2)
         p2.props['enosPort'] = port2
         self.addPort (node1,port1)
         self.addPort (node2,port2)
