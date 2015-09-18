@@ -22,92 +22,92 @@ sites = [lblsite, anlsite, bnlsite]
 
 # DENV
 denvlinks=[
-    ["denv-cr5","9/1/4","denv-tb-of-1","23"],
-    ["denv-cr5","9/1/5","denv-tb-of-1","24"],
-    ["denv-ovs","eth10","denv-tb-of-1","1"],
-    ["denv-ovs","eth11","denv-tb-of-1","2"]
+    ["denv-cr5","9/1/4","denv-tb-of-1","23",'core'],
+    ["denv-cr5","9/1/5","denv-tb-of-1","24",'site'],
+    ["denv-ovs","eth10","denv-tb-of-1","1",'hw'],
+    ["denv-ovs","eth11","denv-tb-of-1","2",'none']
 ]
 denv=["denv",'denv-tb-of-1',"denv-cr5",denvlinks]
 
 
 # WASH
 washlinks = [
-    ["wash-cr5","10/1/11","wash-tb-of-1","23"],
-    ["wash-cr5","10/1/12","wash-tb-of-1","24"],
-    ["wash-ovs","eth10","wash-tb-of-1","1"],
-    ["wash-ovs","eth11","wash-tb-of-1","2"]
+    ["wash-cr5","10/1/11","wash-tb-of-1","23",'core'],
+    ["wash-cr5","10/1/12","wash-tb-of-1","24",'site'],
+    ["wash-ovs","eth10","wash-tb-of-1","1",'hw'],
+    ["wash-ovs","eth11","wash-tb-of-1","2",'none']
 ]
 wash=["wash",'wash-tb-of-1',"wash-cr5", washlinks]
 
 # AOFA
 aofalinks = [
-    ["aofa-cr5","10/1/3","aofa-tb-of-1","23"],
-    ["aofa-cr5","10/1/4","aofa-tb-of-1","24"],
-    ["aofa-ovs","eth10","aofa-tb-of-1","1"],
-    ["aofa-ovs","eth11","aofa-tb-of-1","2"]
+    ["aofa-cr5","10/1/3","aofa-tb-of-1","23",'core'],
+    ["aofa-cr5","10/1/4","aofa-tb-of-1","24",'site'],
+    ["aofa-ovs","eth10","aofa-tb-of-1","1",'hw'],
+    ["aofa-ovs","eth11","aofa-tb-of-1","2",'none']
 ]
 aofa=["aofa",'aofa-tb-of-1',"aofa-cr5",aofalinks]
 
 # AMST
 amstlinks = [
-    ["amst-cr5","10/1/3","amst-tb-of-1","17"],
-    ["amst-cr5","10/1/4","amst-tb-of-1","18"],
-    ["amst-cr5","10/1/5","amst-tb-of-1","19"],
-    ["amst-cr5","10/1/6","amst-tb-of-1","20"],
-    ["amst-cr5","10/2/1","amst-tb-of-1","21"],
-    ["amst-cr5","10/2/2","amst-tb-of-1","22"],
-    ["amst-cr5","10/2/3","amst-tb-of-1","23"],
-    ["amst-cr5","10/2/4","amst-tb-of-1","24"],
-    ["amst-ovs","eth10","amst-tb-of-1","1"],
-    ["amst-ovs","eth11","amst-tb-of-1","2"],
-    ["amst-ovs","eth12","amst-tb-of-1","3"],
-    ["amst-ovs","eth13","amst-tb-of-1","4"],
-    ["amst-ovs","eth14","amst-tb-of-1","5"],
-    ["amst-ovs","eth15","amst-tb-of-1","6"],
-    ["amst-ovs","eth16","amst-tb-of-1","7"],
-    ["amst-ovs","eth17","amst-tb-of-1","8"]
+    ["amst-cr5","10/1/3","amst-tb-of-1","17",'core'],
+    ["amst-cr5","10/1/4","amst-tb-of-1","18",'site'],
+    ["amst-cr5","10/1/5","amst-tb-of-1","19",'none'],
+    ["amst-cr5","10/1/6","amst-tb-of-1","20",'none'],
+    ["amst-cr5","10/2/1","amst-tb-of-1","21",'none'],
+    ["amst-cr5","10/2/2","amst-tb-of-1","22",'none'],
+    ["amst-cr5","10/2/3","amst-tb-of-1","23",'none'],
+    ["amst-cr5","10/2/4","amst-tb-of-1","24",'none'],
+    ["amst-ovs","eth10","amst-tb-of-1","1",'hw'],
+    ["amst-ovs","eth11","amst-tb-of-1","2",'none'],
+    ["amst-ovs","eth12","amst-tb-of-1","3",'none'],
+    ["amst-ovs","eth13","amst-tb-of-1","4",'none'],
+    ["amst-ovs","eth14","amst-tb-of-1","5",'none'],
+    ["amst-ovs","eth15","amst-tb-of-1","6",'none'],
+    ["amst-ovs","eth16","amst-tb-of-1","7",'none'],
+    ["amst-ovs","eth17","amst-tb-of-1","8",'none']
 ]
 amst=["amst",'amst-tb-of-1',"amst-cr5",amstlinks]
 
 # CERN
 cernlinks = [
-    ["cern-cr5","10/1/4","cern-tb-of-1","20"],
-    ["cern-cr5","10/1/5","cern-tb-of-1","21"],
-    ["cern-cr5","10/1/6","cern-tb-of-1","22"],
-    ["cern-cr5","10/2/5","cern-tb-of-1","23"],
-    ["cern-cr5","10/2/6","cern-tb-of-1","24"],
-    ["cern-ovs","eth10","cern-tb-of-1","1"],
-    ["cern-ovs","eth11","cern-tb-of-1","2"],
-    ["cern-ovs","eth12","cern-tb-of-1","3"],
-    ["cern-ovs","eth13","cern-tb-of-1","4"],
-    ["cern-ovs","eth14","cern-tb-of-1","5"]
+    ["cern-cr5","10/1/4","cern-tb-of-1","20",'core'],
+    ["cern-cr5","10/1/5","cern-tb-of-1","21",'site'],
+    ["cern-cr5","10/1/6","cern-tb-of-1","22",'none'],
+    ["cern-cr5","10/2/5","cern-tb-of-1","23",'none'],
+    ["cern-cr5","10/2/6","cern-tb-of-1","24",'none'],
+    ["cern-ovs","eth10","cern-tb-of-1","1",'hw'],
+    ["cern-ovs","eth11","cern-tb-of-1","2",'none'],
+    ["cern-ovs","eth12","cern-tb-of-1","3",'none'],
+    ["cern-ovs","eth13","cern-tb-of-1","4",'none'],
+    ["cern-ovs","eth14","cern-tb-of-1","5",'none']
 ]
 cern=["cern",'cern-tb-of-1',"cern-cr5",cernlinks]
 
 # ATLA
 atlalinks = [
-    ["atla-cr5","10/1/9","atla-tb-of-1","21"],
-    ["atla-cr5","10/1/10","atla-tb-of-1","22"],
-    ["atla-cr5","10/1/10","atla-tb-of-1","23"],
-    ["atla-cr5","10/1/11","atla-tb-of-1","24"],
-    ["atla-ovs","eth10","atla-tb-of-1","1"],
-    ["atla-ovs","eth11","atla-tb-of-1","2"],
-    ["atla-ovs","eth12","atla-tb-of-1","3"],
-    ["atla-ovs","eth13","atla-tb-of-1","4"]
+    ["atla-cr5","10/1/9","atla-tb-of-1","21",'core'],
+    ["atla-cr5","10/1/10","atla-tb-of-1","22",'site'],
+    ["atla-cr5","10/1/10","atla-tb-of-1","23",'none'],
+    ["atla-cr5","10/1/11","atla-tb-of-1","24",'none'],
+    ["atla-ovs","eth10","atla-tb-of-1","1",'hw'],
+    ["atla-ovs","eth11","atla-tb-of-1","2"'none'],
+    ["atla-ovs","eth12","atla-tb-of-1","3",'none'],
+    ["atla-ovs","eth13","atla-tb-of-1","4",'none']
 ]
 atla=["atla",'atla-tb-of-1',"atla-cr5",atlalinks]
 
 # STAR
 starlinks = [
-    ["star-cr5","9/2/3","star-tb-of-1","17"],
-    ["star-cr5","9/2/4","star-tb-of-1","18"],
-    ["star-cr5","9/2/5","star-tb-of-1","19"],
-    ["star-cr5","9/2/6","star-tb-of-1","20"],
-    ["star-cr5","10/1/5","star-tb-of-1","21"],
-    ["star-cr5","10/1/6","star-tb-of-1","22"],
-    ["star-cr5","10/1/11","star-tb-of-1","23"],
-    ["star-cr5","10/1/12","star-tb-of-1","24"],
-    ["star-ovs","eth10","star-tb-of-1","1"],
+    ["star-cr5","9/2/3","star-tb-of-1","17",'core'],
+    ["star-cr5","9/2/4","star-tb-of-1","18",'site'],
+    ["star-cr5","9/2/5","star-tb-of-1","19",'none'],
+    ["star-cr5","9/2/6","star-tb-of-1","20",'none'],
+    ["star-cr5","10/1/5","star-tb-of-1","21",'none'],
+    ["star-cr5","10/1/6","star-tb-of-1","22",'none'],
+    ["star-cr5","10/1/11","star-tb-of-1","23",'none'],
+    ["star-cr5","10/1/12","star-tb-of-1","24",'none'],
+    ["star-ovs","eth10","star-tb-of-1","1",''],
     ["star-ovs","eth11","star-tb-of-1","2"],
     ["star-ovs","eth12","star-tb-of-1","3"],
     ["star-ovs","eth13","star-tb-of-1","4"],
@@ -119,6 +119,22 @@ starlinks = [
 star=["star",'star-tb-of-1',"star-cr5",starlinks]
 
 # LBL  POP is not yet deployed
+
+# CORE TO CORE OSCARS circuits
+#  GRI,src,dest,vlan
+corecircuits = [
+    ['es.net-5909',
+     'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/4:link=*',
+     'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/3:link=*',582] ,
+    ['es.net-5906',
+     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/11:link=*',
+     'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/4:link=*',
+     3291],
+    ['es.net-5908',
+     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/11:link=*',
+     'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/3:link=*',
+     830]
+]
 
 
 # SDN POP's
