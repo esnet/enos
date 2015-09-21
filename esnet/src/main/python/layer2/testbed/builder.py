@@ -5,7 +5,7 @@ from array import array
 
 from layer2.common.api import Node, SDNPop, Link, Port, Site, Wan, VPN, Host, HwSwitch, SwSwitch
 from layer2.common.mac import MACAddress
-from layer2.testbed import dpid
+from layer2.testbed import dpid, oscars
 
 # All switches including site routers, core routers, hw switches, and sw switches should
 # not have the same name so that the name of each port could be unique.
@@ -125,7 +125,8 @@ star=["star",'star-tb-of-1',"star-cr5",starlinks]
 corecircuits = [
     ['es.net-5909',
      'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/4:link=*',
-     'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/3:link=*',582] ,
+     'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/3:link=*',
+     582] ,
     ['es.net-5906',
      'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/11:link=*',
      'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/4:link=*',
@@ -157,15 +158,12 @@ class TopoBuilder ():
         self.hostID = 1
         self.switchID = 1
         self.dpidIndex = 1
-        self.nodes = {}
         self.hosts = []
         self.hostIndex = {} # [hostname] = Host
         self.switches = []
         self.switchIndex = {} # [switchname] = Switch
         self.links = [] # all links including those in sites, pops, vpns, and wan
         self.linkIndex = {} # [linkname] = Link
-        self.ports = [] # all ports
-        self.portIndex = {} # [portname] = Port
         self.sites = []
         self.siteIndex = {} # [sitename] = Site
         self.sitesConfig = []
@@ -190,16 +188,9 @@ class TopoBuilder ():
         self.hosts.append(host)
         self.hostIndex[host.name] = host
 
-    def addPort(self, port):
-        if not port.name in self.portIndex:
-            self.ports.append(port)
-            self.portIndex[port.name] = port
-
     def addLink(self, link):
         self.links.append(link)
         self.linkIndex[link.name] = link
-        self.addPort(link.props['endpoints'][0])
-        self.addPort(link.props['endpoints'][1])
 
     def addLinks(self, links):
         for link in links:
@@ -238,9 +229,7 @@ class TopoBuilder ():
             n1.props['ports'][p1.name] = p1
             p2.props['node'] = n2
             n2.props['ports'][p2.name] = p2
-            self.addPort(p1)
-            self.addPort(p2)
-            link = Link(name='%s:%s-%s:%s' % (n1.name,p1.name,n2.name,n2.name),ports=[p1,p2])
+            link = Link(name='%s:%s-%s:%s' % (n1.name,p1.name,n2.name,p2.name),ports=[p1,p2])
             if hwSwitch.name == n1.name and swSwitch.name == n2.name:
                 link.setPortType('HwToSw.WAN', 'SwToHw.WAN')
             elif hwSwitch.name == n2.name and swSwitch.name == n1.name:
@@ -248,7 +237,7 @@ class TopoBuilder ():
             elif hwSwitch.name == n1.name and coreRouter.name == n2.name:
                 link.setPortType('HwToCore.WAN', 'CoreToHw.WAN')
             elif hwSwitch.name == n2.name and coreRouter.name == n1.name:
-                link.setPortType('CoreToCore.WAN', 'HwToCore.WAN')
+                link.setPortType('CoreToHw.WAN', 'HwToCore.WAN')
             self.addLink(link)
 
     def displaySwitches(self):
@@ -271,28 +260,19 @@ class TopoBuilder ():
                                                                            )
             self.addSDNPop(popname, hwswitchname, coreroutername, swswitchname,links)
 
-        # Create links
-
         # create mesh between core routers, attached to VLANs between the core routers and hardware switches
-        """
-        self.wan.connectAll(self.pops, 1000)
-        self.addLinks(self.wan.props['links'])
-
-        for (sitename, hostnames, popname, portno) in self.sitesConfig:
-            site = self.addSite(sitename, popname, portno)
-            for name in hostnames:
-                hostname = name + "@" + sitename
-                host = Host(name=hostname)
-                site.addHost(host)
-                self.addHost(host)
-            self.addLinks(site.props['links'])
-
-        for host in self.hosts:
-            self.updateHost(host)
-        for switch in self.switches:
-            self.updateSwitch(switch)
-        """
-
+        for l in corecircuits:
+            (gri,srcURN,dstURN,vlan) = l
+            (srcNodeName,srcDomain,srcPortName,srcLink) = oscars.parseURN(srcURN)
+            (dstNodeName,dstDomain,dstPortName,dstLink)  = oscars.parseURN(dstURN)
+            srcNode = self.switchIndex[srcNodeName]
+            srcPort = srcNode.props['ports'][srcPortName]
+            dstNode = self.switchIndex[dstNodeName]
+            dstPort = dstNode.props['ports'][dstPortName]
+            link = Link(name='%s:%s-%s:%s' % (srcNode.name,srcPort.name,dstNode.name,dstPort.name),
+                        ports=[srcPort,dstPort])
+            link.setPortType('CoreToCore.WAN','CoreToCore.WAN')
+            self.addLink(link)
 
     def loadConfiguration(self,fileName):
         """

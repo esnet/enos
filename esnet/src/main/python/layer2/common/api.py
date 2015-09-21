@@ -39,7 +39,7 @@ class Port(Properties):
         self.props['vlan'] = 0
         self.update(props)
     def __repr__(self):
-        return 'Port(name=%s, interfaceIndex=%d, vlan=%d)' % (self.name, self.props['vlan'])
+        return 'Port(name=%s)' % (self.name)
 
 class Node(Properties):
     def __init__(self, name, props={}):
