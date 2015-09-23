@@ -15,8 +15,8 @@ from layer2.testbed import dpid, oscars
 
 # Simulated sites ESnet production diskpt's
 lblsite = ["lbl.gov",['lbl-diskpt1'],"denv"]
-anlsite = ["anl.gov",['lbl-diskpt1'],"wash"]
-bnlsite = ["cern.ch",['lbl-diskpt1'],"aofa"]
+anlsite = ["anl.gov",['anl-diskpt1'],"wash"]
+bnlsite = ["bnl.gov",['bnl-diskpt1'],"aofa"]
 
 sites = [lblsite, anlsite, bnlsite]
 
@@ -137,6 +137,22 @@ corecircuits = [
      830]
 ]
 
+# SITE to SDN POP OSCARS circuits
+#  GRI,src,dest,vlan
+sitecircuits = [
+    ['es.net-5918',
+     'urn:ogf:network:domain=es.net:node=lbl-mr2:port=xe-9/3/0:link=*',
+     'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/5:link=*',
+     1994] ,
+    ['es.net-5920',
+     'urn:ogf:network:domain=es.net:node=anl-mr2:port=xe-1/2/0:link=*',
+     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
+     2340],
+    ['es.net-5921',
+     'urn:ogf:network:domain=es.net:node=bnl-mr2:port=xe-2/2/0:link=*',
+     'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/4:link=*',
+     116]
+]
 
 # SDN POP's
 locations=[denv,wash,aofa,amst,cern,atla,star]
@@ -270,8 +286,24 @@ class TopoBuilder ():
             dstNode = self.switchIndex[dstNodeName]
             dstPort = dstNode.props['ports'][dstPortName]
             link = Link(name='%s:%s-%s:%s' % (srcNode.name,srcPort.name,dstNode.name,dstPort.name),
-                        ports=[srcPort,dstPort])
+                        ports=[srcPort,dstPort],
+                        vlan=vlan)
             link.setPortType('CoreToCore.WAN','CoreToCore.WAN')
+            self.addLink(link)
+
+        # create links between sites and core routers
+        for l in sitecircuits:
+            (gri,srcURN,dstURN,vlan) = l
+            (srcNodeName,srcDomain,srcPortName,srcLink) = oscars.parseURN(srcURN)
+            (dstNodeName,dstDomain,dstPortName,dstLink)  = oscars.parseURN(dstURN)
+            srcNode = self.switchIndex[srcNodeName]
+            srcPort = srcNode.props['ports'][srcPortName]
+            dstNode = self.switchIndex[dstNodeName]
+            dstPort = dstNode.props['ports'][dstPortName]
+            link = Link(name='%s:%s-%s:%s' % (srcNode.name,srcPort.name,dstNode.name,dstPort.name),
+                        ports=[srcPort,dstPort],
+                        vlan=vlan)
+            link.setPortType('SiteToCore','CoreToSite')
             self.addLink(link)
 
     def loadConfiguration(self,fileName):
