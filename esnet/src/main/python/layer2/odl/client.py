@@ -96,7 +96,7 @@ class ODLClient(SimpleController,PacketHandler.Callback):
         """
         # index odl node and port(connector)
         index = {} # [dpid] = switch
-        for switch in ODLClient.topology.builder.switches:
+        for switch in ODLClient.topology.builder.switchIndex.values():
             if 'dpid' in switch.props:
                 dpid = binascii.hexlify(switch.props['dpid'][-6:])
                 index[dpid] = switch

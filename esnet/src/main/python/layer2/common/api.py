@@ -28,10 +28,10 @@ class Properties(object):
         return self.name
 
 class Port(Properties):
-    def __init__(self,name,props={}):
+    def __init__(self,name,node=None,props={}):
         super(Port, self).__init__(name)
         # configured by Node:
-        self.props['node'] = None # Node
+        self.props['node'] = node
         # configured by Link:
         self.props['links'] = [] # list of Link
         # Others
@@ -64,6 +64,9 @@ class ServiceVm(Node):
 class Switch(Node):
     def __init__(self, name, props={}):
         super(Switch, self).__init__(name, props=props)
+    def addPort(self,port):
+        self.props['ports'][port.name] = port
+        port.props['node'] = self
 
 class HwSwitch(Switch):
     def __init__(self, name, props={}):
@@ -296,28 +299,21 @@ class VPN(Properties):
 class Site(Properties):
     def __init__(self, name, props={}):
         super(Site, self).__init__(name)
-        siteRouter = SiteRouter(name)
-        self.props['siteRouter'] = siteRouter
         # configure when connecting a Host
         self.props['hosts'] = []
         self.props['links'] = [] # Link fr SiteRouter to Host & BorderRouter
-        # configure when connecting to a Pop
-        self.props['borderRouter'] = None # CoreRouter
         self.props['pop'] = None # SDNPop
+        self.props['switch'] = None
         self.update(props)
-    def addHost(self, host):
+    def addSwitch(self,switch):
+        self.props['switch'] = switch
+    def addHost(self, host,link):
         self.props['hosts'].append(host)
-        siteRouter = self.props['siteRouter']
-        link = Link.create(siteRouter, host)
-        link.setPortType('SiteToHost', 'HostToSite')
+        host.props['link'] = link
+        self.props['links'].append(link)
         host.setSite(self)
-        siteRouter.addHost(host, link)
-        self.props['links'].append(link)
-    def setPop(self, pop, link):
+    def setPop(self, pop):
         self.props['pop'] = pop
-        self.props['borderRouter'] = pop.props['coreRouter']
-        self.props['siteRouter'].setWanLink(link)
-        self.props['links'].append(link)
 
 class Wan(Properties):
     def __init__(self, name, props={}):

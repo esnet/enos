@@ -3,7 +3,7 @@
 import struct,binascii
 from array import array
 
-from layer2.common.api import Node, SDNPop, Link, Port, Site, Wan, VPN, Host, HwSwitch, SwSwitch
+from layer2.common.api import Node, SDNPop, Link, Port, Site, Wan, VPN, Host, HwSwitch, SwSwitch, Switch
 from layer2.common.mac import MACAddress
 from layer2.testbed import dpid, oscars
 
@@ -121,7 +121,8 @@ star=["star",'star-tb-of-1',"star-cr5",starlinks]
 # LBL  POP is not yet deployed
 
 # CORE TO CORE OSCARS circuits
-#  GRI,src,dest,vlan
+#  GRI,src,dest,vlan. By convention, the source is always the router connected to the  host and the destination is
+#  always the core router connected to the SDN POP.
 corecircuits = [
     ['es.net-5909',
      'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/4:link=*',
@@ -138,21 +139,30 @@ corecircuits = [
 ]
 
 # SITE to SDN POP OSCARS circuits
-#  GRI,src,dest,vlan
-sitecircuits = [
-    ['es.net-5918',
+#  Site,GRI,src,dest,vlan
+sitecircuits = {}
+
+sitecircuits['lbl.gov'] = \
+    ['lbl.gov',
+     'es.net-5918',
      'urn:ogf:network:domain=es.net:node=lbl-mr2:port=xe-9/3/0:link=*',
      'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/5:link=*',
-     1994] ,
-    ['es.net-5920',
+     1994]
+
+sitecircuits['anl.gov'] = \
+    ['anl.gov',
+     'es.net-5920',
      'urn:ogf:network:domain=es.net:node=anl-mr2:port=xe-1/2/0:link=*',
      'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
-     2340],
-    ['es.net-5921',
+     2340]
+
+sitecircuits['bnl.gov'] = \
+    ['bnl.gov',
+     'es.net-5921',
      'urn:ogf:network:domain=es.net:node=bnl-mr2:port=xe-2/2/0:link=*',
      'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/4:link=*',
      116]
-]
+
 
 # SDN POP's
 locations=[denv,wash,aofa,amst,cern,atla,star]
@@ -174,19 +184,13 @@ class TopoBuilder ():
         self.hostID = 1
         self.switchID = 1
         self.dpidIndex = 1
-        self.hosts = []
         self.hostIndex = {} # [hostname] = Host
-        self.switches = []
         self.switchIndex = {} # [switchname] = Switch
-        self.links = [] # all links including those in sites, pops, vpns, and wan
         self.linkIndex = {} # [linkname] = Link
-        self.sites = []
         self.siteIndex = {} # [sitename] = Site
         self.sitesConfig = []
-        self.pops = []
         self.popIndex = {} # [popname] = SDNPop
         self.wan = Wan(name='esnet')
-        self.dpidToName = {}
         self.controller = controller
 
         if fileName != None:
@@ -197,20 +201,20 @@ class TopoBuilder ():
         self.loadDefault()
 
     def addSwitch(self, switch):
-        self.switches.append(switch)
         self.switchIndex[switch.name] = switch
 
     def addHost(self, host):
-        self.hosts.append(host)
         self.hostIndex[host.name] = host
 
     def addLink(self, link):
-        self.links.append(link)
         self.linkIndex[link.name] = link
 
     def addLinks(self, links):
         for link in links:
             self.addLink(link)
+
+    def addSite(self,site):
+        self.siteIndex[site.name] = site
 
     def addSDNPop(self, popname, hwswitchname, coreroutername, swswitchname,links):
         pop = SDNPop(name=popname,
@@ -235,7 +239,6 @@ class TopoBuilder ():
         self.addSwitch(swSwitch)
         self.addHost(pop.props['serviceVm'])
         self.popIndex[popname] = pop
-        self.pops.append(pop)
         for l in links:
             (n1,p1,n2,p2) = (self.switchIndex[l[0]],
                              Port(l[1]),
@@ -258,7 +261,7 @@ class TopoBuilder ():
 
     def displaySwitches(self):
         print "\nName\t\t\tDPID\t\tODL Name\n"
-        for sw in self.switches:
+        for sw in self.siteIndex.values():
             if 'dpid' in sw.props:
                 hexdpid = binascii.hexlify(sw.props['dpid'])
                 print sw.name,"\t",hexdpid,"\topenflow:" + str(int(hexdpid,16))
@@ -281,6 +284,8 @@ class TopoBuilder ():
             (gri,srcURN,dstURN,vlan) = l
             (srcNodeName,srcDomain,srcPortName,srcLink) = oscars.parseURN(srcURN)
             (dstNodeName,dstDomain,dstPortName,dstLink)  = oscars.parseURN(dstURN)
+            # By convention, the source is always the router connected to the host. We do not yet know this
+            # switch, therefore we need to create it.
             srcNode = self.switchIndex[srcNodeName]
             srcPort = srcNode.props['ports'][srcPortName]
             dstNode = self.switchIndex[dstNodeName]
@@ -291,20 +296,38 @@ class TopoBuilder ():
             link.setPortType('CoreToCore.WAN','CoreToCore.WAN')
             self.addLink(link)
 
-        # create links between sites and core routers
-        for l in sitecircuits:
-            (gri,srcURN,dstURN,vlan) = l
+        # Add sites to the topology
+        for (siteName,hosts,pop) in sites:
+            site = Site(siteName)
+            self.siteIndex[siteName] = site
+            (siteName,gri,srcURN,dstURN,vlan) = sitecircuits[siteName]
             (srcNodeName,srcDomain,srcPortName,srcLink) = oscars.parseURN(srcURN)
             (dstNodeName,dstDomain,dstPortName,dstLink)  = oscars.parseURN(dstURN)
-            srcNode = self.switchIndex[srcNodeName]
-            srcPort = srcNode.props['ports'][srcPortName]
+            # By convention, the source is always the router where the host directly connects to.
+            srcNode = Switch(srcNodeName)
+            self.addSwitch(srcNode)
+            srcPort = Port(srcPortName)
+            srcNode.addPort(srcPort)
             dstNode = self.switchIndex[dstNodeName]
             dstPort = dstNode.props['ports'][dstPortName]
             link = Link(name='%s:%s-%s:%s' % (srcNode.name,srcPort.name,dstNode.name,dstPort.name),
                         ports=[srcPort,dstPort],
                         vlan=vlan)
             link.setPortType('SiteToCore','CoreToSite')
+            site.props['SiteToCore'] = link
+            site.addSwitch(srcNode)
             self.addLink(link)
+
+            for h in hosts:
+                host = Host(h)
+                # Host are directly connected to core router. Build a link. Each host is connected using eth2
+                srcHostPort = Port("eth2")
+                srcHostPort.props['node'] = host
+                link = Link(name=h + "@" + site.name,ports=[srcHostPort,srcPort],vlan=vlan)
+                link.setPortType('HostToSite','SiteToHost')
+                self.addLink(link)
+                site.addHost(host=host,link=link)
+
 
     def loadConfiguration(self,fileName):
         """

@@ -83,12 +83,22 @@ class TestbedTopology (GenericTopologyProvider):
         link.props['enosLink'] = l
         self.addLink(l)
 
-    def buildCore(self):
-        for switch in self.builder.switches:
-            self.buildSwitch(switch)
-        for host in self.builder.hosts:
+    def buildSite(self,site):
+        for host in site.props['hosts']:
             self.buildHost(host)
-        for link in self.builder.links:
+        switch = site.props['switch']
+        self.buildSwitch(switch=switch)
+
+    def buildSites(self):
+        for site in self.builder.siteIndex.values():
+            self.buildSite(site)
+
+    def buildCore(self):
+        for switch in self.builder.switchIndex.values():
+            self.buildSwitch(switch)
+        for host in self.builder.hostIndex.values():
+            self.buildHost(host)
+        for link in self.builder.linkIndex.values():
             self.buildLink(link)
 
     def buildVpns(self):
@@ -101,6 +111,7 @@ class TestbedTopology (GenericTopologyProvider):
             self.controller = controller
         # Build topology
         self.builder = TopoBuilder(fileName = fileName, controller = self.controller)
+        self.buildSites()
         self.buildCore()
         self.buildVpns()
         if not controller:
