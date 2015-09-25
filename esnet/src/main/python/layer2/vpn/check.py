@@ -1,24 +1,24 @@
-from net.es.netshell.odl import Controller
+from net.es.netshell.layer2.odl import Controller
 def main():
     try:
-        topo = net.builder
+        builder = topo.builder
     except:
         print "no topo is existed, create a temporary one"
         from mininet.testbed import TopoBuilder
-        topo = TopoBuilder()
+        builder = TopoBuilder()
 
     controller = Controller.getInstance()
 
     devices = controller.getNetworkDevices()
     allPass = True
-    if len(topo.switches) != len(devices):
+    if len(builder.switchIndex.values()) != len(devices):
         allPass = False
-    print 'topo has %d/%d devices' % (len(devices), len(topo.switches))
+    print 'builder has %d/%d devices' % (len(devices), len(builder.switchIndex.values()))
     for device in devices:
         node = device.getNode()
         nodename = 's%d' % node.getID()
         conns = device.getNodeConnectors()
-        numPorts = len(topo.switchIndex[topo.mininetToRealNames[nodename]].props['ports'])
+        numPorts = len(builder.switchIndex[nodename].props['ports'])
         if numPorts != len(conns):
             allPass = False
         print '%r has %d/%d conns' % (node, len(conns), numPorts)

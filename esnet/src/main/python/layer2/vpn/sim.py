@@ -48,7 +48,7 @@ def parseMac(mac):
         pass
     return None
 def main():
-    if not 'net' in globals():
+    if not 'topo' in globals():
         print "Please run demo first"
         return
     if len(sys.argv) < 7:
@@ -69,11 +69,11 @@ def main():
         return
     try:
         switchName = sys.argv[4]
-        switch = net.builder.switchIndex[switchName]
+        switch = topo.builder.switchIndex[switchName]
     except:
         try:
             switchIndex = int(sys.argv[4])
-            switch = net.builder.switches[switchIndex]
+            switch = topo.builder.switchIndex.values()[switchIndex]
         except:
             print "switch %s can not be found" % sys.argv[4]
             return
@@ -89,9 +89,9 @@ def main():
     # create a packet
     etherType=2048
     payload=[0]
-    odlSwitch = net.controller.findODLSwitch(switch)
+    odlSwitch = topo.controller.findODLSwitch(switch)
     portName = "%s-eth%d" % (switch.props['mininetName'], port.props['interfaceIndex'])
-    nodeconn = net.controller.odlController.getNodeConnector(odlSwitch.getNode(), portName)
+    nodeconn = topo.controller.odlController.getNodeConnector(odlSwitch.getNode(), portName)
 
     # Create the outgoing packet in ODL land.  The outgoing node connector must be set.
     cp = Ethernet()
@@ -107,13 +107,13 @@ def main():
         cvp.setRawPayload(javaByteArray(payload))
         cp.setPayload(cvp)
         cp.setEtherType(EtherTypes.VLANTAGGED.shortValue())
-    rp = net.controller.odlPacketHandler.encodeDataPacket(cp)
+    rp = topo.controller.odlPacketHandler.encodeDataPacket(cp)
     if sys.argv[6] == 'in':
         rp.setIncomingNodeConnector(nodeconn)
-        net.controller.callback(rp)
+        topo.controller.callback(rp)
     else:
         rp.setOutgoingNodeConnector(nodeconn)
-        net.controller.odlPacketHandler.transmitDataPacket(rp)
+        topo.controller.odlPacketHandler.transmitDataPacket(rp)
 
 if __name__ == '__main__':
     main()

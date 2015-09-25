@@ -74,11 +74,11 @@ def get(l, d, index):
 def tovpn(s):
     return get(vpns, vpnIndex, s)
 def topop(s):
-    return get(net.builder.pops, net.builder.popIndex, s)
+    return get(topo.builder.pops, topo.builder.popIndex, s)
 def tosite(s):
-    return get(net.builder.sites, net.builder.siteIndex, s)
+    return get(topo.builder.siteIndex.values(), topo.builder.siteIndex, s)
 def tohost(s):
-    return get(net.builder.hosts, net.builder.hostIndex, s)
+    return get(topo.builder.hostIndex.values, topo.builder.hostIndex, s)
 
 def sample(sampleindex):
     if sampleindex == '1':
@@ -198,13 +198,13 @@ def visualize(vpn, confname):
 
 def load(confname):
     obj = loadObject(confname)
-    vpn = VPN.deserialize(obj, net)
+    vpn = VPN.deserialize(obj, topo)
     for (sitename, hostnames, lanVlan, siteVlan) in obj['participants']:
-        site = net.builder.siteIndex[sitename]
+        site = topo.builder.siteIndex[sitename]
         siteRenderer = rendererIndex[sitename]
         siteRenderer.addVlan(lanVlan, siteVlan)
         for hostname in hostnames:
-            siteRenderer.addHost(net.builder.hostIndex[hostname], lanVlan)
+            siteRenderer.addHost(topo.builder.hostIndex[hostname], lanVlan)
     addVpn(vpn)
 
 def create(vpnname):
@@ -213,7 +213,7 @@ def create(vpnname):
         return
 
     vpn = VPN(vpnname)
-    intent = SDNPopsIntent(name=vpn.name, vpn=vpn, wan=net.builder.wan)
+    intent = SDNPopsIntent(name=vpn.name, vpn=vpn, wan=topo.builder.wan)
     renderer = SDNPopsRenderer(intent)
     renderer.execute() # no function since no scope yet
     vpn.props['renderer'] = renderer
@@ -341,7 +341,7 @@ def settimeout(vpn, timeout):
     vpn.props['renderer'].setTimeout(timeout)
 
 def main():
-    if not 'net' in globals():
+    if not 'topo' in globals():
         print 'Please run demo first'
         return
     try:

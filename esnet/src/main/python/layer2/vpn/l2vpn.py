@@ -7,7 +7,7 @@ from layer2.common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Act
 from layer2.common.openflow import FlowEntry
 from layer2.odl.client import ODLClient
 
-from vpn.topologu import TestbedTopology, TestbedHost, TestbedNode, TestbedPort, TestbedLink
+from layer2.testbed.topology import TestbedTopology, TestbedHost, TestbedNode, TestbedPort, TestbedLink
 
 from net.es.netshell.api import GenericGraph, GenericHost
 from layer2.common.mac import MACAddress

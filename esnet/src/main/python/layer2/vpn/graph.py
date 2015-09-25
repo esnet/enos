@@ -54,7 +54,7 @@ def showobj(obj):
             print "%s: %r" % (prop[0], prop[1])
 
 def main():
-    if not 'net' in globals():
+    if not 'topo' in globals():
         print "Please run demo first"
         return
     elif len(sys.argv) < 3:

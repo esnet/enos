@@ -29,6 +29,8 @@ class TestbedLink(GenericLink,Properties):
         Properties.__init__(self,self.getResourceName(),props)
         node1.props['links'].append(self)
         node2.props['links'].append(self)
+        self.setSpeed(10*1024) # Assume 10G speed is in Mbps
+
 
 class TestbedHost(GenericHost,Properties):
     def __init__(self,name,props={}):
@@ -41,7 +43,6 @@ class TestbedPort(GenericPort,Port):
         GenericPort.__init__(self,port.name)
         Port.__init__(self,name=port.name,props=port.props)
         self.props['macs'] = {} # [mac] = port
-
 
 @singleton
 class TestbedTopology (GenericTopologyProvider):
@@ -82,6 +83,9 @@ class TestbedTopology (GenericTopologyProvider):
         l = TestbedLink(node1,port1,node2,port2,props=link.props)
         link.props['enosLink'] = l
         self.addLink(l)
+        # Links are assumed to be uni-directional. Create reverse link
+        r = TestbedLink(node1=node2,port1=port2,node2=node1,port2=port1)
+        self.addLink(r)
 
     def buildSite(self,site):
         for host in site.props['hosts']:
@@ -104,6 +108,12 @@ class TestbedTopology (GenericTopologyProvider):
     def buildVpns(self):
         pass
 
+    def toGraph(self):
+        graph = self.getGraph(TopologyProvider.WeightType.TrafficEngineering)
+        # Add a non null arbitrary weight
+        for e in graph.edgeSet():
+            graph.setEdgeWeight(e, 1)
+
     def __init__(self, fileName = None, controller = None):
         if not controller:
             self.controller = ODLClient(topology=self)
@@ -121,12 +131,12 @@ class TestbedTopology (GenericTopologyProvider):
 if __name__ == '__main__':
     # todo: real argument parsing.
     configFileName = None
-    net=None
+    topo=None
     if len(sys.argv) > 1:
         configFileName = sys.argv[1]
-        net = TestbedTopology(fileName=configFileName)
+        topo = TestbedTopology(fileName=configFileName)
     else:
-        net = TestbedTopology()
-    # viewer = net.getGraphViewer(TopologyProvider.WeightType.TrafficEngineering)
-    graph = net.getGraph(TopologyProvider.WeightType.TrafficEngineering)
+        topo = TestbedTopology()
+    #viewer = net.getGraphViewer(TopologyProvider.WeightType.TrafficEngineering)
+    graph = topo.toGraph()
 

@@ -3,8 +3,7 @@ import binascii
 
 from layer2.common.intent import ProvisioningRenderer, ProvisioningIntent, ProvisioningExpectation
 from layer2.common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut, SimpleController
-from layer2.vpn.topology import TestbedTopology
-from layer2.vpn.topology import TestbedHost, TestbedNode, TestbedPort, TestbedLink
+from layer2.testbed.topology import TestbedHost, TestbedNode, TestbedPort, TestbedLink, TestbedTopology
 
 from net.es.netshell.api import GenericGraph
 from layer2.common.utils import Logger

@@ -6,7 +6,7 @@ from layer2.common.intent import ProvisioningRenderer, ProvisioningIntent, Provi
 from layer2.common.openflow import ScopeOwner, L2SwitchScope, Match, Action, FlowMod
 
 from layer2.odl.client import ODLClient
-from layer2.vpn.topology import TestbedTopology
+from layer2.testbed.topology import TestbedTopology
 from layer2.common.mac import MACAddress
 
 class WanRenderer(ProvisioningRenderer, ScopeOwner):

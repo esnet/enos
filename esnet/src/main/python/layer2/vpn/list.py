@@ -76,7 +76,7 @@ def showobj(obj):
             print "%s: %r" % (prop[0], prop[1])
 
 def main():
-    if not 'net' in globals():
+    if not 'topo' in globals():
         print "Please run demo first"
         return
     if len(sys.argv) < 2:
@@ -100,28 +100,28 @@ def main():
                         print "[%d] %r" % (i, flowmod)
                         i += 1
         elif command == 'hosts':
-            showlist(net.builder.hosts)
+            showlist(topo.builder.hostIndex.values())
         elif command == 'intents':
             for i in sorted(Intent.directory):
                 print i
         elif command == 'links':
-            showlist(net.builder.links)
+            showlist(topo.builder.linkIndex.values())
         elif command == 'pops':
-            showlist(net.builder.pops)
+            showlist(topo.builder.pops)
         elif command == 'ports':
-            showlist(net.builder.ports)
+            showlist(topo.builder.portIndex.values())
         elif command == 'renderers':
             showlist(renderers)
         elif command == 'scopes':
-            showlist(net.controller.scopes.values())
+            showlist(topo.controller.scopes.values())
         elif command == 'sites':
-            showlist(net.builder.sites)
+            showlist(topo.builder.siteIndex.values())
         elif command == 'switches':
-            showlist(net.builder.switches)
+            showlist(topo.builder.switchIndex.values())
         elif command == 'vpns':
             showlist(vpns)
         elif command == 'wan':
-            showobj(net.builder.wan)
+            showobj(topo.builder.wan)
         elif len(sys.argv) < 3:
             usage()
         elif command == 'entry':
@@ -136,34 +136,34 @@ def main():
             expectation = get(None, Expectation.directory, sys.argv[2])
             showobj(expectation)
         elif command == 'host':
-            host = get(net.builder.hosts, net.builder.hostIndex, sys.argv[2])
+            host = get(topo.builder.hostIndex.values(), topo.builder.hostIndex, sys.argv[2])
             showobj(host)
         elif command == 'intent':
             intent = get(None, Intent.directory, sys.argv[2])
             showobj(intent)
         elif command == 'link':
-            link = get(net.builder.links, net.builder.linkIndex, sys.argv[2])
+            link = get(topo.builder.linkIndex.values(), topo.builder.linkIndex, sys.argv[2])
             showobj(link)
         elif command == 'pop':
-            pop = get(net.builder.pops, net.builder.popIndex, sys.argv[2])
+            pop = get(topo.builder.pops, topo.builder.popIndex, sys.argv[2])
             showobj(pop)
         elif command == 'port':
-            port = get(net.builder.ports, net.builder.portIndex, sys.argv[2])
+            port = get(topo.builder.portIndex.values(), topo.builder.portIndex, sys.argv[2])
             showobj(port)
         elif command == 'renderer':
             renderer = get(renderers, rendererIndex, sys.argv[2])
             showobj(renderer)
         elif command == 'scope':
             scopeIndex = {}
-            for scope in net.controller.scopes.values():
+            for scope in topo.controller.scopes.values():
                 scopeIndex[scope.name] = scope
-            scope = get(net.controller.scopes.values(), scopeIndex, sys.argv[2])
+            scope = get(topo.controller.scopes.values(), scopeIndex, sys.argv[2])
             showobj(scope)
         elif command == 'site':
-            site = get(net.builder.sites, net.builder.siteIndex, sys.argv[2])
+            site = get(topo.builder.siteIndex.values(), topo.builder.siteIndex, sys.argv[2])
             showobj(site)
         elif command == 'switch':
-            switch = get(net.builder.switches, net.builder.switchIndex, sys.argv[2])
+            switch = get(topo.builder.switchIndex.values(), topo.builder.switchIndex, sys.argv[2])
             showobj(switch)
         elif command == 'vpn':
             vpn = get(vpns, vpnIndex, sys.argv[2])

@@ -13,24 +13,24 @@ from layer2.common.utils import InitLogger, Logger
 
 # TODO collect into a global variable demo might be a good idea
 try:
-    if net == TestbedTopology(): # singleton
+    if topo == TestbedTopology(): # singleton
         print "Please reload first"
-    else: # rare situation; net might be reloaded in python interactive intepreter manually
-        net = None
-except: # the case that net is not existed (in the very begining) yet
-    net = None
+    else: # rare situation; topo might be reloaded in python interactive intepreter manually
+        topo = None
+except: # the case that topo is not existed (in the very begining) yet
+    topo = None
     renderers = []
     rendererIndex = {}
     vpns = [] # used in vpn.py only
     vpnIndex = {} # used in vpn.py only
 
 def main():
-    global net
+    global topo
     global renderers
     global rendererIndex
     global vpns
     global vpnIndex
-    if net:
+    if topo:
         return
 
     renderers = []
@@ -43,17 +43,17 @@ def main():
     configFileName = None
     if len(sys.argv) > 1:
         configFileName = sys.argv[1]
-        net = TestbedTopology(fileName=configFileName)
+        topo = TestbedTopology(fileName=configFileName)
     else:
-        net = TestbedTopology()
+        topo = TestbedTopology()
     # One-time setup for the VPN service
-    wi = WanIntent("esnet", net.builder.wan)
+    wi = WanIntent("esnet", topo.builder.wan)
     wr = WanRenderer(wi)
     wr.execute()
     renderers.append(wr)
     rendererIndex[wr.name] = wr
 
-    for site in net.builder.sites:
+    for site in topo.builder.sites:
         intent = SiteIntent(name=site.name, site=site)
         sr = SiteRenderer(intent)
         suc = sr.execute() # no function without vpn information

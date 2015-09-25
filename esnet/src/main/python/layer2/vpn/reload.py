@@ -19,7 +19,6 @@ from layer2.common.api import Port
 from layer2.common.api import Node
 from layer2.common.api import Host
 from layer2.common.api import ServiceVm
-from layer2.common.api import SiteRouter
 from layer2.common.api import CoreRouter
 from layer2.common.api import HwSwitch
 from layer2.common.api import SwSwitch
@@ -48,10 +47,12 @@ from layer2.common.openflow import PacketInEvent
 from layer2.common.openflow import SimpleController
 from layer2.common.openflow import FlowEntry
 
-import layer2.vpn.topology
-reload (layer2.mininet.enos)
-
-from layer2.vpn.topology import TestbedTopology
+from layer2.testbed import oscars
+reload(oscars)
+from layer2.testbed import builder
+reload(builder)
+import layer2.testbed.topology
+reload (layer2.testbed.topology)
 
 import layer2.odl.client
 reload (layer2.odl.client)
@@ -72,9 +73,6 @@ reload (layer2.vpn.sites)
 from layer2.vpn.sites import SiteIntent
 from layer2.vpn.sites import SiteRenderer
 
-import vpnlayer2..testbed
-reload (layer2.vpn.testbed)
-from layer2.vpn.testbed import TopoBuilder
 
 import layer2.vpn.demo
 reload(layer2.vpn.demo)
