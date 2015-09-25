@@ -74,6 +74,7 @@ def get(l, d, index):
 def tovpn(s):
     return get(vpns, vpnIndex, s)
 def topop(s):
+    print 10,pops,topo.builder.popIndex
     return get(topo.builder.pops, topo.builder.popIndex, s)
 def tosite(s):
     return get(topo.builder.siteIndex.values(), topo.builder.siteIndex, s)
@@ -198,7 +199,7 @@ def visualize(vpn, confname):
 
 def load(confname):
     obj = loadObject(confname)
-    vpn = VPN.deserialize(obj, topo)
+    vpn = VPN.deserialize(obj, topop)
     for (sitename, hostnames, lanVlan, siteVlan) in obj['participants']:
         site = topo.builder.siteIndex[sitename]
         siteRenderer = rendererIndex[sitename]
@@ -367,7 +368,7 @@ def main():
             if command == 'execute':
                 execute(vpn)
             elif command == 'addpop':
-                pop = topop(sys.argv[3])
+                pop = topo.builder.popIndex[sys.argv[3]]
                 addpop(vpn, pop)
             elif command == 'delpop':
                 pop = topop(sys.argv[3])

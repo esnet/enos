@@ -816,18 +816,16 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 SDNPopsRenderer.logger.warning("The SDNPop did not participate in the VPN yet")
                 return False
             vid = self.vpn.props['vid']
-            coreRouter = pop.props['coreRouter'].props['enosNode']
             hwSwitch = pop.props['hwSwitch'].props['enosNode']
             hwSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, hwSwitch.name), switch=hwSwitch, owner=self)
             self.props['scopeIndex'][hwSwitch.name] = hwSwitchScope
             hwSwitch.props['controller'].addScope(hwSwitchScope)
-
             swSwitch = pop.props['swSwitch'].props['enosNode']
             swSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, swSwitch.name),switch=swSwitch,owner=self)
-            swSwitchScope.addEndpoint(swSwitch.props['vmPort.WAN'], vid)
+            # ServiceVM Not yet implemented
+            # swSwitchScope.addEndpoint(swSwitch.props['vmPort.WAN'], vid)
             self.props['scopeIndex'][swSwitch.name] = swSwitchScope
             swSwitch.props['controller'].addScope(swSwitchScope)
-
             for other_pop in self.props['popIndex'].values():
                 self.connectPop(pop, other_pop)
                 self.connectPop(other_pop, pop)

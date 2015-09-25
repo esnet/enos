@@ -3,7 +3,6 @@ demo should be run no more than once to initialize the topology.
 Global variables such as net, renderers and rendererIndex are shared
 to CLI environment.
 """
-from layer2.vpn.sites import SiteIntent, SiteRenderer
 from layer2.testbed.topology import TestbedTopology
 from layer2.vpn.l2vpn import SDNPopsRenderer,SDNPopsIntent
 from layer2.vpn.wan import WanRenderer, WanIntent
@@ -53,14 +52,6 @@ def main():
     renderers.append(wr)
     rendererIndex[wr.name] = wr
 
-    for site in topo.builder.sites:
-        intent = SiteIntent(name=site.name, site=site)
-        sr = SiteRenderer(intent)
-        suc = sr.execute() # no function without vpn information
-        if not suc:
-            Logger().warning('%r.execute() fail', sr)
-        renderers.append(sr)
-        rendererIndex[sr.name] = sr
     print "Now the demo environment is ready."
 
 if __name__ == '__main__':

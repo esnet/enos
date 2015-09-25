@@ -68,12 +68,9 @@ reload (layer2.vpn.wan)
 from layer2.vpn.wan import WanIntent
 from layer2.vpn.wan import WanRenderer
 
-import layer2.vpn.sites
-reload (layer2.vpn.sites)
-from layer2.vpn.sites import SiteIntent
-from layer2.vpn.sites import SiteRenderer
 
-
+import layer2.vpn.l2vpn
+reload(layer2.vpn.l2vpn)
 import layer2.vpn.demo
 reload(layer2.vpn.demo)
 
