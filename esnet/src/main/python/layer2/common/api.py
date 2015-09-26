@@ -81,6 +81,7 @@ class HwSwitch(Switch):
     def addSite(self, site, portno):
         self.props['sitePortIndex'][site.name] = self.props['toCorePorts'][portno]
     def connectPop(self, pop, hwlink, swlink):
+        print 10000
         self.props['wanPortIndex'][pop.name] = hwlink.props['portIndex'][self.name]
         hwport = hwlink.props['portIndex'][self.name]
         swport = swlink.props['portIndex'][self.name]
@@ -135,6 +136,7 @@ class CoreRouter(Switch):
         """
 
     def connectPop(self, pop, wanlink, hwlink):
+        print "100"
         """
         wanport = wanlink.props['portIndex'][self.name]
         hwport = hwlink.props['portIndex'][self.name]
@@ -175,10 +177,14 @@ class SDNPop(Properties):
     def connectPop(self, pop, link, vlan):
         # hw[tocore_port] --<hwlink>-- [core_port]core[wanPort] --<wanlink with vlan>-- pop
         hwSwitch = self.props['hwSwitch']
+        hwSwitch = self.props['hwSwitch']
+        hwlink = Link.create(coreRouter, hwSwitch, vlan)
+        hwlink.setPortType('CoreToHw.WAN', 'HwToCore.WAN')
         # sw[tohw_port] --<swlink>-- [tosw_port]hw
         swSwitch = self.props['swSwitch']
         swlink = Link.create(hwSwitch, swSwitch, vlan)
         swlink.setPortType('HwToSw.WAN', 'SwToHw.WAN')
+        hwSwitch.connectPop(pop, hwlink, swlink)
         swSwitch.connectPop(pop, swlink)
         return (swlink)
 

@@ -62,12 +62,13 @@ from org.opendaylight.controller.sal.packet import PacketResult
 from org.opendaylight.controller.sal.flowprogrammer import Flow
 
 from org.opendaylight.controller.sal.utils import EtherTypes
+
 class ODLClient(SimpleController,PacketHandler.Callback):
     """
     Class that is an interface to the ENOS OpenDaylight client.
     The real client functionality is the Controller
     class (in Java).
-    :param topology mininet.enos.TestbedTopology
+    :param topology layer2.testbed.topology.TestbedTopology
     """
     topology = None
     logger = Logger('ODLClient')
@@ -135,10 +136,9 @@ class ODLClient(SimpleController,PacketHandler.Callback):
         return self.odlSwitchIndex[dpid]
 
     def getNodeConn(self, odlNode, switch, port):
-        # Compose the port name, which comes from the mininet switch name ("s2") and our
-        # port name ("eth1").  We then need to look this up in the ODL SwitchManager,
+        # Retrieve the name of the switch. We then need to look this up in the ODL SwitchManager,
         # but that requires a pointer to the ODL Node.
-        portName = switch.props['mininetName'] + "-" + port.name.split("-")[-1]
+        portName =  port.name
         nodeconn = self.odlController.getNodeConnector(odlNode, portName)
         if not nodeconn:
             ODLClient.logger.warning('%s not found at %r' % (portName, odlNode))
@@ -161,7 +161,7 @@ class ODLClient(SimpleController,PacketHandler.Callback):
         match = Match()
         if 'in_port' in flowMod.match.props:
             # Compose the port name
-            portName = flowMod.switch.props['mininetName'] + '-' + flowMod.match.props['in_port'].name.split("-")[-1]
+            portName = flowMod.match.props['in_port'].name
             nodeconn = self.odlController.getNodeConnector(odlNode, portName)
             if not nodeconn:
                 ODLClient.logger.warning('%s not found at %r' % (portName, odlNode))
@@ -266,7 +266,7 @@ class ODLClient(SimpleController,PacketHandler.Callback):
             if sw == None:
                 print packet, "cannot be sent because the switch is not in inventory"
                 return False
-            portName = packet.scope.switch.props['mininetName'] + '-' + packet.port.name.split("-")[-1]
+            portName = packet.port.name
             nodeconn = self.odlController.getNodeConnector(sw.getNode(), portName)
             if nodeconn == None:
                 ODLClient.logger.warning('can not send %r because the port %s on %r is invalid' % (packet, portName, sw.getNode()))
@@ -406,9 +406,7 @@ class ODLClient(SimpleController,PacketHandler.Callback):
             #
             # This is very difficult because ODL does not let us retrieve the name of
             # a node connector (the last argument that would be passed to
-            # SwitchManager.getNodeConnector().  The ID of a node connector appears to
-            # be a small integer X that corresponds to the "ethX" port name in ENOS
-            # (and sY-ethX in mininet)
+            # SwitchManager.getNodeConnector().
             portno = ingressConnector.getID()
             port = switch.props['ports'][portno]
             if self.debug and not self.dropLLDP:

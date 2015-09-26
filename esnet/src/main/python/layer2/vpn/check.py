@@ -1,10 +1,10 @@
 from net.es.netshell.layer2.odl import Controller
+from layer2.testbed.builder import TopoBuilder
 def main():
     try:
         builder = topo.builder
     except:
         print "no topo is existed, create a temporary one"
-        from mininet.testbed import TopoBuilder
         builder = TopoBuilder()
 
     controller = Controller.getInstance()
