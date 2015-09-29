@@ -91,7 +91,7 @@ atlalinks = [
     ["atla-cr5","10/1/10","atla-tb-of-1","23",'none'],
     ["atla-cr5","10/1/11","atla-tb-of-1","24",'none'],
     ["atla-ovs","eth10","atla-tb-of-1","1",'hw'],
-    ["atla-ovs","eth11","atla-tb-of-1","2"'none'],
+    ["atla-ovs","eth11","atla-tb-of-1","2",'none'],
     ["atla-ovs","eth12","atla-tb-of-1","3",'none'],
     ["atla-ovs","eth13","atla-tb-of-1","4",'none']
 ]
@@ -107,14 +107,14 @@ starlinks = [
     ["star-cr5","10/1/6","star-tb-of-1","22",'none'],
     ["star-cr5","10/1/11","star-tb-of-1","23",'none'],
     ["star-cr5","10/1/12","star-tb-of-1","24",'none'],
-    ["star-ovs","eth10","star-tb-of-1","1",''],
-    ["star-ovs","eth11","star-tb-of-1","2"],
-    ["star-ovs","eth12","star-tb-of-1","3"],
-    ["star-ovs","eth13","star-tb-of-1","4"],
-    ["star-ovs","eth14","star-tb-of-1","5"],
-    ["star-ovs","eth15","star-tb-of-1","6"],
-    ["star-ovs","eth16","star-tb-of-1","7"],
-    ["star-ovs","eth17","star-tb-of-1","8"]
+    ["star-ovs","eth10","star-tb-of-1","1",'hw'],
+    ["star-ovs","eth11","star-tb-of-1","2",'none'],
+    ["star-ovs","eth12","star-tb-of-1","3",'none'],
+    ["star-ovs","eth13","star-tb-of-1","4",'none'],
+    ["star-ovs","eth14","star-tb-of-1","5",'none'],
+    ["star-ovs","eth15","star-tb-of-1","6",'none'],
+    ["star-ovs","eth16","star-tb-of-1","7",'none'],
+    ["star-ovs","eth17","star-tb-of-1","8",'none']
 ]
 star=["star",'star-tb-of-1',"star-cr5",starlinks]
 
@@ -206,6 +206,13 @@ class TopoBuilder ():
 
     def addLink(self, link):
         self.linkIndex[link.name] = link
+        # Links are uni-directional. Create reverse link
+        rl = Link(ports=[link.props['endpoints'][1],link.props['endpoints'][0]],
+                  props=link.props,
+                  vlan=link.props['vlan'])
+        link.props['reverseLink'] = rl
+        rl.props['reverseLink'] = link
+        self.linkIndex[rl.name] = rl
 
     def addLinks(self, links):
         for link in links:
@@ -242,11 +249,12 @@ class TopoBuilder ():
                              Port(l[1]),
                              self.switchIndex[l[2]],
                              Port(l[3]))
+
             p1.props['node'] = n1
             n1.props['ports'][p1.name] = p1
             p2.props['node'] = n2
             n2.props['ports'][p2.name] = p2
-            link = Link(name='%s:%s-%s:%s' % (n1.name,p1.name,n2.name,p2.name),ports=[p1,p2])
+            link = Link(ports=[p1,p2])
             if hwSwitch.name == n1.name and swSwitch.name == n2.name:
                 link.setPortType('HwToSw.WAN', 'SwToHw.WAN')
             elif hwSwitch.name == n2.name and swSwitch.name == n1.name:
@@ -288,9 +296,7 @@ class TopoBuilder ():
             srcPort = srcNode.props['ports'][srcPortName]
             dstNode = self.switchIndex[dstNodeName]
             dstPort = dstNode.props['ports'][dstPortName]
-            link = Link(name='%s:%s-%s:%s' % (srcNode.name,srcPort.name,dstNode.name,dstPort.name),
-                        ports=[srcPort,dstPort],
-                        vlan=vlan)
+            link = Link(ports=[srcPort,dstPort],vlan=vlan)
             link.setPortType('CoreToCore.WAN','CoreToCore.WAN')
             self.addLink(link)
 
@@ -308,9 +314,7 @@ class TopoBuilder ():
             srcNode.addPort(srcPort)
             dstNode = self.switchIndex[dstNodeName]
             dstPort = dstNode.props['ports'][dstPortName]
-            link = Link(name='%s:%s-%s:%s' % (srcNode.name,srcPort.name,dstNode.name,dstPort.name),
-                        ports=[srcPort,dstPort],
-                        vlan=vlan)
+            link = Link(ports=[srcPort,dstPort],vlan=vlan)
             link.setPortType('SiteToCore','CoreToSite')
             site.props['SiteToCore'] = link
             site.addSwitch(srcNode)
@@ -321,11 +325,12 @@ class TopoBuilder ():
                 # Host are directly connected to core router. Build a link. Each host is connected using eth2
                 srcHostPort = Port("eth2")
                 srcHostPort.props['node'] = host
-                link = Link(name=h + "@" + site.name,ports=[srcHostPort,srcPort],vlan=vlan)
+                link = Link(ports=[srcHostPort,srcPort],vlan=vlan)
                 link.setPortType('HostToSite','SiteToHost')
                 self.addLink(link)
                 site.addHost(host=host,link=link)
 
+        self.wan.connectAll(self.popIndex.values())
 
     def loadConfiguration(self,fileName):
         """

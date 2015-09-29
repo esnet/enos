@@ -87,17 +87,18 @@ class TestbedTopology (GenericTopologyProvider):
         r = TestbedLink(node1=node2,port1=port2,node2=node1,port2=port1)
         self.addLink(r)
 
+    #def annotateLinks(selfs):
+    #    for link in self.
+
     def buildSite(self,site):
         for host in site.props['hosts']:
             self.buildHost(host)
-        switch = site.props['switch']
-        self.buildSwitch(switch=switch)
 
     def buildSites(self):
         for site in self.builder.siteIndex.values():
             self.buildSite(site)
 
-    def buildCore(self):
+    def buildNodes(self):
         for switch in self.builder.switchIndex.values():
             self.buildSwitch(switch)
         for host in self.builder.hostIndex.values():
@@ -105,8 +106,6 @@ class TestbedTopology (GenericTopologyProvider):
         for link in self.builder.linkIndex.values():
             self.buildLink(link)
 
-    def buildVpns(self):
-        pass
 
     def toGraph(self):
         graph = self.getGraph(TopologyProvider.WeightType.TrafficEngineering)
@@ -122,8 +121,7 @@ class TestbedTopology (GenericTopologyProvider):
         # Build topology
         self.builder = TopoBuilder(fileName = fileName, controller = self.controller)
         self.buildSites()
-        self.buildCore()
-        self.buildVpns()
+        self.buildNodes()
         if not controller:
             # now that self.builder is ready
             self.controller.init()

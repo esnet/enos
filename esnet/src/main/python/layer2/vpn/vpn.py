@@ -370,6 +370,7 @@ def main():
             elif command == 'addpop':
                 pop = topo.builder.popIndex[sys.argv[3]]
                 addpop(vpn, pop)
+
             elif command == 'delpop':
                 pop = topop(sys.argv[3])
                 delpop(vpn, pop)
