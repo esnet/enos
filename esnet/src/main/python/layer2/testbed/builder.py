@@ -188,7 +188,7 @@ class TopoBuilder ():
         self.siteIndex = {} # [sitename] = Site
         self.sitesConfig = []
         self.popIndex = {} # [popname] = SDNPop
-        self.wan = Wan(name='esnet')
+        self.wan = Wan(name='esnet',topo=self)
         self.controller = controller
 
         if fileName != None:
@@ -245,16 +245,17 @@ class TopoBuilder ():
         self.addHost(pop.props['serviceVm'])
         self.popIndex[popname] = pop
         for l in links:
-            (n1,p1,n2,p2) = (self.switchIndex[l[0]],
-                             Port(l[1]),
-                             self.switchIndex[l[2]],
-                             Port(l[3]))
-
+            (n1,p1,n2,p2,type) = (self.switchIndex[l[0]],
+                                  Port(l[1]),
+                                  self.switchIndex[l[2]],
+                                  Port(l[3]),
+                                  l[4])
             p1.props['node'] = n1
             n1.props['ports'][p1.name] = p1
             p2.props['node'] = n2
             n2.props['ports'][p2.name] = p2
             link = Link(ports=[p1,p2])
+            link.props['type'] = type
             if hwSwitch.name == n1.name and swSwitch.name == n2.name:
                 link.setPortType('HwToSw.WAN', 'SwToHw.WAN')
             elif hwSwitch.name == n2.name and swSwitch.name == n1.name:
@@ -264,6 +265,84 @@ class TopoBuilder ():
             elif hwSwitch.name == n2.name and coreRouter.name == n1.name:
                 link.setPortType('CoreToHw.WAN', 'HwToCore.WAN')
             self.addLink(link)
+
+    def getLink(self,n1,p1,n2,p2,vlan):
+        for link in self.linkIndex.values():
+            endpoints = link.props['endpoints']
+            v = link.props['vlan']
+            port1 = endpoints[0]
+            port2 = endpoints[1]
+            node1 = port1.props['node']
+            node2 = port2.props['node']
+            if (node1.name,port1.name,node2.name,port2.name,v) == (n1,p1,n2,p2,vlan):
+                return link
+        return None
+
+    def getLinksByType(self,type1,type2):
+        res = {}
+        for link in self.linkIndex.values():
+            if link.getPortType() == (type1,type2):
+                res[link.name] = link
+        return res
+
+    def getPopLinks(self,pop1,pop2):
+        print "POPLINKS",pop1,pop2
+        res = {}
+        coreRouter1 = pop1.props['coreRouter']
+        hwSwitch1 = pop1.props['hwSwitch']
+        swSwitch1 = pop1.props['swSwitch']
+        coreRouter2 = pop2.props['coreRouter']
+        vlan = 0
+        # Retrieve Core to Core OSCARS VLAN
+        links = self.getLinksByType('CoreToCore.WAN', 'CoreToCore.WAN')
+        for link in links.values():
+            endpoints = link.props['endpoints']
+            node1 = endpoints[0].props['node']
+            node2 = endpoints[1].props['node']
+            if node1.name == coreRouter1.name and node2.name == coreRouter2.name:
+                vlan = link.props['vlan']
+                break
+        # Retrieve corresponding CoreToHw link
+        links = self.getLinksByType('CoreToHw.WAN', 'HwToCore.WAN')
+        for link in links.values():
+            if not 'core' in link.props['type']:
+                continue
+            endpoints = link.props['endpoints']
+            node1 = endpoints[0].props['node']
+            node2 = endpoints[1].props['node']
+            if node1.name == coreRouter1.name and node2.name == hwSwitch1.name:
+                res[link.name] = Link(ports=link.props['endpoints'],
+                                             vlan=vlan,
+                                             props=link.props)
+                break
+            if node2.name == coreRouter1.name and node1.name == hwSwitch1.name:
+                reverseLink = link.props['reverseLink']
+                res[reverseLink.name] = Link(ports=reverseLink.props['endpoints'],
+                                             vlan=vlan,
+                                             props=reverseLink.props)
+                break
+        # Retrieve corresponding HwToSw link
+        links = self.getLinksByType('SwToHw.WAN','HwToSw.WAN')
+        for link in links.values():
+            if not 'hw' in link.props['type']:
+                continue
+            endpoints = link.props['endpoints']
+            node1 = endpoints[0].props['node']
+            node2 = endpoints[1].props['node']
+            if node1.name == swSwitch1.name and node2.name == hwSwitch1.name:
+                reverseLink = link.props['reverseLink']
+                res[reverseLink.name] = Link(ports=reverseLink.props['endpoints'],
+                                             vlan=vlan,
+                                             props=reverseLink.props)
+                break
+                if node1.name == swSwitch1.name and node2.name == hwSwitch1.name:
+                    res[link.name] = Link(ports=link.props['endpoints'],
+                                          vlan=vlan,
+                                          props=link.props)
+            break
+        print "RETURN",res
+        return res
+
 
     def displaySwitches(self):
         print "\nName\t\t\tDPID\t\tODL Name\n"
@@ -283,6 +362,7 @@ class TopoBuilder ():
                                                                            location[0] + "-ovs",
                                                                            location[3]
                                                                            )
+
             self.addSDNPop(popname, hwswitchname, coreroutername, swswitchname,links)
 
         # create mesh between core routers, attached to VLANs between the core routers and hardware switches
