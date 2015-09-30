@@ -278,15 +278,18 @@ class TopoBuilder ():
                 return link
         return None
 
-    def getLinksByType(self,type1,type2):
+    def getLinksByType(self,type1,type2,ordered=False):
         res = {}
         for link in self.linkIndex.values():
             if link.getPortType() == (type1,type2):
                 res[link.name] = link
+                continue
+            if not ordered and link.getPortType() == (type2,type1):
+                res[link.name] = link
+                continue
         return res
 
     def getPopLinks(self,pop1,pop2):
-        print "POPLINKS",pop1,pop2
         res = {}
         coreRouter1 = pop1.props['coreRouter']
         hwSwitch1 = pop1.props['hwSwitch']
@@ -294,8 +297,9 @@ class TopoBuilder ():
         coreRouter2 = pop2.props['coreRouter']
         vlan = 0
         # Retrieve Core to Core OSCARS VLAN
-        links = self.getLinksByType('CoreToCore.WAN', 'CoreToCore.WAN')
-        for link in links.values():
+        for link in self.linkIndex.values():
+            if not 'gri' in link.props:
+                continue
             endpoints = link.props['endpoints']
             node1 = endpoints[0].props['node']
             node2 = endpoints[1].props['node']
@@ -335,13 +339,17 @@ class TopoBuilder ():
                                              vlan=vlan,
                                              props=reverseLink.props)
                 break
-                if node1.name == swSwitch1.name and node2.name == hwSwitch1.name:
-                    res[link.name] = Link(ports=link.props['endpoints'],
-                                          vlan=vlan,
-                                          props=link.props)
-            break
-        print "RETURN",res
+            if node1.name == swSwitch1.name and node2.name == hwSwitch1.name:
+                res[link.name] = Link(ports=link.props['endpoints'],
+                                      vlan=vlan,
+                                      props=link.props)
+                break
         return res
+
+    def updateSwitch(self, switch):
+        role = switch.get('role')
+        if role: # hwSwitch, coreRouter, swSwitch
+            switch.update({'controller':self.controller})
 
 
     def displaySwitches(self):
@@ -377,7 +385,7 @@ class TopoBuilder ():
             dstNode = self.switchIndex[dstNodeName]
             dstPort = dstNode.props['ports'][dstPortName]
             link = Link(ports=[srcPort,dstPort],vlan=vlan)
-            link.setPortType('CoreToCore.WAN','CoreToCore.WAN')
+            link.props['gri'] = gri
             self.addLink(link)
 
         # Add sites to the topology
@@ -395,10 +403,9 @@ class TopoBuilder ():
             dstNode = self.switchIndex[dstNodeName]
             dstPort = dstNode.props['ports'][dstPortName]
             link = Link(ports=[srcPort,dstPort],vlan=vlan)
-            link.setPortType('SiteToCore','CoreToSite')
             site.props['SiteToCore'] = link
             site.addSwitch(srcNode)
-            self.addLink(link)
+            #self.addLink(link)
 
             for h in hosts:
                 host = Host(h)
@@ -406,11 +413,13 @@ class TopoBuilder ():
                 srcHostPort = Port("eth2")
                 srcHostPort.props['node'] = host
                 link = Link(ports=[srcHostPort,srcPort],vlan=vlan)
-                link.setPortType('HostToSite','SiteToHost')
                 self.addLink(link)
                 site.addHost(host=host,link=link)
 
         self.wan.connectAll(self.popIndex.values())
+
+        for switch in self.switchIndex.values():
+            self.updateSwitch(switch)
 
     def loadConfiguration(self,fileName):
         """

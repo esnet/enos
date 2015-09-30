@@ -101,8 +101,6 @@ class HwSwitch(Switch):
         :param swlink:   HwToSw
         :return:
         """
-        print "HwSwitch connectPop",hwlink,"    ",swlink
-        print hwlink.props, " SELF ",self.name ,hwlink.props
         self.props['wanPortIndex'][pop.name] = hwlink.props['portIndex'][self.name]
         hwport = hwlink.props['portIndex'][self.name]
         swport = swlink.props['portIndex'][self.name]
@@ -196,7 +194,13 @@ class Link(Properties):
         self.props['endpoints'][1].props['type'] = type2
 
     def getPortType(self):
-        return (self.props['endpoints'][0].props['type'],self.props['endpoints'][1].props['type'])
+        type1 = "None"
+        type2 = "None"
+        if 'type' in self.props['endpoints'][0].props:
+            type1 = self.props['endpoints'][0].props['type']
+        if 'type' in self.props['endpoints'][1].props:
+            type2 = self.props['endpoints'][1].props['type']
+        return (type1,type2)
 
     def __repr__(self):
         return '%s.%r' % (self.name, self.props['vlan'])
@@ -237,7 +241,6 @@ class SDNPop(Properties):
                 # hw[tocore_port] --<hwlink>-- [core_port]core[wanPort] --<wanlink with vlan>-- pop
                 swlink = link
         # sw[tohw_port] --<swlink>-- [tosw_port]hw
-        print "POP SELF",self.name,"HW",hwSwitch.name
         hwSwitch.connectPop(pop, hwlink, swlink)
         swSwitch.connectPop(pop, swlink)
         return (hwlink,swlink)

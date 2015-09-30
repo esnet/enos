@@ -812,33 +812,23 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         HwToSw.WAN ports, and SwToHw.WAN ports, and the SwToVm.WAN port.
         """
         with self.lock:
-            print 1
             if pop.name in self.props['popIndex']:
-                print 2
                 SDNPopsRenderer.logger.warning("The SDNPop did not participate in the VPN yet")
                 return False
-            print 3
             vid = self.vpn.props['vid']
             hwSwitch = pop.props['hwSwitch'].props['enosNode']
-            print 4
             hwSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, hwSwitch.name), switch=hwSwitch, owner=self)
-            print 5
             self.props['scopeIndex'][hwSwitch.name] = hwSwitchScope
             hwSwitch.props['controller'].addScope(hwSwitchScope)
             swSwitch = pop.props['swSwitch'].props['enosNode']
-            print 6
             swSwitchScope = L2SwitchScope(name='%s.%s' % (self.vpn.name, swSwitch.name),switch=swSwitch,owner=self)
-            print 7
             # ServiceVM Not yet implemented
             # swSwitchScope.addEndpoint(swSwitch.props['vmPort.WAN'], vid)
             self.props['scopeIndex'][swSwitch.name] = swSwitchScope
             swSwitch.props['controller'].addScope(swSwitchScope)
             for other_pop in self.props['popIndex'].values():
-                print 8
                 self.connectPop(pop, other_pop)
-                print 9
                 self.connectPop(other_pop, pop)
-                print 10
             self.props['popIndex'][pop.name] = pop
             return True
 
@@ -875,30 +865,21 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         'HwToCore.WAN' ports of HwSwitch, so we couldn't dispatch packets
         to the scope based on vlan. The solution is temporary only.
         """
-        print 10
         vid = self.vpn.props['vid']
         hwSwitch = pop1.props['hwSwitch']
         swSwitch = pop1.props['swSwitch']
         hwSwitchScope = self.props['scopeIndex'][hwSwitch.name]
         swSwitchScope = self.props['scopeIndex'][swSwitch.name]
-        print 11,hwSwitch
-        print 11.1,hwSwitch.props
         tocore_port = hwSwitch.props['wanPortIndex'][pop2.name]
-        print 12
         hwSwitchScope.addEndpoint(tocore_port, vid)
-        print 13
         tocore_port.props['scopeIndex'][vid] = hwSwitchScope
 
         tosw_port = hwSwitch.props['stitchedPortIndex'][tocore_port.name]
-        print 14
         hwSwitchScope.addEndpoint(tosw_port, vid)
-        print 15
         tosw_port.props['scopeIndex'][vid] = hwSwitchScope
 
         tohw_port = swSwitch.props['wanPortIndex'][pop2.name]
-        print 16
         swSwitchScope.addEndpoint(tohw_port, vid)
-        print 17
         tohw_port.props['scopeIndex'][vid] = swSwitchScope
 
     def disconnectPop(self, pop1, pop2):

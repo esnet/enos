@@ -212,7 +212,6 @@ def create(vpnname):
     if vpnname in vpnIndex:
         print "vpn %r exists already" % vpnname
         return
-
     vpn = VPN(vpnname)
     intent = SDNPopsIntent(name=vpn.name, vpn=vpn, wan=topo.builder.wan)
     renderer = SDNPopsRenderer(intent)

@@ -45,14 +45,8 @@ def main():
         topo = TestbedTopology(fileName=configFileName)
     else:
         topo = TestbedTopology()
-    # One-time setup for the VPN service
-    wi = WanIntent("esnet", topo.builder.wan)
-    wr = WanRenderer(wi)
-    wr.execute()
-    renderers.append(wr)
-    rendererIndex[wr.name] = wr
 
-    print "Now the demo environment is ready."
+    print "VPN environment is ready."
 
 if __name__ == '__main__':
     main()
