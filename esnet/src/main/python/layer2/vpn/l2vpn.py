@@ -738,7 +738,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         for flowEntry in self.getFlowEntries(site):
             self.parseFlowEntry(flowEntry)
 
-    def addSite(self, site, siteVlan):
+    def addSite(self, site, link):
         """
         This function could be invoked in CLI.
         Add endpoints related to the site including: HwToCore ports, HwToSw
@@ -749,19 +749,17 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if not pop.name in self.props['popIndex']:
                 SDNPopsRenderer.logger.warning("The SDNPop of the site is not added yet")
                 return False
-            vid = self.vpn.props['vid']
-            coreRouter = pop.props['coreRouter'].props['enosNode']
+            siteVlan = link.props['vlan']
             hwSwitch = pop.props['hwSwitch'].props['enosNode']
             hwSwitchScope = self.props['scopeIndex'][hwSwitch.name]
             sitePort = hwSwitch.props['sitePortIndex'][site.name]
             hwSwitchScope.addEndpoint(sitePort, siteVlan)
             swPort = hwSwitch.props['stitchedPortIndex'][sitePort.name]
             hwSwitchScope.addEndpoint(swPort, siteVlan)
-
             swSwitch = pop.props['swSwitch'].props['enosNode']
             swSwitchScope = self.props['scopeIndex'][swSwitch.name]
             swSwitchScope.addEndpoint(swSwitch.props['sitePortIndex'][site.name], siteVlan)
-            swSwitchScope.addEndpoint(swSwitch.props['vmPort'], siteVlan)
+            # TODO swSwitchScope.addEndpoint(swSwitch.props['vmPort'], siteVlan)
             return True
 
     def delSite(self, site):

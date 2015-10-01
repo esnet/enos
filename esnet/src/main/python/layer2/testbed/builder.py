@@ -7,6 +7,8 @@ from layer2.common.api import Node, SDNPop, Link, Port, Site, Wan, VPN, Host, Hw
 from layer2.common.mac import MACAddress
 from layer2.testbed import dpid, oscars
 
+from layer2.common.utils import Logger
+
 # All switches including site routers, core routers, hw switches, and sw switches should
 # not have the same name so that the name of each port could be unique.
 # site = [siteRouterName, [hostNames], popName, portNo]
@@ -170,6 +172,7 @@ locations=[denv,wash,aofa,amst,cern,atla,star]
 class TopoBuilder ():
 
     debug = False;
+    logger = Logger('TopoBuilder')
 
     def __init__(self, fileName = None, controller = None):
         """
@@ -205,6 +208,9 @@ class TopoBuilder ():
         self.hostIndex[host.name] = host
 
     def addLink(self, link):
+        if link.name in self.linkIndex:
+            TopoBuilder.logger.error("link duplicate %s" % link.name)
+            return
         self.linkIndex[link.name] = link
         # Links are uni-directional. Create reverse link
         rl = Link(ports=[link.props['endpoints'][1],link.props['endpoints'][0]],
@@ -218,15 +224,18 @@ class TopoBuilder ():
         for link in links:
             self.addLink(link)
 
-    def addSite(self,site):
+    def addSite(self,popname,site):
         self.siteIndex[site.name] = site
+        pop = self.popIndex[popname]
+        site.setPop(pop)
+        links = self.getSiteOSCARSLinks(site)
+        pop.addSite(site, links)
 
     def addSDNPop(self, popname, hwswitchname, coreroutername, swswitchname,links):
         pop = SDNPop(name=popname,
                      hwswitchname=hwswitchname,
                      coreroutername=coreroutername,
-                     swswitchname=swswitchname,
-                     links=links)
+                     swswitchname=swswitchname)
 
         hwSwitch = pop.props['hwSwitch']
         swSwitch = pop.props['swSwitch']
@@ -244,6 +253,10 @@ class TopoBuilder ():
         self.addSwitch(swSwitch)
         self.addHost(pop.props['serviceVm'])
         self.popIndex[popname] = pop
+
+        hwLinks = []
+        swLinks = []
+
         for l in links:
             (n1,p1,n2,p2,type) = (self.switchIndex[l[0]],
                                   Port(l[1]),
@@ -256,15 +269,27 @@ class TopoBuilder ():
             n2.props['ports'][p2.name] = p2
             link = Link(ports=[p1,p2])
             link.props['type'] = type
+
             if hwSwitch.name == n1.name and swSwitch.name == n2.name:
                 link.setPortType('HwToSw.WAN', 'SwToHw.WAN')
+                swLinks.append(link)
             elif hwSwitch.name == n2.name and swSwitch.name == n1.name:
                 link.setPortType('SwToHw.WAN', 'HwToSw.WAN')
+                swLinks.append(link)
             elif hwSwitch.name == n1.name and coreRouter.name == n2.name:
                 link.setPortType('HwToCore.WAN', 'CoreToHw.WAN')
+                hwLinks.append(link)
             elif hwSwitch.name == n2.name and coreRouter.name == n1.name:
                 link.setPortType('CoreToHw.WAN', 'HwToCore.WAN')
+                hwLinks.append(link)
             self.addLink(link)
+        index = 0
+        for link in hwLinks:
+            if index == len(swLinks):
+                break
+            pop.addLinks(hwlink=link,swlink=swLinks[index])
+            index += 1
+
 
     def getLink(self,n1,p1,n2,p2,vlan):
         for link in self.linkIndex.values():
@@ -287,6 +312,19 @@ class TopoBuilder ():
             if not ordered and link.getPortType() == (type2,type1):
                 res[link.name] = link
                 continue
+        return res
+
+    def getSiteOSCARSLinks(self,site):
+        res = {}
+        for link in self.linkIndex.values():
+            if not 'gri' in link.props:
+                continue
+            endpoints = link.props['endpoints']
+            node1 = endpoints[0].props['node']
+            node2 = endpoints[1].props['node']
+            if site.name == node2.props['domain']:
+                # Only keep links that points to the site
+                res[link.name] = link
         return res
 
     def getPopLinks(self,pop1,pop2):
@@ -360,6 +398,11 @@ class TopoBuilder ():
                 print sw.name,"\t",hexdpid,"\topenflow:" + str(int(hexdpid,16))
         print "\n\n"
 
+    def getSite(self,siteName):
+        if siteName in self.siteIndex.keys():
+            return self.siteIndex[siteName]
+        return None
+
     def loadDefault(self):
 
         # init self.pops
@@ -387,28 +430,31 @@ class TopoBuilder ():
             link = Link(ports=[srcPort,dstPort],vlan=vlan)
             link.props['gri'] = gri
             self.addLink(link)
+            srcNode.addLink(link)
+            dstNode.addLink(link)
 
         # Add sites to the topology
         for (siteName,hosts,pop) in sites:
             site = Site(siteName)
-            self.siteIndex[siteName] = site
             (siteName,gri,srcURN,dstURN,vlan) = sitecircuits[siteName]
             (srcNodeName,srcDomain,srcPortName,srcLink) = oscars.parseURN(srcURN)
             (dstNodeName,dstDomain,dstPortName,dstLink)  = oscars.parseURN(dstURN)
             # By convention, the source is always the router where the host directly connects to.
-            srcNode = Switch(srcNodeName)
+            srcNode = Switch(srcNodeName,domain=siteName)
             self.addSwitch(srcNode)
             srcPort = Port(srcPortName)
             srcNode.addPort(srcPort)
             dstNode = self.switchIndex[dstNodeName]
             dstPort = dstNode.props['ports'][dstPortName]
             link = Link(ports=[srcPort,dstPort],vlan=vlan)
+            link.props['gri'] = gri
             site.props['SiteToCore'] = link
+            self.addLink(link)
             site.addSwitch(srcNode)
-            #self.addLink(link)
+            self.addSite(site=site,popname=pop)
 
             for h in hosts:
-                host = Host(h)
+                host = Host(h,domain=siteName)
                 # Host are directly connected to core router. Build a link. Each host is connected using eth2
                 srcHostPort = Port("eth2")
                 srcHostPort.props['node'] = host

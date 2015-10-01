@@ -267,24 +267,17 @@ def delpop(vpn, pop):
         # possible issues: pop not empty
         return
 
-def addsite(vpn, site, lanVlan, siteVlan):
-    if lanVlan <= 0:
-        print "siteVlan should be greater than 0"
+def addsite(vpn, site):
+    if not 'SiteToCore' in site.props:
+        print "site is not connected to the testbed"
         return
-    if siteVlan <= 0:
-        print "siteVlan should be greater than 0"
-        return
+    link = site.props['SiteToCore']
     popsRenderer = rendererIndex[vpn.name]
-    if not popsRenderer.addSite(site, siteVlan):
+    print "vpn.py ADDSITE"
+    if not popsRenderer.addSite(site, link):
         print "something's wrong while adding the site."
         # possible issues: site.props['pop'] is not added into the VPN yet
         return
-    if not vpn.addSite(site, lanVlan, siteVlan):
-        print "something's wrong while adding the site."
-        # possible issues: duplicated site
-        return
-    siteRenderer = rendererIndex[site.name]
-    siteRenderer.addVlan(lanVlan, siteVlan)
     print "The site %s is added into VPN %s successfully" % (site.name, vpn.name)
 
 def delsite(vpn, site):
@@ -375,9 +368,7 @@ def main():
                 delpop(vpn, pop)
             elif command == 'addsite':
                 site = tosite(sys.argv[3])
-                lanVlan = toint(sys.argv[4])
-                siteVlan = toint(sys.argv[5])
-                addsite(vpn, site, lanVlan, siteVlan)
+                addsite(vpn, site)
             elif command == 'delsite':
                 site = tosite(sys.argv[3])
                 delsite(vpn, site)
