@@ -16,9 +16,9 @@ from layer2.common.utils import Logger
 #  multiple sites in the same pop must have different portNo! (otherwise, the broadcast won't work.)
 
 # Simulated sites ESnet production diskpt's
-lblsite = ["lbl.gov",['lbl-diskpt1'],"denv"]
-anlsite = ["anl.gov",['anl-diskpt1'],"wash"]
-bnlsite = ["bnl.gov",['bnl-diskpt1'],"aofa"]
+lblsite = ["lbl.gov",['lbl-diskpt1@lbl.gov'],"denv"]
+anlsite = ["anl.gov",['anl-diskpt1@anl.gov'],"wash"]
+bnlsite = ["bnl.gov",['bnl-diskpt1@bnl.gov'],"aofa"]
 
 sites = [lblsite, anlsite, bnlsite]
 
@@ -461,6 +461,7 @@ class TopoBuilder ():
                 link = Link(ports=[srcHostPort,srcPort],vlan=vlan)
                 self.addLink(link)
                 site.addHost(host=host,link=link)
+                self.addHost(host)
 
         self.wan.connectAll(self.popIndex.values())
 
