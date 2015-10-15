@@ -1,7 +1,7 @@
 from net.es.netshell.api import GenericGraph,GenericHost, GenericLink,GenericPort
 
 __author__ = 'lomax'
-from intent.py import ProvisioningIntent
+from layer2.common.intent import ProvisioningIntent
 
 class VPN:
     """VPN provides the generic API to any VPN implementation.

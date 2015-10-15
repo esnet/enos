@@ -36,8 +36,8 @@ from layer2.common.openflow import SimpleController, PacketInEvent
 
 from org.opendaylight.controller.sal.core import Node
 
-from net.es.netshell.odl import Controller
-from net.es.netshell.odl import PacketHandler
+import net.es.netshell.odl.Controller
+import net.es.netshell.odl.PacketHandler
 
 from org.opendaylight.controller.sal.core import Node
 
@@ -82,10 +82,10 @@ class ODLClient(SimpleController,PacketHandler.Callback):
         """
         self.__class__ = SimpleController
         #super(ODLClient,self).__init__()
-        SimpleController.__init__(self)
+        #SimpleController.__init__(self)
         self.__class__ = ODLClient
-        self.odlController = Controller.getInstance()
-        self.odlPacketHandler = PacketHandler.getInstance()
+        self.odlController = net.es.netshell.odl.Controller.getInstance()
+        self.odlPacketHandler = net.es.netshell.odl.PacketHandler.getInstance()
         ODLClient.topology = topology
         self.debug = 0
         self.dropLLDP = True

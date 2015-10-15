@@ -392,7 +392,7 @@ class TopoBuilder ():
 
     def displaySwitches(self):
         print "\nName\t\t\tDPID\t\tODL Name\n"
-        for sw in self.siteIndex.values():
+        for sw in self.switchIndex.values():
             if 'dpid' in sw.props:
                 hexdpid = binascii.hexlify(sw.props['dpid'])
                 print sw.name,"\t",hexdpid,"\topenflow:" + str(int(hexdpid,16))
