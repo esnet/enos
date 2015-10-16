@@ -25,7 +25,6 @@ are available.
 from common.mac import MACAddress
 from common.api import VPN
 from mininet.mat import MAT
-from mininet.utils import loadObject, saveObject
 from mininet.l2vpn import SDNPopsIntent, SDNPopsRenderer
 
 def usage():
@@ -135,8 +134,7 @@ def addVpn(vpn):
     vpnIndex[vpn.name] = vpn
 
 def save(vpn, confname):
-    obj = vpn.serialize()
-    saveObject(obj, confname)
+    print "Not implemented yet"
 
 def getNode(node, nodeIndex):
     if node.name in nodeIndex:
@@ -214,18 +212,9 @@ def visualize(vpn, confname):
         links.append(link)
     obj['nodes'] = nodes
     obj['links'] = links
-    saveObject(obj, confname)
 
 def load(confname):
-    obj = loadObject(confname)
-    vpn = VPN.deserialize(obj, net)
-    for (sitename, hostnames, lanVlan, siteVlan) in obj['participants']:
-        site = net.builder.siteIndex[sitename]
-        siteRenderer = rendererIndex[sitename]
-        siteRenderer.addVlan(lanVlan, siteVlan)
-        for hostname in hostnames:
-            siteRenderer.addHost(net.builder.hostIndex[hostname], lanVlan)
-    addVpn(vpn)
+    print "Not implemented yet"
 
 def create(vpnname):
     if vpnname in vpnIndex:

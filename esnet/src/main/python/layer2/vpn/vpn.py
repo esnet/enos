@@ -25,7 +25,6 @@ are available.
 from layer2.common.mac import MACAddress
 from layer2.common.api import VPN
 from layer2.vpn.mat import MAT
-from layer2.vpn.utils import loadObject, saveObject
 from layer2.vpn.l2vpn import SDNPopsIntent, SDNPopsRenderer
 
 def usage():
@@ -110,7 +109,6 @@ def addVpn(vpn):
 
 def save(vpn, confname):
     obj = vpn.serialize()
-    saveObject(obj, confname)
 
 def getNode(node, nodeIndex):
     if node.name in nodeIndex:
@@ -188,10 +186,8 @@ def visualize(vpn, confname):
         links.append(link)
     obj['nodes'] = nodes
     obj['links'] = links
-    saveObject(obj, confname)
 
 def load(confname):
-    obj = loadObject(confname)
     print "Not implemented yet"
 
 def create(vpnname):

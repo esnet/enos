@@ -97,5 +97,3 @@ reload(layer2.vpn.demo)
 import layer2.vpn.vpn
 reload(layer2.vpn.vpn)
 
-import layer2.vpn.utils
-reload(layer2.vpn.utils)
