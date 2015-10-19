@@ -115,6 +115,13 @@ class CoreRouter(Switch):
         self.props['sitePortIndex'][site.name] = to_site_port
         self.props['stitchedPortIndex'][to_site_port.name] = to_hw_port
     def connectPop(self, pop, wanlink, hwlink):
+        """
+
+        :param pop:
+        :param wanlink: CoreToCore
+        :param hwlink:  CoreToHw
+        :return:
+        """
         wanport = wanlink.props['portIndex'][self.name]
         hwport = hwlink.props['portIndex'][self.name]
         self.props['wanPortIndex'][pop.name] = wanport
@@ -136,6 +143,13 @@ class HwSwitch(Switch):
     def addSite(self, site, portno):
         self.props['sitePortIndex'][site.name] = self.props['toCorePorts'][portno]
     def connectPop(self, pop, hwlink, swlink):
+        """
+
+        :param pop:
+        :param hwlink:   CoreToHw
+        :param swlink:   HwToSw
+        :return:
+        """
         self.props['wanPortIndex'][pop.name] = hwlink.props['portIndex'][self.name]
         hwport = hwlink.props['portIndex'][self.name]
         swport = swlink.props['portIndex'][self.name]
@@ -162,6 +176,12 @@ class SwSwitch(Switch):
     def addSite(self, site, portno):
         self.props['sitePortIndex'][site.name] = self.props['toHwPorts'][portno]
     def connectPop(self, pop, link):
+        """
+
+        :param pop:
+        :param link:   HwToSw
+        :return:
+        """
         self.props['wanPortIndex'][pop.name] = link.props['portIndex'][self.name]
     def addLink(self, swlink):
         self.props['toHwPorts'].append(swlink.props['portIndex'][self.name])
@@ -213,6 +233,13 @@ class SDNPop(Properties):
         self.props['swSwitch'].addSite(site, portno)
         self.props['sites'].append(site)
     def connectPop(self, pop, link, vlan):
+        """
+
+        :param pop:
+        :param link:   CoreToCore link
+        :param vlan:   Core - HwSwitch VLAN
+        :return:
+        """
         # hw[tocore_port] --<hwlink>-- [core_port]core[wanPort] --<wanlink with vlan>-- pop
         coreRouter = self.props['coreRouter']
         hwSwitch = self.props['hwSwitch']
