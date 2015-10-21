@@ -25,7 +25,6 @@ to CLI environment.
 """
 from layer2.testbed.topology import TestbedTopology
 from layer2.vpn.l2vpn import SDNPopsRenderer,SDNPopsIntent
-from layer2.vpn.wan import WanRenderer, WanIntent
 
 import random
 from layer2.common.utils import InitLogger, Logger
