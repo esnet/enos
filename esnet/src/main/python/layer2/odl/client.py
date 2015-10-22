@@ -21,49 +21,19 @@
 import struct
 import array, jarray
 import sys
-import inspect
 import binascii
-import threading
 from layer2.common.mac import MACAddress
 from layer2.common.utils import Logger
 
-from java.lang import Short
-from java.lang import Long
-from java.util import LinkedList
-from java.nio import ByteBuffer
-
 from layer2.common.openflow import SimpleController, PacketInEvent
 
-from org.opendaylight.controller.sal.core import Node
+from net.es.netshell.controller.core import Controller
+from net.es.netshell.odlmdsal.impl import OdlMdsalImpl
+from net.es.netshell.odlmdsal.impl import EthernetFrame
+from org.opendaylight.yang.gen.v1.urn.opendaylight.flow.inventory.rev130819 import FlowCapableNode
 
-import net.es.netshell.odl.Controller
-import net.es.netshell.odl.PacketHandler
 
-from org.opendaylight.controller.sal.core import Node
-
-from org.opendaylight.controller.sal.match import Match
-from org.opendaylight.controller.sal.match.MatchType import DL_DST
-from org.opendaylight.controller.sal.match.MatchType import DL_SRC
-from org.opendaylight.controller.sal.match.MatchType import DL_VLAN
-from org.opendaylight.controller.sal.match.MatchType import IN_PORT
-
-from org.opendaylight.controller.sal.action import Output
-from org.opendaylight.controller.sal.action import SetDlDst
-from org.opendaylight.controller.sal.action import SetDlSrc
-from org.opendaylight.controller.sal.action import SetVlanId
-
-from org.opendaylight.controller.sal.packet import Packet
-from org.opendaylight.controller.sal.packet import Ethernet
-from org.opendaylight.controller.sal.packet import IEEE8021Q
-from org.opendaylight.controller.sal.packet.LinkEncap import ETHERNET
-from org.opendaylight.controller.sal.packet import RawPacket
-from org.opendaylight.controller.sal.packet import PacketResult
-
-from org.opendaylight.controller.sal.flowprogrammer import Flow
-
-from org.opendaylight.controller.sal.utils import EtherTypes
-
-class ODLClient(SimpleController,PacketHandler.Callback):
+class ODLClient(SimpleController, OdlMdsalImpl.Callback):
     """
     Class that is an interface to the ENOS OpenDaylight client.
     The real client functionality is the Controller
@@ -73,7 +43,7 @@ class ODLClient(SimpleController,PacketHandler.Callback):
     topology = None
     logger = Logger('ODLClient')
 
-    def __init__(self,topology):
+    def __init__(self, topology):
         """
         Note: topology might not be ready at this moment,
         so you are not allowed to access anything related to topology.builder here.
@@ -81,16 +51,19 @@ class ODLClient(SimpleController,PacketHandler.Callback):
         :param topology: TestbedTopology whose builder is not ready yet
         """
         self.__class__ = SimpleController
-        #super(ODLClient,self).__init__()
-        #SimpleController.__init__(self)
+        SimpleController.__init__(self)
         self.__class__ = ODLClient
-        self.odlController = net.es.netshell.odl.Controller.getInstance()
-        self.odlPacketHandler = net.es.netshell.odl.PacketHandler.getInstance()
+
+        self.odlController = Controller.getInstance()
+        self.odlMdsalImpl = self.odlController.getOdlMdsalImpl()
+        self.odlCorsaImpl = self.odlController.getOdlCorsaImpl()
+
         ODLClient.topology = topology
         self.debug = 0
         self.dropLLDP = True
         self.odlSwitchIndex = {} # [key=dpid]
         self.switchIndex = {} # [key=odlNode.getID()]
+
     def init(self):
         """
         Index odlSwitchIndex and switchIndex to speed up getSwitch() and findODLSwitch()
@@ -98,18 +71,24 @@ class ODLClient(SimpleController,PacketHandler.Callback):
         # index odl node and port(connector)
         index = {} # [dpid] = switch
         for switch in ODLClient.topology.builder.switchIndex.values():
+            # DPIDs from the builder are arrays of 8 bytes...get those as a hex string
             if 'dpid' in switch.props:
-                dpid = binascii.hexlify(switch.props['dpid'][-6:])
+                dpid = binascii.hexlify(switch.props['dpid'][-8:])
                 index[dpid] = switch
         for odlSwitch in self.odlController.getNetworkDevices():
-            nodeID = odlSwitch.getNode().getID()
-            dpid = binascii.hexlify(odlSwitch.getDataLayerAddress())
+            nodeID = odlSwitch.getID()
+            # Given the ID, strip off "openflow:", what's left is the DPID in decimal ASCII
+            # Convert this to a hex string.
+            dpidDecimal = long(nodeID.replace("openflow:", ""))
+            dpid = '%08x' % dpidDecimal
+
             if not dpid in index:
                 ODLClient.logger.warning('an OdlSwitch with %r not found in topology' % dpid)
                 continue
             self.odlSwitchIndex[dpid] = odlSwitch
             self.switchIndex[nodeID] = index[dpid]
-        self.odlPacketHandler.setPacketInCallback(self)
+        self.odlMdsalImpl.setPacketInCallback(self)
+
     def getSwitch(self, nodeID):
         if not nodeID in self.switchIndex:
             ODLClient.logger.error('nodeID %r not found in %r.switchIndex' % (nodeID, self))
@@ -117,10 +96,10 @@ class ODLClient(SimpleController,PacketHandler.Callback):
         return self.switchIndex[nodeID]
 
     def startCallback(self):
-        self.odlPacketHandler.setPacketInCallback(self)
+        self.odlMdsalImpl.setPacketInCallback(self)
 
     def stopCallback(self):
-        self.odlPacketHandler.setPacketInCallback(None)
+        self.odlMdsalImpl.setPacketInCallback(None)
 
     def findODLSwitch(self, switch):
         """
@@ -129,7 +108,7 @@ class ODLClient(SimpleController,PacketHandler.Callback):
         :param switch: common.api.Node
         :return: org.opendaylight.controller.switchmanager.Switch (None if not found)
         """
-        dpid = binascii.hexlify(switch.props['dpid'][-6:])
+        dpid = binascii.hexlify(switch.props['dpid'][-8:])
         if not dpid in self.odlSwitchIndex:
             ODLClient.logger.warning('could not found dpid %r in %r.findODLSwitch' % (dpid, self))
             return None
@@ -138,124 +117,44 @@ class ODLClient(SimpleController,PacketHandler.Callback):
     def getNodeConn(self, odlNode, switch, port):
         # Retrieve the name of the switch. We then need to look this up in the ODL SwitchManager,
         # but that requires a pointer to the ODL Node.
-        portName =  port.name
+        portName = port.name
         nodeconn = self.odlController.getNodeConnector(odlNode, portName)
         if not nodeconn:
             ODLClient.logger.warning('%s not found at %r' % (portName, odlNode))
             return None
         return nodeconn
 
-    def makeODLFlowEntry(self, flowMod, odlNode):
+    def installL2ForwardingRule(self, translation):
         """
-        Given a FlowMod object, turn it into a Flow suitable for passing to ODL.
-
-        Encapsulates a bunch of common sense about the order in which flow actions
-        should be applied.
-
-        :param flowMod: ENOS FlowMod
-        :param odlNode: OpenDaylight Node object
-        :return: False if error occurs
+        Push a L2 forwarding rule to a switch
+        :param translation: net.es.netshell.controller.core.Controller.L2Translation
+        :return: FlowRef
         """
+        return self.odlController.installL2ForwardingRule(translation)
 
-        # Compose match object                                                     `
-        match = Match()
-        if 'in_port' in flowMod.match.props:
-            # Compose the port name
-            portName = flowMod.match.props['in_port'].name
-            nodeconn = self.odlController.getNodeConnector(odlNode, portName)
-            if not nodeconn:
-                ODLClient.logger.warning('%s not found at %r' % (portName, odlNode))
-                return False
-            match.setField(IN_PORT, nodeconn)
-        if 'dl_src' in flowMod.match.props:
-            match.setField(DL_SRC, self.javaByteArray(flowMod.match.props['dl_src'].data))
-        if 'dl_dst' in flowMod.match.props:
-            match.setField(DL_DST, self.javaByteArray(flowMod.match.props['dl_dst'].data))
-        if 'vlan' in flowMod.match.props:
-            match.setField(DL_VLAN, Short(flowMod.match.props['vlan']))
-
-        # Compose action.
-        # We do the data-link and VLAN translations first.  Other types of
-        # translations would happen here as well.  Then any action to forward
-        # packets.
-        actionList = LinkedList()
-        noOutPort = True
-        for action in flowMod.actions:
-            if 'dl_dst' in action.props:
-                actionList.add(SetDlDst(self.javaByteArray(action.props['dl_dst'].data)))
-            if 'dl_src' in action.props:
-                actionList.add(SetDlSrc(self.javaByteArray(action.props['dl_src'].data)))
-            if 'vlan' in action.props:
-                actionList.add(SetVlanId(action.props['vlan']))
-            if 'out_port' in action.props:
-                p = action.props['out_port']
-                nodeconn = self.getNodeConn(odlNode, flowMod.switch, p)
-                actionList.add(Output(nodeconn))
-                noOutPort = False
-            elif 'out_ports' in action.props:
-                for p in action.props['out_ports']:
-                    nodeconn = self.getNodeConn(odlNode, flowMod.switch, p)
-                    actionList.add(Output(nodeconn))
-                noOutPort = False
-        if noOutPort:
-            # This implementation requires all actions to contain a port_out
-            ODLClient.logger.warning("no out_port or out_ports in flowMod")
-            return None
-
-        # compose flow
-        flow = Flow(match, actionList)
-        flow.priority = flowMod.props['priority']
-        return flow
-
-    def addFlowMod(self, flowMod):
+    def installL2ControllerRule(self, translation):
         """
-        Implementation of addFlowMod for use with OpenDaylight.
-        Uses the Controller.
-        :param flowMod:
-        :return: True if successful, False if not
+        Install a "send to controller" rule for an L2 translation's match
+        :param translation: net.es.netshell.controller.core.Controller.L2Translation
+        :return: FlowRef
         """
-        # check scope
-        if self.isFlowModValid(flowMod):
-            sw = self.findODLSwitch(flowMod.switch)
-            # print "flowMod.switch of type ", str(type(flowMod.switch))
-            if sw == None:
-                print flowMod,"cannot be pushed because the switch is not in inventory"
-                return False
+        return self.odlController.installL2ControllerRule(translation)
 
-            flow = self.makeODLFlowEntry(flowMod=flowMod, odlNode=sw.node)
-            if not flow:
-                ODLClient.logger.warning("Cannot push flowmond onto %r" % flowMod.switch)
-                return False
-            # go to the controller
-            ODLClient.logger.info('addFlow %r' % flow)
-            res = self.odlController.addFlow(sw.node, flow)
-            return res.isSuccess()
-        else:
-            print 'flowMod %r is not valid' % flowMod
-        return False
-    def modifyFlowMod(self, oldFlowMod, newFlowMod):
-        if self.isFlowModValid(newFlowMod):
-            sw = self.findODLSwitch(flowMod.switch)
-            # print "flowMod.switch of type ", str(type(flowMod.switch))
-            if sw == None:
-                print flowMod,"cannot be pushed because the switch is not in inventory"
-                return False
-            newFlow = self.makeODLFlowEntry(flowMod=newFlowMod, odlNode=sw.node)
-            if not newFlow:
-                ODLClient.logger.warning("Cannot push flowmond onto %r" % newFlowMod.switch)
-                return False
-            # go to the controller
-            ODLClient.logger.info('addFlow %r' % flow)
-            res = self.odlController.modifyFlow(sw.node, oldFlow, newFlow)
-            return res.isSuccess()
-        else:
-            print 'flowMod %r is not valid' % newFlowMod
-        return False
-
-
-    def send(self,packet):
+    def deleteFlow(self, dpid, flowRef):
         """
-        Send a packet via a PACKET_OUT OpenFlow message
+        Delete a flow
+        :param dpid: DPID of the switch (array of bytes)
+        :param flowRef: FlowRef
+        :return: boolean indicating success
+        """
+        return self.odlController.deleteFlow(dpid, flowRef)
+
+    def send(self, packet):
+
+        """
+        Send a packet via a PACKET_OUT OpenFlow message.  We use the PacketOut members
+        and use net.es.netshell.odlmdsal.impl.EthernetFrame to help us put a VLAN
+        header on the front
 
         :param packet: common.openflow.PacketOut
         :return:  True if successful, False if not
@@ -263,6 +162,7 @@ class ODLClient(SimpleController,PacketHandler.Callback):
         if self.isPacketOutValid(packet):
             # Get the switch (Node in the ODL world) and port (NodeConnector in the ODL world)
             sw = self.findODLSwitch(packet.scope.switch)
+            dpid = packet.scope.switch.props['dpid'][-8:]
             if sw == None:
                 print packet, "cannot be sent because the switch is not in inventory"
                 return False
@@ -273,72 +173,18 @@ class ODLClient(SimpleController,PacketHandler.Callback):
                 return False
 
             # Create the outgoing packet in ODL land.  The outgoing node connector must be set.
-            cp = Ethernet()
-            cp.setSourceMACAddress(self.javaByteArray(packet.dl_src.data))
-            cp.setDestinationMACAddress(self.javaByteArray(packet.dl_dst.data))
-            if packet.vlan == 0:
-                cp.setEtherType(packet.etherType)
-                if isinstance(packet.payload, Packet):
-                    cp.setPayload(packet.payload)
-                else:
-                    cp.setRawPayload(self.javaByteArray(packet.payload))
-            else:
-                cvp = IEEE8021Q()
-                cvp.setEtherType(packet.etherType)
-                cvp.setVid(packet.vlan)
-                if isinstance(packet.payload, Packet):
-                    cvp.setPayload(packet.payload)
-                else:
-                    cvp.setRawPayload(self.javaByteArray(packet.payload))
-                cp.setPayload(cvp)
-                cp.setEtherType(EtherTypes.VLANTAGGED.shortValue())
-            rp = self.odlPacketHandler.encodeDataPacket(cp)
-            rp.setOutgoingNodeConnector(nodeconn)
-            ODLClient.logger.info("send %r@%r" %(packet, nodeconn))
-            self.odlPacketHandler.transmitDataPacket(rp)
+            frame = EthernetFrame()
+            frame.setDstMac(self.javaByteArray(packet.dl_dst.data))
+            frame.setSrcMac(self.javaByteArray(packet.dl_src.data))
+            frame.setEtherType(packet.etherType)
+            frame.setVid(packet.vlan)
+            frame.setPayload(packet.payload)
+
+            self.odlController.transmitDataPacket(dpid, portName, frame.toPacket())
+
             return True
         ODLClient.logger.warning("Packet %r is not valid" % packet)
         return False
-
-    def delFlowMod(self, flowMod):
-        """
-        Implementation of delFlowMod for use with OpenDaylight.
-        :param flowMod:
-        :return: True if successful, False if not
-        """
-        # check scope
-        if self.isFlowModValid(flowMod):
-            sw = self.findODLSwitch(flowMod.switch)
-            if sw == None:
-                print flowMod,"cannot be removed because the switch is not in inventory"
-                return False
-
-            flow = self.makeODLFlowEntry(flowMod=flowMod, odlNode=sw.node)
-            if not flow:
-                print "Cannot remove flowmod from",flowMod.switch
-            # go to the controller
-            ODLClient.logger.info('del %r' % flow)
-            success = self.odlController.removeFlow(sw.node, flow)
-            return success.isSuccess()
-        else:
-            print 'flowMod %r is not valid' % flowMod
-        return False
-
-    def delAllFlowMods(self, switch):
-        """
-        Implementation of delAllFlowMods for OpenDaylight
-        :param sw: common.api.Node (switch to be nuked)
-        :return:
-        """
-        odlSwitch = self.findODLSwitch(switch)
-        if (odlSwitch):
-            success = self.odlController.removeAllFlows(odlSwitch.getNode())
-            print success
-            switch.flowMods = {}
-            return True
-        else:
-            print "Cannot find ", switch
-            return False
 
     def unsignedByteArray(self, a):
         """
@@ -372,9 +218,16 @@ class ODLClient(SimpleController,PacketHandler.Callback):
         :return: string representation
         """
         return str.join(":", ("%02x" % i for i in a))
-    def callback(self, rawPacket):
+
+    def callback(self, notification):
+        """
+        Receives PacketReceived notification via OdlMdsalImpl.onPacketReceived().
+        Catch any errors that might be thrown by the "real" callback.
+        :param notification: org.opendaylight.yang.gen.v1.urn.opendaylight.packet.service.rev130709.PacketReceived
+        :return: none
+        """
         try:
-            self.tryCallback(rawPacket)
+            self.tryCallback(notification)
         except:
             exc = sys.exc_info()
             ODLClient.logger.error("%r %r" % (exc[0], exc[1]))
@@ -382,21 +235,24 @@ class ODLClient(SimpleController,PacketHandler.Callback):
             while tb:
                 ODLClient.logger.error("%r %r" % (tb.tb_frame.f_code, tb.tb_lineno))
                 tb = tb.tb_next
-    def tryCallback(self, rawPacket):
+
+    def tryCallback(self, notification):
+
         """
         And this is the callback itself.  Everything that touches an ODL-specific
         data structure needs to go in here...above this layer it's all generic
         OpenFlow.
 
-        :param rawPacket an instance of org.opendaylight.controller.sal.packet.RawPacket
+        :param notification org.opendaylight.yang.gen.v1.urn.opendaylight.packet.service.rev130709.PacketReceived
         """
         # Find out where the packet came from (ingress port).  First find the node and connector
         # in the ODL/Java world.
+        nodeConnectorRef = notification.getIngress() # XXX need to turn this into a NodeConnector object
         ingressConnector = rawPacket.getIncomingNodeConnector()
         ingressNode = ingressConnector.getNode()
 
         # Make sure this is an OpenFlow switch.  If not, ignore the packet.
-        if ingressNode.getType() == Node.NodeIDType.OPENFLOW:
+        if ingressNode.getAugmentation(FlowCapableNode) != None:
 
             # Need to get the ENOS/Python switch that corresponds to this ingressNode.
             switch = self.getSwitch(ingressNode.getID())
@@ -412,51 +268,34 @@ class ODLClient(SimpleController,PacketHandler.Callback):
             if self.debug and not self.dropLLDP:
                 print "PACKET_IN from port %r in node %r" % (port, ingressNode)
 
-            # Try to decode the packet.
-            l2pkt = self.odlPacketHandler.decodeDataPacket(rawPacket)
+            # Try to decode the packet.  First get the payload bytes and parse them.
+            l2pkt = notification.getPayload()
+            ethernetFrame = EthernetFrame.packetToFrame(l2pkt);
 
-            if l2pkt.__class__  == Ethernet:
-                srcMac = MACAddress(l2pkt.getSourceMACAddress())
-                destMac = MACAddress(l2pkt.getDestinationMACAddress())
-                etherType = l2pkt.getEtherType() & 0xffff # convert to unsigned type
-                vlanTag = 0
-                if l2pkt.getPayload():
-                    payload = l2pkt.getPayload()
-                else:
-                    payload = l2pkt.getRawPayload()
+            if ethernetFrame != None:
+
+                srcMac = MACAddress(ethernetFrame.getSrcMac())
+                destMac = MACAddress(ethernetFrame.getDstMac())
+                etherType = ethernetFrame.getEtherType() & 0xffff # convert to unsigned type
+                vlanTag = ethernetFrame.getVid()
+                payload = ethernetFrame.getPayload()
 
                 # Possibly drop LLDP frames
                 if self.dropLLDP:
-                    if etherType == EtherTypes.LLDP.shortValue() & 0xffff:
-                        return PacketResult.KEEP_PROCESSING
-                # Strip off IEEE 802.1q VLAN and set VLAN if present
-                if etherType == EtherTypes.VLANTAGGED.shortValue() & 0xffff:
-                    # If we get here, then l2pkt.payload is an object of type
-                    # org.opendaylight.controller.sal.packet.IEEE8021Q
-                    vlanPacket = l2pkt.getPayload()
-                    vlanTag = vlanPacket.getVid()
-                    etherType = vlanPacket.getEtherType() & 0xffff # convert to unsigned
-                    if vlanPacket.getPayload():
-                        payload = vlanPacket.getPayload()
-                    else:
-                        payload = vlanPacket.getRawPayload()
-                else:
-                    return PacketResult.KEEP_PROCESSING
-                packetIn = PacketInEvent(inPort = port,srcMac=srcMac,dstMac=destMac,vlan=vlanTag,payload=payload)
+                    if etherType == net.es.netshell.odlmdsal.impl.EthernetFrame.ETHERTYPE_LLDP:
+                        return
+
+                packetIn = PacketInEvent(inPort = port, srcMac=srcMac, dstMac=destMac, vlan=vlanTag, payload=payload)
                 packetIn.props['ethertype'] = etherType
 
                 if self.debug:
                     print "  Ethernet frame " + srcMac.str() + " -> " + destMac.str() + " Ethertype " + "%04x" % etherType + " VLAN " + "%04x" % vlanTag
                 self.dispatchPacketIn(packetIn)
-                return PacketResult.KEEP_PROCESSING
 
             else:
                 if self.debug:
                     print "  Unknown frame type"
 
-                return PacketResult.IGNORED
-
         else:
             if self.debug:
                 print "PACKET_IN from Non-OpenFlow Switch"
-            return PacketResult.IGNORED
