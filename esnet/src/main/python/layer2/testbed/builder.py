@@ -37,7 +37,7 @@ from layer2.common.utils import Logger
 
 # Simulated sites ESnet production diskpt's
 lblsite = ["lbl.gov",['lbl-diskpt1@lbl.gov'],"denv"]
-anlsite = ["anl.gov",['anl-diskpt1@anl.gov'],"atla"]
+anlsite = ["anl.gov",['anl-diskpt1@anl.gov'],"star"]
 bnlsite = ["bnl.gov",['bnl-diskpt1@bnl.gov'],"aofa"]
 washsite = ["wash.gov",['tbn@wash.gov'],"wash"]
 amstsite = ["amst.gov",['tbn@amst.gov'],"amst"]
@@ -198,19 +198,19 @@ star=["star",'star-tb-of-1',"star-cr5",starlinks]
 # CORE TO CORE OSCARS circuits
 #  GRI,src,dest,vlan.
 corecircuits = [
-    # DENV - WASH - AOFA 1Mbps + scavenger
+    # DENV - STAR - AOFA 1Mbps + scavenger
     ['es.net-5909',
      'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/4:link=*',
      'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/3:link=*',
      582] ,
-    ['es.net-5906',
-     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/11:link=*',
+    ['es.net-5972',
+     'urn:ogf:network:domain=es.net:node=star-cr5:port=9/2/3:link=*',
      'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/4:link=*',
-     3291],
-    ['es.net-5908',
-     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/11:link=*',
+     2953],
+    ['es.net-5971',
+     'urn:ogf:network:domain=es.net:node=star-cr5:port=9/2/3:link=*',
      'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/3:link=*',
-     830],
+     4054],
     # WASH - AMST - CERN 9.5Gbps on WASH - CERN and AMST - CERN, 1Mbps on WASH - AMST
     ['es.net-5954',
      'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
@@ -241,10 +241,10 @@ sitecircuits['lbl.gov'] = \
 
 sitecircuits['anl.gov'] = \
     ['anl.gov',
-     'es.net-5923',
+     'es.net-5969',
      'urn:ogf:network:domain=es.net:node=anl-mr2:port=xe-1/2/0:link=*',
-     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
-     2340]
+     'urn:ogf:network:domain=es.net:node=star-cr5:port=9/2/4:link=*',
+     3572]
 
 sitecircuits['bnl.gov'] = \
     ['bnl.gov',
