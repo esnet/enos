@@ -83,11 +83,6 @@ reload (layer2.vpn.l2vpn)
 from layer2.vpn.l2vpn import SDNPopsIntent
 from layer2.vpn.l2vpn import SDNPopsRenderer
 from layer2.vpn.l2vpn import FlowStatus
-import layer2.vpn.wan
-reload (layer2.vpn.wan)
-from layer2.vpn.wan import WanIntent
-from layer2.vpn.wan import WanRenderer
-
 
 import layer2.vpn.l2vpn
 reload(layer2.vpn.l2vpn)

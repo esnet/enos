@@ -75,18 +75,20 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
             if 'dpid' in switch.props:
                 dpid = binascii.hexlify(switch.props['dpid'][-8:])
                 index[dpid] = switch
-        for odlSwitch in self.odlController.getNetworkDevices():
-            nodeID = odlSwitch.getID()
-            # Given the ID, strip off "openflow:", what's left is the DPID in decimal ASCII
-            # Convert this to a hex string.
-            dpidDecimal = long(nodeID.replace("openflow:", ""))
-            dpid = '%08x' % dpidDecimal
+        devices = self.odlController.getNetworkDevices()
+        if devices:
+            for odlSwitch in self.odlController.getNetworkDevices():
+                nodeID = odlSwitch.getID()
+                # Given the ID, strip off "openflow:", what's left is the DPID in decimal ASCII
+                # Convert this to a hex string.
+                dpidDecimal = long(nodeID.replace("openflow:", ""))
+                dpid = '%08x' % dpidDecimal
 
-            if not dpid in index:
-                ODLClient.logger.warning('an OdlSwitch with %r not found in topology' % dpid)
-                continue
-            self.odlSwitchIndex[dpid] = odlSwitch
-            self.switchIndex[nodeID] = index[dpid]
+                if not dpid in index:
+                    ODLClient.logger.warning('an OdlSwitch with %r not found in topology' % dpid)
+                    continue
+                self.odlSwitchIndex[dpid] = odlSwitch
+                self.switchIndex[nodeID] = index[dpid]
         self.odlMdsalImpl.setPacketInCallback(self)
 
     def getSwitch(self, nodeID):

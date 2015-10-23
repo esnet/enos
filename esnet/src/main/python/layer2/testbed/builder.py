@@ -51,7 +51,7 @@ denvlinks=[
     ["denv-ovs","eth10","denv-tb-of-1","1",'hw'],
     ["denv-ovs","eth11","denv-tb-of-1","2",'none']
 ]
-denv=["denv",'denv-tb-of-1',"denv-cr5",denvlinks]
+denv=["denv",'denv-tb-of-1',"denv-cr5","denv-ovs",denvlinks]
 
 
 # WASH
@@ -72,7 +72,7 @@ washlinks = [
     ["wash-ovs","eth10","wash-tb-of-1","1",'hw'],
     ["wash-cr5","eth11","wash-tb-of-1","2",'site'] # Fake connection to wash-cr5
 ]
-wash=["wash",'wash-tb-of-1',"wash-cr5", washlinks]
+wash=["wash",'wash-tb-of-1',"wash-cr5","wash-ovs", washlinks]
 
 # AOFA
 aofalinks = [
@@ -81,7 +81,7 @@ aofalinks = [
     ["aofa-ovs","eth10","aofa-tb-of-1","1",'hw'],
     ["aofa-ovs","eth11","aofa-tb-of-1","2",'none']
 ]
-aofa=["aofa",'aofa-tb-of-1',"aofa-cr5",aofalinks]
+aofa=["aofa",'aofa-tb-of-1',"aofa-cr5","aofa-ovs",aofalinks]
 
 # AMST
 """
@@ -125,7 +125,7 @@ amstlinks = [
     ["amst-ovs","eth16","amst-tb-of-1","7",'none'],
     ["amst-cr5","eth17","amst-tb-of-1","8",'site']  # Fake connection to amst-cr5
 ]
-amst=["amst",'amst-tb-of-1',"amst-cr5",amstlinks]
+amst=["amst",'amst-tb-of-1',"amst-cr5","amst-ovs",amstlinks]
 
 # CERN
 """
@@ -133,31 +133,31 @@ The following should be the right topology, but the SC15 QoS demo requires to
 use the testbed host directly connected to the corsa switch to act as a site.
 
 cernlinks = [
-    ["cern-cr5","10/1/4","cern-tb-of-1","20",'none'],
-    ["cern-cr5","10/1/5","cern-tb-of-1","21",'core'],
-    ["cern-cr5","10/1/6","cern-tb-of-1","22",'core'],
-    ["cern-cr5","10/2/5","cern-tb-of-1","23",'none'],
-    ["cern-cr5","10/2/6","cern-tb-of-1","24",'none'],
-    ["cern-ovs","eth10","cern-tb-of-1","1",'hw'],
-    ["cern-ovs","eth11","cern-tb-of-1","2",'none'],
-    ["cern-ovs","eth12","cern-tb-of-1","3",'none'],
-    ["cern-ovs","eth13","cern-tb-of-1","4",'none'],
-    ["cern-ovs","eth14","cern-tb-of-1","5",'none']
+    ["cern-272-cr5","10/1/4","cern272--tb-of-1","20",'none'],
+    ["cern-272-cr5","10/1/5","cern-272-tb-of-1","21",'core'],
+    ["cern-272-cr5","10/1/6","cern-272-tb-of-1","22",'core'],
+    ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23",'none'],
+    ["cern-272-cr5","10/2/6","cern-272-tb-of-1","24",'none'],
+    ["cern-272-ovs","eth10","cern-272-tb-of-1","1",'hw'],
+    ["cern-272-ovs","eth11","cern-272-tb-of-1","2",'none'],
+    ["cern-272-ovs","eth12","cern-272-tb-of-1","3",'none'],
+    ["cern-272-ovs","eth13","cern-272-tb-of-1","4",'none'],
+    ["cern-272-ovs","eth14","cern-272-tb-of-1","5",'none']
 ]
 """
 cernlinks = [
-    ["cern-cr5","10/1/4","cern-tb-of-1","20",'none'],
-    ["cern-cr5","10/1/5","cern-tb-of-1","21",'core'],
-    ["cern-cr5","10/1/6","cern-tb-of-1","22",'core'],
-    ["cern-cr5","10/2/5","cern-tb-of-1","23",'none'],
-    ["cern-cr5","10/2/6","cern-tb-of-1","24",'none'],
-    ["cern-ovs","eth10","cern-tb-of-1","1",'hw'],
-    ["cern-ovs","eth11","cern-tb-of-1","2",'none'],
-    ["cern-ovs","eth12","cern-tb-of-1","3",'none'],
-    ["cern-ovs","eth13","cern-tb-of-1","4",'none'],
-    ["cern-cr5","eth14","cern-tb-of-1","5",'site']
+    ["cern-272-cr5","10/1/4","cern-272-tb-of-1","20",'none'],
+    ["cern-272-cr5","10/1/5","cern-272-tb-of-1","21",'core'],
+    ["cern-272-cr5","10/1/6","cern-272-tb-of-1","22",'core'],
+    ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23",'none'],
+    ["cern-272-cr5","10/2/6","cern-272-tb-of-1","24",'none'],
+    ["cern-272-ovs","eth10","cern-272-tb-of-1","1",'hw'],
+    ["cern-272-ovs","eth11","cern-272-tb-of-1","2",'none'],
+    ["cern-272-ovs","eth12","cern-272-tb-of-1","3",'none'],
+    ["cern-272-ovs","eth13","cern-272-tb-of-1","4",'none'],
+    ["cern-272-cr5","eth14","cern-272-tb-of-1","5",'site']
 ]
-cern=["cern",'cern-tb-of-1',"cern-cr5",cernlinks]
+cern=["cern",'cern-272-tb-of-1',"cern-272-cr5","cern-272-ovs",cernlinks]
 
 # ATLA
 atlalinks = [
@@ -170,7 +170,7 @@ atlalinks = [
     ["atla-ovs","eth12","atla-tb-of-1","3",'none'],
     ["atla-ovs","eth13","atla-tb-of-1","4",'none']
 ]
-atla=["atla",'atla-tb-of-1',"atla-cr5",atlalinks]
+atla=["atla",'atla-tb-of-1',"atla-cr5","atla-ovs",atlalinks]
 
 # STAR
 starlinks = [
@@ -191,7 +191,7 @@ starlinks = [
     ["star-ovs","eth16","star-tb-of-1","7",'none'],
     ["star-ovs","eth17","star-tb-of-1","8",'none']
 ]
-star=["star",'star-tb-of-1',"star-cr5",starlinks]
+star=["star",'star-tb-of-1',"star-cr5","star-ovs",starlinks]
 
 # LBL  POP is not yet deployed
 
@@ -520,8 +520,8 @@ class TopoBuilder ():
             (popname, hwswitchname, coreroutername, swswitchname,links) = (location[0],
                                                                            location[1],
                                                                            location[2],
-                                                                           location[0] + "-ovs",
-                                                                           location[3]
+                                                                           location[3],
+                                                                           location[4]
                                                                            )
 
             self.addSDNPop(popname, hwswitchname, coreroutername, swswitchname,links)
