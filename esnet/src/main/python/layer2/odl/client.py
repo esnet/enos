@@ -28,10 +28,16 @@ from layer2.common.utils import Logger
 from layer2.common.openflow import SimpleController, PacketInEvent
 
 from net.es.netshell.controller.core import Controller
+from net.es.netshell.controller.core.Controller import L2Translation
+from net.es.netshell.controller.core.Controller.L2Translation import L2TranslationOutput
 from net.es.netshell.odlmdsal.impl import OdlMdsalImpl
 from net.es.netshell.odlmdsal.impl import EthernetFrame
+from org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.node import NodeConnector
+from org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.node import NodeConnectorKey
+from org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes import Node
+from org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes import NodeKey
 from org.opendaylight.yang.gen.v1.urn.opendaylight.flow.inventory.rev130819 import FlowCapableNode
-
+from org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.yang.types.rev100924 import MacAddress
 
 class ODLClient(SimpleController, OdlMdsalImpl.Callback):
     """
@@ -188,6 +194,80 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         ODLClient.logger.warning("Packet %r is not valid" % packet)
         return False
 
+    def makeL2Translation(self, flowMod):
+        """
+        From the input FlowMod object, create a L2Translation object.
+        This doesn't work in the general case because a FlowMod is more expressive than
+        L2Translation, but within the context of the multipoint VPN we should be able
+        to do a translation.
+        :param flowMod: layer2.common.openflow.FlowMod
+        :return: net.es.netshell.controller.core.Controller.L2Translation
+        """
+
+        # Create a L2Translation object and fill in its fields
+        l2t = L2Translation()
+        l2t.dpid = flowMod.switch.props['dpid']
+        l2t.priority = flowMod.props['priority']
+        # l2t.c uses default value
+        l2t.inPort = flowMod.match.props['in_port'].name
+        l2t.vlan1 = flowMod.match.props['vlan']
+        # convert from common.mac.MACAddress to
+        # org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.yang.types.rev100924.MacAddress
+        # MACAddress vs. MacAddress, what could possibly go wrong with this?
+        l2t.dstMac1 = MacAddress(flowMod.match.props['dl_dst'].str())
+        # There are some uses cases where we need to push a flow to the software
+        # switch that has a match on dl_src.
+#        if flowMod.match.props['dl_src'] != None:
+            # XXX what to do there?
+
+        for action in flowMod.actions:
+            l2tout = L2TranslationOutput()
+            if 'dl_dst' in action.props:
+                l2tout.outPort = action.props['out_port']
+            if 'vlan' in action.props:
+                l2tout.vlan = action.props['vlan']
+            if 'dl_dst' in action.props:
+                l2tout.dstMac = MacAddress(action.props['dl_dst'].str())
+            # We appear not to have any circumstances that would set action.props['dl_src'],
+            # even though there's support for this in the AD-SAL version of client.py.
+#            if 'dl_src' in action.props:
+                # XXX what to do here?
+            l2t.outputs.append(l2tout)
+
+        # l2t.pcp uses default value
+        # XXX l2t.queue?
+        # XXX l2t.meter?
+
+    def addFlowMod(self, flowMod):
+        """
+        Add a flow described by a FlowMod.
+        This is is something of a hack because the FlowMod object is fairly low-level
+        (OpenFlow specific) and we're converting to a higher-level object, i.e. a
+        L2Translation, expected by installL2ForwardingRule.  As a side effect,
+        saves the FlowRef object for the installed flow as a property in the FlowMod
+        object, for use in delFlowMod.
+        :param flowMod: layer2.common.openflow.FlowMod
+        :return: True if successful, False if not
+        """
+        l2t = self.makeL2Translation(flowMod)
+        self.installL2ForwardingRule(l2t)
+        flowMod.props['flowRef'] = l2t.flowRef
+        return True
+
+    def delFlowMod(self, flowMod):
+        """
+        Delete a flow described by a FlowMod object.
+        Also a bit of a hack...we get rid of a flow when given a FlowRef, passed in
+        the FlowMod.
+        :param flowMod: layer2.common.openflow.FlowMod
+        :return: True if successful, False if not
+        """
+
+        # If there's no flowRef object, we can't do anything.
+        if flowMod.props['flowRef'] == None:
+            return False
+        self.deleteFlow(flowMod.switch.props['dpid'], flowMod.props['flowRef'])
+
     def unsignedByteArray(self, a):
         """
         Make an unsigned byte array from a signed byte array.
@@ -248,10 +328,15 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         :param notification org.opendaylight.yang.gen.v1.urn.opendaylight.packet.service.rev130709.PacketReceived
         """
         # Find out where the packet came from (ingress port).  First find the node and connector
-        # in the ODL/Java world.
+        # in the ODL/Java world (ingressNode and ingressNodeConnector)
         nodeConnectorRef = notification.getIngress() # XXX need to turn this into a NodeConnector object
-        ingressConnector = rawPacket.getIncomingNodeConnector()
-        ingressNode = ingressConnector.getNode()
+
+        # String nodeId = ingress.getValue().firstIdentifierOf(Node.class).firstKeyOf(Node.class, NodeKey.class).getId().getValue();
+        ingressNodeId = nodeConnectorRef.getValue().firstIdentifierOf(Node).firstKeyOf(Node, NodeKey).getId().getValue()
+        ingressNode = self.getSwitch(ingressNodeId)
+
+        # String ncId = ncRef.getValue().firstIdentifierOf(NodeConnector.class).firstKeyOf(NodeConnector.class, NodeConnectorKey.class).getId().getValue();
+        ingressConnectorId = nodeConnectorRef.getValue().firstIdentifierOf(NodeConnector).firstKeyOf(NodeConnector, NodeConnectorKey).getId().getValue()
 
         # Make sure this is an OpenFlow switch.  If not, ignore the packet.
         if ingressNode.getAugmentation(FlowCapableNode) != None:
@@ -261,18 +346,13 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
 
             # This part is harder.  Need to figure out the ENOS port from the
             # NodeConnector object.  We also have the ENOS switch.
-            #
-            # This is very difficult because ODL does not let us retrieve the name of
-            # a node connector (the last argument that would be passed to
-            # SwitchManager.getNodeConnector().
-            portno = ingressConnector.getID()
-            port = switch.props['ports'][portno]
+            port = switch.props['ports'][ingressConnectorId]
             if self.debug and not self.dropLLDP:
                 print "PACKET_IN from port %r in node %r" % (port, ingressNode)
 
             # Try to decode the packet.  First get the payload bytes and parse them.
             l2pkt = notification.getPayload()
-            ethernetFrame = EthernetFrame.packetToFrame(l2pkt);
+            ethernetFrame = EthernetFrame.packetToFrame(l2pkt)
 
             if ethernetFrame != None:
 
