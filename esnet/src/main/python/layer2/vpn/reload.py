@@ -18,8 +18,8 @@
 # distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
 #
-from net.es.netshell.odl import PacketHandler
-PacketHandler.getInstance().setPacketInCallback(None)
+from net.es.netshell.odlmdsal.impl import OdlMdsalImpl
+OdlMdsalImpl.getInstance().setPacketInCallback(None)
 
 import layer2.common.intent
 reload (layer2.common.intent)
