@@ -217,8 +217,8 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         l2t.dstMac1 = MacAddress(flowMod.match.props['dl_dst'].str())
         # There are some uses cases where we need to push a flow to the software
         # switch that has a match on dl_src.
-#        if flowMod.match.props['dl_src'] != None:
-            # XXX what to do there?
+        if flowMod.match.props['dl_src'] != None:
+            l2t.srcMac1 = MacAddress(flowMod.match.props['dl_src'].str())
 
         for action in flowMod.actions:
             l2tout = L2TranslationOutput()
@@ -230,8 +230,6 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
                 l2tout.dstMac = MacAddress(action.props['dl_dst'].str())
             # We appear not to have any circumstances that would set action.props['dl_src'],
             # even though there's support for this in the AD-SAL version of client.py.
-#            if 'dl_src' in action.props:
-                # XXX what to do here?
             l2t.outputs.append(l2tout)
 
         # l2t.pcp uses default value
