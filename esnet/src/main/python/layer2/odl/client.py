@@ -78,23 +78,24 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         index = {} # [dpid] = switch
         for switch in ODLClient.topology.builder.switchIndex.values():
             # DPIDs from the builder are arrays of 8 bytes...get those as a hex string
+            # e.g. "020100616f666101"
             if 'dpid' in switch.props:
                 dpid = binascii.hexlify(switch.props['dpid'][-8:])
                 index[dpid] = switch
         devices = self.odlController.getNetworkDevices()
         if devices:
-            for odlSwitch in self.odlController.getNetworkDevices():
-                nodeID = odlSwitch.getID()
+            for odlSwitch in devices:
+                nodeID = odlSwitch.getId()
                 # Given the ID, strip off "openflow:", what's left is the DPID in decimal ASCII
                 # Convert this to a hex string.
-                dpidDecimal = long(nodeID.replace("openflow:", ""))
-                dpid = '%08x' % dpidDecimal
+                dpidDecimal = long(nodeID.getValue().replace("openflow:", ""))
+                dpid = '%016x' % dpidDecimal
 
                 if not dpid in index:
                     ODLClient.logger.warning('an OdlSwitch with %r not found in topology' % dpid)
                     continue
                 self.odlSwitchIndex[dpid] = odlSwitch
-                self.switchIndex[nodeID] = index[dpid]
+                self.switchIndex[nodeID.getValue()] = index[dpid]
         self.odlMdsalImpl.setPacketInCallback(self)
 
     def getSwitch(self, nodeID):
@@ -220,6 +221,7 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         if flowMod.match.props['dl_src'] != None:
             l2t.srcMac1 = MacAddress(flowMod.match.props['dl_src'].str())
 
+        l2toutseq = []
         for action in flowMod.actions:
             l2tout = L2TranslationOutput()
             if 'dl_dst' in action.props:
@@ -230,7 +232,8 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
                 l2tout.dstMac = MacAddress(action.props['dl_dst'].str())
             # We appear not to have any circumstances that would set action.props['dl_src'],
             # even though there's support for this in the AD-SAL version of client.py.
-            l2t.outputs.append(l2tout)
+            l2toutseq.append(l2tout)
+        l2t.outputs = jarray.array(l2toutseq, L2TranslationOutput)
 
         # l2t.pcp uses default value
         # XXX l2t.queue?
@@ -331,19 +334,19 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
 
         # String nodeId = ingress.getValue().firstIdentifierOf(Node.class).firstKeyOf(Node.class, NodeKey.class).getId().getValue();
         ingressNodeId = nodeConnectorRef.getValue().firstIdentifierOf(Node).firstKeyOf(Node, NodeKey).getId().getValue()
-        ingressNode = self.getSwitch(ingressNodeId)
+        switch = self.getSwitch(ingressNodeId) # ENOS switch
+        ingressNode = self.findODLSwitch(switch) # ODL switch corresponding to it
 
         # String ncId = ncRef.getValue().firstIdentifierOf(NodeConnector.class).firstKeyOf(NodeConnector.class, NodeConnectorKey.class).getId().getValue();
         ingressConnectorId = nodeConnectorRef.getValue().firstIdentifierOf(NodeConnector).firstKeyOf(NodeConnector, NodeConnectorKey).getId().getValue()
 
         # Make sure this is an OpenFlow switch.  If not, ignore the packet.
-        if ingressNode.getAugmentation(FlowCapableNode) != None:
-
-            # Need to get the ENOS/Python switch that corresponds to this ingressNode.
-            switch = self.getSwitch(ingressNode.getID())
+        if ingressNode.getAugmentation(FlowCapableNode) is not None:
 
             # This part is harder.  Need to figure out the ENOS port from the
             # NodeConnector object.  We also have the ENOS switch.
+            # XXX ingressConnectorId is of the form u'openflow:72620962556436737:3',
+            # but we need to get to a port of the form "eth13" (for OVS) or "1" (for Corsa)
             port = switch.props['ports'][ingressConnectorId]
             if self.debug and not self.dropLLDP:
                 print "PACKET_IN from port %r in node %r" % (port, ingressNode)
