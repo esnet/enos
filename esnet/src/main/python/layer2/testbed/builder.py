@@ -384,10 +384,23 @@ class TopoBuilder ():
                 link.setPortType('SwToHw.WAN', 'HwToSw.WAN')
                 swLinks.append(link)
             elif hwSwitch.name == n1.name and coreRouter.name == n2.name:
-                link.setPortType('HwToCore.WAN', 'CoreToHw.WAN')
+                # Tag the hardware switch ports according to whether they're
+                # facing the site (through the core) or facing the wan (again
+                # through the core).  This is only available from the link.
+                # This distinction needs to be made because we match
+                # up inbound PACKET_IN events with containing scopes in
+                # different ways.
+                if type == 'site':
+                    link.setPortType('HwToCore', 'CoreToHw')
+                else:
+                    link.setPortType('HwToCore.WAN', 'CoreToHw.WAN')
                 hwLinks.append(link)
             elif hwSwitch.name == n2.name and coreRouter.name == n1.name:
-                link.setPortType('CoreToHw.WAN', 'HwToCore.WAN')
+                # See above comment about tagging the hardware switch ports.
+                if type == 'site':
+                    link.setPortType('CoreToHw', 'HwToCore')
+                else:
+                    link.setPortType('CoreToHw.WAN', 'HwToCore.WAN')
                 hwLinks.append(link)
             self.addLink(link)
         index = 0
