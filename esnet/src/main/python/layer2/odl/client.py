@@ -37,6 +37,8 @@ from org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.node impo
 from org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes import Node
 from org.opendaylight.yang.gen.v1.urn.opendaylight.inventory.rev130819.nodes import NodeKey
 from org.opendaylight.yang.gen.v1.urn.opendaylight.flow.inventory.rev130819 import FlowCapableNode
+from org.opendaylight.yang.gen.v1.urn.opendaylight.flow.inventory.rev130819 import FlowCapableNodeConnector
+
 from org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.yang.types.rev100924 import MacAddress
 
 class ODLClient(SimpleController, OdlMdsalImpl.Callback):
@@ -338,18 +340,49 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         ingressNode = self.findODLSwitch(switch) # ODL switch corresponding to it
 
         # String ncId = ncRef.getValue().firstIdentifierOf(NodeConnector.class).firstKeyOf(NodeConnector.class, NodeConnectorKey.class).getId().getValue();
-        ingressConnectorId = nodeConnectorRef.getValue().firstIdentifierOf(NodeConnector).firstKeyOf(NodeConnector, NodeConnectorKey).getId().getValue()
+        ingressNodeConnectorId = nodeConnectorRef.getValue().firstIdentifierOf(NodeConnector).firstKeyOf(NodeConnector, NodeConnectorKey).getId().getValue()
 
         # Make sure this is an OpenFlow switch.  If not, ignore the packet.
         if ingressNode.getAugmentation(FlowCapableNode) is not None:
 
             # This part is harder.  Need to figure out the ENOS port from the
             # NodeConnector object.  We also have the ENOS switch.
-            # XXX ingressConnectorId is of the form u'openflow:72620962556436737:3',
-            # but we need to get to a port of the form "eth13" (for OVS) or "1" (for Corsa)
-            port = switch.props['ports'][ingressConnectorId]
+            # ingressNodeConnectorId is of the form u'openflow:72620962556436737:3',
+            # but we need to get to an ENOS port from that (which has the form "eth13"
+            # (for OVS) or "1" (for Corsa).  The ENOS port name for
+            # NodeConnectorId can be gotten from the FlowCapableNodeConnector
+            # augmentation for the NodeConnector.
+            # We iterate over the Node's connectors to try to find the correct
+            # NodeConnector...it's sort of the opposite of OdlMdsalImpl.getNodeConnector
+            # (and this implies that we should probably make this into a Java function
+            # someday.
+            # XXX Would replacing this with something that just reads the NodeConnector
+            # from the data store be more efficient?  It would avoid the loop, but by time
+            # we get here we've already queried the data store for the Node anyway.
+            ncs = self.odlMdsalImpl.getNodeConnectors(ingressNode)
+            IngressNodeConnector = None
+            portName = None
+            for nc in ncs:
+                if nc.getId().getValue() == ingressNodeConnectorId:
+                    IngressNodeConnector = nc
+                    fcnc = nc.getAugmentation(FlowCapableNodeConnector)
+                    portName = fcnc.getName()
+                    break
+
+            # Complain if we can't figure out the ENOS port name
+            if portName == None:
+                ODLClient.logger.error("Can't determine port name for NodeConnector %r on node %r" % (ingressNodeConnectorId, ingressNodeId))
+                return
+
+            port = switch.props['ports'][portName]
+
+            # Complain if we can't find the port, even though we have its name
+            if port == None:
+                ODLClient.logger.error("Can't find port %r on node %r" % (portName, ingressNodeId))
+                return
+
             if self.debug and not self.dropLLDP:
-                print "PACKET_IN from port %r in node %r" % (port, ingressNode)
+                print "PACKET_IN from port %r in node %r" % (port, ingressNodeId)
 
             # Try to decode the packet.  First get the payload bytes and parse them.
             l2pkt = notification.getPayload()
@@ -365,7 +398,7 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
 
                 # Possibly drop LLDP frames
                 if self.dropLLDP:
-                    if etherType == net.es.netshell.odlmdsal.impl.EthernetFrame.ETHERTYPE_LLDP:
+                    if etherType == EthernetFrame.ETHERTYPE_LLDP:
                         return
 
                 packetIn = PacketInEvent(inPort = port, srcMac=srcMac, dstMac=destMac, vlan=vlanTag, payload=payload)
