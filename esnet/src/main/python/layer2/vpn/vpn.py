@@ -37,7 +37,7 @@ def usage():
     print "vpn $vpnindex save $conf"
     print "vpn $vpnindex addpop $popindex"
     print "vpn $vpnindex delpop $popindex"
-    print "vpn $vpnindex addsite $siteindex $siteVlan"
+    print "vpn $vpnindex addsite $siteindex"
     print "vpn $vpnindex delsite $siteindex"
     print "vpn $vpnindex addhost $hostindex"
     print "vpn $vpnindex delhost $hostindex"

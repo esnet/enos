@@ -39,10 +39,10 @@ from layer2.common.utils import Logger
 lblsite = ["lbl.gov",['lbl-diskpt1@lbl.gov'],"denv"]
 anlsite = ["anl.gov",['anl-diskpt1@anl.gov'],"star"]
 bnlsite = ["bnl.gov",['bnl-diskpt1@bnl.gov'],"aofa"]
-washsite = ["wash.gov",['tbn@wash.gov'],"wash"]
-amstsite = ["amst.gov",['tbn@amst.gov'],"amst"]
-cernsite = ["cern.gov",['tbn@cern.gov'],"cern"]
-sites = [lblsite, anlsite, bnlsite,washsite,amstsite,cernsite]
+site1 = ["site1.xyz",['tbn@site1.xyz'],"wash"]
+site2 = ["site2.xyz",['tbn@site2.xyz'],"amst"]
+site3 = ["site3.xyz",['tbn@site3.xyz'],"cern"]
+sites = [lblsite, anlsite, bnlsite,site1,site2,site3]
 
 # DENV
 denvlinks=[
@@ -58,20 +58,19 @@ denv=["denv",'denv-tb-of-1',"denv-cr5","denv-ovs",denvlinks]
 """
 The following should be the right topology, but the SC15 QoS demo requires to
 use the testbed host directly connected to the corsa switch to act as a site.
-
 washlinks = [
-    ["wash-cr5","10/1/11","wash-tb-of-1","23",'none'],
-    ["wash-cr5","10/1/12","wash-tb-of-1","24",'core'],
+    ["wash-cr5","10/1/11","wash-tb-of-1","23",'core'],
+    ["wash-cr5","10/1/12","wash-tb-of-1","24",'site'],
     ["wash-ovs","eth10","wash-tb-of-1","1",'hw'],
     ["wash-ovs","eth11","wash-tb-of-1","2",'none']
 ]
 """
 washlinks = [
-    ["wash-cr5","10/1/11","wash-tb-of-1","23",'none'],
-    ["wash-cr5","10/1/12","wash-tb-of-1","24",'core'],
-    ["wash-ovs","eth10","wash-tb-of-1","1",'hw'],
-    ["wash-cr5","eth11","wash-tb-of-1","2",'site'] # Fake connection to wash-cr5
+    ["wash-cr5","10/1/11","wash-tb-of-1","23",'core'],
+    ["wash-cr5","10/1/12","wash-tb-of-1","2",'site'],  # FAKE
+    ["wash-ovs","eth10","wash-tb-of-1","1",'hw']
 ]
+
 wash=["wash",'wash-tb-of-1',"wash-cr5","wash-ovs", washlinks]
 
 # AOFA
@@ -109,7 +108,7 @@ amstlinks = [
 """
 amstlinks = [
     ["amst-cr5","10/1/3","amst-tb-of-1","17",'core'],
-    ["amst-cr5","10/1/4","amst-tb-of-1","18",'none'],
+    ["amst-cr5","10/1/4","amst-tb-of-1","8",'site'],     # FAKE
     ["amst-cr5","10/1/5","amst-tb-of-1","19",'none'],
     ["amst-cr5","10/1/6","amst-tb-of-1","20",'none'],
     ["amst-cr5","10/2/1","amst-tb-of-1","21",'none'],
@@ -122,8 +121,7 @@ amstlinks = [
     ["amst-ovs","eth13","amst-tb-of-1","4",'none'],
     ["amst-ovs","eth14","amst-tb-of-1","5",'none'],
     ["amst-ovs","eth15","amst-tb-of-1","6",'none'],
-    ["amst-ovs","eth16","amst-tb-of-1","7",'none'],
-    ["amst-cr5","eth17","amst-tb-of-1","8",'site']  # Fake connection to amst-cr5
+    ["amst-ovs","eth16","amst-tb-of-1","7",'none']
 ]
 amst=["amst",'amst-tb-of-1',"amst-cr5","amst-ovs",amstlinks]
 
@@ -133,7 +131,7 @@ The following should be the right topology, but the SC15 QoS demo requires to
 use the testbed host directly connected to the corsa switch to act as a site.
 
 cernlinks = [
-    ["cern-272-cr5","10/1/4","cern272--tb-of-1","20",'none'],
+    ["cern-272-cr5","10/1/4","cern272--tb-of-1","20",'site'],
     ["cern-272-cr5","10/1/5","cern-272-tb-of-1","21",'core'],
     ["cern-272-cr5","10/1/6","cern-272-tb-of-1","22",'core'],
     ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23",'none'],
@@ -146,7 +144,7 @@ cernlinks = [
 ]
 """
 cernlinks = [
-    ["cern-272-cr5","10/1/4","cern-272-tb-of-1","20",'none'],
+    ["cern-272-cr5","10/1/4","cern272--tb-of-1","5",'site'],  # FAKE
     ["cern-272-cr5","10/1/5","cern-272-tb-of-1","21",'core'],
     ["cern-272-cr5","10/1/6","cern-272-tb-of-1","22",'core'],
     ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23",'none'],
@@ -154,8 +152,7 @@ cernlinks = [
     ["cern-272-ovs","eth10","cern-272-tb-of-1","1",'hw'],
     ["cern-272-ovs","eth11","cern-272-tb-of-1","2",'none'],
     ["cern-272-ovs","eth12","cern-272-tb-of-1","3",'none'],
-    ["cern-272-ovs","eth13","cern-272-tb-of-1","4",'none'],
-    ["cern-272-cr5","eth14","cern-272-tb-of-1","5",'site']
+    ["cern-272-ovs","eth13","cern-272-tb-of-1","4",'none']
 ]
 cern=["cern",'cern-272-tb-of-1',"cern-272-cr5","cern-272-ovs",cernlinks]
 
@@ -254,25 +251,25 @@ sitecircuits['bnl.gov'] = \
      116]
 
 # The following are simulated links
-sitecircuits['wash.gov'] = \
-    ['wash.gov',
+sitecircuits['site1.xyz'] = \
+    ['site1.xyz',
      'es.net-fake1',
-     'urn:ogf:network:domain=wash.gov:node=wash:port=xe-9/3/0:link=*',
-     'urn:ogf:network:domain=es.net:node=wash-cr5:port=eth11:link=*',
+     'urn:ogf:network:domain=site1.xyz:node=wash:port=xe-9/3/0:link=*',
+     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
      100]
 
-sitecircuits['cern.gov'] = \
-    ['cern.gov',
+sitecircuits['site2.xyz'] = \
+    ['site2.xyz',
      'es.net-fake2',
-     'urn:ogf:network:domain=cern.gov:node=cern:port=xe-9/3/0:link=*',
-     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=eth14:link=*',
+     'urn:ogf:network:domain=site2.xyz:node=amst:port=xe-9/3/0:link=*',
+     'urn:ogf:network:domain=es.net:node=amst-cr5:port=eth17:link=*',
      100]
 
-sitecircuits['amst.gov'] = \
-    ['amst.gov',
+sitecircuits['site3.xyz'] = \
+    ['site3.xyz',
      'es.net-fake3',
-     'urn:ogf:network:domain=amst.gov:node=amst:port=xe-9/3/0:link=*',
-     'urn:ogf:network:domain=es.net:node=amst-cr5:port=eth17:link=*',
+     'urn:ogf:network:domain=site3.xyz.gov:node=cern:port=xe-9/3/0:link=*',
+     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=eth14:link=*',
      100]
 
 

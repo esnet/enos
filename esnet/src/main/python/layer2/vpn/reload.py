@@ -18,6 +18,7 @@
 # distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
 #
+
 from net.es.netshell.odlmdsal.impl import OdlMdsalImpl
 OdlMdsalImpl.getInstance().setPacketInCallback(None)
 
