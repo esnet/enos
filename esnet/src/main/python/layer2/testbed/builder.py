@@ -131,7 +131,7 @@ The following should be the right topology, but the SC15 QoS demo requires to
 use the testbed host directly connected to the corsa switch to act as a site.
 
 cernlinks = [
-    ["cern-272-cr5","10/1/4","cern272--tb-of-1","20",'site'],
+    ["cern-272-cr5","10/1/4","cern-272-tb-of-1","20",'site'],
     ["cern-272-cr5","10/1/5","cern-272-tb-of-1","21",'core'],
     ["cern-272-cr5","10/1/6","cern-272-tb-of-1","22",'core'],
     ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23",'none'],
@@ -144,7 +144,7 @@ cernlinks = [
 ]
 """
 cernlinks = [
-    ["cern-272-cr5","10/1/4","cern272--tb-of-1","5",'site'],  # FAKE
+    ["cern-272-cr5","10/1/4","cern-272-tb-of-1","5",'site'],  # FAKE
     ["cern-272-cr5","10/1/5","cern-272-tb-of-1","21",'core'],
     ["cern-272-cr5","10/1/6","cern-272-tb-of-1","22",'core'],
     ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23",'none'],
@@ -262,14 +262,14 @@ sitecircuits['site2.xyz'] = \
     ['site2.xyz',
      'es.net-fake2',
      'urn:ogf:network:domain=site2.xyz:node=amst:port=xe-9/3/0:link=*',
-     'urn:ogf:network:domain=es.net:node=amst-cr5:port=eth17:link=*',
+     'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/1/4:link=*',
      100]
 
 sitecircuits['site3.xyz'] = \
     ['site3.xyz',
      'es.net-fake3',
      'urn:ogf:network:domain=site3.xyz.gov:node=cern:port=xe-9/3/0:link=*',
-     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=eth14:link=*',
+     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/1/4:link=*',
      100]
 
 
