@@ -22,10 +22,11 @@ import struct
 import array, jarray
 import sys
 import binascii
+
 from layer2.common.mac import MACAddress
 from layer2.common.utils import Logger
-
 from layer2.common.openflow import SimpleController, PacketInEvent
+import layer2.testbed.dpid
 
 from net.es.netshell.controller.core import Controller
 from net.es.netshell.controller.core.Controller import L2Translation
@@ -239,7 +240,9 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
 
         # l2t.pcp uses default value
         # XXX l2t.queue?
-        # XXX l2t.meter?
+        # XXX set meter appropriately...use all green for now.  This needs to take a parameter
+        # from somewhere to appropriately set QOS
+        l2t.meter = 5L
 
         return l2t
 
@@ -305,6 +308,26 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         :return: string representation
         """
         return str.join(":", ("%02x" % i for i in a))
+
+    def initQos(self, switch):
+        """
+        Initialize the per-switch QOS parameters on a switch
+        These are tied pretty tightly to a specific QOS configuration for SC15.
+        We need to eventually figure out a better way to do this.
+        :param switch: ENOS node
+        :return:
+        """
+        switchDpid = switch.props['dpid']
+        (vendor, role, location, id) = layer2.testbed.dpid.decodeDPID(switchDpid)
+        if vendor == layer2.testbed.dpid.Vendors.Corsa:
+
+            odlSwitch = self.findODLSwitch(switch)
+
+            # Don't bother saving the MeterRefs from these calls because we never
+            # delete the meters.
+            self.odlCorsaImpl.createGreenMeter(odlSwitch, 5L)
+            self.odlCorsaImpl.createGreenMeter(odlSwitch, 4L)
+            self.odlCorsaImpl.createGreenYellowMeter(odlSwitch, 3L, 500000L, 50000000L)
 
     def callback(self, notification):
         """

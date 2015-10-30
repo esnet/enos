@@ -587,6 +587,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
          [-1]: forwarding from coreRouter to swSwitch in hwSwitch
         """
         k = flowEntry.key()
+        print "tapBroadcastEntry with k " + k
         if not k in self.props['statusIndex']:
             return self.createBroadcastEntry(flowEntry, True)
 
@@ -631,7 +632,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
          [-1]: forwarding from coreRouter to swSwitch in hwSwitch
         """
         k = flowEntry.key()
+        print "untapBroadcastEntry with k " + k
         if not k in self.props['statusIndex']:
+            print "  not in index"
             return self.createBroadcastEntry(flowEntry, False)
 
         flowStatus = self.props['statusIndex'][k]
@@ -780,6 +783,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             swSwitchScope = self.props['scopeIndex'][swSwitch.name]
             swSwitchScope.addEndpoint(swSwitch.props['sitePortIndex'][site.name], siteVlan)
             # TODO swSwitchScope.addEndpoint(swSwitch.props['vmPort'], siteVlan)
+            # XXX Send broadcast packets on hwSwitch, sitePort, siteVlan to controller
+            # Where to save the FlowRef?  hwSwitch.props['siteBroadcastFlowRef']
             return True
 
     def delSite(self, site):
@@ -807,6 +812,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 if not related:
                     continue
                 self.delFlowEntry(flowEntry)
+            # XXX Clean up broadcast flow entry
+            # Delete hwSwitch.props['siteBroadcastFlowRef']
 
             (_, hosts, siteVlan) = self.vpn.props['participantIndex'][site.name]
             pop = site.props['pop']
@@ -831,7 +838,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         """
         with self.lock:
             if pop.name in self.props['popIndex']:
-                SDNPopsRenderer.logger.warning("The SDNPop did not participate in the VPN yet")
+                SDNPopsRenderer.logger.warning("The SDNPop is already in the VPN")
                 return False
             vid = self.vpn.props['vid']
             hwSwitch = pop.props['hwSwitch'].props['enosNode']
@@ -848,6 +855,19 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 self.connectPop(pop, other_pop)
                 self.connectPop(other_pop, pop)
             self.props['popIndex'][pop.name] = pop
+
+            # Per-switch QOS setup on hardware switch
+            # If it's a Corsa we need to push two (or three) meters to the switch.
+            # We need to do this every time we start using the switch.  The Corsa driver
+            # barfs when trying to push a flow to a meter it doesn't know, even if the
+            # meter is already configured, so we're pretty aggressive about setting the
+            # meter.  Setting it multiple times doesn't hurt.
+            hwSwitch.props['controller'].initQos(hwSwitch)
+
+            # Per-switch QOS setup on software switch
+            # This should be a no-op, but put the hooks in here anyway
+            swSwitch.props['controller'].initQos(swSwitch)
+
             return True
 
     def delPop(self, pop):
@@ -859,6 +879,13 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 if site.props['pop'].name == pop.name:
                     SDNPopsRenderer.logger.warning("Some sites in the SDNPop is still in the VPNs, must delete them first")
                     return False
+            # XXX Undo per-switch QOS setup on software switch
+            # XXX Undo per-switch QOS setup on hardware switch
+            # Note this actually a bit challenging because the QOS setup is, right now, per-switch not
+            # per VPN/switch.  So we can't get rid of a QOS configuration (i.e. Corsa meter) until
+            # the last VPN is done using it.  We need to manage this a bit better, either by putting a
+            # refcount on each switch or by assigning meters to be per VPN/switch (i.e. so each meter
+            # only used by a single VPN).
             for other_pop in self.props['popIndex'].values():
                 if other_pop.name == pop.name:
                     continue
