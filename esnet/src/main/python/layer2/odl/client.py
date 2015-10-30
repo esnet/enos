@@ -209,7 +209,7 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
 
         # Create a L2Translation object and fill in its fields
         l2t = L2Translation()
-        l2t.dpid = flowMod.switch.props['dpid']
+        l2t.dpid = self.javaByteArray(flowMod.switch.props['dpid'])
         l2t.priority = flowMod.props['priority']
         # l2t.c uses default value
         l2t.inPort = flowMod.match.props['in_port'].name
@@ -220,14 +220,14 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         l2t.dstMac1 = MacAddress(flowMod.match.props['dl_dst'].str())
         # There are some uses cases where we need to push a flow to the software
         # switch that has a match on dl_src.
-        if flowMod.match.props['dl_src'] != None:
+        if 'dl_src' in flowMod.match.props and flowMod.match.props['dl_src'] != None:
             l2t.srcMac1 = MacAddress(flowMod.match.props['dl_src'].str())
 
         l2toutseq = []
         for action in flowMod.actions:
             l2tout = L2TranslationOutput()
-            if 'dl_dst' in action.props:
-                l2tout.outPort = action.props['out_port']
+            if 'out_port' in action.props:
+                l2tout.outPort = action.props['out_port'].name
             if 'vlan' in action.props:
                 l2tout.vlan = action.props['vlan']
             if 'dl_dst' in action.props:
@@ -240,6 +240,8 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         # l2t.pcp uses default value
         # XXX l2t.queue?
         # XXX l2t.meter?
+
+        return l2t
 
     def addFlowMod(self, flowMod):
         """
