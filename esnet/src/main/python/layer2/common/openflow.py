@@ -157,7 +157,7 @@ class FlowMod(Properties):
         self.switch = switch
         self.actions = actions
         self.match = match
-        self.props['priority'] = 0 # only configured in TapEntryWithSrcMac
+        self.props['priority'] = 1 # only configured in TapEntryWithSrcMac
         self.id = generateId()
         if not name:
             self.name = str(self.id)
@@ -426,6 +426,7 @@ class L2SwitchScope(Scope):
         self.props['endpoints'] = {}
         self.props['endpoints'].update(endpoints) # ['portname'] = [vlans]
         self.props['flowmodIndex'] = {} # [flowmod.key()] = FlowMod
+        self.props['toControllerFlowRefs'] = {} # [sitePort.name + "." + str(siteVlan)] = FlowRef
         self.props.update(props)
 
     def serialize(self):
@@ -481,7 +482,7 @@ class L2SwitchScope(Scope):
     def tapWithSrcMac(self, switch, inMac, inVlan, inPort, outMac, outVlan, outPort, srcMac, vmPort):
         flowmod = FlowMod.create(self, switch, {'dl_src':srcMac, 'dl_dst':inMac, 'vlan':inVlan, 'in_port':inPort}, {})
         flowmod.props['renderer'] = self.owner
-        flowmod.props['priority'] = 1
+        flowmod.props['priority'] = 2
         actions = []
         actions.append(Action(props={'dl_dst':inMac, 'vlan':inVlan, 'out_port':vmPort}))
         actions.append(Action(props={'dl_dst':outMac, 'vlan':outVlan, 'out_port':outPort}))
@@ -893,10 +894,12 @@ class SimpleController(Controller):
         issue that VPNs with different vids should have their own separated
         scopes but share the same port and vlan.
         """
+        print "port name %s type %s" % (port.name, port.props['type'])
         if port.props['type'].endswith('.WAN'):
             key = '%s.%d' % (port.name, mac.getVid())
         else:
             key = '%s.%d' % (port.name, vlan)
+        print "key %s" % key
         if not key in self.scopeIndex:
             # try to check if the port includes all vlans
             key = port.name
@@ -929,6 +932,7 @@ class SimpleController(Controller):
             return
         SimpleController.logger.info('recv packet %r' % packetIn)
         scope = self.getScope(port, vlan, dl_dst)
+        print scope
         if scope and scope.switch == port.get('enosNode') and scope.includes(packetIn):
             scope.owner.eventListener(packetIn)
         else:

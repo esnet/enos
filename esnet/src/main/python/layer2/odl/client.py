@@ -23,6 +23,8 @@ import array, jarray
 import sys
 import binascii
 
+from java.math import BigInteger
+
 from layer2.common.mac import MACAddress
 from layer2.common.utils import Logger
 from layer2.common.openflow import SimpleController, PacketInEvent
@@ -314,6 +316,7 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         Initialize the per-switch QOS parameters on a switch
         These are tied pretty tightly to a specific QOS configuration for SC15.
         We need to eventually figure out a better way to do this.
+        Arguably, this functionality could be pushed into netshell-controller.
         :param switch: ENOS node
         :return:
         """
@@ -328,6 +331,34 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
             self.odlCorsaImpl.createGreenMeter(odlSwitch, 5L)
             self.odlCorsaImpl.createGreenMeter(odlSwitch, 4L)
             self.odlCorsaImpl.createGreenYellowMeter(odlSwitch, 3L, 500000L, 50000000L)
+
+    def initControllerFlow(self, switch, fe):
+        """
+        Initialize a controller flow on the specified switch.  How we do this
+        is driver-dependent.
+        :param switch:
+        :param fe: layer2.common.openflow.FlowEntry
+        :return:
+        """
+        switchDpid = switch.props['dpid']
+        (vendor, role, location, id) = layer2.testbed.dpid.decodeDPID(switchDpid)
+        if vendor == layer2.testbed.dpid.Vendors.Corsa:
+            odlSwitch = self.findODLSwitch(switch)
+            (mac, vlan, port) = fe.get()
+
+#            print mac
+#            print "  vlan " + str(vlan)
+#            print "  port " + port.name
+
+            nc = self.odlMdsalImpl.getNodeConnector(odlSwitch, port.name)
+
+#            print "got nc " + nc.getId().toString()
+
+            # Set priority 0 (lowest)
+            flowref = self.odlCorsaImpl.sendVlanMacToController(odlSwitch, 0, BigInteger.ZERO, MacAddress(str(mac)),
+                                                                nc.getId(), vlan)
+            return flowref
+
 
     def callback(self, notification):
         """

@@ -784,7 +784,12 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             swSwitchScope.addEndpoint(swSwitch.props['sitePortIndex'][site.name], siteVlan)
             # TODO swSwitchScope.addEndpoint(swSwitch.props['vmPort'], siteVlan)
             # XXX Send broadcast packets on hwSwitch, sitePort, siteVlan to controller
-            # Where to save the FlowRef?  hwSwitch.props['siteBroadcastFlowRef']
+            # Where to save the FlowRef?  Maybe put it in the hwSwitchScope, index on port, vlan.
+            mac = MACAddress.createBroadcast()
+            fe = FlowEntry(mac, siteVlan, sitePort) # mac, vlan, port
+            flowRef = hwSwitch.props['controller'].initControllerFlow(hwSwitch, fe)
+            bcastKey = sitePort.name + "." + str(siteVlan)
+            hwSwitchScope.props['toControllerFlowRefs'][bcastKey] = flowRef
             return True
 
     def delSite(self, site):
@@ -812,8 +817,6 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                 if not related:
                     continue
                 self.delFlowEntry(flowEntry)
-            # XXX Clean up broadcast flow entry
-            # Delete hwSwitch.props['siteBroadcastFlowRef']
 
             (_, hosts, siteVlan) = self.vpn.props['participantIndex'][site.name]
             pop = site.props['pop']
@@ -823,6 +826,13 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             hwSwitchScope.delEndpoint(sitePort, siteVlan)
             swPort = hwSwitch.props['stitchedPortIndex'][sitePort.name]
             hwSwitchScope.delEndpoint(swPort, siteVlan)
+            # Clean up broadcast flow entry
+            bcastKey = sitePort.name + "." + str(siteVlan)
+            if bcastKey in hwSwitchScope.props['toControllerFlowRefs']:
+                flowRef = hwSwitchScope.props['toControllerFlowRefs'].pop(bcastKey)
+                cont = hwSwitch.props['controller']
+                cont.deleteFlow(cont.javaByteArray(hwSwitch.props['dpid']), flowRef)
+
 
             swSwitch = pop.props['swSwitch'].props['enosNode']
             swSwitchScope = self.props['scopeIndex'][swSwitch.name]

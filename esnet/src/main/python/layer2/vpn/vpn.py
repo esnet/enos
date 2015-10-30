@@ -270,8 +270,8 @@ def delsite(vpn, site):
     if not vpn.checkSite(site):
         print "site not found in the vpn"
         return
-    siteRenderer = rendererIndex[site.name]
-    siteRenderer.delVlan(siteVlan)
+#    siteRenderer = rendererIndex[site.name]
+#    siteRenderer.delVlan(siteVlan)
     popsRenderer = rendererIndex[vpn.name]
     popsRenderer.delSite(site)
     vpn.delSite(site)
@@ -288,9 +288,9 @@ def delhost(vpn, host):
     if not vpn.delHost(host):
         print "something wrong while deleting the host; Please make sure that the host joined the VPN."
         return
-    sitename = host.props['site'].name
-    siteRenderer = rendererIndex[sitename]
-    siteRenderer.delHost(host, vpn.props['participantIndex'][sitename][2])
+#    sitename = host.props['site'].name
+#    siteRenderer = rendererIndex[sitename]
+#    siteRenderer.delHost(host, vpn.props['participantIndex'][sitename][2])
 
 def tapsite(vpn, site):
     vpn.props['renderer'].tapSiteCLI(site)
@@ -391,7 +391,8 @@ def main():
                 print "unknown command"
                 usage()
     except:
-        print "Invalid arguments"
-        usage()
+#        print "Invalid arguments"
+#        usage()
+        raise
 if __name__ == '__main__':
     main()
