@@ -29,27 +29,29 @@ from layer2.vpn.l2vpn import SDNPopsIntent, SDNPopsRenderer
 
 def usage():
     print "usage:"
-    print "vpn create $vpnname"
-    print "vpn delete $vpnname"
-    print "vpn kill $vpnname"
+    print "vpn create <vpn name>"
+    print "vpn delete <vpn name>"
+    print "vpn kill <vpn name>"
     print "vpn load $conf"
-    print "vpn $vpnindex execute"
-    print "vpn $vpnindex save $conf"
-    print "vpn $vpnindex addpop $popindex"
-    print "vpn $vpnindex delpop $popindex"
-    print "vpn $vpnindex addsite $siteindex"
-    print "vpn $vpnindex delsite $siteindex"
-    print "vpn $vpnindex addhost $hostindex"
-    print "vpn $vpnindex delhost $hostindex"
-    print "vpn $vpnindex tapsite $siteindex"
-    print "vpn $vpnindex untapsite $siteindex"
-    print "vpn $vpnindex taphost $hostindex"
-    print "vpn $vpnindex untaphost $hostindex"
-    print "vpn $vpnindex tapmac $mac"
-    print "vpn $vpnindex untapmac $mac"
-    print "vpn $vpnindex settimeout $timeout"
-    print "vpn $vpnindex visualize $conf"
-    print "Note: vpnindex should not be any keyword such as create, delete, kill, or load"
+    print "vpn <vpn name> execute"
+    print "vpn <vpn name> save $conf"
+    print "vpn <vpn name> getprio"
+    print "vpn <vpn name> setprio"
+    print "vpn <vpn name> addpop <pop name>"
+    print "vpn <vpn name> delpop <pop name>"
+    print "vpn <vpn name> addsite <site name>"
+    print "vpn <vpn name> delsite <site name>"
+    print "vpn <vpn name> addhost <host name>"
+    print "vpn <vpn name> delhost <host name>"
+    print "vpn <vpn name> tapsite <site name>"
+    print "vpn <vpn name> untapsite <site name>"
+    print "vpn <vpn name> taphost <host name>"
+    print "vpn <vpn name> untaphost <host name>"
+    print "vpn <vpn name> tapmac <MAC>"
+    print "vpn <vpn name> untapmac <MAC>"
+    print "vpn <vpn name> settimeout <secs>"
+    print "vpn <vpn name> visualize $conf"
+    print "Note: <vpn name> should not be any keyword such as create, delete, kill, or load"
 
 def toint(s):
     try:
@@ -339,10 +341,14 @@ def main():
             command = sys.argv[2].lower()
             if command == 'execute':
                 execute(vpn)
+            elif command == 'getprio':
+                prio = vpn.getPriority()
+                print prio
+            elif command == 'setprio':
+                vpn.setPriority([sys.argv[3]])
             elif command == 'addpop':
                 pop = topo.builder.popIndex[sys.argv[3]]
                 addpop(vpn, pop)
-
             elif command == 'delpop':
                 pop = topop(sys.argv[3])
                 delpop(vpn, pop)
