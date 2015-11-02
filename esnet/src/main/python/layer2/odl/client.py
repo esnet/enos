@@ -394,10 +394,8 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         ingressNodeId = nodeConnectorRef.getValue().firstIdentifierOf(Node).firstKeyOf(Node, NodeKey).getId().getValue()
         switch = self.getSwitch(ingressNodeId) # ENOS switch
         ingressNode = self.findODLSwitch(switch) # ODL switch corresponding to it
-
         # String ncId = ncRef.getValue().firstIdentifierOf(NodeConnector.class).firstKeyOf(NodeConnector.class, NodeConnectorKey.class).getId().getValue();
         ingressNodeConnectorId = nodeConnectorRef.getValue().firstIdentifierOf(NodeConnector).firstKeyOf(NodeConnector, NodeConnectorKey).getId().getValue()
-
         # Make sure this is an OpenFlow switch.  If not, ignore the packet.
         if ingressNode.getAugmentation(FlowCapableNode) is not None:
 
@@ -429,9 +427,10 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
             if portName == None:
                 ODLClient.logger.error("Can't determine port name for NodeConnector %r on node %r" % (ingressNodeConnectorId, ingressNodeId))
                 return
-
+            if not portName in switch.props['ports']:
+                ODLClient.logger.error("Can't find port %s on node %s" % (portName, switch))
+                return
             port = switch.props['ports'][portName]
-
             # Complain if we can't find the port, even though we have its name
             if port == None:
                 ODLClient.logger.error("Can't find port %r on node %r" % (portName, ingressNodeId))

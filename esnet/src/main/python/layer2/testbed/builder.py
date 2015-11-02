@@ -66,8 +66,8 @@ washlinks = [
 ]
 """
 washlinks = [
-    ["wash-cr5","10/1/11","wash-tb-of-1","23",'core'],
-    ["wash-cr5","10/1/12","wash-tb-of-1","2",'site'],  # FAKE
+    ["wash-cr5","10/1/12","wash-tb-of-1","24",'core'],
+    ["wash-cr5","10/1/11","wash-tb-of-1","2",'site'],  # FAKE
     ["wash-ovs","eth10","wash-tb-of-1","1",'hw']
 ]
 
@@ -145,10 +145,10 @@ cernlinks = [
 """
 cernlinks = [
     ["cern-272-cr5","10/1/4","cern-272-tb-of-1","5",'site'],  # FAKE
-    ["cern-272-cr5","10/1/5","cern-272-tb-of-1","21",'core'],
-    ["cern-272-cr5","10/1/6","cern-272-tb-of-1","22",'core'],
-    ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23",'none'],
-    ["cern-272-cr5","10/2/6","cern-272-tb-of-1","24",'none'],
+    ["cern-272-cr5","10/1/5","cern-272-tb-of-1","21",'none'],
+    ["cern-272-cr5","10/1/6","cern-272-tb-of-1","22",'none'],
+    ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23",'core'],
+    ["cern-272-cr5","10/2/6","cern-272-tb-of-1","24",'core'],
     ["cern-272-ovs","eth10","cern-272-tb-of-1","1",'hw'],
     ["cern-272-ovs","eth11","cern-272-tb-of-1","2",'none'],
     ["cern-272-ovs","eth12","cern-272-tb-of-1","3",'none'],
