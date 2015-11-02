@@ -172,6 +172,7 @@ class HwSwitch(Switch):
         swport = swlink.props['portIndex'][self.name]
         self.props['stitchedPortIndex'][hwport.name] = swport
         self.props['stitchedPortIndex'][swport.name] = hwport
+        print "HwSwitch.connectPop on " + self.name + " stitching " + hwport.name + " <-> " + swport.name
 
     def addLink(self, hwlink,swlink):
         hwport = hwlink.props['portIndex'][self.name]
@@ -180,6 +181,7 @@ class HwSwitch(Switch):
         self.props['toSwPorts'][swport] = swport
         self.props['stitchedPortIndex'][hwport.name] = swport
         self.props['stitchedPortIndex'][swport.name] = hwport
+        print "HwSwitch.addLink on " + self.name + " stitching " + hwport.name + " <-> " + swport.name
 
     def addSite(self, site, link):
         """
@@ -339,23 +341,51 @@ class SDNPop(Properties):
             # This implementation only supports one link between a site and a core router.
             SDNPop.logger.error("Only support one link between %s and network. Found %d" % (site.name,len(links)))
             return
-        hwPorts = self.props['swSwitch'].props['toHwPorts']
-        swlink = None
-        swPort = None
-        for port in hwPorts:
-            ls = port.props['links']
-            for link in ls:
-                if link.props['type'] == 'hw':
-                    swlink = link
-                    swPort = port
-                    break
-            if swlink != None:
-                break
+#        print "SDNPop.addSite with site " + site.name + " and links " + str(links)
 
-        wanlink = links.values()[0]
+        wanlink = links.values()[0] # Link where VC from site lands
+        wanlinkeps = wanlink.props['endpoints']
+        wanportName = None # switch port on the hw switch, need to find this
+        # Iterate over core-facing ports to find the port where the site circuit lands
+        for portName in self.props['hwSwitch'].props['toCorePorts']:
+#            print "  port " + portName
+            ls = self.props['hwSwitch'].props['ports'][portName].props['links']
+            for link in ls:
+                print "  link " + link.name
+                linkeps = link.props['endpoints']
+                if linkeps[0] == wanlinkeps[0] or linkeps[0] == wanlinkeps[1] or linkeps[1] == wanlinkeps[0] or linkeps[1] == wanlinkeps[1]:
+                    wanportName = portName # found hardware switch port facing the site (circuit)
+                    break
+#        print "found wanport " + wanportName
+
+        # find stitched port where wan traffic should go if from hw to sw switch
+        wanstitchedport = self.props['hwSwitch'].props['stitchedPortIndex'][wanportName]
+#        print "found wanstitchedport " + wanstitchedport.name + " with links " + str(wanstitchedport.props['links'])
+
+        # Iterate over all of the links terminating on that port to find the one that
+        # goes to the sw switch.  Presumably there is only one.
+        swlink = None
+        swport = None
+        for link in wanstitchedport.props['links']:
+#            print "  stitched port link " + link.name
+            linkeps = link.props['endpoints']
+            for port in self.props['swSwitch'].props['toHwPorts']:
+#                print "    try port " + port.name + " with links " + str(port.props['links'])
+                ls = port.props['links']
+                for l in ls:
+                    leps = l.props['endpoints']
+
+                    if leps[0] == linkeps[0] or leps[0] == linkeps[1] or leps[1] == linkeps[0] or leps[1] == linkeps[1]:
+                        swlink = l;
+                        swport = port;
+                        break
+#        print "found swport " + swport.name
+
         self.props['hwSwitch'].addSite(site,wanlink)
         self.props['swSwitch'].addSite(site,swlink)
         self.props['sites'].append(site)
+
+        print "SDNPop.addSite completing with site " + site.name + " wanlink " + wanlink.name + " swlink " + swlink.name
 
     def connectPop(self, pop,links):
         hwSwitch = self.props['hwSwitch']
