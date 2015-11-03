@@ -601,13 +601,14 @@ class L2SwitchScope(Scope):
         vlan because of the issue that all VPNs share the same vlans in these
         ports. The solution is temporary.
         """
-        if packet.port.props['type'].endswith('.WAN'):
+        if self.switch.props['role'] == 'HwSwitch' and packet.port.props['type'].endswith('.WAN'):
             # vid
             val = packet.dl_dst.getVid()
         else:
             # vlan
             val = packet.vlan
         endpoints = self.props['endpoints']
+        # print "L2SwitchScope.isValidPacketOut with packet.port " + packet.port.name + " val " + str(val) + " endpoints " + str(endpoints)
         if packet.port.name in endpoints:
             vals = endpoints[packet.port.name]
             result = not vals or val in vals
