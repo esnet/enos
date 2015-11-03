@@ -52,6 +52,21 @@ class VPN:
         """
         print "not implemented"
 
+    def setPriority(self,priority):
+        """
+        Set the priority, "low" or "high" of the VPN instance
+        :param self:
+        :param priority:
+        :return:
+        """
+        print "not implemented"
+
+    def getPriority(self):
+        """
+        Returns the priority of the VPN
+        :return: a string, "low" or "high"
+        """
+
 
 if __name__ == '__main__':
     h1 = GenericHost("site 1")

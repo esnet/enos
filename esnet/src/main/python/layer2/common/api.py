@@ -422,6 +422,13 @@ class VPN(Properties):
         self.props['siteIndex'] = {} # [hwToCorePort.siteVlan] = site
         self.props['mat'] = None # MAC Address Translation
         self.props['renderer'] = None # SDNPopsRenderer
+        self.setPriority()
+
+    def setPriority(self,priority="low"):
+        self.props['priority'] = priority
+
+    def getPriority(self):
+        return self.props['priority']
 
     def serialize(self):
         obj = {}

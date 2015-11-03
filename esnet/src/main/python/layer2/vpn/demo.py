@@ -25,14 +25,23 @@ to CLI environment.
 """
 from layer2.testbed.topology import TestbedTopology
 from layer2.vpn.l2vpn import SDNPopsRenderer,SDNPopsIntent
+from net.es.netshell.controller.core import Controller
 
 import random
 from layer2.common.utils import InitLogger, Logger
+from layer2.vpn.reload import reloadall
+
+if not 'firstTime' in globals():
+    print "################# INIT ##############"
+    firstTime = True
 
 # TODO collect into a global variable demo might be a good idea
 try:
     if topo == TestbedTopology(): # singleton
-        print "Please reload first"
+        print "Reloading modules"
+        reloadall()
+        if topo == TestbedTopology(): # singleton
+            print "Please reload first"
     else: # rare situation; topo might be reloaded in python interactive intepreter manually
         topo = None
 except: # the case that topo is not existed (in the very begining) yet
@@ -42,6 +51,19 @@ except: # the case that topo is not existed (in the very begining) yet
     vpns = [] # used in vpn.py only
     vpnIndex = {} # used in vpn.py only
 
+
+
+def workaround():
+    # if this is the first time the demo is loaded, re-initialize the controller
+    global firstTime
+
+    if firstTime:
+        cont = Controller.getInstance()
+        cont.reinit()
+        firstTime = False
+        reloadall()
+
+
 def main():
     global topo
     global renderers
@@ -50,6 +72,8 @@ def main():
     global vpnIndex
     if topo:
         return
+
+    workaround()
 
     renderers = []
     rendererIndex = {}
