@@ -345,7 +345,7 @@ def main():
                 prio = vpn.getPriority()
                 print prio
             elif command == 'setprio':
-                vpn.setPriority([sys.argv[3]])
+                vpn.setPriority(sys.argv[3])
             elif command == 'addpop':
                 pop = topo.builder.popIndex[sys.argv[3]]
                 addpop(vpn, pop)
