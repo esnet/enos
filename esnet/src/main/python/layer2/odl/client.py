@@ -181,9 +181,9 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
                 print packet, "cannot be sent because the switch is not in inventory"
                 return False
             portName = packet.port.name
-            nodeconn = self.odlController.getNodeConnector(sw.getNode(), portName)
+            nodeconn = self.odlController.getNodeConnector(sw, portName)
             if nodeconn == None:
-                ODLClient.logger.warning('can not send %r because the port %s on %r is invalid' % (packet, portName, sw.getNode()))
+                ODLClient.logger.warning('can not send %r because the port %s on %r is invalid' % (packet, portName, sw.getId()))
                 return False
 
             # Create the outgoing packet in ODL land.  The outgoing node connector must be set.
