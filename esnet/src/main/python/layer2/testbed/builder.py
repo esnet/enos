@@ -336,6 +336,7 @@ class TopoBuilder ():
         pop = self.popIndex[popname]
         site.setPop(pop)
         links = self.getSiteOSCARSLinks(site)
+#        print "TopoBuilder.addSite " + site.name + " pop " + pop.name + " links " + str(links)
         pop.addSite(site, links)
 
     def addSDNPop(self, popname, hwswitchname, coreroutername, swswitchname,links):
@@ -378,10 +379,10 @@ class TopoBuilder ():
             link.props['type'] = type
 
             if hwSwitch.name == n1.name and swSwitch.name == n2.name:
-                link.setPortType('HwToSw.WAN', 'SwToHw.WAN')
+                link.setPortType('HwToSw', 'SwToHw')
                 swLinks.append(link)
             elif hwSwitch.name == n2.name and swSwitch.name == n1.name:
-                link.setPortType('SwToHw.WAN', 'HwToSw.WAN')
+                link.setPortType('SwToHw', 'HwToSw')
                 swLinks.append(link)
             elif hwSwitch.name == n1.name and coreRouter.name == n2.name:
                 # Tag the hardware switch ports according to whether they're
@@ -407,6 +408,7 @@ class TopoBuilder ():
         for link in hwLinks:
             if index == len(swLinks):
                 break
+#            print "TopoBuilder.addSDNPop pop " + pop.name + " hw " + link.name + " sw " + swLinks[index].name
             pop.addLinks(hwlink=link,swlink=swLinks[index])
             index += 1
 
@@ -484,7 +486,7 @@ class TopoBuilder ():
                                              props=reverseLink.props)
                 break
         # Retrieve corresponding HwToSw link
-        links = self.getLinksByType('SwToHw.WAN','HwToSw.WAN')
+        links = self.getLinksByType('SwToHw','HwToSw')
         for link in links.values():
             if not 'hw' in link.props['type']:
                 continue

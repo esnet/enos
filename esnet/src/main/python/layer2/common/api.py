@@ -396,7 +396,7 @@ class SDNPop(Properties):
             if link.getPortType() == ('CoreToHw.WAN', 'HwToCore.WAN'):
                 # hw[tocore_port] --<hwlink>-- [core_port]core[wanPort] --<wanlink with vlan>-- pop
                 hwlink = link
-            if link.getPortType() == ('HwToSw.WAN', 'SwToHw.WAN'):
+            if link.getPortType() == ('HwToSw', 'SwToHw'):
                 # hw[tocore_port] --<hwlink>-- [core_port]core[wanPort] --<wanlink with vlan>-- pop
                 swlink = link
         # sw[tohw_port] --<swlink>-- [tosw_port]hw

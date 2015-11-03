@@ -844,7 +844,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         """
         This function could be invoked in CLI.
         Add endpoints related to the pop including: HwToCore.WAN ports,
-        HwToSw.WAN ports, and SwToHw.WAN ports, and the SwToVm.WAN port.
+        HwToSw ports, and SwToHw ports, and the SwToVm.WAN port.
         """
         with self.lock:
             if pop.name in self.props['popIndex']:
