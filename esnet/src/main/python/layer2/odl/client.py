@@ -173,6 +173,7 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         :param packet: common.openflow.PacketOut
         :return:  True if successful, False if not
         """
+#        print "ODLClient.send with packet from " + str(packet.dl_src) + " to " + str(packet.dl_dst) + " on " + packet.scope.switch.props['dpid']
         if self.isPacketOutValid(packet):
             # Get the switch (Node in the ODL world) and port (NodeConnector in the ODL world)
             sw = self.findODLSwitch(packet.scope.switch)
@@ -210,6 +211,8 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         :return: net.es.netshell.controller.core.Controller.L2Translation
         """
 
+#        print "ODLClient.makeL2Translation with " + str(flowMod)
+
         # Create a L2Translation object and fill in its fields
         l2t = L2Translation()
         l2t.dpid = self.javaByteArray(flowMod.switch.props['dpid'])
@@ -223,7 +226,8 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
         l2t.dstMac1 = MacAddress(flowMod.match.props['dl_dst'].str())
         # There are some uses cases where we need to push a flow to the software
         # switch that has a match on dl_src.
-        if 'dl_src' in flowMod.match.props and flowMod.match.props['dl_src'] != None:
+#        print "  match props " + str(flowMod.match.props)
+        if 'dl_src' in flowMod.match.props:
             l2t.srcMac1 = MacAddress(flowMod.match.props['dl_src'].str())
 
         l2toutseq = []
