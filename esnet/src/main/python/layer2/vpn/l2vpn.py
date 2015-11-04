@@ -25,7 +25,6 @@ from layer2.common.intent import ProvisioningRenderer, ProvisioningIntent
 from layer2.common.api import Site, Properties
 from layer2.common.openflow import ScopeOwner,PacketInEvent, FlowMod, Match, Action, L2SwitchScope, PacketOut, SimpleController
 from layer2.common.openflow import FlowEntry
-from layer2.odl.client import ODLClient
 
 from layer2.testbed.topology import TestbedTopology, TestbedHost, TestbedNode, TestbedPort, TestbedLink
 

@@ -32,7 +32,6 @@ from layer2.common.utils import InitLogger, Logger
 from layer2.vpn.reload import reloadall
 
 if not 'firstTime' in globals():
-    print "################# INIT ##############"
     firstTime = True
 
 # TODO collect into a global variable demo might be a good idea
