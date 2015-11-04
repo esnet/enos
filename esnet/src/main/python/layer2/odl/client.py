@@ -195,7 +195,7 @@ class ODLClient(SimpleController, OdlMdsalImpl.Callback):
             frame.setVid(packet.vlan)
             frame.setPayload(packet.payload)
 
-            self.odlController.transmitDataPacket(dpid, portName, frame.toPacket())
+            self.odlController.transmitDataPacket(self.javaByteArray(dpid), portName, frame.toPacket())
 
             return True
         ODLClient.logger.warning("Packet %r is not valid" % packet)
