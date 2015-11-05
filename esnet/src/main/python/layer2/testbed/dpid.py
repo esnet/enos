@@ -32,7 +32,7 @@ class Roles:
     UserSwSwitch = 3   # Software switch connnect to the SwSwitch, but managed by end-user controller (i.e. not ENOS)
 
 
-def encodeDPID (location,vendor,role, id):
+def encodeDPID (vendor,role, location, id):
     """
     Generates a DPID that is encoded as follow:
     DPID format: byte7 byte6   byte5   byte4 byte3 byte2 byte1 byte0

@@ -25,6 +25,8 @@ from layer2.common.utils import Logger
 
 db = {}
 
+debug = True
+
 class Properties(object):
     def __init__(self, name,props={}):
         self.name = name
@@ -172,7 +174,8 @@ class HwSwitch(Switch):
         swport = swlink.props['portIndex'][self.name]
         self.props['stitchedPortIndex'][hwport.name] = swport
         self.props['stitchedPortIndex'][swport.name] = hwport
-        print "HwSwitch.connectPop on " + self.name + " stitching " + hwport.name + " <-> " + swport.name
+        if debug:
+            print "HwSwitch.connectPop on " + self.name + " stitching " + hwport.name + " <-> " + swport.name
 
     def addLink(self, hwlink,swlink):
         hwport = hwlink.props['portIndex'][self.name]
@@ -181,7 +184,8 @@ class HwSwitch(Switch):
         self.props['toSwPorts'][swport] = swport
         self.props['stitchedPortIndex'][hwport.name] = swport
         self.props['stitchedPortIndex'][swport.name] = hwport
-        print "HwSwitch.addLink on " + self.name + " stitching " + hwport.name + " <-> " + swport.name
+        if debug:
+            print "HwSwitch.addLink on " + self.name + " stitching " + hwport.name + " <-> " + swport.name
 
     def addSite(self, site, link):
         """
@@ -351,7 +355,8 @@ class SDNPop(Properties):
 #            print "  port " + portName
             ls = self.props['hwSwitch'].props['ports'][portName].props['links']
             for link in ls:
-                print "  link " + link.name
+                if debug:
+                    print "  link " + link.name
                 linkeps = link.props['endpoints']
                 if linkeps[0] == wanlinkeps[0] or linkeps[0] == wanlinkeps[1] or linkeps[1] == wanlinkeps[0] or linkeps[1] == wanlinkeps[1]:
                     wanportName = portName # found hardware switch port facing the site (circuit)
@@ -385,7 +390,8 @@ class SDNPop(Properties):
         self.props['swSwitch'].addSite(site,swlink)
         self.props['sites'].append(site)
 
-        print "SDNPop.addSite completing with site " + site.name + " wanlink " + wanlink.name + " swlink " + swlink.name
+        if debug:
+            print "SDNPop.addSite completing with site " + site.name + " wanlink " + wanlink.name + " swlink " + swlink.name
 
     def connectPop(self, pop,links):
         hwSwitch = self.props['hwSwitch']
