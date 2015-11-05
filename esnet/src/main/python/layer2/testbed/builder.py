@@ -458,6 +458,7 @@ class TopoBuilder ():
         swSwitch1 = pop1.props['swSwitch']
         coreRouter2 = pop2.props['coreRouter']
         vlan = 0
+        gri = ''
         # Retrieve Core to Core OSCARS VLAN
         for link in self.linkIndex.values():
             if not 'gri' in link.props:
@@ -465,6 +466,7 @@ class TopoBuilder ():
             endpoints = link.props['endpoints']
             node1 = endpoints[0].props['node']
             node2 = endpoints[1].props['node']
+            gri = link.props['gri']
             if node1.name == coreRouter1.name and node2.name == coreRouter2.name:
                 vlan = link.props['vlan']
                 # Only look for links with non-zero VLANs since all valid OSCARS circuits have non-zero
@@ -474,6 +476,8 @@ class TopoBuilder ():
         # If we didn't find an inter-POP link, then we're done...don't create any other links within the POP
         if vlan == 0:
             return res
+        # We want to store the POPs into the links
+        pops = [ pop1, pop2 ]
         # Retrieve corresponding CoreToHw link
         links = self.getLinksByType('CoreToHw.WAN', 'HwToCore.WAN')
         for link in links.values():
@@ -486,12 +490,16 @@ class TopoBuilder ():
                 res[link.name] = Link(ports=link.props['endpoints'],
                                              vlan=vlan,
                                              props=link.props)
+                res[link.name].props['pops'] = pops
+                res[link.name].props['gri'] = gri
                 break
             if node2.name == coreRouter1.name and node1.name == hwSwitch1.name:
                 reverseLink = link.props['reverseLink']
                 res[reverseLink.name] = Link(ports=reverseLink.props['endpoints'],
                                              vlan=vlan,
                                              props=reverseLink.props)
+                res[reverseLink.name].props['pops'] = pops
+                res[reverseLink.name].props['gri'] = gri
                 break
         # Retrieve corresponding HwToSw link
         links = self.getLinksByType('SwToHw','HwToSw')

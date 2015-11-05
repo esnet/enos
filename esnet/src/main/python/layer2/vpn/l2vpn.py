@@ -496,6 +496,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
     def createBroadcastEntry(self, flowEntry, tapped):
         SDNPopsRenderer.logger.info("%r.createBroadcastEntry(%r,%r)" % (self.name, flowEntry, tapped))
+        # print "SDNPopsRenderer.createBroadcastEntry for %r (%r,%r)" % (self.name, flowEntry, tapped)
         self.updateFlowEntry(flowEntry)
         (inMac, inVlan, inPort) = flowEntry.get()
         hwSwitch = inPort.props['node']
@@ -532,7 +533,16 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                     flowEntries.append(FlowEntry(outMac, outVlan, outPort))
                 else: # to WAN
                     outPort = hwSwitch.props['wanPortIndex'][pop.name]
-                    outVlan = outPort.props['links'][0].props['vlan']
+
+                    # Find the correct link to use on this port.  "Correct" is the one
+                    # that is associated with a trunk port to the remote pop we need.
+                    # From this, derive the correct VLAN tag to use.
+                    outVlan = 0 # If it's still 0 after the loop there could be a problem.
+                                # In the mininet world, this was fine.
+                    for l in outPort.props['links']:
+                        if 'pops' in l.props:
+                            if l.props['pops'][0].name == pop.name or l.props['pops'][1].name == pop.name:
+                                outVlan = l.props['vlan']
                     outMac = transMac
                     flowEntries.append(FlowEntry(outMac, outVlan, outPort))
         outputs = []
