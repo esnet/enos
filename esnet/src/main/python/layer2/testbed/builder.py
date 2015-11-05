@@ -467,7 +467,13 @@ class TopoBuilder ():
             node2 = endpoints[1].props['node']
             if node1.name == coreRouter1.name and node2.name == coreRouter2.name:
                 vlan = link.props['vlan']
-                break
+                # Only look for links with non-zero VLANs since all valid OSCARS circuits have non-zero
+                # VLAN tags
+                if vlan > 0:
+                    break
+        # If we didn't find an inter-POP link, then we're done...don't create any other links within the POP
+        if vlan == 0:
+            return res
         # Retrieve corresponding CoreToHw link
         links = self.getLinksByType('CoreToHw.WAN', 'HwToCore.WAN')
         for link in links.values():
