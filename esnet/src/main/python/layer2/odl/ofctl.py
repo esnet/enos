@@ -26,7 +26,7 @@ import binascii
 import json
 
 from layer2.testbed.topology import TestbedTopology
-from layer2.testbed import dpid
+from layer2.testbed.dpid import decodeDPID
 
 if not "creds" in globals():
     creds = ("admin","admin")
@@ -35,17 +35,20 @@ if not "creds" in globals():
 def doGET(url,auth=True):
     req = urllib2.Request(url)
     global creds
-    if auth:
-        (user,password) = creds
-        password_manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
-        password_manager.add_password(None, url, user, password)
+    try:
+        if auth:
+            (user,password) = creds
+            password_manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
+            password_manager.add_password(None, url, user, password)
 
-        auth_manager = urllib2.HTTPBasicAuthHandler(password_manager)
-        opener = urllib2.build_opener(auth_manager)
-        urllib2.install_opener(opener)
+            auth_manager = urllib2.HTTPBasicAuthHandler(password_manager)
+            opener = urllib2.build_opener(auth_manager)
+            urllib2.install_opener(opener)
 
-    handler = urllib2.urlopen(req)
-    return json.load(handler)
+        handler = urllib2.urlopen(req)
+        return json.load(handler)
+    except:
+        return None
 
 def showactive():
     getswitches()
@@ -54,6 +57,9 @@ def showactive():
 def getswitches():
     url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/"
     response = doGET(url=url,auth=True)
+    if response == None:
+        print "no active swicthes"
+        return None
     nodes = response['nodes']['node']
     switches = []
     print "Active switches"
@@ -69,31 +75,87 @@ def getswitches():
     globals()['switches'] = switches
 
 def dumpflows(switch,table):
-    dpid = makeODLDPID(switch)
-    url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + dpid + "/flow-node-inventory:table/" + table
+    id = makeODLDPID(switch)
+    if table == None:
+        table = gettable(switch)
+    url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/flow-node-inventory:table/" + table
     response = doGET(url=url,auth=True)
-    flows = response['flow-node-inventory:table'][0]['flow']
-    for flow in flows:
-        id = flow['id']
-        match = flow['match']
-        inport = match['in-port']
-        vlan = "*"
-        if match['vlan-match']['vlan-id']['vlan-id-present']:
-            vlan =  match['vlan-match']['vlan-id']['vlan-id']
-        ethernet = match['ethernet-match']
-        dest = "*"
-        if 'ethernet-destination' in ethernet.keys():
-            dest = ethernet['ethernet-destination']['address']
-        source = "*"
-        if 'ethernet-source' in ethernet.keys():
-            dest = ethernet['ethernet-source']['address']
+    if (response == None):
+        print "No flow"
+        return None
 
-        actions = flow['instructions']
-        priority = flow ['priority']
+    tables = response['flow-node-inventory:table']
+    for table in tables:
+        tableid = table['id']
+        flows = table['flow']
+        print "Table ",tableid
+        for flow in flows:
+            id = flow['id']
+            match = flow['match']
+            inport = "*"
+            if 'in-port' in match:
+                inport = match['in-port']
+            vlan = "*"
+            if 'vlan-match' in match and 'vlan-id' in match['vlan-match'] and match['vlan-match']['vlan-id']['vlan-id-present']:
+                vlan =  match['vlan-match']['vlan-id']['vlan-id']
+            source = "*"
+            dest = "*"
+            if 'ethernet-match' in match:
+                ethernet = match['ethernet-match']
+                if 'ethernet-destination' in ethernet.keys():
+                    dest = ethernet['ethernet-destination']['address']
+                if 'ethernet-source' in ethernet.keys():
+                    dest = ethernet['ethernet-source']['address']
+            priority = flow ['priority']
+            cookie = ""
+            if 'cookie'  in flow:
+                cookie = flow['cookie']
+            print "\tflow id",id,"priority",priority,'cookie',cookie,"\n\t\tmatch: in_port",inport,"dl_dst",dest,"dl_src",source,"vlan",vlan
+            instructions = flow['instructions']['instruction']
+            print "\t\tinstructions:"
+            for instruction in instructions:
+                order = instruction['order']
 
-        globals()['actions'] = actions
+                if 'meter' in instruction:
+                    meter = instruction['meter']['meter-id']
+                    print "\t\t\torder=",order,"meter",meter
+                    continue
 
-        print "Flow id=",id ,"\n\tmatch: in_port=",inport,"dl_dst=",dest,"dl_src=",source,"vlan=",vlan
+                if 'apply-actions' in instruction and 'action' in instruction['apply-actions']:
+                    actions = instruction['apply-actions']['action']
+                    print "\t\t\torder",order,"actions:"
+                    for action in actions:
+                        order2 = action['order']
+                        if 'output-action' in action:
+                            port = action['output-action']['output-node-connector']
+                            max = action['output-action']['max-length']
+                            print "\t\t\t\torder",order2,"output port",port,"maximum length",max
+                            continue
+                        if 'set-vlan-pcp-action' in action:
+                            pcp = action['set-vlan-pcp-action']
+                            print "\t\t\t\torder",order2,"set vlan pcp",pcp
+                            continue
+                        if 'set-field' in action:
+                            if 'vlan-match' in action['set-field']:
+                                present = action['set-field']['vlan-match']['vlan-id']['vlan-id-present']
+                                vlan = action['set-field']['vlan-match']['vlan-id'] ['vlan-id']
+                                print "\t\t\t\torder",order2,"set field vlan id",vlan,"is present",present
+                                continue
+                        if 'set-dl-dst-action' in action:
+                            address = action['set-dl-dst-action']['address']
+                            print "\t\t\t\torder",order2,"set dl-dst",address
+                            continue
+                        if 'set-dl-src-action' in action:
+                            address = action['set-dl-src-action']['address']
+                            print "\t\t\t\torder",order2,"set dl-src",address
+                            continue
+                        if 'set-queue-action' in action:
+                            qid = action['set-queue-action']['queue-id']
+                            print "\t\t\t\torder",order2,"set queue id",qid
+                            continue
+                        print "unkwon action:",action
+
+
 
 
 
@@ -105,10 +167,19 @@ def show(switch):
     return None
 
 def makeODLDPID(switch):
-    dpid = switch.props['dpid']
     hexdpid = binascii.hexlify(sw.props['dpid'])
     bindpid = str(int(hexdpid,16))
     return "openflow:" + bindpid
+
+def gettable(switch):
+    id = switch.props['dpid']
+    (vendor,role,location,id) = decodeDPID(id)
+    if vendor == 1:
+        # OVS
+        return '0'
+    if vendor == 2:
+        # Corsa
+        return '2'
 
 def getswitch(name=None,dpid=None):
     if (name,dpid) == (None,None):
@@ -165,6 +236,8 @@ def print_syntax():
     print "\tshows all connected switches and returns the list of switches into Python list."
     print "\ndump-flows <switch name> <table>"
     print "\tShows flow entries of the given switch"
+    print "\t\tofctl dump-flows <switch-name> displays flows from the default table. ovs = table 0, corsa = table 2"
+    print "\t\tofctl dump-flows <switch-name> table <table number> displays the flows of a given table "
 
     print
 
@@ -211,6 +284,8 @@ if __name__ == '__main__':
         showactive()
     elif cmd == "dump-flows":
         sw = getswitch(name=argv[2])
-        table = argv[3]
+        table = None
+        if 'table' in argv:
+            table = argv[4]
         dumpflows(switch=sw,table=table)
 
