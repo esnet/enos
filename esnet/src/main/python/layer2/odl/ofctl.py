@@ -68,17 +68,47 @@ def getswitches():
     print "\nSwitch list is stored into Pything global variable 'switches'"
     globals()['switches'] = switches
 
-def dumpflows(switch):
-    print switch
+def dumpflows(switch,table):
+    dpid = makeODLDPID(switch)
+    url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + dpid + "/flow-node-inventory:table/" + table
+    response = doGET(url=url,auth=True)
+    flows = response['flow-node-inventory:table'][0]['flow']
+    for flow in flows:
+        id = flow['id']
+        match = flow['match']
+        inport = match['in-port']
+        vlan = "*"
+        if match['vlan-match']['vlan-id']['vlan-id-present']:
+            vlan =  match['vlan-match']['vlan-id']['vlan-id']
+        ethernet = match['ethernet-match']
+        dest = "*"
+        if 'ethernet-destination' in ethernet.keys():
+            dest = ethernet['ethernet-destination']['address']
+        source = "*"
+        if 'ethernet-source' in ethernet.keys():
+            dest = ethernet['ethernet-source']['address']
+
+        actions = flow['instructions']
+        priority = flow ['priority']
+
+        globals()['actions'] = actions
+
+        print "Flow id=",id ,"\n\tmatch: in_port=",inport,"dl_dst=",dest,"dl_src=",source,"vlan=",vlan
+
+
+
 
 def show(switch):
     if 'dpid' in switch.props:
         hexdpid = binascii.hexlify(switch.props['dpid'])
         print switch,"\tdpid: ",hexdpid,"\topenflow: " + str(int(hexdpid,16))
-
-
-
     return None
+
+def makeODLDPID(switch):
+    dpid = switch.props['dpid']
+    hexdpid = binascii.hexlify(sw.props['dpid'])
+    bindpid = str(int(hexdpid,16))
+    return "openflow:" + bindpid
 
 def getswitch(name=None,dpid=None):
     if (name,dpid) == (None,None):
@@ -133,6 +163,10 @@ def print_syntax():
     print "\tDisplays the DPID in various format of the switch"
     print "\nshow-active"
     print "\tshows all connected switches and returns the list of switches into Python list."
+    print "\ndump-flows <switch name> <table>"
+    print "\tShows flow entries of the given switch"
+
+    print
 
 
 if __name__ == '__main__':
@@ -177,5 +211,6 @@ if __name__ == '__main__':
         showactive()
     elif cmd == "dump-flows":
         sw = getswitch(name=argv[2])
-        dumpflows(switch=sw)
+        table = argv[3]
+        dumpflows(switch=sw,table=table)
 
