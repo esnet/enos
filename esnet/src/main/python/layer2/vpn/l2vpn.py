@@ -507,6 +507,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         flowmods = []
         myPop = hwSwitch.props['pop']
         flowEntries = []
+        remotePopVlanIndex = {} # [pop] = vlan for remote POPs that we forward to
         if inPort.props['type'].endswith('.WAN'): # from WAN
             transMac = inMac
             originalMac = self.reverse(transMac)
@@ -524,7 +525,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             transMac = self.translate(originalMac)
             for (site, hosts, siteVlan) in self.vpn.props['participants']:
                 pop = site.props['pop']
-                if pop.name == myPop.name: # to site
+                if pop.name == myPop.name: # to another site on this POP
                     outPort = hwSwitch.props['sitePortIndex'][site.name]
                     if siteVlan == inVlan and outPort.name == inPort.name:
                         continue # exclude self
@@ -532,30 +533,43 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                     outMac = originalMac
                     flowEntries.append(FlowEntry(outMac, outVlan, outPort))
                 else: # to WAN
-                    outPort = hwSwitch.props['wanPortIndex'][pop.name]
 
-                    # Find the correct link to use on this port.  "Correct" is the one
-                    # that is associated with a trunk port to the remote pop we need.
-                    # From this, derive the correct VLAN tag to use.
-                    outVlan = 0 # If it's still 0 after the loop there could be a problem.
-                                # In the mininet world, this was fine.
-                    for l in outPort.props['links']:
-                        if 'pops' in l.props:
-                            if l.props['pops'][0].name == pop.name or l.props['pops'][1].name == pop.name:
-                                outVlan = l.props['vlan']
-                    outMac = transMac
-                    flowEntries.append(FlowEntry(outMac, outVlan, outPort))
+                    # Going to some remote site.  If we already are forwarding to
+                    # that remote site's POP then don't do anything.  Otherwise,
+                    # set up forwarding to the remote POP over the appropriate
+                    # virtual circuit.
+                    if pop not in remotePopVlanIndex.keys():
+
+                        # Figure out the correct port and VLAN to get to the
+                        # remote port
+                        outPort = hwSwitch.props['wanPortIndex'][pop.name]
+                        # Find the correct link to use on this port.  "Correct" is the one
+                        # that is associated with a trunk port to the remote pop we need.
+                        # From this, derive the correct VLAN tag to use.
+                        outVlan = 0 # If it's still 0 after the loop there could be a problem.
+                                    # In the mininet world, this was fine.
+                        for l in outPort.props['links']:
+                            if 'pops' in l.props:
+                                if l.props['pops'][0].name == pop.name or l.props['pops'][1].name == pop.name:
+                                    outVlan = l.props['vlan']
+                        outMac = transMac
+                        flowEntries.append(FlowEntry(outMac, outVlan, outPort))
+                        remotePopVlanIndex[pop] = outVlan
+
+        # Having computed all of the destinations for the broadcast, set up forwarding rules
         outputs = []
         for entry in flowEntries:
             (outMac, outVlan, outPort) = entry.get()
             stitchedOutPort = hwSwitch.props['stitchedPortIndex'][outPort.name]
-            # forward to coreRouter
+            # Forward on the hardware switch through the coreRouter
             mod = hwScope.forward(hwSwitch, outMac, outVlan, stitchedOutPort, outMac, outVlan, outPort)
             flowmods.append(mod)
+            # From knowing this destination, add to the fanout on the software switch
             swOutPort = stitchedOutPort.props['links'][0].props['portIndex'][swSwitch.name]
             outputs.append((outMac, outVlan, swOutPort))
 
-        # broadcast in swSwitch (and copy to serviceVm optionally)
+        # Do broadcast fanout in swSwitch (and copy to serviceVm optionally).
+        # MAC translation for destination broadcast addresses, if any, takes place on the software switch.
         stitchedInPort = hwSwitch.props['stitchedPortIndex'][inPort.name]
         swInPort = stitchedInPort.props['links'][0].props['portIndex'][swSwitch.name]
 
@@ -565,7 +579,28 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         for (outMac, outVlan, outPort) in outputs:
             sampleFlowmod.actions.append(Action(props={'dl_dst':outMac, 'vlan':outVlan, 'out_port':outPort}))
 
-        # forward to swSwitch
+        # On remote POPs, we need to set up forwarding rules on the hardware switch
+        # to punt packets with the translated MAC broadcast address to the controller.
+        # Note that in the case that we got called for a packet arriving from the WAN,
+        # this might be a no-op (unless we have an incomplete/partial mesh of
+        # connectivity between POPs, which isn't supported yet).
+        #
+        # A better way to do this would be to install a low-priority match on in_port and
+        # dl_vlan only, or even just in_port (facing the WAN port) with action to punt to
+        # the controller.  If it were possible to do this, we could install this flow
+        # entry when the POP is configured into the VLAN, or even when we first learn about
+        # the hardware switch, rather than having to learn about the translated address for
+        # the broadcast or multicast destination.
+        for remotePop in remotePopVlanIndex.keys():
+            outVlan = remotePopVlanIndex[remotePop]
+            remoteHwSwitch = remotePop.props['hwSwitch']
+            remoteHwScope = self.props['scopeIndex'][remoteHwSwitch.name]
+            remoteWanPort =  remoteHwSwitch.props['wanPortIndex'][myPop.name]
+            stitchedRemoteWanPort = remoteHwSwitch.props['stitchedPortIndex'][remoteWanPort.name]
+            mod = remoteHwScope.forward(remoteHwSwitch, outMac, outVlan, remoteWanPort, outMac, outVlan, stitchedRemoteWanPort)
+            flowmods.append(mod)
+
+        # Make the hardware switch forward broadcasts to swSwitch
         mod = hwScope.forward(hwSwitch, inMac, inVlan, inPort, inMac, inVlan, stitchedInPort)
         flowmods.append(mod)
 
