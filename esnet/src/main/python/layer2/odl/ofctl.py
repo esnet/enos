@@ -32,8 +32,9 @@ if not "creds" in globals():
     creds = ("admin","admin")
     globals()['creds'] = creds
 
-def doGET(url,auth=True):
+def urlsend (url,method="GET",auth=True):
     req = urllib2.Request(url)
+    req.get_method = lambda: method
     global creds
     try:
         if auth:
@@ -56,7 +57,7 @@ def showactive():
 
 def getswitches():
     url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/"
-    response = doGET(url=url,auth=True)
+    response = urlsend(url=url,auth=True)
     if response == None:
         print "no active swicthes"
         return None
@@ -79,7 +80,7 @@ def dumpflows(switch,table):
     if table == None:
         table = gettable(switch)
     url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/flow-node-inventory:table/" + table
-    response = doGET(url=url,auth=True)
+    response = urlsend(url=url,auth=True)
     if (response == None):
         print "No flow"
         return None
@@ -155,8 +156,54 @@ def dumpflows(switch,table):
                             continue
                         print "unkwon action:",action
 
+def getflows(switch,table,safe=True):
+    id = makeODLDPID(switch)
+    if table == None:
+        table = gettable(switch)
+    url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/flow-node-inventory:table/" + table
+    response = urlsend(url=url,auth=True)
+    if (response == None):
+        return []
+    ids = []
+    tables = response['flow-node-inventory:table']
+    for table in tables:
+        flows = table['flow']
+        for flow in flows:
+            delete = True
+            id = flow['id']
+            instructions = flow['instructions']['instruction']
+            for instruction in instructions:
+                if 'apply-actions' in instruction and 'action' in instruction['apply-actions']:
+                    actions = instruction['apply-actions']['action']
+                    for action in actions:
+                        order2 = action['order']
+                        if 'output-action' in action:
+                            port = action['output-action']['output-node-connector']
+                            if port == 'CONTROLLER':
+                                if safe:
+                                    delete = False
+            if delete:
+                ids.append(id)
+    return ids
 
 
+def _deleteflow(switch,table,flowid):
+    id = makeODLDPID(switch)
+    if table == None:
+        table = gettable(switch)
+    url ="http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + \
+         id + "/flow-node-inventory:table/" + table + "/flow/" + flowid
+    response = urlsend(url=url,auth=True,method="DELETE")
+
+
+def deleteflow(switch,table,flowid,safe=True):
+    if flowid != None:
+        _deleteflow(switch,table,flowid)
+    else:
+        ids = getflows(switch=switch,flow=flowid)
+        for id in ids:
+            print "delete flow",id
+            _deleteflow(switch=switch,flow=flowid)
 
 
 
@@ -229,7 +276,7 @@ def print_syntax():
     print "\t\tofctl get-switch amst-tb-of-1"
     print "\t\tofctl get-switch dpid 0201007374617201"
     print "\t\tofctl get-switch dpid 144397081500677121"
-    print "\t\t ofctl get-switch dpid openflow:144397081500677121"
+    print "\t\tofctl get-switch dpid openflow:144397081500677121"
     print "\nshow-switch <name>"
     print "\tDisplays the DPID in various format of the switch"
     print "\nshow-active"
@@ -238,6 +285,10 @@ def print_syntax():
     print "\tShows flow entries of the given switch"
     print "\t\tofctl dump-flows <switch-name> displays flows from the default table. ovs = table 0, corsa = table 2"
     print "\t\tofctl dump-flows <switch-name> table <table number> displays the flows of a given table "
+    print "\ndel-flow <switch> [table <table number>] [flow <flowid>"
+    print "\tDeletes a flow in a table on a switch. table <table number> can be ommited, default tables"
+    print "\tare then assumed. If flow is ommited, then all flows other than PACKET_IN support entries are then"
+    print "\tremoved."
 
     print
 
@@ -288,4 +339,18 @@ if __name__ == '__main__':
         if 'table' in argv:
             table = argv[4]
         dumpflows(switch=sw,table=table)
+    elif cmd == "del-flow":
+        sw = getswitch(name=argv[2])
+        table = None
+        flow = None
+        if 'table' in argv:
+            table = argv[4]
+        if 'flow' in argv:
+            if table == None:
+                flow = argv[4]
+            else:
+                flow = argv[6]
+
+        deleteflow(switch=sw,table=table,flowid=flow)
+
 
