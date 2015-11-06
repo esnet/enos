@@ -197,13 +197,13 @@ def _deleteflow(switch,table,flowid):
 
 
 def deleteflow(switch,table,flowid,safe=True):
-    if flowid != None:
+    if flowid != "all":
         _deleteflow(switch,table,flowid)
     else:
-        ids = getflows(switch=switch,flow=flowid)
+        ids = getflows(switch=switch,table=table)
         for id in ids:
             print "delete flow",id
-            _deleteflow(switch=switch,flow=flowid)
+            _deleteflow(switch=switch,table=table,flowid=id)
 
 
 
@@ -287,7 +287,7 @@ def print_syntax():
     print "\t\tofctl dump-flows <switch-name> table <table number> displays the flows of a given table "
     print "\ndel-flow <switch> [table <table number>] [flow <flowid>"
     print "\tDeletes a flow in a table on a switch. table <table number> can be ommited, default tables"
-    print "\tare then assumed. If flow is ommited, then all flows other than PACKET_IN support entries are then"
+    print "\tare then assumed. If flow is 'all', then all flows other than PACKET_IN support entries are then"
     print "\tremoved."
 
     print
@@ -345,11 +345,9 @@ if __name__ == '__main__':
         flow = None
         if 'table' in argv:
             table = argv[4]
-        if 'flow' in argv:
-            if table == None:
-                flow = argv[4]
-            else:
-                flow = argv[6]
+            flow = argv[6]
+        else:
+            flow = argv[4]
 
         deleteflow(switch=sw,table=table,flowid=flow)
 
