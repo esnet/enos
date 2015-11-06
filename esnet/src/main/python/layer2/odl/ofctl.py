@@ -1,35 +1,72 @@
+#!/usr/bin/python
+#
+# ENOS, Copyright (c) 2015, The Regents of the University of California,
+# through Lawrence Berkeley National Laboratory (subject to receipt of any
+# required approvals from the U.S. Dept. of Energy).  All rights reserved.
+#
+# If you have questions about your rights to use or distribute this software,
+# please contact Berkeley Lab's Technology Transfer Department at TTD@lbl.gov.
+#
+# NOTICE.  This software is owned by the U.S. Department of Energy.  As such,
+# the U.S. Government has been granted for itself and others acting on its
+# behalf a paid-up, nonexclusive, irrevocable, worldwide license in the Software
+# to reproduce, prepare derivative works, and perform publicly and display
+# publicly.  Beginning five (5) years after the date permission to assert
+# copyright is obtained from the U.S. Department of Energy, and subject to
+# any subsequent five (5) year renewals, the U.S. Government is granted for
+# itself and others acting on its behalf a paid-up, nonexclusive, irrevocable,
+# worldwide license in the Software to reproduce, prepare derivative works,
+# distribute copies to the public, perform publicly and display publicly, and
+# to permit others to do so.
+#
+
 import urllib2
 import sys
 import binascii
+import json
 
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed import dpid
 
-"""
-#url= 'http://aofa-tbn-1:8181/restconf/config/opendaylight-inventory:nodes/node/openflow:144397081500677121/table/2/flow/4'
-#url="http://www.cnn.com"
-url="http://aofa-tbn-1.testbed100.es.net:8181/restconf/operational/opendaylight-inventory:nodes/node/openflow:144397081500677121/table/2"
+if not "creds" in globals():
+    creds = ("admin","admin")
+    globals()['creds'] = creds
 
-req = urllib2.Request(url)
+def doGET(url,auth=True):
+    req = urllib2.Request(url)
+    global creds
+    if auth:
+        (user,password) = creds
+        password_manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
+        password_manager.add_password(None, url, user, password)
 
-password_manager = urllib2.HTTPPasswordMgrWithDefaultRealm()
-password_manager.add_password(None, url, 'admin', 'admin')
+        auth_manager = urllib2.HTTPBasicAuthHandler(password_manager)
+        opener = urllib2.build_opener(auth_manager)
+        urllib2.install_opener(opener)
 
-auth_manager = urllib2.HTTPBasicAuthHandler(password_manager)
-opener = urllib2.build_opener(auth_manager)
+    handler = urllib2.urlopen(req)
+    return json.load(handler)
 
-urllib2.install_opener(opener)
+def showactive():
+    getswitches()
 
-handler = urllib2.urlopen(req)
 
-print handler.getcode()
-print handler.headers.getheader('content-type')
-
-lines = handler.readlines()
-for line in lines:
-    print line
-"""
-
+def getswitches():
+    url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/"
+    response = doGET(url=url,auth=True)
+    nodes = response['nodes']['node']
+    switches = []
+    print "Active switches"
+    for node in nodes:
+        dpid = node['id']
+        sw = getswitch(dpid=dpid)
+        if sw == None:
+            print "Active switch " + dpid + " is not in testbed topology."
+            continue
+        print sw.name
+        switches.append(sw)
+    print "\nSwitch list is stored into Pything global variable 'switches'"
+    globals()['switches'] = switches
 
 def dumpflows(switch):
     print switch
@@ -68,18 +105,21 @@ def print_syntax():
     print "ofctl <cmd> <cmds options>"
     print
     print "Performs various OpenFlow related action on switches. Commands are:"
-    print "help"
+    print "\nhelp"
     print "\tPrints this help."
-    print "set-ctrl <controller host>"
+    print "\nset-ctrl <controller host>"
     print "\tThis command is used to set the host where the OpenFlow controller is running."
     print "\tIt can be an IP address or a DNS name. testbed100.es.net is added if necessary."
     print "\tFor instance:"
     print "\t\tofctl set-ctrl aofa-tbn-1 or ofctl set-ctrl aofa-tbn-1.testbed100.es.net"
     print "\tNote that the controller host name is set in the python global variable"
-    print "\tand has to be set only once."
-    print "show-ctrl"
+    print "\tand has to be set only once within a session."
+    print "\nshow-ctrl"
     print "\tDisplays the host where the OpenFlow controller is running"
-    print "get-switch <name:dpid> [dpid]"
+    print "\nset-user <login> <password>"
+    print "\tSet the user and password that is authorized to use the openflow controller."
+    print "\tThis operation needs to be only once within a session. Default is admin/admin"
+    print "\nget-switch <name:dpid> [dpid]"
     print "\tRetrieves the switch object refered by either its name or its dpid."
     print "\tThe switch object is then stored into a global python variable named 'switch'"
     print "\tThe DPID can be of variable format that are automatically dected."
@@ -89,8 +129,10 @@ def print_syntax():
     print "\t\tofctl get-switch dpid 0201007374617201"
     print "\t\tofctl get-switch dpid 144397081500677121"
     print "\t\t ofctl get-switch dpid openflow:144397081500677121"
-    print "show-switch <name>"
+    print "\nshow-switch <name>"
     print "\tDisplays the DPID in various format of the switch"
+    print "\nshow-active"
+    print "\tshows all connected switches and returns the list of switches into Python list."
 
 
 if __name__ == '__main__':
@@ -112,6 +154,8 @@ if __name__ == '__main__':
         if not "testbed" in ctrl or ctrl == None:
             ctrl += ".testbed100.es.net"
         globals()['ctrl'] = ctrl
+    elif cmd == "set-user":
+        creds = (argv[2],argv[3])
     elif cmd == "get-switch":
         name = argv[2]
         dpid = None
@@ -129,6 +173,8 @@ if __name__ == '__main__':
     elif cmd == "show-switch":
         sw = getswitch(name=argv[2])
         show(switch=sw)
+    elif cmd == "show-active":
+        showactive()
     elif cmd == "dump-flows":
         sw = getswitch(name=argv[2])
         dumpflows(switch=sw)
