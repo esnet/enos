@@ -597,11 +597,12 @@ class L2SwitchScope(Scope):
     def isValidPacketOut(self,packet):
         """
         Check if the packet is valid for this scope
-        Here we hack SrcToDst.WAN ports on HwSwitches to check vid instead of
+        If we are on a port that is a WAN port, we check the VLAN ID (vid) for
+        scoping purposes, instead of
         vlan because of the issue that all VPNs share the same vlans in these
         ports. The solution is temporary.
         """
-        if self.switch.props['role'] == 'HwSwitch' and packet.port.props['type'].endswith('.WAN'):
+        if packet.port.props['type'].endswith('.WAN'):
             # vid
             val = packet.dl_dst.getVid()
         else:
@@ -895,12 +896,10 @@ class SimpleController(Controller):
         issue that VPNs with different vids should have their own separated
         scopes but share the same port and vlan.
         """
-        print "port name %s type %s" % (port.name, port.props['type'])
         if port.props['type'].endswith('.WAN'):
-            key = '%s.%d' % (port.name, mac.getVid())
+            key = '%s.%s.%d' % (port.props['node'].name, port.name, mac.getVid())
         else:
-            key = '%s.%d' % (port.name, vlan)
-        print "key %s" % key
+            key = '%s.%s.%d' % (port.props['node'].name, port.name, vlan)
         if not key in self.scopeIndex:
             # try to check if the port includes all vlans
             key = port.name
@@ -911,14 +910,14 @@ class SimpleController(Controller):
 
     def addScopeIndex(self, scope, port, vlan = 0):
         if not vlan:
-            self.scopeIndex['%s' % port.name] = scope
+            self.scopeIndex['%s.%s' % (port.props['node'].name, port.name)] = scope
         else:
-            self.scopeIndex['%s.%d' % (port.name, vlan)] = scope
+            self.scopeIndex['%s.%s.%d' % (port.props['node'].name, port.name, vlan)] = scope
     def delScopeIndex(self, port, vlan = 0):
         if not vlan:
-            self.scopeIndex.pop('%s' % port.name)
+            self.scopeIndex.pop('%s.%s' % (port.props['node'].name, port.name))
         else:
-            self.scopeIndex.pop('%s.%d' % (port.name, vlan))
+            self.scopeIndex.pop('%s.%s.%d' % (port.props['node'].name, port.name, vlan))
 
     def dispatchPacketIn(self,packetIn):
         """
@@ -933,7 +932,7 @@ class SimpleController(Controller):
             return
         SimpleController.logger.info('recv packet %r' % packetIn)
         scope = self.getScope(port, vlan, dl_dst)
-        print scope
+        print "  prepare to dispatch to " + scope.name
         if scope and scope.switch == port.get('enosNode') and scope.includes(packetIn):
             scope.owner.eventListener(packetIn)
         else:

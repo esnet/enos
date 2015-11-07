@@ -342,6 +342,15 @@ class TopoBuilder ():
         pop.addSite(site, links)
 
     def addSDNPop(self, popname, hwswitchname, coreroutername, swswitchname,links):
+        """
+        Configure the various elements of an SDN POP
+        :param popname: Name of POP
+        :param hwswitchname: Name of hardware SDN switch
+        :param coreroutername: Name of core router
+        :param swswitchname: Name of software SDN switch
+        :param links: Set of physical links within the POP
+        :return: None
+        """
         pop = SDNPop(name=popname,
                      hwswitchname=hwswitchname,
                      coreroutername=coreroutername,
@@ -381,10 +390,27 @@ class TopoBuilder ():
             link.props['type'] = type
 
             if hwSwitch.name == n1.name and swSwitch.name == n2.name:
-                link.setPortType('HwToSw', 'SwToHw')
+                # Tag hardware and software switch ports according to
+                # whether they're supposed to be used for WAN traffic
+                # or site traffic.  WAN ports have links with type 'hw'.
+                # We need to set port types differently because we
+                # match PACKET_IN events with their scopes differently
+                # depending on whether the port corresponds to a WAN trunk
+                # (need to use VLAN ID of translated MAC addresses to
+                # demultiplex packets) or a site link (use VLAN ID to
+                # demultiplex packets to scopes).
+                if type == 'hw':
+                    link.setPortType('HwToSw.WAN', 'SwToHw.WAN')
+                else:
+                    link.setPortType('HwToSw', 'SwToHw')
                 swLinks.append(link)
             elif hwSwitch.name == n2.name and swSwitch.name == n1.name:
-                link.setPortType('SwToHw', 'HwToSw')
+                # See above comment about setting the types of switch
+                # ports and why we need to do this.
+                if type == 'hw':
+                    link.setPortType('SwToHw.WAN', 'HwToSw.WAN')
+                else:
+                    link.setPortType('SwToHw', 'HwToSw')
                 swLinks.append(link)
             elif hwSwitch.name == n1.name and coreRouter.name == n2.name:
                 # Tag the hardware switch ports according to whether they're
@@ -452,6 +478,16 @@ class TopoBuilder ():
         return res
 
     def getPopLinks(self,pop1,pop2):
+        """
+        Given a pair of POPs, locate the OSCARS circuit (if any) that connects their
+        core routers.  Then using the VLAN tag from that OSCARS circuit, create two links
+        parallel to the physical links connecting the hardware switch to the core,
+        and connecting the software switch to the hardware switch.  The newly-created
+        links have information about the OSCARS GRI and POPs.
+        :param pop1: POP for which we're creating VLAN links
+        :param pop2: Remote POP
+        :return: array of links
+        """
         res = {}
         coreRouter1 = pop1.props['coreRouter']
         hwSwitch1 = pop1.props['hwSwitch']
@@ -478,7 +514,7 @@ class TopoBuilder ():
             return res
         # We want to store the POPs into the links
         pops = [ pop1, pop2 ]
-        # Retrieve corresponding CoreToHw link
+        # Retrieve corresponding CoreToHw link and create a new link for the plumbed VLAN
         links = self.getLinksByType('CoreToHw.WAN', 'HwToCore.WAN')
         for link in links.values():
             if not 'core' in link.props['type']:
@@ -501,8 +537,8 @@ class TopoBuilder ():
                 res[reverseLink.name].props['pops'] = pops
                 res[reverseLink.name].props['gri'] = gri
                 break
-        # Retrieve corresponding HwToSw link
-        links = self.getLinksByType('SwToHw','HwToSw')
+        # Retrieve corresponding HwToSw link and create a new link for the plumbed VLAN
+        links = self.getLinksByType('SwToHw.WAN','HwToSw.WAN')
         for link in links.values():
             if not 'hw' in link.props['type']:
                 continue
@@ -514,11 +550,15 @@ class TopoBuilder ():
                 res[reverseLink.name] = Link(ports=reverseLink.props['endpoints'],
                                              vlan=vlan,
                                              props=reverseLink.props)
+                res[reverseLink.name].props['pops'] = pops
+                res[reverseLink.name].props['gri'] = gri
                 break
             if node1.name == swSwitch1.name and node2.name == hwSwitch1.name:
                 res[link.name] = Link(ports=link.props['endpoints'],
                                       vlan=vlan,
                                       props=link.props)
+                res[link.name].props['pops'] = pops
+                res[link.name].props['gri'] = gri
                 break
         return res
 

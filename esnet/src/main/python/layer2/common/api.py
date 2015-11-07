@@ -394,6 +394,13 @@ class SDNPop(Properties):
             print "SDNPop.addSite completing with site " + site.name + " wanlink " + wanlink.name + " swlink " + swlink.name
 
     def connectPop(self, pop,links):
+        """
+        Set up information in the switches in this POP to be able to find the links to use
+         to get to another POP
+        :param pop: The other POP
+        :param links: Array of plumbed VLAN links within our POP that are used to get to the other POP
+        :return: Ordered list of VLAN links, hardware-to-core and software-to-hardware
+        """
         hwSwitch = self.props['hwSwitch']
         swSwitch = self.props['swSwitch']
         hwlink = None
@@ -402,7 +409,7 @@ class SDNPop(Properties):
             if link.getPortType() == ('CoreToHw.WAN', 'HwToCore.WAN'):
                 # hw[tocore_port] --<hwlink>-- [core_port]core[wanPort] --<wanlink with vlan>-- pop
                 hwlink = link
-            if link.getPortType() == ('HwToSw', 'SwToHw'):
+            if link.getPortType() == ('HwToSw.WAN', 'SwToHw.WAN'):
                 # hw[tocore_port] --<hwlink>-- [core_port]core[wanPort] --<wanlink with vlan>-- pop
                 swlink = link
         # sw[tohw_port] --<swlink>-- [tosw_port]hw
