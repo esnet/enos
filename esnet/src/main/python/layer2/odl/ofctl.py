@@ -32,7 +32,7 @@ if not "creds" in globals():
     creds = ("admin","admin")
     globals()['creds'] = creds
 
-def urlsend (url,method="GET",auth=True):
+def urlsend (url,method="GET",auth=True,data=None):
     req = urllib2.Request(url)
     req.get_method = lambda: method
     global creds
@@ -45,8 +45,12 @@ def urlsend (url,method="GET",auth=True):
             auth_manager = urllib2.HTTPBasicAuthHandler(password_manager)
             opener = urllib2.build_opener(auth_manager)
             urllib2.install_opener(opener)
-
-        handler = urllib2.urlopen(req)
+        handler = None
+        if method == "PUT":
+            req.add_header('Content-Type', 'application/json')
+            handler = urllib2.urlopen(req,data)
+        else:
+            handler = urllib2.urlopen(req)
         return json.load(handler)
     except:
         return None
@@ -205,12 +209,39 @@ def deleteflow(switch,table,flowid,safe=True):
             print "delete flow",id
             _deleteflow(switch=switch,table=table,flowid=id)
 
+def corsaforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan,priority=1,meter=5 ):
+    id = makeODLDPID(switch)
+    table = gettable(switch)
+    if meter == None:
+        meter = 5
+    entry = '{"flow-node-inventory:flow":[{"table_id":'+ str(table) + ','
+    entry += '"id":"' + flowid + '",'
+    entry += '"match":{"vlan-match":{"vlan-id":{"vlan-id":' + str(in_vlan) + ',"vlan-id-present":True}},'
+    entry += '"in-port":"' + str(in_port) + '",'
+    entry += '"ethernet-match":{"ethernet-destination":{"address":"' + in_dst + '"}}},'
+    entry += '"priority":' + str(priority) + ','
+    entry += '"instructions":{"instruction":[{"order":1,"meter":{"meter-id":' + str(meter) + '}},'
+    entry += '{"order":0,"apply-actions":{"action":[{"order":0,"output-action":{"output-node-connector":"' + out_port + '","max-length":65535}},'
+    entry += '{"order":2,"set-vlan-pcp-action":{"vlan-pcp":0}},{"order":1,"set-field":{"vlan-match":{"vlan-id":{"vlan-id":' + str(out_vlan)
+    entry += ',"vlan-id-present":True}}}},'
+    entry += '{"order":4,"set-dl-dst-action":{"address":"' + out_dst +'"}},{"order":3,"set-queue-action":{"queue-id":0}}]}}]},"cookie":0}]}'
 
+    flow = eval (entry)
+    data = json.dumps(flow)
+
+    url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/table/" + table + "/flow/" + flowid
+    response = urlsend(url=url,auth=True,method="PUT",data = data)
+
+def ovsforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan,priority=1,meter=5 ):
+    id = makeODLDPID(switch)
+    table = gettable(switch)
+    if meter == None:
+        meter = 5
 
 def show(switch):
     if 'dpid' in switch.props:
         hexdpid = binascii.hexlify(switch.props['dpid'])
-        print switch,"\tdpid: ",hexdpid,"\topenflow: " + str(int(hexdpid,16))
+        print switch,"\tdpid: ",hexdpid,"\topenflow: openflow:" + str(int(hexdpid,16))
     return None
 
 def makeODLDPID(switch):
@@ -289,12 +320,12 @@ def print_syntax():
     print "\tDeletes a flow in a table on a switch. table <table number> can be ommited, default tables"
     print "\tare then assumed. If flow is 'all', then all flows other than PACKET_IN support entries are then"
     print "\tremoved."
+    print "\nadd-flow <switch> <flow_id> <in_port> <in_dst> <in_vlan> <out_port> <out_dst> <out_vlan> [meter]"
 
     print
 
 
 if __name__ == '__main__':
-
     # Retrieve topology
     if not 'topo' in globals():
         topo = TestbedTopology()
@@ -348,7 +379,23 @@ if __name__ == '__main__':
             flow = argv[6]
         else:
             flow = argv[4]
-
         deleteflow(switch=sw,table=table,flowid=flow)
+    elif cmd == "add-flow":
+        sw = getswitch(name=argv[2])
+        flow_id = argv[3]
+        in_port = argv[4]
+        in_dst = argv[5]
+        in_vlan = argv[6]
+        out_port = argv[7]
+        out_dst = argv[8]
+        out_vlan = argv[9]
+        meter = None
+        if len(argv) > 10:
+            meter = argv[10]
+        id = sw.props['dpid']
+        (vendor,role,location,id) = decodeDPID(id)
+        if vendor == 2:
+            # Corsa
+            corsaforward(sw,flow_id,in_port,in_dst,in_vlan,out_port,out_dst,out_vlan,meter)
 
 
