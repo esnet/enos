@@ -134,17 +134,21 @@ class TestbedTopology (GenericTopologyProvider):
             graph.setEdgeWeight(e, 1)
 
     def __init__(self, fileName = None, controller = None):
-        if not controller:
-            self.controller = ODLClient(topology=self)
-        else:
-            self.controller = controller
+        nocontroller = False
+
+        if nocontroller:
+            if not controller:
+                self.controller = ODLClient(topology=self)
+            else:
+                self.controller = controller
         # Build topology
         self.builder = TopoBuilder(fileName = fileName, controller = self.controller)
         self.buildSites()
         self.buildNodes()
-        if not controller:
-            # now that self.builder is ready
-            self.controller.init()
+        if nocontroller:
+            if not controller:
+                # now that self.builder is ready
+                self.controller.init()
 
 if __name__ == '__main__':
     # todo: real argument parsing.

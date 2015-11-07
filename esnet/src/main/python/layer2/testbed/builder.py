@@ -219,7 +219,7 @@ corecircuits = [
      'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/2/4:link=*',
      3905],
     ['es.net-5955',
-     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/2/6:link=*',
+     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/2/5:link=*',
      'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/2/4:link=*',
      3970]
 
