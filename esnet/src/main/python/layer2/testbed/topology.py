@@ -135,7 +135,7 @@ class TestbedTopology (GenericTopologyProvider):
 
     def __init__(self, fileName = None, controller = None):
         nocontroller = False
-
+        self.controller = None
         if nocontroller:
             if not controller:
                 self.controller = ODLClient(topology=self)
