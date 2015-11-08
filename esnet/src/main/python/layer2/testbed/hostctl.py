@@ -102,7 +102,11 @@ def display(host):
     print "Host:",hostname
     print "\tinterfaces:"
     for interface in tbns[hostname]['interfaces']:
-        print "\t\tname", interface['name'],"mac",interface['mac'],"datapath",interface['props']['data']
+        datastatus = "Available"
+        if not interface['props']['data']:
+            datastatus = "Reserved for OVS"
+
+        print "\t\tname", interface['name'],"mac",interface['mac'],datastatus
 
 
 def print_syntax():
