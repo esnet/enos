@@ -400,5 +400,8 @@ if __name__ == '__main__':
         if vendor == 2:
             # Corsa
             corsaforward(sw,flow_id,in_port,in_dst,in_vlan,out_port,out_dst,out_vlan,meter)
+    else:
+        print "Bad command.  For a command list, run:"
+        print "  ofctl help"
 
 
