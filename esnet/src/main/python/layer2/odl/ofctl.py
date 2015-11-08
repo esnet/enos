@@ -316,7 +316,7 @@ def print_syntax():
     print "\tShows flow entries of the given switch"
     print "\t\tofctl dump-flows <switch-name> displays flows from the default table. ovs = table 0, corsa = table 2"
     print "\t\tofctl dump-flows <switch-name> table <table number> displays the flows of a given table "
-    print "\ndel-flow <switch> [table <table number>] [flow <flowid>"
+    print "\ndel-flow <switch> [table <table number>] flow <flowid> | all [force] "
     print "\tDeletes a flow in a table on a switch. table <table number> can be ommited, default tables"
     print "\tare then assumed. If flow is 'all', then all flows other than PACKET_IN support entries are then"
     print "\tremoved."
@@ -379,7 +379,10 @@ if __name__ == '__main__':
             flow = argv[6]
         else:
             flow = argv[4]
-        deleteflow(switch=sw,table=table,flowid=flow)
+        besafe = True
+        if 'force' in argv:
+            besafe = False
+        deleteflow(switch=sw,table=table,flowid=flow,safe=besafe)
     elif cmd == "add-flow":
         sw = getswitch(name=argv[2])
         flow_id = argv[3]
