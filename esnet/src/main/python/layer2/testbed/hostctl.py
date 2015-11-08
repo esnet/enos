@@ -27,61 +27,61 @@ from layer2.testbed.topology import TestbedTopology
 
 amst_tbn_1 = {
     'name': 'amst-tbn-1',
-    'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:e4:a8'}, \
-                    {'name': 'eth11','mac':'90:e2:ba:89:e4:a9'}, \
-                    {'name': 'eth12','mac':'90:e2:ba:89:e5:10'}, \
-                    {'name': 'eth13','mac':'90:e2:ba:89:e5:11'}, \
-                    {'name': 'eth14','mac':'00:02:c9:34:f8:00'}, \
-                    {'name': 'eth15','mac':'00:02:c9:34:f8:01'}, \
-                    {'name': 'eth16','mac':'90:e2:ba:89:e5:24'}, \
-                    {'name': 'eth17','mac':'90:e2:ba:89:e5:24'} ]
+    'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:e4:a8','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'90:e2:ba:89:e4:a9','props':{'data':False}}, \
+                    {'name': 'eth12','mac':'90:e2:ba:89:e5:10','props':{'data':False}}, \
+                    {'name': 'eth13','mac':'90:e2:ba:89:e5:11','props':{'data':False}}, \
+                    {'name': 'eth14','mac':'00:02:c9:34:f8:00','props':{'data':False}}, \
+                    {'name': 'eth15','mac':'00:02:c9:34:f8:01','props':{'data':False}}, \
+                    {'name': 'eth16','mac':'90:e2:ba:89:e5:24','props':{'data':False}}, \
+                    {'name': 'eth17','mac':'90:e2:ba:89:e5:24','props':{'data':True}} ]
 }
 
 cern_272_tbn_1 = {
     'name': 'cern-272-tbn-1',
-    'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:f5:00'}, \
-                    {'name': 'eth11','mac':'90:e2:ba:89:f5:01'}, \
-                    {'name': 'eth12','mac':'00:02:c9:34:f7:b0'}, \
-                    {'name': 'eth13','mac':'00:02:c9:34:f7:b1'}, \
-                    {'name': 'eth14','mac':'90:e2:ba:89:ee:a0'} ]
+    'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:f5:00','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'90:e2:ba:89:f5:01','props':{'data':False}}, \
+                    {'name': 'eth12','mac':'00:02:c9:34:f7:b0','props':{'data':False}}, \
+                    {'name': 'eth13','mac':'00:02:c9:34:f7:b1','props':{'data':False}}, \
+                    {'name': 'eth14','mac':'90:e2:ba:89:ee:a0','props':{'data':True}} ]
 }
 
 wash_tbn_1 = {
     'name': 'wash-tbn-1',
-    'interfaces': [ {'name': 'eth10','mac':'00:60:dd:45:62:00'}, \
-                    {'name': 'eth11','mac':'00:60:dd:46:52:30'} ]
+    'interfaces': [ {'name': 'eth10','mac':'00:60:dd:45:62:00','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'00:60:dd:46:52:30','props':{'data':True}} ]
 }
 
 star_tbn_4 = {
     'name': 'star-tbn-4',
-    'interfaces': [ {'name': 'eth10','mac':'00:60:dd:45:65:09'}, \
-                    {'name': 'eth11','mac':'00:60:dd:45:65:08'}, \
-                    {'name': 'eth12','mac':'00:60:dd:45:64:f9'}, \
-                    {'name': 'eth13','mac':'00:60:dd:45:64:f8'}, \
-                    {'name': 'eth14','mac':'00:02:c9:24:48:00'}, \
-                    {'name': 'eth15','mac':'00:02:c9:24:48:01'}, \
-                    {'name': 'eth16','mac':'00:60:dd:45:64:ed'}, \
-                    {'name': 'eth17','mac':'00:60:dd:45:64:ec'} ]
+    'interfaces': [ {'name': 'eth10','mac':'00:60:dd:45:65:09','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'00:60:dd:45:65:08','props':{'data':False}}, \
+                    {'name': 'eth12','mac':'00:60:dd:45:64:f9','props':{'data':False}}, \
+                    {'name': 'eth13','mac':'00:60:dd:45:64:f8','props':{'data':False}}, \
+                    {'name': 'eth14','mac':'00:02:c9:24:48:00','props':{'data':False}}, \
+                    {'name': 'eth15','mac':'00:02:c9:24:48:01','props':{'data':False}}, \
+                    {'name': 'eth16','mac':'00:60:dd:45:64:ed','props':{'data':False}}, \
+                    {'name': 'eth17','mac':'00:60:dd:45:64:ec','props':{'data':False}} ]
 }
 
 denv_tbn_1 = {
     'name': 'denv-tbn-1',
-    'interfaces': [ {'name': 'eth10','mac':'00:60:dd:46:52:32'}, \
-                    {'name': 'eth11','mac':'00:60:dd:45:6f:b0'} ]
+    'interfaces': [ {'name': 'eth10','mac':'00:60:dd:46:52:32','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'00:60:dd:45:6f:b0','props':{'data':False}} ]
 }
 
 atla_tbn_1 = {
     'name': 'atla-tbn-1',
-    'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:e2:54'}, \
-                    {'name': 'eth11','mac':'90:e2:ba:89:e2:55'}, \
-                    {'name': 'eth12','mac':'90:e2:ba:89:f5:9c'}, \
-                    {'name': 'eth13','mac':'90:e2:ba:89:f5:9d'} ]
+    'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:e2:54','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'90:e2:ba:89:e2:55','props':{'data':False}}, \
+                    {'name': 'eth12','mac':'90:e2:ba:89:f5:9c','props':{'data':False}}, \
+                    {'name': 'eth13','mac':'90:e2:ba:89:f5:9d','props':{'data':False}} ]
 }
 
 aofa_tbn_1 = {
     'name': 'aofa-tbn-1',
-    'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:ee:7c'}, \
-                    {'name': 'eth11','mac':'90:e2:ba:89:ee:7d'} ]
+    'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:ee:7c','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'90:e2:ba:89:ee:7d','props':{'data':False}} ]
 }
 
 tbns = {'amst-tbn-1':amst_tbn_1,
@@ -102,7 +102,7 @@ def display(host):
     print "Host:",hostname
     print "\tinterfaces:"
     for interface in tbns[hostname]['interfaces']:
-        print "\t\tname", interface['name'],"mac",interface['mac']
+        print "\t\tname", interface['name'],"mac",interface['mac'],"datapath",interface['props']['data']
 
 
 def print_syntax():
