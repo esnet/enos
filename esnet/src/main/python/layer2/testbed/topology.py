@@ -134,21 +134,18 @@ class TestbedTopology (GenericTopologyProvider):
             graph.setEdgeWeight(e, 1)
 
     def __init__(self, fileName = None, controller = None):
-        nocontroller = False
-        self.controller = None
-        if nocontroller:
-            if not controller:
-                self.controller = ODLClient(topology=self)
-            else:
-                self.controller = controller
+
+        if not controller:
+            self.controller = ODLClient(topology=self)
+        else:
+            self.controller = controller
         # Build topology
         self.builder = TopoBuilder(fileName = fileName, controller = self.controller)
         self.buildSites()
         self.buildNodes()
-        if nocontroller:
-            if not controller:
-                # now that self.builder is ready
-                self.controller.init()
+        if not controller:
+            # now that self.builder is ready
+            self.controller.init()
 
 def linkednode(link,host,port=None):
     """
@@ -170,6 +167,17 @@ def linkednode(link,host,port=None):
         return (srcNode,srcPort)
     return (None,None)
 
+def getlinks(node1,node2):
+    links = []
+    for (name,link) in topo.builder.linkIndex.items():
+        (dstNode,dstPort) = linkednode(link,node1)
+        if (dstNode,dstPort) == (None,None):
+            continue
+        (dstNode,dstPort) = linkednode(link,node2)
+        if (dstNode,dstPort) == (None,None):
+            continue
+        links.append(link)
+    return links
 
 def parselink(link):
     [srcNode,srcPort,dstNode,dstPort,vlan] = link.name.split("#")
@@ -193,8 +201,10 @@ def print_syntax():
     print " Commands are:"
     print "\nhelp"
     print "\tPrints this help."
-    print "\nshow-link all Displays all links."
-    print "\nshow-link all host <host name> [port <port name> Displays all links ending onto the specified host."
+    print "\nshow-link:"
+    print "\n\tshow-link all Displays all links."
+    print "\n\tshow-link all host <host name> [port <port name> Displays all links ending\n\tonto the specified host."
+    print "\n\tshow-link betwen host host: Display links between two hosts."
 
     print
 
@@ -226,5 +236,9 @@ if __name__ == '__main__':
                     if (dstNode,dstPort) == (None,None):
                         continue
                 displaylink(link)
-
-
+        elif link == "between":
+            host1 = argv[3]
+            host2 = argv[4]
+            links = getlinks(host1,host2)
+            for link in links:
+                displaylink(link)

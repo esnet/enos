@@ -21,7 +21,7 @@
 #
 
 from layer2.testbed.oscars import getgri,getgrinode,displaygri
-from layer2.testbed.topology import TestbedTopology
+from layer2.testbed.topology import TestbedTopology,getlinks,linkednode
 
 
 # Hardcode information about hosts. Eventually this should be discovered by the ENOS
@@ -120,18 +120,38 @@ def display(host):
             datastatus = "Reserved for OVS"
         print "\t\tname", interface['name'],"mac",interface['mac'],datastatus
 
-def connectgri(host,gri):
+def connectgri(host,gri,hostvlan=100):
     pop = topo.builder.popIndex[host['pop']]
-    core = pop.props['coreRouter']
-    (node,dom,port,vlan) = getgrinode(gri,core.name)
+    core = pop.props['coreRouter'].name
+    (core,coredom,coreport,corevlan) = getgrinode(gri,core)
     datapath = getdatapaths(host)[0] # Assumes the first datapath
-    hwSwitch = pop.props['hwSwitch']
-    print "pop",pop
-    print "core",core
+    hostport = datapath['name']
+    hwswitch = pop.props['hwSwitch'].name
     print "datapath",datapath
-    print "hwswitch",hwSwitch
-    print "connect",(node,dom,port,vlan)
-    displaygri(gri)
+    # Find hwswith/port - core/port
+    links = getlinks(core,hwswitch)
+    corelink = None
+    for link in links:
+        (node,port) = linkednode (link,hwswitch)
+        if port != None and port == coreport:
+            # found the link between HwSwith and Core that ends to the OSCARS circuit.
+            corelink = link
+            break
+    (node,hwport_tocore) = linkednode (corelink,core)
+    # Find host/prot hwswitch/port
+    links = getlinks(host,hwswitch)
+    hostlink = None
+    for link in links:
+        (node,port) = linkednode (link,hwswitch)
+        if port != None and port == hostport:
+            # found the link between HwSwith and Core that ends to the OSCARS circuit.
+            hostlink = link
+            break
+    (node,hwport_tohost) = linkednode (hostlink,host)
+    print host,hostport,"--",hostvlan,'--',hwport_tohost,"##",hwswitch,"##",hwport_tocore,"--",corevlan
+
+
+
 
 
 
@@ -145,7 +165,8 @@ def print_syntax():
     print "\nhelp"
     print "\tPrints this help."
     print "\nshow-host <host name | all> Displays information about a host or all hosts"
-    print "\nconnect <hostname> gri <gri> Sets the datapath to the end of the specified OSCARS GRI"
+    print "\nconnect <hostname> vlan <vlan> gri <gri> Sets the datapath to the end of the specified OSCARS GRI."
+    print "\tthe circuits terminates on the host at the specified vlan."
 
     print
 
@@ -172,8 +193,9 @@ if __name__ == '__main__':
             display(tbns[host])
     elif (cmd == "connect"):
         host = tbns[argv[2]]
+        vlan = argv[4]
         if ('gri') in argv:
-            gri = getgri(argv[4])
+            gri = getgri(argv[6])
             if gri == None:
                 print "unknown GRI"
                 sys.exit()
