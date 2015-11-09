@@ -579,6 +579,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         for (outMac, outVlan, outPort) in outputs:
             sampleFlowmod.actions.append(Action(props={'dl_dst':outMac, 'vlan':outVlan, 'out_port':outPort}))
 
+        # We only get here if we receive a broadcast from a site at the origin POP.
         # On remote POPs, we need to set up forwarding rules on the hardware switch
         # to punt packets with the translated MAC broadcast address to the controller.
         # Note that in the case that we got called for a packet arriving from the WAN,
@@ -597,8 +598,11 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             remoteHwScope = self.props['scopeIndex'][remoteHwSwitch.name]
             remoteWanPort =  remoteHwSwitch.props['wanPortIndex'][myPop.name]
             stitchedRemoteWanPort = remoteHwSwitch.props['stitchedPortIndex'][remoteWanPort.name]
-            mod = remoteHwScope.forward(remoteHwSwitch, outMac, outVlan, remoteWanPort, outMac, outVlan, stitchedRemoteWanPort)
-            flowmods.append(mod)
+            fe = FlowEntry(self.translate(inMac), outVlan, remoteWanPort)
+            # print "Forward %s to controller on %s" % (str(FlowEntry), remoteHwSwitch.name)
+            flowRef = remoteHwSwitch.props['controller'].initControllerFlow(remoteHwSwitch, fe)
+            bcastKey = remoteWanPort.name + "." + str(outVlan)
+            remoteHwScope.props['toControllerFlowRefs'][bcastKey] = flowRef
 
         # Make the hardware switch forward broadcasts to swSwitch
         mod = hwScope.forward(hwSwitch, inMac, inVlan, inPort, inMac, inVlan, stitchedInPort)
@@ -1042,6 +1046,10 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         link = swInPort.props['links'][0]
         hwPort = link.props['portIndex'][hwSwitch.name]
         hwInPort = hwSwitch.props['stitchedPortIndex'][hwPort.name]
+
+#        print "SDNPopsRenderer.swSwitchEventListener entry (%s, %s)" % (swSwitch.name, swInPort.name)
+#        print "  coming from (%s, %s), stitched from %s" % (hwSwitch.name, hwPort.name, hwInPort.name)
+
         self.updateSrcMac(srcMac, inVlan, hwInPort)
 
         controller = swSwitch.props['controller']
@@ -1050,7 +1058,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         payload = event.props['payload']
         flowEntry = FlowEntry(dstMac, inVlan, hwInPort)
         if not flowEntry.key() in self.props['statusIndex']:
-            SDNPopsRenderer.logger.warning("Unknown packet %s received by swSwitch %s" % (event, swSwitch.name))
+            SDNPopsRenderer.logger.warning("Unknown packet %s received by swSwitch %s" % (str(event.props), swSwitch.name))
             return
         flowStatus = self.props['statusIndex'][flowEntry.key()]
         mod = flowStatus.addMac(srcMac, vmPort)
@@ -1098,6 +1106,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             scope = controller.getScope(inPort, inVlan, dstMac)
             etherType = event.props['ethertype']
             payload = event.props['payload']
+
+#            print "SDNPopsRenderer.eventListener entry (%s, %s)" % (switch.name, inPort.name)
 
             self.updateSrcMac(srcMac, inVlan, inPort)
 

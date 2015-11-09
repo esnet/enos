@@ -109,10 +109,15 @@ class Action(Properties):
         return 'Action(%s)' % ','.join(['%s=%r' % (prop[0], prop[1]) for prop in self.props.items()])
 
 class FlowEntry:
+    """
+    A 3-tuple consisting of a MAC address, VLAN, and port.  This data structure is used for
+    various purposes such as indexing.  It is similar to (but conceptually separate from) the
+    Match data structure.
+    """
     def __init__(self, mac, vlan, port):
-        self.mac = mac
-        self.vlan = vlan
-        self.port = port
+        self.mac = mac      # layer2.common.mac.MACAddress
+        self.vlan = vlan    # int
+        self.port = port    # layer2.common.api.Port
     def serialize(self):
         obj = {}
         obj['mac'] = str(self.mac)
@@ -132,7 +137,11 @@ class FlowEntry:
     def isBroadcast(self):
         return self.mac.isBroadcast()
     def key(self):
-        return "{mac:%r,vlan:%d,port:%s}" % (self.mac, self.vlan, self.port)
+        # We explicitly make the port's node name a part of the key because we cannot assume
+        # that port names will be globally unique.  If we change the semantics of port names
+        # (or their string representations), we might be able to make that assumption and
+        # relax the requirement to add the node name here.
+        return "{mac:%r,vlan:%d,port:%s,node:%s}" % (self.mac, self.vlan, self.port, self.port.props['node'].name)
     def __eq__(self, other):
         return self.key() == other.key()
     def __ne__(self, other):
