@@ -42,7 +42,7 @@ bnlsite = ["bnl.gov",['bnl-diskpt1@bnl.gov'],"aofa"]
 washsite = ["site1.wash",['wash-tbn-1@site1.wash'],"wash"]
 asmtsite = ["site2.amst",['amst-tbn-1@site2.asmt'],"amst"]
 cernsite = ["site3.cern",['cern-272-tbn-1@site3.cern'],"cern"]
-sites = [lblsite, anlsite, bnlsite,washsite,asmtsite,cernsite]
+sites = [lblsite, anlsite, bnlsite]
 
 # DENV
 denvlinks=[
@@ -67,7 +67,7 @@ washlinks_demo = [
     ["wash-ovs","eth10","wash-tb-of-1","1",'hw']
 ]
 
-wash=["wash",'wash-tb-of-1',"wash-cr5","wash-ovs", washlinks_demo]
+wash=["wash",'wash-tb-of-1',"wash-cr5","wash-ovs", washlinks]
 
 # AOFA
 aofalinks = [
@@ -115,7 +115,7 @@ amstlinks_demo = [
     ["amst-ovs","eth15","amst-tb-of-1","6",'none'],
     ["amst-ovs","eth16","amst-tb-of-1","7",'none']
 ]
-amst=["amst",'amst-tb-of-1',"amst-cr5","amst-ovs",amstlinks_demo]
+amst=["amst",'amst-tb-of-1',"amst-cr5","amst-ovs",amstlinks]
 
 # CERN
 cernlinks = [
@@ -142,7 +142,7 @@ cernlinks_demo = [
     ["cern-272-ovs","eth12","cern-272-tb-of-1","3",'none'],
     ["cern-272-ovs","eth13","cern-272-tb-of-1","4",'none']
 ]
-cern=["cern",'cern-272-tb-of-1',"cern-272-cr5","cern-272-ovs",cernlinks_demo]
+cern=["cern",'cern-272-tb-of-1',"cern-272-cr5","cern-272-ovs",cernlinks]
 
 # ATLA
 atlalinks = [
@@ -240,6 +240,8 @@ sitecircuits['bnl.gov'] = \
      116]
 
 # The following are simulated links
+"""
+Fake sites for VPN code
 sitecircuits['site1.wash'] = \
     ['site1.wash',
      'es.net-fake1',
@@ -260,10 +262,32 @@ sitecircuits['site3.cern'] = \
      'urn:ogf:network:domain=site3.cern:node=cern:port=xe-9/3/0:link=*',
      'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/1/4:link=*',
      100]
+"""
+sitecircuits['site1.wash'] = \
+    ['site1.wash',
+     'es.net-fake1',
+     'urn:ogf:network:domain=site1.wash:node=wash-tbn-1:port=eth11:link=*',
+     'urn:ogf:network:domain=es.net:node=wash-tb-of-1:port=2:link=*',
+     100]
+
+sitecircuits['site2.amst'] = \
+    ['site2.amst',
+     'es.net-fake2',
+     'urn:ogf:network:domain=site2.amst:node=amst-tbn-1:port=eth17:link=*',
+     'urn:ogf:network:domain=es.net:node=amst-tb-of-1:port=8link=*',
+     100]
+
+sitecircuits['site3.cern'] = \
+    ['site3.cern',
+     'es.net-fake3',
+     'urn:ogf:network:domain=site3.cern:node=cern-272-tbn-1:port=eth14:link=*',
+     'urn:ogf:network:domain=es.net:node=cern-272-tb-of-1:port=5:link=*',
+     100]
 
 
 # SDN POP's
 locations=[denv,wash,aofa,amst,cern,atla,star]
+testbedPops = {"denv":denv,"wash":wash,"aofa":aofa,"amst":amst,"cern":cern,"atla":atla,"star":star}
 
 class TopoBuilder ():
 
@@ -325,7 +349,7 @@ class TopoBuilder ():
         pop = self.popIndex[popname]
         site.setPop(pop)
         links = self.getSiteOSCARSLinks(site)
-#        print "TopoBuilder.addSite " + site.name + " pop " + pop.name + " links " + str(links)
+        # print "TopoBuilder.addSite " + site.name + " pop " + pop.name + " links " + str(links)
         pop.addSite(site, links)
 
     def addSDNPop(self, popname, hwswitchname, coreroutername, swswitchname,links):
@@ -364,9 +388,27 @@ class TopoBuilder ():
         swLinks = []
 
         for l in links:
-            (n1,p1,n2,p2,type) = (self.switchIndex[l[0]],
+            # Following is slightly a workaround: this class is currently used by two different topology, one with
+            # sites on remote hosts, the other using the testbed hosts as site.
+            srcNode = None
+            dstNode = None
+            if '-tbn-' in l[0]:
+                # This is a testbed host. We need to create it and add it
+                host = Host(l[0])
+                self.addHost(host)
+                srcNode = host
+            else:
+                srcNode = self.switchIndex[l[0]]
+            if '-tbn-' in l[2]:
+                # This is a testbed host. We need to create it and add it
+                host = Host(l[2])
+                self.addHost(host)
+                dstNode = host
+            else:
+                dstNode = self.switchIndex[l[2]]
+            (n1,p1,n2,p2,type) = (srcNode,
                                   Port(l[1]),
-                                  self.switchIndex[l[2]],
+                                  dstNode,
                                   Port(l[3]),
                                   l[4])
             p1.props['node'] = n1

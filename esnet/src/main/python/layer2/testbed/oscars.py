@@ -63,6 +63,18 @@ def parseURN (urn):
         (x,link) = link.split('=')
     return(node,domain,port,link)
 
+def getgrinode(gri,node,domain="es.net"):
+    segments = gri.getSegments()
+    for segment in segments:
+        ports = segment.getPorts()
+        (srcDom,srcNode,srcPort,srcVlan) = decodeURN(ports[0])
+        if (srcNode,srcDom) == (node,domain):
+            return (srcNode,srcDom,srcPort,srcVlan)
+        (dstDom,dstNode,dstPort,dstVlan) = decodeURN(ports[1])
+        if (dstNode,dstDom) == (node,domain):
+            return (dstNode,dstDom,dstPort,dstVlan)
+    return None
+
 def getgri(name):
     start = DateTime.now()
     end = start.plusHours(2)
@@ -96,7 +108,9 @@ def decodeURN(urn):
         vlan = tmp[5].split(".")[1]
     return  (domain,node,port,vlan)
 
-def display(name,gri):
+def displaygri(gri,name=None):
+    if name == None:
+        name = gri.getName()
     print "GRI",name,"\t",gri.getDescription()
     print "\tstart",gri.getStartDateTime(),"ends",gri.getEndDateTime()
     print "\t\tPath:"
@@ -136,12 +150,12 @@ if __name__ == '__main__':
             if 'grep' in argv:
                 match = argv[4]
             for (name,gri) in getgris(match=match).items():
-                display(name,gri)
+                displaygri(name,gri)
                 print
         else:
             gri = getgri(argv[2])
             if (gri == None):
                 print "unknown",argv[2]
                 sys.exit()
-            display(gri)
+            displaygri(gri)
 

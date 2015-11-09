@@ -20,7 +20,9 @@
 # to permit others to do so.
 #
 
+from layer2.testbed.oscars import getgri,getgrinode,displaygri
 from layer2.testbed.topology import TestbedTopology
+
 
 # Hardcode information about hosts. Eventually this should be discovered by the ENOS
 # host agent registering its interfaces and other meta data.
@@ -34,7 +36,8 @@ amst_tbn_1 = {
                     {'name': 'eth14','mac':'00:02:c9:34:f8:00','props':{'data':False}}, \
                     {'name': 'eth15','mac':'00:02:c9:34:f8:01','props':{'data':False}}, \
                     {'name': 'eth16','mac':'90:e2:ba:89:e5:24','props':{'data':False}}, \
-                    {'name': 'eth17','mac':'90:e2:ba:89:e5:24','props':{'data':True}} ]
+                    {'name': 'eth17','mac':'90:e2:ba:89:e5:24','props':{'data':True}} ],
+    'pop':"amst"
 }
 
 cern_272_tbn_1 = {
@@ -43,13 +46,15 @@ cern_272_tbn_1 = {
                     {'name': 'eth11','mac':'90:e2:ba:89:f5:01','props':{'data':False}}, \
                     {'name': 'eth12','mac':'00:02:c9:34:f7:b0','props':{'data':False}}, \
                     {'name': 'eth13','mac':'00:02:c9:34:f7:b1','props':{'data':False}}, \
-                    {'name': 'eth14','mac':'90:e2:ba:89:ee:a0','props':{'data':True}} ]
+                    {'name': 'eth14','mac':'90:e2:ba:89:ee:a0','props':{'data':True}} ],
+    'pop':"cern"
 }
 
 wash_tbn_1 = {
     'name': 'wash-tbn-1',
     'interfaces': [ {'name': 'eth10','mac':'00:60:dd:45:62:00','props':{'data':False}}, \
-                    {'name': 'eth11','mac':'00:60:dd:46:52:30','props':{'data':True}} ]
+                    {'name': 'eth11','mac':'00:60:dd:46:52:30','props':{'data':True}} ],
+    'pop':"wash"
 }
 
 star_tbn_4 = {
@@ -61,13 +66,15 @@ star_tbn_4 = {
                     {'name': 'eth14','mac':'00:02:c9:24:48:00','props':{'data':False}}, \
                     {'name': 'eth15','mac':'00:02:c9:24:48:01','props':{'data':False}}, \
                     {'name': 'eth16','mac':'00:60:dd:45:64:ed','props':{'data':False}}, \
-                    {'name': 'eth17','mac':'00:60:dd:45:64:ec','props':{'data':False}} ]
+                    {'name': 'eth17','mac':'00:60:dd:45:64:ec','props':{'data':False}} ],
+    'pop':"star"
 }
 
 denv_tbn_1 = {
     'name': 'denv-tbn-1',
     'interfaces': [ {'name': 'eth10','mac':'00:60:dd:46:52:32','props':{'data':False}}, \
-                    {'name': 'eth11','mac':'00:60:dd:45:6f:b0','props':{'data':False}} ]
+                    {'name': 'eth11','mac':'00:60:dd:45:6f:b0','props':{'data':False}} ],
+    'pop':"denv"
 }
 
 atla_tbn_1 = {
@@ -75,14 +82,17 @@ atla_tbn_1 = {
     'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:e2:54','props':{'data':False}}, \
                     {'name': 'eth11','mac':'90:e2:ba:89:e2:55','props':{'data':False}}, \
                     {'name': 'eth12','mac':'90:e2:ba:89:f5:9c','props':{'data':False}}, \
-                    {'name': 'eth13','mac':'90:e2:ba:89:f5:9d','props':{'data':False}} ]
+                    {'name': 'eth13','mac':'90:e2:ba:89:f5:9d','props':{'data':False}} ],
+    'pop':"atla"
 }
 
 aofa_tbn_1 = {
     'name': 'aofa-tbn-1',
     'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:ee:7c','props':{'data':False}}, \
-                    {'name': 'eth11','mac':'90:e2:ba:89:ee:7d','props':{'data':False}} ]
+                    {'name': 'eth11','mac':'90:e2:ba:89:ee:7d','props':{'data':False}} ],
+    'pop':"aofa"
 }
+
 
 tbns = {'amst-tbn-1':amst_tbn_1,
         'cern-272-tbn-1':cern_272_tbn_1,
@@ -93,9 +103,11 @@ tbns = {'amst-tbn-1':amst_tbn_1,
         'aofa-tbn-1':aofa_tbn_1}
 
 
-def getdatapath(host):
+def getdatapaths(host):
     interfaces = []
-
+    for interface in host['interfaces']:
+        if interface['props']['data']:
+            interfaces.append(interface)
     return interfaces
 
 def display(host):
@@ -106,8 +118,23 @@ def display(host):
         datastatus = "Available"
         if not interface['props']['data']:
             datastatus = "Reserved for OVS"
-
         print "\t\tname", interface['name'],"mac",interface['mac'],datastatus
+
+def connectgri(host,gri):
+    pop = topo.builder.popIndex[host['pop']]
+    core = pop.props['coreRouter']
+    (node,dom,port,vlan) = getgrinode(gri,core.name)
+    datapath = getdatapaths(host)[0] # Assumes the first datapath
+    hwSwitch = pop.props['hwSwitch']
+    print "pop",pop
+    print "core",core
+    print "datapath",datapath
+    print "hwswitch",hwSwitch
+    print "connect",(node,dom,port,vlan)
+    displaygri(gri)
+
+
+
 
 
 def print_syntax():
@@ -147,5 +174,10 @@ if __name__ == '__main__':
         host = tbns[argv[2]]
         if ('gri') in argv:
             gri = getgri(argv[4])
+            if gri == None:
+                print "unknown GRI"
+                sys.exit()
+            connectgri(host,gri)
+
 
 

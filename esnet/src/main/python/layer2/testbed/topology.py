@@ -150,15 +150,81 @@ class TestbedTopology (GenericTopologyProvider):
                 # now that self.builder is ready
                 self.controller.init()
 
+def linkednode(link,host,port=None):
+    """
+    Retrieve the host/port connected to provide host/port
+    :param host:
+    :return:
+    """
+    (srcNode,srcPort,dstNode,dstPort,vlan) = parselink(link)
+
+    if (port != None):
+        if (srcNode,srcPort) == (host,port):
+            return (dstNode,dstPort)
+        elif (dstNode,dstPort) == (host,port):
+            return (srcNode,srcPort)
+        return (None,None)
+    if srcNode == host:
+        return (dstNode,dstPort)
+    elif dstNode == host:
+        return (srcNode,srcPort)
+    return (None,None)
+
+
+def parselink(link):
+    [srcNode,srcPort,dstNode,dstPort,vlan] = link.name.split("#")
+    srcNode = srcNode.split("@")[0]
+    dstNode = dstNode.split("@")[0]
+    return (srcNode,srcPort,dstNode,dstPort,vlan)
+
+def displaylink(link):
+    (srcNode,srcPort,dstNode,dstPort,vlan) = parselink(link)
+    print "Link src",srcNode,srcPort,"\tdst",dstNode,dstPort,"\tvlan",vlan
+
+
+if not 'topo' in globals() or topo == None:
+    topo = TestbedTopology()
+    globals()['topo'] = topo
+
+def print_syntax():
+    print
+    print "topology <cmd> <cmds options>"
+    print "Configures testbed hosts and their datapath. Commands are:"
+    print " Commands are:"
+    print "\nhelp"
+    print "\tPrints this help."
+    print "\nshow-link all Displays all links."
+    print "\nshow-link all host <host name> [port <port name> Displays all links ending onto the specified host."
+
+    print
+
+
 if __name__ == '__main__':
-    # todo: real argument parsing.
-    configFileName = None
-    topo=None
-    if len(sys.argv) > 1:
-        configFileName = sys.argv[1]
-        topo = TestbedTopology(fileName=configFileName)
-    else:
+    # Retrieve topology
+    if not 'topo' in globals():
         topo = TestbedTopology()
-    #viewer = net.getGraphViewer(TopologyProvider.WeightType.TrafficEngineering)
-    graph = topo.toGraph()
+        globals()['topo'] = topo
+    global topo
+
+    argv = sys.argv
+
+    cmd = argv[1]
+    if cmd == "help":
+        print_syntax()
+    elif cmd == "show-link":
+        link = argv[2]
+        if link == 'all':
+            host = None
+            port = None
+            if 'host' in argv:
+                host = argv[4]
+                if 'port' in argv:
+                    port = argv[6]
+            for (name,link) in topo.builder.linkIndex.items():
+                if host != None:
+                    (dstNode,dstPort) = linkednode(link,host,port)
+                    if (dstNode,dstPort) == (None,None):
+                        continue
+                displaylink(link)
+
 

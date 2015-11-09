@@ -20,6 +20,12 @@
 #
 
 def reloadall():
+    from layer2.testbed import oscars
+    reload(oscars)
+    from layer2.testbed import hostctl
+    reload(hostctl)
+    from layer2.odl import ofctl
+    reload(ofctl)
     from layer2.testbed import builder
     reload(builder)
     import layer2.testbed.topology
