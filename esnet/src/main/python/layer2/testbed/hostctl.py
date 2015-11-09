@@ -92,6 +92,7 @@ tbns = {'amst-tbn-1':amst_tbn_1,
         'atla-tbn-1':atla_tbn_1,
         'aofa-tbn-1':aofa_tbn_1}
 
+
 def getdatapath(host):
     interfaces = []
 
@@ -117,6 +118,9 @@ def print_syntax():
     print "\nhelp"
     print "\tPrints this help."
     print "\nshow-host <host name | all> Displays information about a host or all hosts"
+    print "\nconnect <hostname> gri <gri> Sets the datapath to the end of the specified OSCARS GRI"
+
+    print
 
 
 if __name__ == '__main__':
@@ -139,5 +143,9 @@ if __name__ == '__main__':
                 print
         else:
             display(tbns[host])
+    elif (cmd == "connect"):
+        host = tbns[argv[2]]
+        if ('gri') in argv:
+            gri = getgri(argv[4])
 
 

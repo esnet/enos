@@ -18,6 +18,16 @@
 # distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
 #
+
+from net.es.netshell.api import TopologyFactory,TopologyProvider
+from net.es.enos.esnet import OSCARSReservations
+from org.joda.time import DateTime
+
+
+
+topology = TopologyFactory.instance()
+topo = topology.retrieveTopologyProvider("localLayer2")
+
 def makeURN (node,domain="es.net",port="",link=""):
     """
     makeURN takes the name and domain of a node and builds a URN following the NMWG
@@ -53,4 +63,85 @@ def parseURN (urn):
         (x,link) = link.split('=')
     return(node,domain,port,link)
 
+def getgri(name):
+    start = DateTime.now()
+    end = start.plusHours(2)
+    gris={}
+    reservations = OSCARSReservations(topo).retrieveScheduledCircuits()
+    for res in reservations:
+        if name == res.getName():
+            return res
+    return None
+
+def getgris(match=None):
+    gris={}
+    reservations = OSCARSReservations(topo).retrieveScheduledCircuits()
+    for res in reservations:
+        gri = res.getName()
+        desc = res.getDescription()
+        if match != None:
+            if match in desc:
+                gris[gri] =res
+        else:
+            gris[gri] = res
+    return gris
+
+def decodeURN(urn):
+    tmp = urn.split(":")
+    domain = tmp[3]
+    node = tmp[4]
+    port = tmp[5].split(".")[0]
+    vlan = ""
+    if "." in tmp[5]:
+        vlan = tmp[5].split(".")[1]
+    return  (domain,node,port,vlan)
+
+def display(name,gri):
+    print "GRI",name,"\t",gri.getDescription()
+    print "\tstart",gri.getStartDateTime(),"ends",gri.getEndDateTime()
+    print "\t\tPath:"
+    segments = gri.getSegments()
+    for segment in segments:
+        ports = segment.getPorts()
+        (srcDom,srcNode,srcPort,srcVlan) = decodeURN(ports[0])
+        (dstDom,dstNode,dstPort,dstVlan) = decodeURN(ports[1])
+        print "\t\t",srcNode + "@" + srcDom,"port",srcPort,"vlan",srcVlan,"---",dstNode + "@" + dstDom,"port",dstPort,"vlan",dstVlan
+
+
+
+
+def print_syntax():
+    print
+    print "oscars <cmd> <cmds options>"
+    print "OSCARS control CLI"
+    print " Commands are:"
+    print "\nhelp"
+    print "\tPrints this help."
+    print "\nshow-gri <host name | all> [grep <string>] Displays information about a reservation or all reservations"
+    print
+
+
+if __name__ == '__main__':
+
+
+    argv = sys.argv
+
+    cmd = argv[1]
+    if cmd == "help":
+        print_syntax()
+    elif cmd == "show-gri":
+        gri = argv[2]
+        if gri == 'all':
+            match = None
+            if 'grep' in argv:
+                match = argv[4]
+            for (name,gri) in getgris(match=match).items():
+                display(name,gri)
+                print
+        else:
+            gri = getgri(argv[2])
+            if (gri == None):
+                print "unknown",argv[2]
+                sys.exit()
+            display(gri)
 
