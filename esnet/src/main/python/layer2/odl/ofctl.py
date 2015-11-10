@@ -233,6 +233,8 @@ def deleteflow(switch,table,flowid,safe=True):
         _deleteflow(switch,table,flowid)
     else:
         ids = getflows(switch=switch,table=table,safe=safe)
+        if ids == None or len(ids) == 0:
+            return
         for id in ids:
             print "delete flow",id
             _deleteflow(switch=switch,table=table,flowid=id)

@@ -267,7 +267,7 @@ def connectremote (pop,host,gri,hostvlan):
 
     return True
 
-def connectgri(host,gri,hostvlan=100):
+def connectgri(host,gri,remotehost=None,hostvlan=100):
     # Get both endpoints of the GRI
     (e1,e2) = griendpoints(gri)
     hostpop = topo.builder.popIndex[host['pop']]
@@ -287,10 +287,12 @@ def connectgri(host,gri,hostvlan=100):
     res = connectlocal(hostpop,remotepop,host,gri,hostvlan)
     if not res:
         return
+    """
     res = connectremote(remotepop,host,gri,hostvlan)
     if not res:
         # TODO: should clean up connectlocal
         return
+    """
     return True
 
 

@@ -19,12 +19,37 @@
 # to permit others to do so.
 #
 from layer2.common.mac import MACAddress
-
+from layer2.testbed.hostctl import connectgri
 sites = {
-    'wash' : {'name':"wash",'hosts':{'wash-tbn-1':{'interface':'eth11'}}},
-    'amst' : {'name':"amst",'hosts':{'amst-tbn-1':{'interface':'eth17'}}},
-    'cern' : {'name':"cern",'hosts':{'cern-272-tbn-1':{'interface':'eth14'}}}
+    'wash' : {'name':"wash",'hosts':{'wash-tbn-1':{'interface':'eth11'}},"links":{'amst':'es.net-5956','cern':'es.net-5954'},'connected':{}},
+    'amst' : {'name':"amst",'hosts':{'amst-tbn-1':{'interface':'eth17'}},"links":{'wash':'es.net-5956','cern':'es.net-5955'},'connected':{}},
+    'cern' : {'name':"cern",'hosts':{'cern-272-tbn-1':{'interface':'eth14'}},"links":{'wash':'es.net-5954','amst':'es.net-5955'},'connected':{}}
 }
+
+gris = [
+    ['es.net-5954',
+     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
+     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/2/5:link=*',
+     1232],
+    ['es.net-5956',
+     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
+     'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/2/4:link=*',
+     3905],
+    ['es.net-5955',
+     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/2/5:link=*',
+     'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/2/4:link=*',
+     3970]
+]
+
+def getsite(host):
+    global sites
+    for (s,site) in sites.items():
+        if host.name in site['hosts']:
+            return site
+    return None
+
+def getgri(site1,site2):
+    return site1['links'][site2['name']]
 
 class VPN():
     def __init__(self,name):
@@ -43,7 +68,20 @@ class VPN():
     def delsite(self,site):
         del self.sites[site['name']]
         return True
-    def addhost(self,host):
+    def addhost(self,host,vlan):
+        hostsite = getsite(host)
+        hostsite['connected'][host.name] = vlan
+        for (s,site) in self.sites.items():
+            if site['name'] == hostsite['name']:
+                continue
+            connected = site['connected']
+            for (r,remotehost) in connected.items():
+                gri = getgri(hostsite,site)
+                # Add flows coming from other sites
+                print remotehost
+                connectgri(host=host,hostvlan=vlan,remotehost=remotehost,gri=gri)
+
+
         return True
     def delhost(self,host):
         return True
@@ -62,7 +100,7 @@ def usage():
     print "vpn <vpn name> delpop <pop name>"
     print "vpn <vpn name> addsite <site name>"
     print "vpn <vpn name> delsite <site name>"
-    print "vpn <vpn name> addhost <host name>"
+    print "vpn <vpn name> addhost <host name> vlan <vlan>"
     print "vpn <vpn name> delhost <host name>"
     print "vpn <vpn name> tapsite <site name>"
     print "vpn <vpn name> untapsite <site name>"
@@ -175,7 +213,7 @@ def addsite(vpn, site):
         print "something's wrong while adding the site."
         # possible issues: duplicated site
         return
-    print "The site %s is added into VPN %s successfully" % (site['name, vpn.name)
+    print "The site %s is added into VPN %s successfully" % (site['name'], vpn.name)
 
 def delsite(vpn, site):
     if not vpn.checkSite(site):
@@ -183,9 +221,8 @@ def delsite(vpn, site):
         return
     vpn.delsite(site)
 
-def addhost(vpn, host):
-    print "vpn addhost",host
-    if not vpn.addhost(host):
+def addhost(vpn, host,vlan):
+    if not vpn.addhost(host,vlan):
         print "something wrong while adding the host; Please make sure that the site of the host joined the VPN."
         return
 
@@ -195,36 +232,33 @@ def delhost(vpn, host):
     if not vpn.delHost(host):
         print "something wrong while deleting the host; Please make sure that the host joined the VPN."
         return
-#    sitename = host.props['site'].name
-#    siteRenderer = rendererIndex[sitename]
-#    siteRenderer.delHost(host, vpn.props['participantIndex'][sitename][2])
 
 def tapsite(vpn, site):
-    vpn.props['renderer'].tapSiteCLI(site)
+    print "not implemented"
 
 def untapsite(vpn, site):
-    vpn.props['renderer'].untapSiteCLI(site)
+    print "not implemented"
 
 def taphost(vpn, host):
-    vpn.props['renderer'].tapHostCLI(host)
+    print "not implemented"
 
 def untaphost(vpn, host):
-    vpn.props['renderer'].untapHostCLI(host)
+    print "not implemented"
 
 def tapmac(vpn, mac):
-    vpn.props['renderer'].tapMacCLI(mac)
+    print "not implemented"
 
 def untapmac(vpn, mac):
-    vpn.props['renderer'].untapMacCLI(mac)
+    print "not implemented"
 
 def settimeout(vpn, timeout):
     if timeout < 0:
         print "invalid timeout"
         return
-    vpn.props['renderer'].setTimeout(timeout)
+    print "not implemented"
 
 def main():
-
+    print "VPN version 2"
     try:
         command = sys.argv[1].lower()
         if command == 'create':
@@ -272,7 +306,9 @@ def main():
                 delsite(vpn, site)
             elif command == 'addhost':
                 host = tohost(sys.argv[3])
-                addhost(vpn, host)
+                print sys.argv
+                vlan = sys.argv[5]
+                addhost(vpn, host,vlan)
             elif command == 'delhost':
                 host = tohost(sys.argv[3])
                 if host == None:
@@ -305,12 +341,6 @@ def main():
             elif command == 'settimeout':
                 timeout = tofloat(sys.argv[3])
                 settimeout(vpn, timeout)
-            elif command == 'save':
-                confname = sys.argv[3]
-                save(vpn, confname)
-            elif command == 'visualize':
-                confname = sys.argv[3]
-                visualize(vpn, confname)
             else:
                 print "unknown command"
                 usage()
