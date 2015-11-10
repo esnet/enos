@@ -22,6 +22,7 @@
 
 from layer2.testbed.oscars import getgri,getgrinode,displaygri
 from layer2.testbed.topology import TestbedTopology,getlinks,linkednode
+from layer2.odl.ofctl import corsaforward
 
 
 # Hardcode information about hosts. Eventually this should be discovered by the ENOS
@@ -120,36 +121,79 @@ def display(host):
             datastatus = "Reserved for OVS"
         print "\t\tname", interface['name'],"mac",interface['mac'],datastatus
 
+"""
+ofctl add-flow amst-tb-of-1 vpn1 24 90:e2:ba:89:e5:25 3970 8 90:e2:ba:89:e5:25 100 1
+ofctl add-flow amst-tb-of-1 vpn1-1 24 FF:FF:FF:FF:FF:FF 3970 8 FF:FF:FF:FF:FF:FF 100 1
+ofctl add-flow amst-tb-of-1 5 8 FF:FF:FF:FF:FF:FF 100 24 FF:FF:FF:FF:FF:FF 3970 1
+ofctl add-flow amst-tb-of-1 6 8 90:e2:ba:89:ee:a0 100 24 90:e2:ba:89:ee:a0 3970 1
+
+ofctl add-flow cern-272-tb-of-1 3 23 90:e2:ba:89:ee:a0 3970 5 90:e2:ba:89:ee:a0 100 1
+ofctl add-flow cern-272-tb-of-1 4 23 FF:FF:FF:FF:FF:FF 3970 5 FF:FF:FF:FF:FF:FF 100 1
+ofctl add-flow cern-272-tb-of-1 5 5 FF:FF:FF:FF:FF:FF 100 23 FF:FF:FF:FF:FF:FF 3970 1
+ofctl add-flow cern-272-tb-of-1 6 5 90:e2:ba:89:e5:25 100 23 90:e2:ba:89:e5:25 3970 1
+
+corsaforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan,priority=1,meter=5 )
+"""
+
+def connectdataplane(host,hostport,hostvlan,sw,tohostport,tocoreport,tocorevlan,gri,meter=5):
+    baseid = host +":"+hostport+":"+hostvlan+"-"+gri.getName()
+    index = 0
+    hostmac = getdatapaths(host)[0]['mac']
+    broadcast = "FF:FF:FF:FF:FF:FF"
+    index += 1
+    flowid = baseid + "-" + str(index)
+    corsaforward (sw,
+                  flowid,
+                  tohostport,
+                  broadcast,
+                  hostvlan,
+                  tocoreport,
+                  broadcast,
+                  tocorevlan)
+
+
+
+
 def connectgri(host,gri,hostvlan=100):
+    hostname = host['name']
     pop = topo.builder.popIndex[host['pop']]
     core = pop.props['coreRouter'].name
     (core,coredom,coreport,corevlan) = getgrinode(gri,core)
     datapath = getdatapaths(host)[0] # Assumes the first datapath
     hostport = datapath['name']
-    hwswitch = pop.props['hwSwitch'].name
-    print "datapath",datapath
+    hwswitch = pop.props['hwSwitch']
+    hwswitchname - hwswitch.name
     # Find hwswith/port - core/port
-    links = getlinks(core,hwswitch)
+    links = getlinks(core, hwswitchname)
     corelink = None
     for link in links:
-        (node,port) = linkednode (link,hwswitch)
+        (node,port) = linkednode (link, hwswitchname)
         if port != None and port == coreport:
             # found the link between HwSwith and Core that ends to the OSCARS circuit.
             corelink = link
             break
     (node,hwport_tocore) = linkednode (corelink,core)
     # Find host/prot hwswitch/port
-    links = getlinks(host,hwswitch)
+    links = getlinks(hostname, hwswitchname)
     hostlink = None
     for link in links:
-        (node,port) = linkednode (link,hwswitch)
+        print link,hostport
+        (node,port) = linkednode (link, hwswitchname)
+        print (node,port)
         if port != None and port == hostport:
             # found the link between HwSwith and Core that ends to the OSCARS circuit.
             hostlink = link
             break
-    (node,hwport_tohost) = linkednode (hostlink,host)
-    print host,hostport,"--",hostvlan,'--',hwport_tohost,"##",hwswitch,"##",hwport_tocore,"--",corevlan
-
+    (node,hwport_tohost) = linkednode ( hwswitchname,hostname)
+    #print "Configuring",hostname,hostport,"--",hostvlan,'--',hwport_tohost,"##",hwswitch,"##",hwport_tocore,"--",corevlan
+    connectdataplane(host,
+                     hostport,
+                     hostvlan,
+                     hwswitch,
+                     hwport_tohost,
+                     hwport_tocore,
+                     corevlan,
+                     gri)
 
 
 

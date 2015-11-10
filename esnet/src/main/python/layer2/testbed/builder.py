@@ -36,13 +36,20 @@ from layer2.common.utils import Logger
 #  multiple sites in the same pop must have different portNo! (otherwise, the broadcast won't work.)
 
 # Simulated sites ESnet production diskpt's
+
+vpn=True
+
 lblsite = ["lbl.gov",['lbl-diskpt1@lbl.gov'],"denv"]
 anlsite = ["anl.gov",['anl-diskpt1@anl.gov'],"star"]
 bnlsite = ["bnl.gov",['bnl-diskpt1@bnl.gov'],"aofa"]
 washsite = ["site1.wash",['wash-tbn-1@site1.wash'],"wash"]
-asmtsite = ["site2.amst",['amst-tbn-1@site2.asmt'],"amst"]
+amstsite = ["site2.amst",['amst-tbn-1@site2.asmt'],"amst"]
 cernsite = ["site3.cern",['cern-272-tbn-1@site3.cern'],"cern"]
-sites = [lblsite, anlsite, bnlsite]
+sites = None
+if vpn:
+    sites = [lblsite, anlsite, bnlsite,washsite,amstsite,cernsite]
+else:
+    sites = [lblsite, anlsite, bnlsite]
 
 # DENV
 denvlinks=[
@@ -66,8 +73,10 @@ washlinks_demo = [
     ["wash-cr5","10/1/11","wash-tb-of-1","2",'site'],  # FAKE
     ["wash-ovs","eth10","wash-tb-of-1","1",'hw']
 ]
-
-wash=["wash",'wash-tb-of-1',"wash-cr5","wash-ovs", washlinks]
+if vpn:
+    wash=["wash",'wash-tb-of-1',"wash-cr5","wash-ovs", washlinks_demo]
+else:
+    wash=["wash",'wash-tb-of-1',"wash-cr5","wash-ovs", washlinks]
 
 # AOFA
 aofalinks = [
@@ -115,7 +124,10 @@ amstlinks_demo = [
     ["amst-ovs","eth15","amst-tb-of-1","6",'none'],
     ["amst-ovs","eth16","amst-tb-of-1","7",'none']
 ]
-amst=["amst",'amst-tb-of-1',"amst-cr5","amst-ovs",amstlinks]
+if vpn:
+    amst=["amst",'amst-tb-of-1',"amst-cr5","amst-ovs",amstlinks_demo]
+else:
+    amst=["amst",'amst-tb-of-1',"amst-cr5","amst-ovs",amstlinks]
 
 # CERN
 cernlinks = [
@@ -142,7 +154,10 @@ cernlinks_demo = [
     ["cern-272-ovs","eth12","cern-272-tb-of-1","3",'none'],
     ["cern-272-ovs","eth13","cern-272-tb-of-1","4",'none']
 ]
-cern=["cern",'cern-272-tb-of-1',"cern-272-cr5","cern-272-ovs",cernlinks]
+if vpn:
+    cern=["cern",'cern-272-tb-of-1',"cern-272-cr5","cern-272-ovs",cernlinks_demo]
+else:
+    cern=["cern",'cern-272-tb-of-1',"cern-272-cr5","cern-272-ovs",cernlinks]
 
 # ATLA
 atlalinks = [
@@ -240,49 +255,48 @@ sitecircuits['bnl.gov'] = \
      116]
 
 # The following are simulated links
-"""
-Fake sites for VPN code
-sitecircuits['site1.wash'] = \
-    ['site1.wash',
-     'es.net-fake1',
-     'urn:ogf:network:domain=site1.wash:node=wash:port=xe-9/3/0:link=*',
-     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
-     100]
+if vpn:
+    sitecircuits['site1.wash'] = \
+        ['site1.wash',
+         'es.net-fake1',
+         'urn:ogf:network:domain=site1.wash:node=wash:port=xe-9/3/0:link=*',
+         'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
+         100]
 
-sitecircuits['site2.amst'] = \
-    ['site2.amst',
-     'es.net-fake2',
-     'urn:ogf:network:domain=site2.amst:node=amst:port=xe-9/3/0:link=*',
-     'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/1/4:link=*',
-     100]
+    sitecircuits['site2.amst'] = \
+        ['site2.amst',
+         'es.net-fake2',
+         'urn:ogf:network:domain=site2.amst:node=amst:port=xe-9/3/0:link=*',
+         'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/1/4:link=*',
+         100]
 
-sitecircuits['site3.cern'] = \
-    ['site3.cern',
-     'es.net-fake3',
-     'urn:ogf:network:domain=site3.cern:node=cern:port=xe-9/3/0:link=*',
-     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/1/4:link=*',
-     100]
-"""
-sitecircuits['site1.wash'] = \
-    ['site1.wash',
-     'es.net-fake1',
-     'urn:ogf:network:domain=site1.wash:node=wash-tbn-1:port=eth11:link=*',
-     'urn:ogf:network:domain=es.net:node=wash-tb-of-1:port=2:link=*',
-     100]
+    sitecircuits['site3.cern'] = \
+        ['site3.cern',
+         'es.net-fake3',
+         'urn:ogf:network:domain=site3.cern:node=cern:port=xe-9/3/0:link=*',
+         'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/1/4:link=*',
+         100]
+else:
+    sitecircuits['site1.wash'] = \
+        ['site1.wash',
+         'es.net-fake1',
+         'urn:ogf:network:domain=site1.wash:node=wash-tbn-1:port=eth11:link=*',
+         'urn:ogf:network:domain=es.net:node=wash-tb-of-1:port=2:link=*',
+         100]
 
-sitecircuits['site2.amst'] = \
-    ['site2.amst',
-     'es.net-fake2',
-     'urn:ogf:network:domain=site2.amst:node=amst-tbn-1:port=eth17:link=*',
-     'urn:ogf:network:domain=es.net:node=amst-tb-of-1:port=8link=*',
-     100]
+    sitecircuits['site2.amst'] = \
+        ['site2.amst',
+         'es.net-fake2',
+         'urn:ogf:network:domain=site2.amst:node=amst-tbn-1:port=eth17:link=*',
+         'urn:ogf:network:domain=es.net:node=amst-tb-of-1:port=8link=*',
+         100]
 
-sitecircuits['site3.cern'] = \
-    ['site3.cern',
-     'es.net-fake3',
-     'urn:ogf:network:domain=site3.cern:node=cern-272-tbn-1:port=eth14:link=*',
-     'urn:ogf:network:domain=es.net:node=cern-272-tb-of-1:port=5:link=*',
-     100]
+    sitecircuits['site3.cern'] = \
+        ['site3.cern',
+         'es.net-fake3',
+         'urn:ogf:network:domain=site3.cern:node=cern-272-tbn-1:port=eth14:link=*',
+         'urn:ogf:network:domain=es.net:node=cern-272-tb-of-1:port=5:link=*',
+         100]
 
 
 # SDN POP's

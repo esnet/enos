@@ -88,10 +88,14 @@ def dumpflows(switch,table):
     if (response == None):
         print "No flow"
         return None
+    decodeflow(response)
 
+def decodeflow(response):
     tables = response['flow-node-inventory:table']
     for table in tables:
         tableid = table['id']
+        if not 'flow' in table:
+            return None
         flows = table['flow']
         print "Table ",tableid
         for flow in flows:
@@ -133,7 +137,9 @@ def dumpflows(switch,table):
                         order2 = action['order']
                         if 'output-action' in action:
                             port = action['output-action']['output-node-connector']
-                            max = action['output-action']['max-length']
+                            max = 0
+                            if 'max-length'in action['output-action']:
+                                max = action['output-action']['max-length']
                             print "\t\t\t\torder",order2,"output port",port,"maximum length",max
                             continue
                         if 'set-vlan-pcp-action' in action:
@@ -146,6 +152,10 @@ def dumpflows(switch,table):
                                 vlan = action['set-field']['vlan-match']['vlan-id'] ['vlan-id']
                                 print "\t\t\t\torder",order2,"set field vlan id",vlan,"is present",present
                                 continue
+                            if 'in-port'in action['set-field']:
+                                in_port = action['set-field']['in-port']
+                                print "\t\t\t\torder",order2,"set field in-port",in_port
+                                continue
                         if 'set-dl-dst-action' in action:
                             address = action['set-dl-dst-action']['address']
                             print "\t\t\t\torder",order2,"set dl-dst",address
@@ -157,6 +167,10 @@ def dumpflows(switch,table):
                         if 'set-queue-action' in action:
                             qid = action['set-queue-action']['queue-id']
                             print "\t\t\t\torder",order2,"set queue id",qid
+                            continue
+                        if 'set-vlan-id-action' in action:
+                            vid = action['set-vlan-id-action']['vlan-id']
+                            print "\t\t\t\torder",order2,"set vlan-id",vid
                             continue
                         print "unkwon action:",action
 
@@ -171,6 +185,8 @@ def getflows(switch,table,safe=True):
     ids = []
     tables = response['flow-node-inventory:table']
     for table in tables:
+        if not 'flow' in table:
+            return None
         flows = table['flow']
         for flow in flows:
             delete = True
@@ -220,7 +236,7 @@ def corsaforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vl
     entry += '"in-port":"' + str(in_port) + '",'
     entry += '"ethernet-match":{"ethernet-destination":{"address":"' + in_dst + '"}}},'
     entry += '"priority":' + str(priority) + ','
-    entry += '"instructions":{"instruction":[{"order":1,"meter":{"meter-id":' + str(meter) + '}},'
+    entry += '"instructions":{"instruction":["{"order":1,"meter":{"meter-id":' + str(meter) + '}},'
     entry += '{"order":0,"apply-actions":{"action":[{"order":0,"output-action":{"output-node-connector":"' + out_port + '","max-length":65535}},'
     entry += '{"order":2,"set-vlan-pcp-action":{"vlan-pcp":0}},{"order":1,"set-field":{"vlan-match":{"vlan-id":{"vlan-id":' + str(out_vlan)
     entry += ',"vlan-id-present":True}}}},'
@@ -237,6 +253,50 @@ def ovsforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan
     table = gettable(switch)
     if meter == None:
         meter = 5
+
+def ovsbroadcast(switch,idprefix,in_port,in_vlan,datapaths,priority=1,meter=5):
+    id = makeODLDPID(switch)
+    table = gettable(switch)
+    if meter == None:
+        meter = 5
+    flowid = idprefix + "-broadcast"
+
+    req={"flow-node-inventory:flow":[]}
+    flow = {"table_id": table}
+    req['flow-node-inventory:flow'].append(flow)
+    flow['id'] = flowid
+    match = {"vlan-match":{"vlan-id":{"vlan-id":' + in_vlan + ',"vlan-id-present":True}}}
+    match["in-port"] = in_port
+    match["ethernet-match"] = {"ethernet-destination":{"address":"FF:FF:FF:FF:FF:FF"}}
+
+    flow['match'] = match
+    flow['priority'] = priority
+
+    instructions = {"instruction":[]}
+    flow['instructions'] = instructions
+    inst = {"order":1,"meter":{"meter-id": str(meter)}}
+    instructions['instruction'].append(inst)
+    index = 0
+    actions = []
+    for (out_port,out_vlan) in datapaths:
+        action = {"order": index,"output-action":{"output-node-connector":out_port,"max-length":65535}}
+        actions.append(action)
+        action = {"order": index + 2,"set-vlan-pcp-action":{"vlan-pcp":0}}
+        actions.append(action)
+        action = {"order":index + 1,"set-field":{"vlan-match":{"vlan-id":{"vlan-id":out_vlan},"vlan-id-present":True}}}
+        actions.append(action)
+        action = {"order":index + 4,"set-dl-dst-action":{"address":"FF:FF:FF:FF:FF:FF"}}
+        actions.append(action)
+        action = {"order":index + 3,"set-queue-action":{"queue-id":0}}
+        actions.append(action)
+    inst = {"order":0,"apply-actions":{"action":actions}}
+    instructions['instruction'].append(inst)
+    flow['cookie'] = 0
+    data = json.dumps(req)
+    print data
+    url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/table/" + table + "/flow/" + flowid
+    response = urlsend(url=url,auth=True,method="PUT",data = data)
+
 
 def show(switch):
     if 'dpid' in switch.props:
@@ -321,6 +381,7 @@ def print_syntax():
     print "\tare then assumed. If flow is 'all', then all flows other than PACKET_IN support entries are then"
     print "\tremoved."
     print "\nadd-flow <switch> <flow_id> <in_port> <in_dst> <in_vlan> <out_port> <out_dst> <out_vlan> [meter]"
+    print "\nadd-broadcast <switch> <flow_id> <in_port> <in_vlan> <out1_port> <out1_vlan> .. <outN_port> <outNout_vlan"
 
     print
 
@@ -400,6 +461,18 @@ if __name__ == '__main__':
         if vendor == 2:
             # Corsa
             corsaforward(sw,flow_id,in_port,in_dst,in_vlan,out_port,out_dst,out_vlan,meter)
+    elif cmd == "add-broadcast":
+        sw = getswitch(name=argv[2])
+        flow_id = argv[3]
+        in_port = argv[4]
+        in_vlan = argv[5]
+        out =iter(argv[6:])
+        datapaths = []
+        for port in out:
+            vlan = next(out)
+            datapaths.append((port,vlan))
+        ovsbroadcast(sw,flow_id,in_port,in_vlan,datapaths)
+
     else:
         print "Bad command.  For a command list, run:"
         print "  ofctl help"
