@@ -220,7 +220,7 @@ def deleteflow(switch,table,flowid,safe=True):
     if flowid != "all":
         _deleteflow(switch,table,flowid)
     else:
-        ids = getflows(switch=switch,table=table)
+        ids = getflows(switch=switch,table=table,safe=safe)
         for id in ids:
             print "delete flow",id
             _deleteflow(switch=switch,table=table,flowid=id)
