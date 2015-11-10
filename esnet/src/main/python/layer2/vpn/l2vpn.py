@@ -190,25 +190,42 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         :param flowEntry: a tuple of (mac, vlan, port). mac should be NOT broadcast, and port should be on hwSwitch.
         :return: the output based on flowEntry
         """
+#        print "SDNPopsRenderer.getOutput entry with %r" % flowEntry
         (mac, vlan, port) = flowEntry.get()
         switch = port.props['node']
         myPop = switch.props['pop']
         if port.props['type'].endswith('.WAN'):
+#            print "  From WAN"
             transMac = mac
             originalMac = self.reverse(transMac)
         else:
+#            print "  From Site"
             originalMac = mac
             transMac = self.translate(originalMac)
         site = self.getDstSite(originalMac)
         pop = site.props['pop']
         if pop.name == myPop.name:
+#            print "  To Site"
             outPort = switch.props['sitePortIndex'][site.name]
             outVlan = self.vpn.props['participantIndex'][site.name][2]
             outMac = originalMac
         else:
+#            print "  To WAN"
             outPort = switch.props['wanPortIndex'][pop.name]
-            outVlan = outPort.props['links'][0].props['vlan']
+            # Need to scan through links to find the right VLAN.
+            # That would be the VLAN associated with a link associated with the correct
+            # remote POP.
+            # outVlan = outPort.props['links'][0].props['vlan']
+            outVlan = -1 # Didn't find anything yet.
+            for l in outPort.props['links']:
+                if 'pops' in l.props:
+                    if l.props['pops'][0].name == pop.name or l.props['pops'][1].name == pop.name:
+                        outVlan = l.props['vlan']
+                        break
+            if outVlan == -1:
+                print "Can't find link from POP %s to POP %s" % (myPop.name, pop.name)
             outMac = transMac
+#        print "  return %r" % FlowEntry(outMac, outVlan, outPort)
         return FlowEntry(outMac, outVlan, outPort)
 
     def delFlowEntry(self, flowEntry):
@@ -370,6 +387,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         flowStatus.props['flowmods'] in result:
          [0]: dispatching in hwSwitch
         """
+#        print "SDNPopsRenderer.untapEntry entry with %r" % flowEntry
         self.updateFlowEntry(flowEntry)
         (inMac, inVlan, inPort) = flowEntry.get()
         outFlowEntry = self.getOutput(flowEntry)
@@ -599,7 +617,7 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             remoteWanPort =  remoteHwSwitch.props['wanPortIndex'][myPop.name]
             stitchedRemoteWanPort = remoteHwSwitch.props['stitchedPortIndex'][remoteWanPort.name]
             fe = FlowEntry(self.translate(inMac), outVlan, remoteWanPort)
-            # print "Forward %s to controller on %s" % (str(FlowEntry), remoteHwSwitch.name)
+#            print "Forward %s to controller on %s" % (str(FlowEntry), remoteHwSwitch.name)
             flowRef = remoteHwSwitch.props['controller'].initControllerFlow(remoteHwSwitch, fe)
             bcastKey = remoteWanPort.name + "." + str(outVlan)
             remoteHwScope.props['toControllerFlowRefs'][bcastKey] = flowRef
@@ -1019,12 +1037,63 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         return self.__str__()
 
     def updateSrcMac(self, srcMac, inVlan, inPort):
+#        print "SDNPopsRenderer.updateSrcMac entry with %s, %r, %r" % (srcMac, inVlan, inPort)
         # update the information of which site the mac belongs
         if not inPort.props['type'].endswith('.WAN'): # from site
             if not self.getDstSite(srcMac):
-                self.props['siteIndex'][str(srcMac)] = self.getSrcSite(inVlan, inPort)
-                # a new srcMac is detected, try to tap it for a while
+                srcSite = self.getSrcSite(inVlan, inPort)
+                self.props['siteIndex'][str(srcMac)] = srcSite
+                srcPop = srcSite.props['pop']
+                srcHwSwitch = srcPop.props['hwSwitch']
+
+                # A new srcMac is detected
                 SDNPopsRenderer.logger.info("New mac %s is detected" % srcMac)
+#                print "Learned about MAC %s" % srcMac
+                # Find all the POPs.  On the host's site's POP's hardware switch,
+                # set up forwarding to get from each of the other POPs back to the host.
+                popNames = {}
+                for (site, hosts, siteVlan) in self.vpn.props['participants']:
+                    if site != srcSite:
+                        pop = site.props['pop']
+                        if pop != srcPop and pop.name not in popNames.keys():
+                            # Site on a remote POP we haven't seen yet.  We want to handle inbound
+                            # packets coming over an OSCARS trunk from another POP.  We'll be matching
+                            # on the translated MAC address.
+                            transMac = self.translate(srcMac)
+                            srcTrunkPort = srcHwSwitch.props['wanPortIndex'][pop.name]
+                            # It'd be great to have an index from POPs to sites
+                            # Bascially we need to find the link on the WAN port that goes from pop to srcPop
+                            trunkVlan = -1
+                            for link in srcTrunkPort.props['links']:
+                                if 'pops' in link.props:
+                                    if (link.props['pops'][0].name == pop.name) or (link.props['pops'][1].name == pop.name):
+                                        trunkVlan = link.props['vlan']
+                                        break
+                            if trunkVlan > -1:
+                                # Found it!  Set up forwarding
+#                                print "  Local forward from site %s POP %s with MAC %s, VLAN %r, port %r" % (site.name, pop.name, transMac, trunkVlan, srcTrunkPort)
+                                fe = FlowEntry(transMac, trunkVlan, srcTrunkPort)
+                                outFlowEntry = self.parseFlowEntry(fe)
+                                # Having processed this POP once, we don't need to do it again, even if we
+                                # encounter other sites on the same POP
+                                popNames[pop.name] = pop
+                            else:
+                                print "  Unable to locate link for local forwarding from site %s POP %s, port %r" % (site.name, pop.name, trunkPort)
+
+                # Need to set up forwarding for other sites to get traffic to this MAC
+                # This could include sites on the same POP
+                for (site, hosts, siteVlan) in self.vpn.props['participants']:
+                    if site != srcSite:
+                        pop = site.props['pop']
+                        hwSwitch = pop.props['hwSwitch']
+                        sitePort = hwSwitch.props['sitePortIndex'][site.name]
+                        fe = FlowEntry(srcMac, siteVlan, sitePort)
+
+#                        print "  Remote forward from site %s POP %s with MAC %s, VLAN %r, port %r" % (site.name, pop.name, srcMac, siteVlan, sitePort)
+                        outFlowEntry = self.parseFlowEntry(fe) # causes a bunch of stuff to happen
+                        # Don't do anything with outFlowEntry, we don't have a packet in hand at this point
+
+                # Possibly tap this for awhile
                 if self.props['timeout'] > 0:
                     self.tapMac(srcMac)
                     threading.Timer(self.props['timeout'], SDNPopsRenderer.untapMacTimer, [self.vpn.name, srcMac]).start()
