@@ -20,13 +20,15 @@
 # to permit others to do so.
 #
 
-from layer2.testbed.oscars import getgri,getgrinode,displaygri
+from layer2.testbed.oscars import getgri,getgrinode,displaygri,griendpoints
 from layer2.testbed.topology import TestbedTopology,getlinks,linkednode
 from layer2.odl.ofctl import corsaforward
 
 
 # Hardcode information about hosts. Eventually this should be discovered by the ENOS
 # host agent registering its interfaces and other meta data.
+
+default_controller="aofa-tbn-1.testbed100.es.net"
 
 amst_tbn_1 = {
     'name': 'amst-tbn-1',
@@ -135,13 +137,27 @@ ofctl add-flow cern-272-tb-of-1 6 5 90:e2:ba:89:e5:25 100 23 90:e2:ba:89:e5:25 3
 corsaforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan,priority=1,meter=5 )
 """
 
+def connectremoteplane(host,hostport,hostvlan,hwport_tocore,corevlan,gri,meter=5):
+    global default_controller
+    hostmac = getdatapaths(host)[0]['mac']
+    baseid = host['name'] +":"+hostport+":"+str(hostvlan)+"-"+gri.getName()
+    flowid = baseid + "-broadcast-out"
+    corsaforward (sw,
+                  flowid,
+                  hwport_tocore,
+                  hostmac,
+                  hostvlan,
+                  tocoreport,
+                  broadcast,
+                  tocorevlan,
+                  controller=default_controller)
+
 def connectdataplane(host,hostport,hostvlan,sw,tohostport,tocoreport,tocorevlan,gri,meter=5):
-    baseid = host +":"+hostport+":"+hostvlan+"-"+gri.getName()
-    index = 0
+    global default_controller
+    baseid = host['name'] +":"+hostport+":"+str(hostvlan)+"-"+gri.getName()
     hostmac = getdatapaths(host)[0]['mac']
     broadcast = "FF:FF:FF:FF:FF:FF"
-    index += 1
-    flowid = baseid + "-" + str(index)
+    flowid = baseid + "-broadcast-out"
     corsaforward (sw,
                   flowid,
                   tohostport,
@@ -149,22 +165,46 @@ def connectdataplane(host,hostport,hostvlan,sw,tohostport,tocoreport,tocorevlan,
                   hostvlan,
                   tocoreport,
                   broadcast,
-                  tocorevlan)
+                  tocorevlan,
+                  controller=default_controller)
 
+    flowid = baseid + "-broadcast-in"
+    corsaforward (sw,
+                  flowid,
+                  tocoreport,
+                  hostmac,
+                  tocorevlan,
+                  tohostport,
+                  broadcast,
+                  hostvlan,
+                  controller=default_controller)
 
+    flowid = baseid + "-tohost"
+    corsaforward (sw,
+                  flowid,
+                  tocoreport,
+                  hostmac,
+                  tocorevlan,
+                  tohostport,
+                  hostmac,
+                  hostvlan,
+                  controller=default_controller)
 
-
-def connectgri(host,gri,hostvlan=100):
+def connectlocal (localpop,remotepop,host,gri,hostvlan):
     hostname = host['name']
-    pop = topo.builder.popIndex[host['pop']]
-    core = pop.props['coreRouter'].name
+    core = localpop.props['coreRouter'].name
     (core,coredom,coreport,corevlan) = getgrinode(gri,core)
+    remotecore = remotepop.props['coreRouter'].name
+    (remotecore,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecore)
     datapath = getdatapaths(host)[0] # Assumes the first datapath
     hostport = datapath['name']
-    hwswitch = pop.props['hwSwitch']
-    hwswitchname - hwswitch.name
+    hwswitch = localpop.props['hwSwitch']
+    hwswitchname = hwswitch.name
     # Find hwswith/port - core/port
     links = getlinks(core, hwswitchname)
+    if links == None or len(links) == 0:
+        print "No links from",core,"to",hwswitchname
+        return False
     corelink = None
     for link in links:
         (node,port) = linkednode (link, hwswitchname)
@@ -173,8 +213,27 @@ def connectgri(host,gri,hostvlan=100):
             corelink = link
             break
     (node,hwport_tocore) = linkednode (corelink,core)
+
+    # Find remotehwswith/port - remotecore/port
+    remotehwswitchname = remotepop.props['hwSwitch'].name
+    remotelinks = getlinks(remotecore, remotehwswitchname)
+    if remotelinks == None or len(remotelinks) == 0:
+        print "No links from",remotecore,"to",remotehwswitchname
+        return False
+    remotecorelink = None
+    for remotelink in remotelinks:
+        (remotenode,remoteport) = linkednode (remotelink, remotehwswitchname)
+        if remoteport != None and remoteport == remotecoreport:
+            # found the link between HwSwith and Core that ends to the OSCARS circuit.
+            remotecorelink = remotelink
+            break
+    (remotenode,remotehwport_tocore) = linkednode (remotecorelink,remotecore)
+
     # Find host/prot hwswitch/port
     links = getlinks(hostname, hwswitchname)
+    if links == None or len(links) == 0:
+        print "No links from",hostname,"to",hwswitchname
+        return False
     hostlink = None
     for link in links:
         print link,hostport
@@ -184,8 +243,8 @@ def connectgri(host,gri,hostvlan=100):
             # found the link between HwSwith and Core that ends to the OSCARS circuit.
             hostlink = link
             break
-    (node,hwport_tohost) = linkednode ( hwswitchname,hostname)
-    #print "Configuring",hostname,hostport,"--",hostvlan,'--',hwport_tohost,"##",hwswitch,"##",hwport_tocore,"--",corevlan
+    (node,hwport_tohost) = linkednode ( hostlink,hostname)
+
     connectdataplane(host,
                      hostport,
                      hostvlan,
@@ -195,10 +254,44 @@ def connectgri(host,gri,hostvlan=100):
                      corevlan,
                      gri)
 
+    connectremoteplane(host,
+                       hostport,
+                       hostvlan,
+                       remotehwport_tocore,
+                       corevlan,
+                       gri)
 
+    return True
 
+def connectremote (pop,host,gri,hostvlan):
 
+    return True
 
+def connectgri(host,gri,hostvlan=100):
+    # Get both endpoints of the GRI
+    (e1,e2) = griendpoints(gri)
+    hostpop = topo.builder.popIndex[host['pop']]
+    core1 = topo.builder.switchIndex[e1[1]]
+    core2 = topo.builder.switchIndex[e2[1]]
+    pop1 = core1.props['pop']
+    pop2 = core2.props['pop']
+    remotepop = None
+    if hostpop == pop1:
+        remotepop = pop2
+    elif hostpop == pop2:
+        remotepop = pop1
+    if remotepop == None:
+        print "Provided GRI does not provide connectivity to",host
+        return False
+
+    res = connectlocal(hostpop,remotepop,host,gri,hostvlan)
+    if not res:
+        return
+    res = connectremote(remotepop,host,gri,hostvlan)
+    if not res:
+        # TODO: should clean up connectlocal
+        return
+    return True
 
 
 def print_syntax():
@@ -215,13 +308,16 @@ def print_syntax():
     print
 
 
-if __name__ == '__main__':
-    # Retrieve topology
-    if not 'topo' in globals():
-        topo = TestbedTopology()
-        globals()['topo'] = topo
-    global topo
+# Retrieve topology
+if not 'topo' in globals() or topo == None:
+    topo = TestbedTopology()
+    globals()['topo'] = topo
 
+
+if __name__ == '__main__':
+    global topo
+    print topo
+    print getlinks('amst-tbn-1','amst-tb-of-1')
     argv = sys.argv
 
     cmd = argv[1]

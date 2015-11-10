@@ -72,3 +72,4 @@ def print_stack():
     while frame:
         print '[%r] %r:%r' % (tid, frame.f_code, frame.f_lineno)
         frame = frame.f_back
+

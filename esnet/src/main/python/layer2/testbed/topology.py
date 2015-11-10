@@ -168,6 +168,7 @@ def linkednode(link,host,port=None):
     return (None,None)
 
 def getlinks(node1,node2):
+    global topo
     links = []
     for (name,link) in topo.builder.linkIndex.items():
         (dstNode,dstPort) = linkednode(link,node1)
@@ -188,11 +189,6 @@ def parselink(link):
 def displaylink(link):
     (srcNode,srcPort,dstNode,dstPort,vlan) = parselink(link)
     print "Link src",srcNode,srcPort,"\tdst",dstNode,dstPort,"\tvlan",vlan
-
-
-if not 'topo' in globals() or topo == None:
-    topo = TestbedTopology()
-    globals()['topo'] = topo
 
 def print_syntax():
     print
@@ -215,7 +211,6 @@ if __name__ == '__main__':
         topo = TestbedTopology()
         globals()['topo'] = topo
     global topo
-
     argv = sys.argv
 
     cmd = argv[1]

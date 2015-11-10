@@ -59,8 +59,11 @@ def showactive():
     getswitches()
 
 
-def getswitches():
-    url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/"
+def getswitches(controller=None):
+    global ctrl
+    if controller == None:
+        controller = ctrl
+    url = "http://" + controller + ":8181/restconf/config/opendaylight-inventory:nodes/"
     response = urlsend(url=url,auth=True)
     if response == None:
         print "no active swicthes"
@@ -79,11 +82,14 @@ def getswitches():
     print "\nSwitch list is stored into Pything global variable 'switches'"
     globals()['switches'] = switches
 
-def dumpflows(switch,table):
+def dumpflows(switch,table,controller=None):
+    global ctrl
+    if controller == None:
+        controller = ctrl
     id = makeODLDPID(switch)
     if table == None:
         table = gettable(switch)
-    url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/flow-node-inventory:table/" + table
+    url = "http://" + controller + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/flow-node-inventory:table/" + table
     response = urlsend(url=url,auth=True)
     if (response == None):
         print "No flow"
@@ -174,11 +180,14 @@ def decodeflow(response):
                             continue
                         print "unkwon action:",action
 
-def getflows(switch,table,safe=True):
+def getflows(switch,table,safe=True,controller=None):
+    global ctrl
+    if controller == None:
+        controller = ctrl
     id = makeODLDPID(switch)
     if table == None:
         table = gettable(switch)
-    url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/flow-node-inventory:table/" + table
+    url = "http://" + controller + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/flow-node-inventory:table/" + table
     response = urlsend(url=url,auth=True)
     if (response == None):
         return []
@@ -207,11 +216,14 @@ def getflows(switch,table,safe=True):
     return ids
 
 
-def _deleteflow(switch,table,flowid):
+def _deleteflow(switch,table,flowid,controller=None):
+    global ctrl
+    if controller == None:
+        controller = ctrl
     id = makeODLDPID(switch)
     if table == None:
         table = gettable(switch)
-    url ="http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + \
+    url ="http://" + controller + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + \
          id + "/flow-node-inventory:table/" + table + "/flow/" + flowid
     response = urlsend(url=url,auth=True,method="DELETE")
 
@@ -225,7 +237,10 @@ def deleteflow(switch,table,flowid,safe=True):
             print "delete flow",id
             _deleteflow(switch=switch,table=table,flowid=id)
 
-def corsaforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan,priority=1,meter=5 ):
+def corsaforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan,priority=1,meter=5,controller=None ):
+    global ctrl
+    if controller == None:
+        controller = ctrl
     id = makeODLDPID(switch)
     table = gettable(switch)
     if meter == None:
@@ -236,7 +251,7 @@ def corsaforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vl
     entry += '"in-port":"' + str(in_port) + '",'
     entry += '"ethernet-match":{"ethernet-destination":{"address":"' + in_dst + '"}}},'
     entry += '"priority":' + str(priority) + ','
-    entry += '"instructions":{"instruction":["{"order":1,"meter":{"meter-id":' + str(meter) + '}},'
+    entry += '"instructions":{"instruction":[{"order":1,"meter":{"meter-id":' + str(meter) + '}},'
     entry += '{"order":0,"apply-actions":{"action":[{"order":0,"output-action":{"output-node-connector":"' + out_port + '","max-length":65535}},'
     entry += '{"order":2,"set-vlan-pcp-action":{"vlan-pcp":0}},{"order":1,"set-field":{"vlan-match":{"vlan-id":{"vlan-id":' + str(out_vlan)
     entry += ',"vlan-id-present":True}}}},'
@@ -245,7 +260,7 @@ def corsaforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vl
     flow = eval (entry)
     data = json.dumps(flow)
 
-    url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/table/" + table + "/flow/" + flowid
+    url = "http://" + controller + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/table/" + table + "/flow/" + flowid
     response = urlsend(url=url,auth=True,method="PUT",data = data)
 
 def ovsforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan,priority=1,meter=5 ):
@@ -254,7 +269,10 @@ def ovsforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan
     if meter == None:
         meter = 5
 
-def ovsbroadcast(switch,idprefix,in_port,in_vlan,datapaths,priority=1,meter=5):
+def ovsbroadcast(switch,idprefix,in_port,in_vlan,datapaths,priority=1,meter=5,controller=None):
+    global ctrl
+    if controller == None:
+        controller = ctrl
     id = makeODLDPID(switch)
     table = gettable(switch)
     if meter == None:
@@ -294,7 +312,7 @@ def ovsbroadcast(switch,idprefix,in_port,in_vlan,datapaths,priority=1,meter=5):
     flow['cookie'] = 0
     data = json.dumps(req)
     print data
-    url = "http://" + ctrl + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/table/" + table + "/flow/" + flowid
+    url = "http://" + controller + ":8181/restconf/config/opendaylight-inventory:nodes/node/" + id + "/table/" + table + "/flow/" + flowid
     response = urlsend(url=url,auth=True,method="PUT",data = data)
 
 
@@ -305,7 +323,7 @@ def show(switch):
     return None
 
 def makeODLDPID(switch):
-    hexdpid = binascii.hexlify(sw.props['dpid'])
+    hexdpid = binascii.hexlify(switch.props['dpid'])
     bindpid = str(int(hexdpid,16))
     return "openflow:" + bindpid
 
@@ -388,11 +406,12 @@ def print_syntax():
 
 if __name__ == '__main__':
     # Retrieve topology
-    if not 'topo' in globals():
+    if not 'topo' in globals() or topo == None:
         topo = TestbedTopology()
         globals()['topo'] = topo
 
     global topo
+    global ctrl
 
     argv = sys.argv
 

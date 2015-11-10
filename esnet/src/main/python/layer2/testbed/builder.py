@@ -37,7 +37,7 @@ from layer2.common.utils import Logger
 
 # Simulated sites ESnet production diskpt's
 
-vpn=True
+vpn=False
 
 lblsite = ["lbl.gov",['lbl-diskpt1@lbl.gov'],"denv"]
 anlsite = ["anl.gov",['anl-diskpt1@anl.gov'],"star"]
@@ -703,8 +703,8 @@ class TopoBuilder ():
         f.close()
 
 if __name__ == '__main__':
-    topo = TopoBuilder()
-    topo.displaySwitches()
+    builder = TopoBuilder()
+    builder.displaySwitches()
 
 
 	

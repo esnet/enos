@@ -26,7 +26,7 @@ from org.joda.time import DateTime
 
 
 topology = TopologyFactory.instance()
-topo = topology.retrieveTopologyProvider("localLayer2")
+esnet = topology.retrieveTopologyProvider("localLayer2")
 
 def makeURN (node,domain="es.net",port="",link=""):
     """
@@ -79,7 +79,7 @@ def getgri(name):
     start = DateTime.now()
     end = start.plusHours(2)
     gris={}
-    reservations = OSCARSReservations(topo).retrieveScheduledCircuits()
+    reservations = OSCARSReservations(esnet).retrieveScheduledCircuits()
     for res in reservations:
         if name == res.getName():
             return res
@@ -87,7 +87,7 @@ def getgri(name):
 
 def getgris(match=None):
     gris={}
-    reservations = OSCARSReservations(topo).retrieveScheduledCircuits()
+    reservations = OSCARSReservations(esnet).retrieveScheduledCircuits()
     for res in reservations:
         gri = res.getName()
         desc = res.getDescription()
@@ -108,10 +108,27 @@ def decodeURN(urn):
         vlan = tmp[5].split(".")[1]
     return  (domain,node,port,vlan)
 
+def griendpoints(gri):
+    endpoint1 = None
+    endpoint2 = None
+    globals()['gri'] = gri
+    segments = gri.getSegments()
+    for segment in segments:
+        ports = segment.getPorts()
+        (srcDom,srcNode,srcPort,srcVlan) = decodeURN(ports[0])
+        if endpoint1 == None:
+            endpoint1 = (srcDom,srcNode,srcPort,srcVlan)
+        # Only the last tuple of the iteration is the endpoint. We are interested, as destination, to the port
+        # on the core router, which is the last source.
+        endpoint2 =  (srcDom,srcNode,srcPort,srcVlan)
+    return (endpoint1,endpoint2)
+
 def displaygri(gri,name=None):
     if name == None:
         name = gri.getName()
+    (e1,e2) = griendpoints(gri)
     print "GRI",name,"\t",gri.getDescription()
+    print "\tfrom",e1[1],e1[0],e1[2],e1[3],"dest",e2[1],e2[0],e2[2],e2[3]
     print "\tstart",gri.getStartDateTime(),"ends",gri.getEndDateTime()
     print "\t\tPath:"
     segments = gri.getSegments()
@@ -119,7 +136,7 @@ def displaygri(gri,name=None):
         ports = segment.getPorts()
         (srcDom,srcNode,srcPort,srcVlan) = decodeURN(ports[0])
         (dstDom,dstNode,dstPort,dstVlan) = decodeURN(ports[1])
-        print "\t\t",srcNode + "@" + srcDom,"port",srcPort,"vlan",srcVlan,"---",dstNode + "@" + dstDom,"port",dstPort,"vlan",dstVlan
+        print "\t\t",srcNode + "@" + srcDom,"port",srcPort,"vlan",srcVlan,"\t---",dstNode + "@" + dstDom,"port",dstPort,"vlan",dstVlan
 
 
 
@@ -150,7 +167,7 @@ if __name__ == '__main__':
             if 'grep' in argv:
                 match = argv[4]
             for (name,gri) in getgris(match=match).items():
-                displaygri(name,gri)
+                displaygri(gri=gri,name=name)
                 print
         else:
             gri = getgri(argv[2])
