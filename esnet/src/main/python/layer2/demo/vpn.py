@@ -18,7 +18,35 @@
 # distribute copies to the public, perform publicly and display publicly, and
 # to permit others to do so.
 #
-from layer2.common.api import VPN
+from layer2.common.mac import MACAddress
+
+sites = {
+    'wash' : {'name':"wash",'hosts':{'wash-tbn-1':{'interface':'eth11'}}},
+    'amst' : {'name':"amst",'hosts':{'amst-tbn-1':{'interface':'eth17'}}},
+    'cern' : {'name':"cern",'hosts':{'cern-272-tbn-1':{'interface':'eth14'}}}
+}
+
+class VPN():
+    def __init__(self,name):
+        self.name = name
+        self.pops = {}
+        self.sites = {}
+    def addpop(self,pop):
+        self.pops[pop.name] = pop
+        return True
+    def delpop(self,pop):
+        del self.pops[pop.name]
+        return True
+    def addsite(self,site):
+        self.sites[site['name']] = site
+        return True
+    def delsite(self,site):
+        del self.sites[site['name']]
+        return True
+    def addhost(self,host):
+        return True
+    def delhost(self,host):
+        return True
 
 def usage():
     print "usage:"
@@ -90,7 +118,10 @@ def tovpn(s):
 def topop(s):
     return get(topo.builder.pops, topo.builder.popIndex, s)
 def tosite(s):
-    return get(topo.builder.siteIndex.values(), topo.builder.siteIndex, s)
+        if s in sites:
+            return sites[s]
+        else:
+            return None
 def tohost(s):
     return get(topo.builder.hostIndex.values(), topo.builder.hostIndex, s)
 
@@ -114,7 +145,6 @@ def delete(vpnname):
         print "vpn name %s not found" % vpnname
         return
     vpn = vpnIndex[vpnname]
-    renderer = vpn.props['renderer']
     vpnIndex.pop(vpn.name)
     vpns.remove(vpn)
 
@@ -127,38 +157,35 @@ def kill(vpnname):
         for host in hosts:
             delhost(vpn, host)
         delsite(vpn, site)
-    renderer = vpn.props['renderer']
-    for pop in renderer.props['popIndex'].values():
-        delpop(vpn, pop)
     delete(vpnname)
 
 def execute(vpn):
-    vpn.props['renderer'].execute()
+    return
 
 def addpop(vpn, pop):
+    vpn.addpop(pop)
     print "Pop %s is added into VPN %s successfully." % (pop.name, vpn.name)
 
 def delpop(vpn, pop):
+    vpn.delpop(pop)
     print "Pop %s had been removed from VPN %s successfully." % (pop.name, vpn.name)
 
 def addsite(vpn, site):
-
-    if not vpn.addSite(site):
+    if not vpn.addsite(site):
         print "something's wrong while adding the site."
         # possible issues: duplicated site
         return
-    print "The site %s is added into VPN %s successfully" % (site.name, vpn.name)
+    print "The site %s is added into VPN %s successfully" % (site['name, vpn.name)
 
 def delsite(vpn, site):
-    siteVlan = vpn.props['participantIndex'][site.name][2]
     if not vpn.checkSite(site):
         print "site not found in the vpn"
         return
-    vpn.delSite(site)
+    vpn.delsite(site)
 
 def addhost(vpn, host):
     print "vpn addhost",host
-    if not vpn.addHost(host):
+    if not vpn.addhost(host):
         print "something wrong while adding the host; Please make sure that the site of the host joined the VPN."
         return
 
@@ -197,9 +224,7 @@ def settimeout(vpn, timeout):
     vpn.props['renderer'].setTimeout(timeout)
 
 def main():
-    if not 'topo' in globals():
-        print 'Please run demo first'
-        return
+
     try:
         command = sys.argv[1].lower()
         if command == 'create':
@@ -225,6 +250,9 @@ def main():
             elif command == 'setprio':
                 vpn.setPriority(sys.argv[3])
             elif command == 'addpop':
+                if not sys.argv[3] in topo.builder.popIndex:
+                    print "unknown SDN POP"
+                    return
                 pop = topo.builder.popIndex[sys.argv[3]]
                 addpop(vpn, pop)
             elif command == 'delpop':
@@ -232,9 +260,15 @@ def main():
                 delpop(vpn, pop)
             elif command == 'addsite':
                 site = tosite(sys.argv[3])
+                if site == None:
+                    print "unknown site"
+                    return
                 addsite(vpn, site)
             elif command == 'delsite':
                 site = tosite(sys.argv[3])
+                if site == None:
+                    print "unknown site"
+                    return
                 delsite(vpn, site)
             elif command == 'addhost':
                 host = tohost(sys.argv[3])
@@ -246,9 +280,15 @@ def main():
                 delhost(vpn, host)
             elif command == 'tapsite':
                 site = tosite(sys.argv[3])
+                if site == None:
+                    print "unknown site"
+                    return
                 tapsite(vpn, site)
             elif command == 'untapsite':
                 site = tosite(sys.argv[3])
+                if site == None:
+                    print "unknown site"
+                    return
                 untapsite(vpn, site)
             elif command == 'taphost':
                 host = tohost(sys.argv[3])
@@ -279,6 +319,10 @@ def main():
         #        usage()
         raise
 
+# Retrieve topology
+if not 'topo' in globals() or topo == None:
+    topo = TestbedTopology()
+    globals()['topo'] = topo
 if 'vpnIndex' not in globals() or vpnIndex == None:
     vpnIndex = {}
     globals()['vpnIndex'] = vpnIndex
