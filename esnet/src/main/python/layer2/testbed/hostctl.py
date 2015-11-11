@@ -23,6 +23,7 @@
 from layer2.testbed.oscars import getgri,getgrinode,displaygri,griendpoints
 from layer2.testbed.topology import TestbedTopology,getlinks,linkednode
 from layer2.odl.ofctl import corsaforward
+from layer2.testbed.topology import TestbedTopology
 
 
 # Hardcode information about hosts. Eventually this should be discovered by the ENOS
@@ -122,7 +123,7 @@ def display(host):
             datastatus = "Reserved for OVS"
         print "\t\tname", interface['name'],"mac",interface['mac'],datastatus
 
-def connectremoteplane(switch,host,hostvlan,remotehost_port,remotehost, remotehost_vlan, remotehwport_tocore,corevlan,gri,meter=5,dobroadcast=False):
+def connectremoteplane(switch,host,hostvlan,remotehost_port,remotehost, remotehost_vlan, remotehwport_tocore,corevlan,gri,meter=3,dobroadcast=False):
     global default_controller
     hostmac = getdatapaths(host)[0]['mac']
     remotehost_mac = getdatapaths(remotehost)[0]['mac']
@@ -139,10 +140,11 @@ def connectremoteplane(switch,host,hostvlan,remotehost_port,remotehost, remoteho
                   remotehwport_tocore,
                   hostmac,
                   corevlan,
+                  meter,
                   controller=default_controller)
 
 
-def connectdataplane(switch, host,hostport,hostvlan,sw,tohostport,tocoreport,tocorevlan,gri,meter=5,dobroadcast=False):
+def connectdataplane(switch, host,hostport,hostvlan,sw,tohostport,tocoreport,tocorevlan,gri,meter=3,dobroadcast=False):
     global default_controller
     baseid = host['name'] +":"+hostport+":"+str(hostvlan)+"-"+gri.getName()
     hostmac = getdatapaths(host)[0]['mac']
@@ -157,6 +159,7 @@ def connectdataplane(switch, host,hostport,hostvlan,sw,tohostport,tocoreport,toc
                       tocoreport,
                       broadcast,
                       tocorevlan,
+                      meter,
                       controller=default_controller)
 
         flowid = baseid + "-broadcast-in"
@@ -168,6 +171,7 @@ def connectdataplane(switch, host,hostport,hostvlan,sw,tohostport,tocoreport,toc
                       tohostport,
                       broadcast,
                       hostvlan,
+                      meter,
                       controller=default_controller)
 
     flowid = baseid + "-to-host"
@@ -179,6 +183,7 @@ def connectdataplane(switch, host,hostport,hostvlan,sw,tohostport,tocoreport,toc
                   tohostport,
                   hostmac,
                   hostvlan,
+                  meter,
                   controller=default_controller)
 
 
@@ -204,7 +209,7 @@ def getgriport(hwswitch,core,griport):
     (node,hwport_tocore) = linkednode (corelink,corename)
     return hwport_tocore
 
-def connect (localpop,remotepop,host,remotehost,gri,hostvlan,remotehostvlan):
+def connect (localpop,remotepop,host,remotehost,gri,hostvlan,remotehostvlan,meter=3):
     hostname = host['name']
     remotehostname = remotehost['name']
     core = localpop.props['coreRouter']
@@ -249,7 +254,8 @@ def connect (localpop,remotepop,host,remotehost,gri,hostvlan,remotehostvlan):
                      hwport_tohost,
                      hwport_tocore,
                      corevlan,
-                     gri)
+                     gri,
+                     meter)
 
     # Find the port on the remote HwSwitch that is connected to the remote host's port
     links = getlinks(remotehostname, remotehwswitchname)
@@ -274,12 +280,13 @@ def connect (localpop,remotepop,host,remotehost,gri,hostvlan,remotehostvlan):
                        remotehost_vlan = remotehostvlan,
                        remotehwport_tocore =remotehwport_tocore,
                        corevlan = corevlan,
-                       gri = gri)
+                       gri = gri,
+                       meter = meter)
 
     return True
 
 
-def connectgri(host,gri,remotehost,hostvlan,remotehostvlan):
+def connectgri(host,gri,remotehost,hostvlan,remotehostvlan,meter=3):
     # Get both endpoints of the GRI
     (e1,e2) = griendpoints(gri)
     hostpop = topo.builder.popIndex[host['pop']]
@@ -302,7 +309,8 @@ def connectgri(host,gri,remotehost,hostvlan,remotehostvlan):
                   remotehost = remotehost,
                   gri = gri,
                   hostvlan = hostvlan,
-                  remotehostvlan = remotehostvlan)
+                  remotehostvlan = remotehostvlan,
+                  meter = meter)
     if not res:
         return
 

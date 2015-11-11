@@ -21,6 +21,7 @@
 from layer2.common.mac import MACAddress
 from layer2.testbed.hostctl import connectgri,tbns
 from layer2.testbed.oscars import getgri
+from layer2.testbed.topology import TestbedTopology
 
 sites = {
     'wash' : {'name':"wash",'hosts':{'wash-tbn-1':{'interface':'eth11'}},"links":{'amst':'es.net-5956','cern':'es.net-5954'},'connected':{}},
@@ -52,6 +53,9 @@ class VPN():
         self.name = name
         self.pops = {}
         self.vpnsites = {}
+        self.priority = "low"
+        self.meter = 3
+
     def getsite(self,host):
         for (s,site) in self.vpnsites.items():
             if host['name'] in site['hosts']:
@@ -80,13 +84,24 @@ class VPN():
                 gri = interconnect(hostsite,site)
                 remotehost = tbns[r]
                 # Add flows coming from other sites
-                connectgri(host=host,hostvlan=vlan,remotehost=remotehost,remotehostvlan = remotevlan,gri=gri)
+                connectgri(host=host,hostvlan=vlan,remotehost=remotehost,remotehostvlan = remotevlan,gri=gri,meter=self.meter)
                 # Add flows going to other sites
-                connectgri(host=remotehost,hostvlan=remotevlan,remotehost=host,remotehostvlan=vlan,gri=gri)
+                connectgri(host=remotehost,hostvlan=remotevlan,remotehost=host,remotehostvlan=vlan,gri=gri,meter=self.meter)
 
         return True
     def delhost(self,host):
         return True
+
+    def setpriority(self,priority):
+        self.priority = priority
+        if priority == 'high':
+            meter = 5
+        else:
+            meter = 3
+
+    def getpriority(self,priority):
+        return self.priority
+
 
 def usage():
     print "usage:"
@@ -280,10 +295,10 @@ def main():
             if command == 'execute':
                 execute(vpn)
             elif command == 'getprio':
-                prio = vpn.getPriority()
+                prio = vpn.setriority()
                 print prio
             elif command == 'setprio':
-                vpn.setPriority(sys.argv[3])
+                vpn.setpriority(sys.argv[3])
             elif command == 'addpop':
                 if not sys.argv[3] in topo.builder.popIndex:
                     print "unknown SDN POP"
