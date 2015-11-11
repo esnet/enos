@@ -92,6 +92,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         self.vpn = intent.vpn
         self.wan = intent.wan
 
+        self.debug = 0
+
         self.lock = threading.Lock() # protection for tapping/untapping
         self.active = False
         self.activePorts = {}
@@ -190,27 +192,32 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         :param flowEntry: a tuple of (mac, vlan, port). mac should be NOT broadcast, and port should be on hwSwitch.
         :return: the output based on flowEntry
         """
-#        print "SDNPopsRenderer.getOutput entry with %r" % flowEntry
+        if self.debug:
+            print "SDNPopsRenderer.getOutput entry with %r" % flowEntry
         (mac, vlan, port) = flowEntry.get()
         switch = port.props['node']
         myPop = switch.props['pop']
         if port.props['type'].endswith('.WAN'):
-#            print "  From WAN"
+            if self.debug:
+                print "  From WAN"
             transMac = mac
             originalMac = self.reverse(transMac)
         else:
-#            print "  From Site"
+            if self.debug:
+                print "  From Site"
             originalMac = mac
             transMac = self.translate(originalMac)
         site = self.getDstSite(originalMac)
         pop = site.props['pop']
         if pop.name == myPop.name:
-#            print "  To Site"
+            if self.debug:
+                print "  To Site"
             outPort = switch.props['sitePortIndex'][site.name]
             outVlan = self.vpn.props['participantIndex'][site.name][2]
             outMac = originalMac
         else:
-#            print "  To WAN"
+            if self.debug:
+                print "  To WAN"
             outPort = switch.props['wanPortIndex'][pop.name]
             # Need to scan through links to find the right VLAN.
             # That would be the VLAN associated with a link associated with the correct
@@ -225,7 +232,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             if outVlan == -1:
                 print "Can't find link from POP %s to POP %s" % (myPop.name, pop.name)
             outMac = transMac
-#        print "  return %r" % FlowEntry(outMac, outVlan, outPort)
+        if self.debug:
+            print "  return %r" % FlowEntry(outMac, outVlan, outPort)
         return FlowEntry(outMac, outVlan, outPort)
 
     def delFlowEntry(self, flowEntry):
@@ -387,7 +395,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         flowStatus.props['flowmods'] in result:
          [0]: dispatching in hwSwitch
         """
-#        print "SDNPopsRenderer.untapEntry entry with %r" % flowEntry
+        if self.debug:
+            print "SDNPopsRenderer.untapEntry entry with %r" % flowEntry
         self.updateFlowEntry(flowEntry)
         (inMac, inVlan, inPort) = flowEntry.get()
         outFlowEntry = self.getOutput(flowEntry)
@@ -514,7 +523,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
     def createBroadcastEntry(self, flowEntry, tapped):
         SDNPopsRenderer.logger.info("%r.createBroadcastEntry(%r,%r)" % (self.name, flowEntry, tapped))
-        # print "SDNPopsRenderer.createBroadcastEntry for %r (%r,%r)" % (self.name, flowEntry, tapped)
+        if self.debug:
+            print "SDNPopsRenderer.createBroadcastEntry for %r (%r,%r)" % (self.name, flowEntry, tapped)
         self.updateFlowEntry(flowEntry)
         (inMac, inVlan, inPort) = flowEntry.get()
         hwSwitch = inPort.props['node']
@@ -617,7 +627,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             remoteWanPort =  remoteHwSwitch.props['wanPortIndex'][myPop.name]
             stitchedRemoteWanPort = remoteHwSwitch.props['stitchedPortIndex'][remoteWanPort.name]
             fe = FlowEntry(self.translate(inMac), outVlan, remoteWanPort)
-#            print "Forward %s to controller on %s" % (str(FlowEntry), remoteHwSwitch.name)
+            if self.debug:
+                print "Forward %s to controller on %s" % (str(FlowEntry), remoteHwSwitch.name)
             flowRef = remoteHwSwitch.props['controller'].initControllerFlow(remoteHwSwitch, fe)
             bcastKey = remoteWanPort.name + "." + str(outVlan)
             remoteHwScope.props['toControllerFlowRefs'][bcastKey] = flowRef
@@ -653,7 +664,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
          [-1]: forwarding from coreRouter to swSwitch in hwSwitch
         """
         k = flowEntry.key()
-        print "tapBroadcastEntry with k " + k
+        if self.debug:
+            print "tapBroadcastEntry with k " + k
         if not k in self.props['statusIndex']:
             return self.createBroadcastEntry(flowEntry, True)
 
@@ -698,7 +710,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
          [-1]: forwarding from coreRouter to swSwitch in hwSwitch
         """
         k = flowEntry.key()
-        print "untapBroadcastEntry with k " + k
+        if self.debug:
+            print "untapBroadcastEntry with k " + k
         if not k in self.props['statusIndex']:
             print "  not in index"
             return self.createBroadcastEntry(flowEntry, False)
@@ -1037,7 +1050,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         return self.__str__()
 
     def updateSrcMac(self, srcMac, inVlan, inPort):
-#        print "SDNPopsRenderer.updateSrcMac entry with %s, %r, %r" % (srcMac, inVlan, inPort)
+        if self.debug:
+            print "SDNPopsRenderer.updateSrcMac entry with %s, %r, %r" % (srcMac, inVlan, inPort)
         # update the information of which site the mac belongs
         if not inPort.props['type'].endswith('.WAN'): # from site
             if not self.getDstSite(srcMac):
@@ -1048,7 +1062,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
 
                 # A new srcMac is detected
                 SDNPopsRenderer.logger.info("New mac %s is detected" % srcMac)
-#                print "Learned about MAC %s" % srcMac
+                if self.debug:
+                    print "Learned about MAC %s" % srcMac
                 # Find all the POPs.  On the host's site's POP's hardware switch,
                 # set up forwarding to get from each of the other POPs back to the host.
                 popNames = {}
@@ -1071,7 +1086,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                                         break
                             if trunkVlan > -1:
                                 # Found it!  Set up forwarding
-#                                print "  Local forward from site %s POP %s with MAC %s, VLAN %r, port %r" % (site.name, pop.name, transMac, trunkVlan, srcTrunkPort)
+                                if self.debug:
+                                    print "  Local forward from site %s POP %s with MAC %s, VLAN %r, port %r" % (site.name, pop.name, transMac, trunkVlan, srcTrunkPort)
                                 fe = FlowEntry(transMac, trunkVlan, srcTrunkPort)
                                 outFlowEntry = self.parseFlowEntry(fe)
                                 # Having processed this POP once, we don't need to do it again, even if we
@@ -1089,7 +1105,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
                         sitePort = hwSwitch.props['sitePortIndex'][site.name]
                         fe = FlowEntry(srcMac, siteVlan, sitePort)
 
-#                        print "  Remote forward from site %s POP %s with MAC %s, VLAN %r, port %r" % (site.name, pop.name, srcMac, siteVlan, sitePort)
+                        if self.debug:
+                            print "  Remote forward from site %s POP %s with MAC %s, VLAN %r, port %r" % (site.name, pop.name, srcMac, siteVlan, sitePort)
                         outFlowEntry = self.parseFlowEntry(fe) # causes a bunch of stuff to happen
                         # Don't do anything with outFlowEntry, we don't have a packet in hand at this point
 
@@ -1116,8 +1133,9 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
         hwPort = link.props['portIndex'][hwSwitch.name]
         hwInPort = hwSwitch.props['stitchedPortIndex'][hwPort.name]
 
-#        print "SDNPopsRenderer.swSwitchEventListener entry (%s, %s)" % (swSwitch.name, swInPort.name)
-#        print "  coming from (%s, %s), stitched from %s" % (hwSwitch.name, hwPort.name, hwInPort.name)
+        if self.debug:
+            print "SDNPopsRenderer.swSwitchEventListener entry (%s, %s)" % (swSwitch.name, swInPort.name)
+            print "  coming from (%s, %s), stitched from %s" % (hwSwitch.name, hwPort.name, hwInPort.name)
 
         self.updateSrcMac(srcMac, inVlan, hwInPort)
 
@@ -1176,7 +1194,8 @@ class SDNPopsRenderer(ProvisioningRenderer,ScopeOwner):
             etherType = event.props['ethertype']
             payload = event.props['payload']
 
-#            print "SDNPopsRenderer.eventListener entry (%s, %s)" % (switch.name, inPort.name)
+            if self.debug:
+                print "SDNPopsRenderer.eventListener entry (%s, %s)" % (switch.name, inPort.name)
 
             self.updateSrcMac(srcMac, inVlan, inPort)
 
