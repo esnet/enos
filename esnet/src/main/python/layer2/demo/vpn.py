@@ -80,8 +80,8 @@ class VPN():
                 gri = interconnect(hostsite,site)
                 remotehost = tbns[r]
                 # Add flows coming from other sites
-                connectgri(host=host,hostvlan=vlan,remotehost=remotehost,gri=gri)
-
+                connectgri(host=host,hostvlan=vlan,remotehost=remotehost,remotehostvlan = remotevlan,gri=gri)
+                # Add flows going to other sites
 
         return True
     def delhost(self,host):

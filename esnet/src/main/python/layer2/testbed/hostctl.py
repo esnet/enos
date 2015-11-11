@@ -122,29 +122,32 @@ def display(host):
             datastatus = "Reserved for OVS"
         print "\t\tname", interface['name'],"mac",interface['mac'],datastatus
 
-def connectremoteplane(switch,host,hostport,hostvlan,hwport_tocore,corevlan,gri,meter=5,dobroadcast=False):
+def connectremoteplane(switch,host,hostvlan,remotehost_port,remotehost, remotehost_vlan, remotehwport_tocore,corevlan,gri,meter=5,dobroadcast=False):
     global default_controller
     hostmac = getdatapaths(host)[0]['mac']
-    baseid = host['name'] +":"+hostport+":"+str(hostvlan)+"-"+gri.getName()
+    remotehost_mac = getdatapaths(remotehost)[0]['mac']
+    baseid = host['name'] + ":"+str(hostvlan)+"-"+gri.getName()
     if dobroadcast:
         flowid = baseid + "-broadcast-out"
         broadcast = "FF:FF:FF:FF:FF:FF"
-        corsaforward (switch,
-                      flowid,
-                      hwport_tocore,
-                      hostmac,
-                      hostvlan,
-                      hostport,
-                      broadcast,
-                      hostvlan,
-                      controller=default_controller)
+    flowid = baseid + "to-remote-host"
+    corsaforward (switch,
+                  flowid,
+                  remotehost_port,
+                  hostmac,
+                  remotehost_vlan,
+                  remotehwport_tocore,
+                  remotehost_mac,
+                  corevlan,
+                  controller=default_controller)
+
 
 def connectdataplane(switch, host,hostport,hostvlan,sw,tohostport,tocoreport,tocorevlan,gri,meter=5,dobroadcast=False):
     global default_controller
     baseid = host['name'] +":"+hostport+":"+str(hostvlan)+"-"+gri.getName()
     hostmac = getdatapaths(host)[0]['mac']
-    broadcast = "FF:FF:FF:FF:FF:FF"
     if dobroadcast:
+        broadcast = "FF:FF:FF:FF:FF:FF"
         flowid = baseid + "-broadcast-out"
         corsaforward (switch,
                       flowid,
@@ -201,8 +204,9 @@ def getgriport(hwswitch,core,griport):
     (node,hwport_tocore) = linkednode (corelink,corename)
     return hwport_tocore
 
-def connectlocal (localpop,remotepop,host,gri,hostvlan):
+def connect (localpop,remotepop,host,remotehost,gri,hostvlan,remotehostvlan):
     hostname = host['name']
+    remotehostname = remotehost['name']
     core = localpop.props['coreRouter']
     corename = core.name
     (corename,coredom,coreport,corevlan) = getgrinode(gri,corename)
@@ -211,6 +215,8 @@ def connectlocal (localpop,remotepop,host,gri,hostvlan):
     (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecorename)
     datapath = getdatapaths(host)[0] # Assumes the first datapath
     hostport = datapath['name']
+    remotedatapath = getdatapaths(remotehost)[0] # Assumes the first datapath
+    remotehostport = remotedatapath['name']
     hwswitch = localpop.props['hwSwitch']
     hwswitchname = hwswitch.name
     remotehwswitch = remotepop.props['hwSwitch']
@@ -221,7 +227,7 @@ def connectlocal (localpop,remotepop,host,gri,hostvlan):
     # Find remotehwswith/port - remotecore/port
     remotehwport_tocore = getgriport(remotehwswitch,remotecore,remotecoreport)
 
-    # Find host/prot hwswitch/port
+    # Find the port on the HwSwitch that is connected to the host's port
     links = getlinks(hostname, hwswitchname)
     if links == None or len(links) == 0:
         print "No links from",hostname,"to",hwswitchname
@@ -230,7 +236,7 @@ def connectlocal (localpop,remotepop,host,gri,hostvlan):
     for link in links:
         (node,port) = linkednode (link, hwswitchname)
         if port != None and port == hostport:
-            # found the link between HwSwith and Core that ends to the OSCARS circuit.
+            # found the link
             hostlink = link
             break
     (node,hwport_tohost) = linkednode ( hostlink,hostname)
@@ -245,21 +251,35 @@ def connectlocal (localpop,remotepop,host,gri,hostvlan):
                      corevlan,
                      gri)
 
-    connectremoteplane(remotehwswitch,
-                       host,
-                       hostport,
-                       hostvlan,
-                       remotehwport_tocore,
-                       corevlan,
-                       gri)
+    # Find the port on the remote HwSwitch that is connected to the remote host's port
+    links = getlinks(remotehostname, remotehwswitchname)
+    if links == None or len(links) == 0:
+        print "No links from",remotehostname,"to",remotehwswitchname
+        return False
+    hostlink = None
+    for link in links:
+        (node,port) = linkednode (link, remotehwswitchname)
+        if port != None and port == remotehostport:
+            # found the link
+            hostlink = link
+            break
+
+    (node,remotehwport_tohost) = linkednode ( hostlink,remotehostname)
+
+    connectremoteplane(switch = remotehwswitch,
+                       host = host,
+                       hostvlan = hostvlan,
+                       remotehost_port = remotehwport_tohost,
+                       remotehost = remotehost,
+                       remotehost_vlan = remotehostvlan,
+                       remotehwport_tocore =remotehwport_tocore,
+                       corevlan = corevlan,
+                       gri = gri)
 
     return True
 
-def connectremote (pop,host,gri,hostvlan):
 
-    return True
-
-def connectgri(host,gri,remotehost=None,hostvlan=100):
+def connectgri(host,gri,remotehost,hostvlan,remotehostvlan):
     # Get both endpoints of the GRI
     (e1,e2) = griendpoints(gri)
     hostpop = topo.builder.popIndex[host['pop']]
@@ -276,15 +296,16 @@ def connectgri(host,gri,remotehost=None,hostvlan=100):
         print "gri",gri, "does not provide connectivity from",host,"to",remotehost
         return False
 
-    res = connectlocal(hostpop,remotepop,host,gri,hostvlan)
+    res = connect(localpop = hostpop,
+                  remotepop = remotepop,
+                  host = host,
+                  remotehost = remotehost,
+                  gri = gri,
+                  hostvlan = hostvlan,
+                  remotehostvlan = remotehostvlan)
     if not res:
         return
-    """
-    res = connectremote(remotepop,host,gri,hostvlan)
-    if not res:
-        # TODO: should clean up connectlocal
-        return
-    """
+
     return True
 
 
