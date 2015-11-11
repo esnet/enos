@@ -345,6 +345,8 @@ def getswitch(name=None,dpid=None):
         return None
     switch = None
     if name != None:
+        if not name in topo.builder.switchIndex:
+            return None
         switch = topo.builder.switchIndex[name]
     if dpid != None:
         for (x,sw) in topo.builder.switchIndex.items():
@@ -443,17 +445,26 @@ if __name__ == '__main__':
         print ctrl
     elif cmd == "show-switch":
         sw = getswitch(name=argv[2])
+        if sw == None:
+            print "unknown switch"
+            sys.exit(0)
         show(switch=sw)
     elif cmd == "show-active":
         showactive()
     elif cmd == "dump-flows":
         sw = getswitch(name=argv[2])
+        if sw == None:
+            print "unknown switch"
+            sys.exit(0)
         table = None
         if 'table' in argv:
             table = argv[4]
         dumpflows(switch=sw,table=table)
     elif cmd == "del-flow":
         sw = getswitch(name=argv[2])
+        if sw == None:
+            print "unknown switch"
+            sys.exit(0)
         table = None
         flow = None
         if 'table' in argv:
@@ -467,6 +478,9 @@ if __name__ == '__main__':
         deleteflow(switch=sw,table=table,flowid=flow,safe=besafe)
     elif cmd == "add-flow":
         sw = getswitch(name=argv[2])
+        if sw == None:
+            print "unknown switch"
+            sys.exit(0)
         flow_id = argv[3]
         in_port = argv[4]
         in_dst = argv[5]
@@ -484,6 +498,9 @@ if __name__ == '__main__':
             corsaforward(sw,flow_id,in_port,in_dst,in_vlan,out_port,out_dst,out_vlan,meter)
     elif cmd == "add-broadcast":
         sw = getswitch(name=argv[2])
+        if sw == None:
+            print "unknown switch"
+            sys.exit(0)
         flow_id = argv[3]
         in_port = argv[4]
         in_vlan = argv[5]

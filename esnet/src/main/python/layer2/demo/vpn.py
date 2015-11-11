@@ -72,13 +72,15 @@ class VPN():
         hostsite = getsite(host)
         hostsite['connected'][host.name] = vlan
         for (s,site) in self.sites.items():
+            print 111,s
             if site['name'] == hostsite['name']:
                 continue
             connected = site['connected']
             for (r,remotehost) in connected.items():
+                print 222,r
                 gri = getgri(hostsite,site)
                 # Add flows coming from other sites
-                print remotehost
+                print "CONNECT GRI",host,vlan,remotehost,gri
                 connectgri(host=host,hostvlan=vlan,remotehost=remotehost,gri=gri)
 
 
@@ -258,7 +260,6 @@ def settimeout(vpn, timeout):
     print "not implemented"
 
 def main():
-    print "VPN version 2"
     try:
         command = sys.argv[1].lower()
         if command == 'create':
@@ -306,7 +307,6 @@ def main():
                 delsite(vpn, site)
             elif command == 'addhost':
                 host = tohost(sys.argv[3])
-                print sys.argv
                 vlan = sys.argv[5]
                 addhost(vpn, host,vlan)
             elif command == 'delhost':
