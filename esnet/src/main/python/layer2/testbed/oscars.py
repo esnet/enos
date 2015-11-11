@@ -112,6 +112,8 @@ def griendpoints(gri):
     endpoint1 = None
     endpoint2 = None
     globals()['gri'] = gri
+    print "GRI",gri
+    print "\t",gri.__class__.__name__
     segments = gri.getSegments()
     for segment in segments:
         ports = segment.getPorts()

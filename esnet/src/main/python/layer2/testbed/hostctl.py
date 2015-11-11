@@ -105,7 +105,6 @@ tbns = {'amst-tbn-1':amst_tbn_1,
         'atla-tbn-1':atla_tbn_1,
         'aofa-tbn-1':aofa_tbn_1}
 
-
 def getdatapaths(host):
     interfaces = []
     for interface in host['interfaces']:
@@ -137,28 +136,29 @@ ofctl add-flow cern-272-tb-of-1 6 5 90:e2:ba:89:e5:25 100 23 90:e2:ba:89:e5:25 3
 corsaforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan,priority=1,meter=5 )
 """
 
-def connectremoteplane(host,hostport,hostvlan,hwport_tocore,corevlan,gri,meter=5):
+def connectremoteplane(switch,host,hostport,hostvlan,hwport_tocore,corevlan,gri,meter=5):
     global default_controller
     hostmac = getdatapaths(host)[0]['mac']
     baseid = host['name'] +":"+hostport+":"+str(hostvlan)+"-"+gri.getName()
     flowid = baseid + "-broadcast-out"
-    corsaforward (sw,
+    broadcast = "FF:FF:FF:FF:FF:FF"
+    corsaforward (switch,
                   flowid,
                   hwport_tocore,
                   hostmac,
                   hostvlan,
-                  tocoreport,
+                  hostport,
                   broadcast,
-                  tocorevlan,
+                  hostvlan,
                   controller=default_controller)
 
-def connectdataplane(host,hostport,hostvlan,sw,tohostport,tocoreport,tocorevlan,gri,meter=5):
+def connectdataplane(switch, host,hostport,hostvlan,sw,tohostport,tocoreport,tocorevlan,gri,meter=5):
     global default_controller
     baseid = host['name'] +":"+hostport+":"+str(hostvlan)+"-"+gri.getName()
     hostmac = getdatapaths(host)[0]['mac']
     broadcast = "FF:FF:FF:FF:FF:FF"
     flowid = baseid + "-broadcast-out"
-    corsaforward (sw,
+    corsaforward (switch,
                   flowid,
                   tohostport,
                   broadcast,
@@ -215,7 +215,8 @@ def connectlocal (localpop,remotepop,host,gri,hostvlan):
     (node,hwport_tocore) = linkednode (corelink,core)
 
     # Find remotehwswith/port - remotecore/port
-    remotehwswitchname = remotepop.props['hwSwitch'].name
+    remotehwswitch = remotepop.props['hwSwitch']
+    remotehwswitchname = remotehwswitch.name
     remotelinks = getlinks(remotecore, remotehwswitchname)
     if remotelinks == None or len(remotelinks) == 0:
         print "No links from",remotecore,"to",remotehwswitchname
@@ -245,7 +246,8 @@ def connectlocal (localpop,remotepop,host,gri,hostvlan):
             break
     (node,hwport_tohost) = linkednode ( hostlink,hostname)
 
-    connectdataplane(host,
+    connectdataplane(hwswitch,
+                     host,
                      hostport,
                      hostvlan,
                      hwswitch,
@@ -254,7 +256,8 @@ def connectlocal (localpop,remotepop,host,gri,hostvlan):
                      corevlan,
                      gri)
 
-    connectremoteplane(host,
+    connectremoteplane(remotehwswitch,
+                       host,
                        hostport,
                        hostvlan,
                        remotehwport_tocore,
@@ -276,12 +279,14 @@ def connectgri(host,gri,remotehost=None,hostvlan=100):
     pop1 = core1.props['pop']
     pop2 = core2.props['pop']
     remotepop = None
-    if hostpop == pop1:
+    print "HOST/REMOTE",hostpop,"###\n",remotehost
+    print "POPS",pop1,pop2
+    if hostpop.name == pop1.name:
         remotepop = pop2
-    elif hostpop == pop2:
+    elif hostpop.name == pop2.name:
         remotepop = pop1
     if remotepop == None:
-        print "Provided GRI does not provide connectivity to",host
+        print "gri",gri, "does not provide connectivity from",host,"to",remotehost
         return False
 
     res = connectlocal(hostpop,remotepop,host,gri,hostvlan)

@@ -19,7 +19,9 @@
 # to permit others to do so.
 #
 from layer2.common.mac import MACAddress
-from layer2.testbed.hostctl import connectgri
+from layer2.testbed.hostctl import connectgri,tbns
+from layer2.testbed.oscars import getgri
+
 sites = {
     'wash' : {'name':"wash",'hosts':{'wash-tbn-1':{'interface':'eth11'}},"links":{'amst':'es.net-5956','cern':'es.net-5954'},'connected':{}},
     'amst' : {'name':"amst",'hosts':{'amst-tbn-1':{'interface':'eth17'}},"links":{'wash':'es.net-5956','cern':'es.net-5955'},'connected':{}},
@@ -41,21 +43,20 @@ gris = [
      3970]
 ]
 
-def getsite(host):
-    global sites
-    for (s,site) in sites.items():
-        if host.name in site['hosts']:
-            return site
-    return None
 
-def getgri(site1,site2):
-    return site1['links'][site2['name']]
+def interconnect(site1,site2):
+    return getgri(site1['links'][site2['name']])
 
 class VPN():
     def __init__(self,name):
         self.name = name
         self.pops = {}
-        self.sites = {}
+        self.vpnsites = {}
+    def getsite(self,host):
+        for (s,site) in self.vpnsites.items():
+            if host['name'] in site['hosts']:
+                return site
+        return None
     def addpop(self,pop):
         self.pops[pop.name] = pop
         return True
@@ -63,24 +64,22 @@ class VPN():
         del self.pops[pop.name]
         return True
     def addsite(self,site):
-        self.sites[site['name']] = site
+        self.vpnsites[site['name']] = site
         return True
     def delsite(self,site):
-        del self.sites[site['name']]
+        del self.vpnsites[site['name']]
         return True
     def addhost(self,host,vlan):
-        hostsite = getsite(host)
-        hostsite['connected'][host.name] = vlan
-        for (s,site) in self.sites.items():
-            print 111,s
+        hostsite = self.getsite(host)
+        hostsite['connected'][host['name']] = vlan
+        for (s,site) in self.vpnsites.items():
             if site['name'] == hostsite['name']:
                 continue
             connected = site['connected']
-            for (r,remotehost) in connected.items():
-                print 222,r
-                gri = getgri(hostsite,site)
+            for (r,remotevlan) in connected.items():
+                gri = interconnect(hostsite,site)
+                remotehost = tbns[r]
                 # Add flows coming from other sites
-                print "CONNECT GRI",host,vlan,remotehost,gri
                 connectgri(host=host,hostvlan=vlan,remotehost=remotehost,gri=gri)
 
 
@@ -163,7 +162,7 @@ def tosite(s):
         else:
             return None
 def tohost(s):
-    return get(topo.builder.hostIndex.values(), topo.builder.hostIndex, s)
+    return tbns[s]
 
 
 def addVpn(vpn):
@@ -228,7 +227,7 @@ def addhost(vpn, host,vlan):
         print "something wrong while adding the host; Please make sure that the site of the host joined the VPN."
         return
 
-    print "The host %s is added into VPN %s successfully" % (host.name, vpn.name)
+    print "The host %s is added into VPN %s successfully" % (host['name'], vpn.name)
 
 def delhost(vpn, host):
     if not vpn.delHost(host):
