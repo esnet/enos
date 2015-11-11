@@ -122,64 +122,52 @@ def display(host):
             datastatus = "Reserved for OVS"
         print "\t\tname", interface['name'],"mac",interface['mac'],datastatus
 
-"""
-ofctl add-flow amst-tb-of-1 vpn1 24 90:e2:ba:89:e5:25 3970 8 90:e2:ba:89:e5:25 100 1
-ofctl add-flow amst-tb-of-1 vpn1-1 24 FF:FF:FF:FF:FF:FF 3970 8 FF:FF:FF:FF:FF:FF 100 1
-ofctl add-flow amst-tb-of-1 5 8 FF:FF:FF:FF:FF:FF 100 24 FF:FF:FF:FF:FF:FF 3970 1
-ofctl add-flow amst-tb-of-1 6 8 90:e2:ba:89:ee:a0 100 24 90:e2:ba:89:ee:a0 3970 1
-
-ofctl add-flow cern-272-tb-of-1 3 23 90:e2:ba:89:ee:a0 3970 5 90:e2:ba:89:ee:a0 100 1
-ofctl add-flow cern-272-tb-of-1 4 23 FF:FF:FF:FF:FF:FF 3970 5 FF:FF:FF:FF:FF:FF 100 1
-ofctl add-flow cern-272-tb-of-1 5 5 FF:FF:FF:FF:FF:FF 100 23 FF:FF:FF:FF:FF:FF 3970 1
-ofctl add-flow cern-272-tb-of-1 6 5 90:e2:ba:89:e5:25 100 23 90:e2:ba:89:e5:25 3970 1
-
-corsaforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan,priority=1,meter=5 )
-"""
-
-def connectremoteplane(switch,host,hostport,hostvlan,hwport_tocore,corevlan,gri,meter=5):
+def connectremoteplane(switch,host,hostport,hostvlan,hwport_tocore,corevlan,gri,meter=5,dobroadcast=False):
     global default_controller
     hostmac = getdatapaths(host)[0]['mac']
     baseid = host['name'] +":"+hostport+":"+str(hostvlan)+"-"+gri.getName()
-    flowid = baseid + "-broadcast-out"
-    broadcast = "FF:FF:FF:FF:FF:FF"
-    corsaforward (switch,
-                  flowid,
-                  hwport_tocore,
-                  hostmac,
-                  hostvlan,
-                  hostport,
-                  broadcast,
-                  hostvlan,
-                  controller=default_controller)
+    if dobroadcast:
+        flowid = baseid + "-broadcast-out"
+        broadcast = "FF:FF:FF:FF:FF:FF"
+        corsaforward (switch,
+                      flowid,
+                      hwport_tocore,
+                      hostmac,
+                      hostvlan,
+                      hostport,
+                      broadcast,
+                      hostvlan,
+                      controller=default_controller)
 
-def connectdataplane(switch, host,hostport,hostvlan,sw,tohostport,tocoreport,tocorevlan,gri,meter=5):
+def connectdataplane(switch, host,hostport,hostvlan,sw,tohostport,tocoreport,tocorevlan,gri,meter=5,dobroadcast=False):
     global default_controller
     baseid = host['name'] +":"+hostport+":"+str(hostvlan)+"-"+gri.getName()
     hostmac = getdatapaths(host)[0]['mac']
     broadcast = "FF:FF:FF:FF:FF:FF"
-    flowid = baseid + "-broadcast-out"
-    corsaforward (switch,
-                  flowid,
-                  tohostport,
-                  broadcast,
-                  hostvlan,
-                  tocoreport,
-                  broadcast,
-                  tocorevlan,
-                  controller=default_controller)
+    if dobroadcast:
+        flowid = baseid + "-broadcast-out"
+        corsaforward (switch,
+                      flowid,
+                      tohostport,
+                      broadcast,
+                      hostvlan,
+                      tocoreport,
+                      broadcast,
+                      tocorevlan,
+                      controller=default_controller)
 
-    flowid = baseid + "-broadcast-in"
-    corsaforward (sw,
-                  flowid,
-                  tocoreport,
-                  hostmac,
-                  tocorevlan,
-                  tohostport,
-                  broadcast,
-                  hostvlan,
-                  controller=default_controller)
+        flowid = baseid + "-broadcast-in"
+        corsaforward (sw,
+                      flowid,
+                      tocoreport,
+                      broadcast,
+                      tocorevlan,
+                      tohostport,
+                      broadcast,
+                      hostvlan,
+                      controller=default_controller)
 
-    flowid = baseid + "-tohost"
+    flowid = baseid + "-to-host"
     corsaforward (sw,
                   flowid,
                   tocoreport,
@@ -190,45 +178,48 @@ def connectdataplane(switch, host,hostport,hostvlan,sw,tohostport,tocoreport,toc
                   hostvlan,
                   controller=default_controller)
 
-def connectlocal (localpop,remotepop,host,gri,hostvlan):
-    hostname = host['name']
-    core = localpop.props['coreRouter'].name
-    (core,coredom,coreport,corevlan) = getgrinode(gri,core)
-    remotecore = remotepop.props['coreRouter'].name
-    (remotecore,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecore)
-    datapath = getdatapaths(host)[0] # Assumes the first datapath
-    hostport = datapath['name']
-    hwswitch = localpop.props['hwSwitch']
+
+def getgriport(hwswitch,core,griport):
+    """
+    In the following logical topology <Host> - <HwSwitch> - <Core Router>, the OSCARS circuits ends onto the
+    port on the core router connected to the HwSwitch. This function returns the port on the HwSwitch that
+    is connected to the the core router when the OSCARS circuit terminates.
+    """
     hwswitchname = hwswitch.name
-    # Find hwswith/port - core/port
-    links = getlinks(core, hwswitchname)
+    corename = core.name
+    links = getlinks(corename, hwswitchname)
     if links == None or len(links) == 0:
-        print "No links from",core,"to",hwswitchname
+        print "No links from",corename,"to",hwswitchname
         return False
     corelink = None
     for link in links:
         (node,port) = linkednode (link, hwswitchname)
-        if port != None and port == coreport:
+        if port != None and port == griport:
             # found the link between HwSwith and Core that ends to the OSCARS circuit.
             corelink = link
             break
-    (node,hwport_tocore) = linkednode (corelink,core)
+    (node,hwport_tocore) = linkednode (corelink,corename)
+    return hwport_tocore
 
-    # Find remotehwswith/port - remotecore/port
+def connectlocal (localpop,remotepop,host,gri,hostvlan):
+    hostname = host['name']
+    core = localpop.props['coreRouter']
+    corename = core.name
+    (corename,coredom,coreport,corevlan) = getgrinode(gri,corename)
+    remotecore = remotepop.props['coreRouter']
+    remotecorename = remotecore.name
+    (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecorename)
+    datapath = getdatapaths(host)[0] # Assumes the first datapath
+    hostport = datapath['name']
+    hwswitch = localpop.props['hwSwitch']
+    hwswitchname = hwswitch.name
     remotehwswitch = remotepop.props['hwSwitch']
     remotehwswitchname = remotehwswitch.name
-    remotelinks = getlinks(remotecore, remotehwswitchname)
-    if remotelinks == None or len(remotelinks) == 0:
-        print "No links from",remotecore,"to",remotehwswitchname
-        return False
-    remotecorelink = None
-    for remotelink in remotelinks:
-        (remotenode,remoteport) = linkednode (remotelink, remotehwswitchname)
-        if remoteport != None and remoteport == remotecoreport:
-            # found the link between HwSwith and Core that ends to the OSCARS circuit.
-            remotecorelink = remotelink
-            break
-    (remotenode,remotehwport_tocore) = linkednode (remotecorelink,remotecore)
+    remotelinks = getlinks(remotecorename, remotehwswitchname)
+    # Find hwswith/port - core/port
+    hwport_tocore = getgriport(hwswitch,core,coreport)
+    # Find remotehwswith/port - remotecore/port
+    remotehwport_tocore = getgriport(remotehwswitch,remotecore,remotecoreport)
 
     # Find host/prot hwswitch/port
     links = getlinks(hostname, hwswitchname)
@@ -237,9 +228,7 @@ def connectlocal (localpop,remotepop,host,gri,hostvlan):
         return False
     hostlink = None
     for link in links:
-        print link,hostport
         (node,port) = linkednode (link, hwswitchname)
-        print (node,port)
         if port != None and port == hostport:
             # found the link between HwSwith and Core that ends to the OSCARS circuit.
             hostlink = link
@@ -279,8 +268,6 @@ def connectgri(host,gri,remotehost=None,hostvlan=100):
     pop1 = core1.props['pop']
     pop2 = core2.props['pop']
     remotepop = None
-    print "HOST/REMOTE",hostpop,"###\n",remotehost
-    print "POPS",pop1,pop2
     if hostpop.name == pop1.name:
         remotepop = pop2
     elif hostpop.name == pop2.name:
@@ -323,8 +310,6 @@ if not 'topo' in globals() or topo == None:
 
 if __name__ == '__main__':
     global topo
-    print topo
-    print getlinks('amst-tbn-1','amst-tb-of-1')
     argv = sys.argv
 
     cmd = argv[1]
@@ -337,8 +322,14 @@ if __name__ == '__main__':
                 display(host)
                 print
         else:
+            if not host in tbns:
+                print "unknown host"
+                sys.exit()
             display(tbns[host])
     elif (cmd == "connect"):
+        if not host in tbns:
+            print "unknown host"
+            sys.exit()
         host = tbns[argv[2]]
         vlan = argv[4]
         if ('gri') in argv:

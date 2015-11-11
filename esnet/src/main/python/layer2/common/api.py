@@ -25,7 +25,7 @@ from layer2.common.utils import Logger
 
 db = {}
 
-debug = True
+debug = False
 
 class Properties(object):
     def __init__(self, name,props={}):

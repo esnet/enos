@@ -360,4 +360,13 @@ if 'vpns' not in globals() or vpns == None:
     globals()['vpns'] = vpns
 
 if __name__ == '__main__':
+    if not 'topo' in globals() or topo == None:
+        topo = TestbedTopology()
+        globals()['topo'] = topo
+    if 'vpnIndex' not in globals() or vpnIndex == None:
+        vpnIndex = {}
+        globals()['vpnIndex'] = vpnIndex
+    if 'vpns' not in globals() or vpns == None:
+        vpns = []
+        globals()['vpns'] = vpns
     main()

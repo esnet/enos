@@ -204,6 +204,10 @@ def print_syntax():
 
     print
 
+if not 'topo' in globals() or topo == None:
+    topo = TestbedTopology()
+    globals()['topo'] = topo
+global topo
 
 if __name__ == '__main__':
     # Retrieve topology
