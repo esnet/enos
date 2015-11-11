@@ -132,6 +132,7 @@ def connectremoteplane(switch,host,hostvlan,remotehost_port,remotehost, remoteho
         flowid = baseid + "-broadcast-out"
         broadcast = "FF:FF:FF:FF:FF:FF"
     flowid = baseid + "to-remote-host"
+
     corsaforward (switch,
                   flowid,
                   remotehost_port,

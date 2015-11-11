@@ -239,14 +239,15 @@ def deleteflow(switch,table,flowid,safe=True):
             print "delete flow",id
             _deleteflow(switch=switch,table=table,flowid=id)
 
-def corsaforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan,priority=1,meter=5,controller=None ):
+def corsaforward(switch,flowid, in_port, in_dst, in_vlan,out_port,out_dst,out_vlan,meter=3,controller=None ):
     global ctrl
     if controller == None:
         controller = ctrl
     id = makeODLDPID(switch)
     table = gettable(switch)
+    priority = 1
     if meter == None:
-        meter = 5
+        meter = 3
     entry = '{"flow-node-inventory:flow":[{"table_id":'+ str(table) + ','
     entry += '"id":"' + flowid + '",'
     entry += '"match":{"vlan-match":{"vlan-id":{"vlan-id":' + str(in_vlan) + ',"vlan-id-present":True}},'

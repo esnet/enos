@@ -95,9 +95,9 @@ class VPN():
     def setpriority(self,priority):
         self.priority = priority
         if priority == 'high':
-            meter = 5
+            self.meter = 5
         else:
-            meter = 3
+            self.meter = 3
 
     def getpriority(self,priority):
         return self.priority
@@ -295,7 +295,7 @@ def main():
             if command == 'execute':
                 execute(vpn)
             elif command == 'getprio':
-                prio = vpn.setriority()
+                prio = vpn.getpiority()
                 print prio
             elif command == 'setprio':
                 vpn.setpriority(sys.argv[3])
