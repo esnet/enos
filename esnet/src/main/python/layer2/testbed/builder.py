@@ -65,8 +65,8 @@ denv=["denv",'denv-tb-of-1',"denv-cr5","denv-ovs",denvlinks]
 washlinks = [
     ["wash-cr5","10/1/11","wash-tb-of-1","23",'core'],
     ["wash-cr5","10/1/12","wash-tb-of-1","24",'site'],
-    ["wash-ovs","eth10","wash-tb-of-1","1",'hw'],
-    ["wash-tbn-1","eth11","wash-tb-of-1","2",'none']
+    ["wash-ovs","eth10","wash-tb-of-1","2",'hw'],
+    ["wash-tbn-1","eth11","wash-tb-of-1","1",'none']
 ]
 washlinks_demo = [
     ["wash-cr5","10/1/12","wash-tb-of-1","24",'core'],

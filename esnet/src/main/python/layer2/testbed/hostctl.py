@@ -39,7 +39,7 @@ amst_tbn_1 = {
                     {'name': 'eth14','mac':'00:02:c9:34:f8:00','props':{'data':False}}, \
                     {'name': 'eth15','mac':'00:02:c9:34:f8:01','props':{'data':False}}, \
                     {'name': 'eth16','mac':'90:e2:ba:89:e5:24','props':{'data':False}}, \
-                    {'name': 'eth17','mac':'90:e2:ba:89:e5:24','props':{'data':True}} ],
+                    {'name': 'eth17','mac':'90:e2:ba:89:e5:25','props':{'data':True}} ],
     'pop':"amst"
 }
 
@@ -137,7 +137,7 @@ def connectremoteplane(switch,host,hostvlan,remotehost_port,remotehost, remoteho
                   hostmac,
                   remotehost_vlan,
                   remotehwport_tocore,
-                  remotehost_mac,
+                  hostmac,
                   corevlan,
                   controller=default_controller)
 

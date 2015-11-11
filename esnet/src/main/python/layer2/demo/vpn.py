@@ -82,6 +82,7 @@ class VPN():
                 # Add flows coming from other sites
                 connectgri(host=host,hostvlan=vlan,remotehost=remotehost,remotehostvlan = remotevlan,gri=gri)
                 # Add flows going to other sites
+                connectgri(host=remotehost,hostvlan=remotevlan,remotehost=host,remotehostvlan=vlan,gri=gri)
 
         return True
     def delhost(self,host):
