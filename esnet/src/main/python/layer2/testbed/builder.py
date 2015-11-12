@@ -49,16 +49,26 @@ sites = None
 if vpn:
     sites = [lblsite, anlsite, bnlsite,washsite,amstsite,cernsite]
 else:
-    sites = [lblsite, anlsite, bnlsite]
+#    sites = [lblsite, anlsite, bnlsite]
+    sites = []
 
 # DENV
 denvlinks=[
+    ["denv-cr5","9/1/4","denv-tb-of-1","23",'core'],
+    ["denv-cr5","9/1/5","denv-tb-of-1","24",'none'],
+    ["denv-ovs","eth10","denv-tb-of-1","1",'hw'],
+    ["denv-tbn-1","eth11","denv-tb-of-1","2",'none']
+]
+denvlinks_demo=[
     ["denv-cr5","9/1/4","denv-tb-of-1","23",'core'],
     ["denv-cr5","9/1/5","denv-tb-of-1","24",'site'],
     ["denv-ovs","eth10","denv-tb-of-1","1",'hw'],
     ["denv-ovs","eth11","denv-tb-of-1","2",'none']
 ]
-denv=["denv",'denv-tb-of-1',"denv-cr5","denv-ovs",denvlinks]
+if vpn:
+    denv=["denv",'denv-tb-of-1',"denv-cr5","denv-ovs",denvlinks_demo]
+else:
+    denv=["denv",'denv-tb-of-1',"denv-cr5","denv-ovs",denvlinks]
 
 
 # WASH
@@ -83,9 +93,18 @@ aofalinks = [
     ["aofa-cr5","10/1/3","aofa-tb-of-1","23",'core'],
     ["aofa-cr5","10/1/4","aofa-tb-of-1","24",'site'],
     ["aofa-ovs","eth10","aofa-tb-of-1","1",'hw'],
+    ["aofa-tbn-1","eth11","aofa-tb-of-1","2",'none']
+]
+aofalinks_demo = [
+    ["aofa-cr5","10/1/3","aofa-tb-of-1","23",'core'],
+    ["aofa-cr5","10/1/4","aofa-tb-of-1","24",'site'],
+    ["aofa-ovs","eth10","aofa-tb-of-1","1",'hw'],
     ["aofa-ovs","eth11","aofa-tb-of-1","2",'none']
 ]
-aofa=["aofa",'aofa-tb-of-1',"aofa-cr5","aofa-ovs",aofalinks]
+if vpn:
+    aofa=["aofa",'aofa-tb-of-1',"aofa-cr5","aofa-ovs",aofalinks_demo]
+else:
+    aofa=["aofa",'aofa-tb-of-1',"aofa-cr5","aofa-ovs",aofalinks]
 
 # AMST
 amstlinks = [
@@ -189,9 +208,30 @@ starlinks = [
     ["star-ovs","eth14","star-tb-of-1","5",'none'],
     ["star-ovs","eth15","star-tb-of-1","6",'none'],
     ["star-ovs","eth16","star-tb-of-1","7",'none'],
+    ["star-tbn-4","eth17","star-tb-of-1","8",'none']
+]
+starlinks_demo = [
+    ["star-cr5","9/2/3","star-tb-of-1","17",'core'],
+    ["star-cr5","9/2/4","star-tb-of-1","18",'site'],
+    ["star-cr5","9/2/5","star-tb-of-1","19",'none'],
+    ["star-cr5","9/2/6","star-tb-of-1","20",'none'],
+    ["star-cr5","10/1/5","star-tb-of-1","21",'none'],
+    ["star-cr5","10/1/6","star-tb-of-1","22",'none'],
+    ["star-cr5","10/1/11","star-tb-of-1","23",'none'],
+    ["star-cr5","10/1/12","star-tb-of-1","24",'none'],
+    ["star-ovs","eth10","star-tb-of-1","1",'hw'],
+    ["star-ovs","eth11","star-tb-of-1","2",'none'],
+    ["star-ovs","eth12","star-tb-of-1","3",'none'],
+    ["star-ovs","eth13","star-tb-of-1","4",'none'],
+    ["star-ovs","eth14","star-tb-of-1","5",'none'],
+    ["star-ovs","eth15","star-tb-of-1","6",'none'],
+    ["star-ovs","eth16","star-tb-of-1","7",'none'],
     ["star-ovs","eth17","star-tb-of-1","8",'none']
 ]
-star=["star",'star-tb-of-1',"star-cr5","star-ovs",starlinks]
+if vpn:
+    star=["star",'star-tb-of-1',"star-cr5","star-ovs",starlinks_demo]
+else:
+    star=["star",'star-tb-of-1',"star-cr5","star-ovs",starlinks]
 
 # LBL  POP is not yet deployed
 

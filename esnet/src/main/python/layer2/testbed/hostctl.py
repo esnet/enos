@@ -70,14 +70,14 @@ star_tbn_4 = {
                     {'name': 'eth14','mac':'00:02:c9:24:48:00','props':{'data':False}}, \
                     {'name': 'eth15','mac':'00:02:c9:24:48:01','props':{'data':False}}, \
                     {'name': 'eth16','mac':'00:60:dd:45:64:ed','props':{'data':False}}, \
-                    {'name': 'eth17','mac':'00:60:dd:45:64:ec','props':{'data':False}} ],
+                    {'name': 'eth17','mac':'00:60:dd:45:64:ec','props':{'data':True}} ],
     'pop':"star"
 }
 
 denv_tbn_1 = {
     'name': 'denv-tbn-1',
     'interfaces': [ {'name': 'eth10','mac':'00:60:dd:46:52:32','props':{'data':False}}, \
-                    {'name': 'eth11','mac':'00:60:dd:45:6f:b0','props':{'data':False}} ],
+                    {'name': 'eth11','mac':'00:60:dd:45:6f:b0','props':{'data':True}} ],
     'pop':"denv"
 }
 
@@ -93,7 +93,7 @@ atla_tbn_1 = {
 aofa_tbn_1 = {
     'name': 'aofa-tbn-1',
     'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:ee:7c','props':{'data':False}}, \
-                    {'name': 'eth11','mac':'90:e2:ba:89:ee:7d','props':{'data':False}} ],
+                    {'name': 'eth11','mac':'90:e2:ba:89:ee:7d','props':{'data':True}} ],
     'pop':"aofa"
 }
 
