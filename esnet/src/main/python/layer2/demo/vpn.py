@@ -19,9 +19,12 @@
 # to permit others to do so.
 #
 from layer2.common.mac import MACAddress
-from layer2.testbed.hostctl import connectgri,tbns
+from layer2.testbed.hostctl import connectgri,tbns,getdatapaths
 from layer2.testbed.oscars import getgri
 from layer2.testbed.topology import TestbedTopology
+from layer2.vpn.mat import MAT
+
+import threading
 
 sites = {
     'wash' : {'name':"wash",'hosts':{'wash-tbn-1':{'interface':'eth11'}},"links":{'amst':'es.net-5956','cern':'es.net-5954'},'connected':{}},
@@ -48,13 +51,33 @@ gris = [
 def interconnect(site1,site2):
     return getgri(site1['links'][site2['name']])
 
+if not 'VPNinstances' in globals() or VPNinstances == None:
+    VPNinstances = {}
+    globals()['VPNinstances'] = VPNinstances
+
+if not 'VPNindex' in globals():
+    VPNindex = 0
+    globals()['VPNindex'] = VPNindex
+
+if not 'VPNlock' in globals():
+    VPNlock = threading.Lock()
+    globals()['VPNlock'] = VPNlock
+
 class VPN():
+
     def __init__(self,name):
+        global VPNinstances, VPNindex, VPNlock
+        with VPNlock:
+            VPNinstances['name'] = self
+            self.vid = VPNindex
+            VPNindex += 1
         self.name = name
         self.pops = {}
         self.vpnsites = {}
         self.priority = "low"
         self.meter = 3
+        self.lock = threading.Lock()
+        self.mat = MAT(self.vid)
 
     def getsite(self,host):
         for (s,site) in self.vpnsites.items():
@@ -73,20 +96,40 @@ class VPN():
     def delsite(self,site):
         del self.vpnsites[site['name']]
         return True
+    def generateMAC(self,host):
+        interface = getdatapaths(host)[0]
+        mac = interface['mac']
+        # MAT.translate is idempotent: if a translated mac has already been allocated for a given mac, the
+        # function will not generate a new mac but instead return the previously generated mac.
+        newmac = self.mat.translate(mac)
+        return str(newmac)
+
     def addhost(self,host,vlan):
-        hostsite = self.getsite(host)
-        hostsite['connected'][host['name']] = vlan
-        for (s,site) in self.vpnsites.items():
-            if site['name'] == hostsite['name']:
-                continue
-            connected = site['connected']
-            for (r,remotevlan) in connected.items():
-                gri = interconnect(hostsite,site)
-                remotehost = tbns[r]
-                # Add flows coming from other sites
-                connectgri(host=host,hostvlan=vlan,remotehost=remotehost,remotehostvlan = remotevlan,gri=gri,meter=self.meter)
-                # Add flows going to other sites
-                connectgri(host=remotehost,hostvlan=remotevlan,remotehost=host,remotehostvlan=vlan,gri=gri,meter=self.meter)
+        with self.lock:
+            hostsite = self.getsite(host)
+            hostsite['connected'][host['name']] = vlan
+            for (s,site) in self.vpnsites.items():
+                if site['name'] == hostsite['name']:
+                    continue
+                connected = site['connected']
+                for (r,remotevlan) in connected.items():
+                    gri = interconnect(hostsite,site)
+                    remotehost = tbns[r]
+                    # Add flows coming from other sites
+                    connectgri(host=host,
+                               host_rewitemac = self.generateMAC(host),
+                               hostvlan=vlan,
+                               remotehost=remotehost,
+                               remotehostvlan = remotevlan,
+                               gri=gri,meter=self.meter)
+                    # Add flows going to other sites
+                    connectgri(host=remotehost,
+                               host_rewitemac = self.generateMAC(remotehost),
+                               hostvlan=remotevlan,
+                               remotehost=host,
+                               remotehostvlan=vlan,
+                               gri=gri,
+                               meter=self.meter)
 
         return True
     def delhost(self,host):
@@ -295,7 +338,7 @@ def main():
             if command == 'execute':
                 execute(vpn)
             elif command == 'getprio':
-                prio = vpn.getpiority()
+                prio = vpn.getpriority()
                 print prio
             elif command == 'setprio':
                 vpn.setpriority(sys.argv[3])
