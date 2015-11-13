@@ -79,6 +79,10 @@ if not 'VPNlock' in globals():
     VPNlock = threading.Lock()
     globals()['VPNlock'] = VPNlock
 
+if not 'VPNMAT' in globals():
+    VPNMAT = False
+    globals()['VPNMAT'] = VPNMAT
+
 class VPN():
 
     def __init__(self,name):
@@ -131,16 +135,21 @@ class VPN():
                 for (r,remotevlan) in connected.items():
                     gri = interconnect(hostsite,site)
                     remotehost = tbns[r]
+                    host_mat = None
+                    remotehost_mat = None
+                    if VPNMAT:
+                        host_mat = self.generateMAC(host)
+                        remotehost_mat =  self.generateMAC(remotehost)
                     # Add flows coming from other sites
                     connectgri(host=host,
-                               host_rewitemac = self.generateMAC(host),
+                               host_rewitemac = host_mat,
                                hostvlan=vlan,
                                remotehost=remotehost,
                                remotehostvlan = remotevlan,
                                gri=gri,meter=self.meter)
                     # Add flows going to other sites
                     connectgri(host=remotehost,
-                               host_rewitemac = self.generateMAC(remotehost),
+                               host_rewitemac = remotehost_mat,
                                hostvlan=remotevlan,
                                remotehost=host,
                                remotehostvlan=vlan,
@@ -158,7 +167,7 @@ class VPN():
         else:
             self.meter = 3
 
-    def getpriority(self,priority):
+    def getpriority(self):
         return self.priority
 
 
@@ -186,6 +195,7 @@ def usage():
     print "vpn <vpn name> untapmac <MAC>"
     print "vpn <vpn name> settimeout <secs>"
     print "vpn <vpn name> visualize $conf"
+    print "vpn mat [<on|off>] Displays the MAC Address Translation feature, turn it on or off."
     print "Note: <vpn name> should not be any keyword such as create, delete, kill, or load"
 
 def toint(s):
@@ -348,6 +358,13 @@ def main():
         elif command == 'load':
             confname = sys.argv[2]
             load(confname)
+        elif command == "mat":
+            if 'on' in sys.argv:
+                VPNMAT = True
+            if 'off' in sys.argv:
+                VPNMAT = False
+            state = {True:'on',False:'off'}
+            print "MAC Address Translation feature is",state[VPNMAT]
         else:
             vpn = get(vpns, vpnIndex, sys.argv[1])
             command = sys.argv[2].lower()
