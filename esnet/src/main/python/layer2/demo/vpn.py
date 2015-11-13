@@ -344,6 +344,7 @@ def settimeout(vpn, timeout):
     print "not implemented"
 
 def main():
+    global VPNMAT
     try:
         command = sys.argv[1].lower()
         if command == 'create':
