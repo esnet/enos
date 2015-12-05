@@ -253,15 +253,15 @@ corecircuits = [
      4054],
     # WASH - AMST - CERN 9.5Gbps on WASH - CERN and AMST - CERN, 1Mbps on WASH - AMST
 
-    ['es.net-5954',
+    ['es.net-6074',
      'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/2/5:link=*',
      1232],
-    ['es.net-5956',
+    ['es.net-6072',
      'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
      'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/2/4:link=*',
      3905],
-    ['es.net-5955',
+    ['es.net-6073',
      'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/2/5:link=*',
      'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/2/4:link=*',
      3970]

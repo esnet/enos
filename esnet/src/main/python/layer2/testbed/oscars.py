@@ -76,19 +76,22 @@ def getgrinode(gri,node,domain="es.net"):
     return None
 
 def getgri(name):
-    start = DateTime.now()
-    end = start.plusHours(2)
-    gris={}
     reservations = OSCARSReservations(esnet).retrieveScheduledCircuits()
     for res in reservations:
         if name == res.getName():
             return res
     return None
 
-def getgris(match=None):
+def getgris(match=None,active=True):
+
     gris={}
+    start = DateTime.now()
+    end = start.plusHours(2)
+
     reservations = OSCARSReservations(esnet).retrieveScheduledCircuits()
     for res in reservations:
+        if active and (not res.isActive(start,end)):
+            continue
         gri = res.getName()
         desc = res.getDescription()
         if match != None:
@@ -139,17 +142,38 @@ def displaygri(gri,name=None):
         print "\t\t",srcNode + "@" + srcDom,"port",srcPort,"vlan",srcVlan,"\t---",dstNode + "@" + dstDom,"port",dstPort,"vlan",dstVlan
 
 
-
+def getcoregris(pop1=None,pop2=None):
+    """
+    Returns the list of reservations that are
+    :param pop1:
+    :param pop2:
+    :return:
+    """
+    reservations = getgris("ENOS:CORE:")
+    gris = {}
+    for (x,res) in reservations.items():
+        desc = res.getDescription()
+        if pop1 != None:
+            if not pop1 in desc:
+                continue
+        if pop2 != None:
+            if not pop2 in desc:
+                continue
+        gris[res.getName()] = res
+    return gris
 
 def print_syntax():
     print
     print "oscars <cmd> <cmds options>"
     print "OSCARS control CLI"
     print " Commands are:"
-    print "\nhelp"
+    print "\thelp"
     print "\tPrints this help."
-    print "\nshow-gri <host name | all> [grep <string>] Displays information about a reservation or all reservations"
-    print
+    print "\tshow-gri <gri | all> [grep <string>] Displays a reservation by it gri or all reservation"
+    print "\t\tAn optional string to match can be provided."
+    print "\tshow-core [<pop1>] [<pop2>]  [grep <string>] display reservations between two testbed POPs,"
+    print "\t\tor between all hosts. An optional string to match can be provided."
+
 
 
 if __name__ == '__main__':
@@ -157,6 +181,9 @@ if __name__ == '__main__':
 
     argv = sys.argv
 
+    if len(argv) == 1:
+        print_syntax()
+        sys.exit()
     cmd = argv[1]
     if cmd == "help":
         print_syntax()
@@ -175,4 +202,22 @@ if __name__ == '__main__':
                 print "unknown",argv[2]
                 sys.exit()
             displaygri(gri)
+    elif cmd == "show-core":
+        pop1 = None
+        pop2 = None
+        match = None
+        if not"grep" in argv:
+            if len(argv) > 2:
+                pop1 = argv[2]
+            if len(argv) > 3:
+                pop2 = argv[3]
+        else:
+            if len(argv) == 5:
+                pop1 = argv[2]
+                match = argv[4]
+            if len(argv) == 6:
+                pop2 = argv[5]
+        for (name,gri) in getcoregris(pop1=pop1,pop2=pop2).items():
+            displaygri(gri=gri,name=name)
+            print
 

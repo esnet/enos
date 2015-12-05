@@ -27,42 +27,14 @@ from layer2.vpn.mat import MAT
 import threading
 
 sites = {
-    'wash' : {'name':"wash",'hosts':{'wash-tbn-1':{'interface':'eth11'}},"links":{'amst':'es.net-5956','cern':'es.net-5954'},'connected':{}},
-    'amst' : {'name':"amst",'hosts':{'amst-tbn-1':{'interface':'eth17'}},"links":{'wash':'es.net-5956','cern':'es.net-5955'},'connected':{}},
-    'cern' : {'name':"cern",'hosts':{'cern-272-tbn-1':{'interface':'eth14'}},"links":{'wash':'es.net-5954','amst':'es.net-5955'},'connected':{}},
+    'wash' : {'name':"wash",'hosts':{'wash-tbn-1':{'interface':'eth11'}},"links":{'amst':'es.net-6072','cern':'es.net-6074'},'connected':{}},
+    'amst' : {'name':"amst",'hosts':{'amst-tbn-1':{'interface':'eth17'}},"links":{'wash':'es.net-6072','cern':'es.net-6073'},'connected':{}},
+    'cern' : {'name':"cern",'hosts':{'cern-272-tbn-1':{'interface':'eth14'}},"links":{'wash':'es.net-6074','amst':'es.net-6073'},'connected':{}},
 
     'aofa' : {'name':"aofa", 'hosts':{'aofa-tbn-1':{'interface':'eth11'}}, 'links':{'denv':'es.net-5909', 'star':'es.net-5971'}, 'connected':{}},
     'denv' : {'name':"denv", 'hosts':{'denv-tbn-1':{'interface':'eth11'}}, 'links':{'aofa':'es.net-5909', 'star':'es.net-5972'}, 'connected':{}},
     'star' : {'name':"star", 'hosts':{'star-tbn-4':{'interface':'eth17'}}, 'links':{'aofa':'es.net-5971', 'denv':'es.net-5972'}, 'connected':{}}
 }
-
-gris = [
-    ['es.net-5909',
-     'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/4:link=*',
-     'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/3:link=*',
-     582],
-    ['es.net-5954',
-     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
-     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/2/5:link=*',
-     1232],
-    ['es.net-5956',
-     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
-     'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/2/4:link=*',
-     3905],
-    ['es.net-5955',
-     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/2/5:link=*',
-     'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/2/4:link=*',
-     3970],
-    ['es.net-5971',
-     'urn:ogf:network:domain=es.net:node=star-cr5:port=9/2/3:link=*',
-     'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/3:link=*',
-     4054],
-    ['es.net-5972',
-     'urn:ogf:network:domain=es.net:node=star-cr5:port=9/2/3:link=*',
-     'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/4:link=*',
-     2953]
-]
-
 
 def interconnect(site1,site2):
     return getgri(site1['links'][site2['name']])
