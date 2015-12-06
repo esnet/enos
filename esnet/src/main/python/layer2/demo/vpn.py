@@ -20,24 +20,27 @@
 #
 from layer2.common.mac import MACAddress
 from layer2.testbed.hostctl import connectgri,tbns,getdatapaths
-from layer2.testbed.oscars import getgri
+from layer2.testbed.oscars import getgri,getcoregris
 from layer2.testbed.topology import TestbedTopology
 from layer2.vpn.mat import MAT
 
 import threading
 
 sites = {
-    'wash' : {'name':"wash",'hosts':{'wash-tbn-1':{'interface':'eth11'}},"links":{'amst':'es.net-6072','cern':'es.net-6074'},'connected':{}},
-    'amst' : {'name':"amst",'hosts':{'amst-tbn-1':{'interface':'eth17'}},"links":{'wash':'es.net-6072','cern':'es.net-6073'},'connected':{}},
-    'cern' : {'name':"cern",'hosts':{'cern-272-tbn-1':{'interface':'eth14'}},"links":{'wash':'es.net-6074','amst':'es.net-6073'},'connected':{}},
+    'wash' : {'name':"wash",'pop':'WASH','hosts':{'wash-tbn-1':{'interface':'eth11'}},'connected':{}},
+    'amst' : {'name':"amst",'pop':'AMST','hosts':{'amst-tbn-1':{'interface':'eth17'}},'connected':{}},
+    'cern' : {'name':"cern",'pop':'CERN','hosts':{'cern-272-tbn-1':{'interface':'eth14'}},'connected':{}},
 
-    'aofa' : {'name':"aofa", 'hosts':{'aofa-tbn-1':{'interface':'eth11'}}, 'links':{'denv':'es.net-5909', 'star':'es.net-5971'}, 'connected':{}},
-    'denv' : {'name':"denv", 'hosts':{'denv-tbn-1':{'interface':'eth11'}}, 'links':{'aofa':'es.net-5909', 'star':'es.net-5972'}, 'connected':{}},
-    'star' : {'name':"star", 'hosts':{'star-tbn-4':{'interface':'eth17'}}, 'links':{'aofa':'es.net-5971', 'denv':'es.net-5972'}, 'connected':{}}
+    'aofa' : {'name':"aofa", 'pop':'AOFA','hosts':{'aofa-tbn-1':{'interface':'eth11'}}, 'connected':{}},
+    'denv' : {'name':"denv", 'pop':'DENV','hosts':{'denv-tbn-1':{'interface':'eth11'}}, 'connected':{}},
+    'star' : {'name':"star", 'pop':'STAR','hosts':{'star-tbn-4':{'interface':'eth17'}}, 'connected':{}}
 }
 
 def interconnect(site1,site2):
-    return getgri(site1['links'][site2['name']])
+    pop1 = site1['pop']
+    pop2 = site2['pop']
+    (x,gri) = getcoregris(pop1,pop2).items()[0]
+    return gri
 
 if not 'VPNinstances' in globals() or VPNinstances == None:
     VPNinstances = {}
