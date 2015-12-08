@@ -169,7 +169,7 @@ def print_syntax():
     print " Commands are:"
     print "\thelp"
     print "\tPrints this help."
-    print "\tshow-gri <gri | all> [grep <string>] Displays a reservation by it gri or all reservation"
+    print "\tshow-gri <gri | all> [grep <string>] Displays a reservation by it gri or all reservations"
     print "\t\tAn optional string to match can be provided."
     print "\tshow-core [<pop1>] [<pop2>]  [grep <string>] display reservations between two testbed POPs,"
     print "\t\tor between all hosts. An optional string to match can be provided."

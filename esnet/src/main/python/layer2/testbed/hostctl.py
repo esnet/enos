@@ -367,13 +367,15 @@ def print_syntax():
     print
     print "hostctl <cmd> <cmds options>"
     print "Configures testbed hosts and their datapath. Commands are:"
-    print " Commands are:"
-    print "\nhelp"
-    print "\tPrints this help."
-    print "\nshow-host <host name | all> Displays information about a host or all hosts"
-    print "\nconnect <hostname> vlan <vlan> gri <gri> Sets the datapath to the end of the specified OSCARS GRI."
-    print "\tthe circuits terminates on the host at the specified vlan."
-
+    print "\tCommands are:\n"
+    print "\thelp: prints this help."
+    print "\tshow-host <host name | all> Displays information about a host or all hosts"
+    print "\tcreate <host-name> pop <pop-name>: creates a new host on the provided SDN POP"
+    print "\tdelete <host-name>: deletes a host"
+    print "\tadd-user <host-name> user <user-name> [priv <root:user>] Creates a user on a host. An optional"
+    print "\t\tprivilege level can be provided, otherwise, normal user privilege is default. Note that the"
+    print "\t\tcommand will create an initial password."
+    print "\trem-user <host-name> user <user-name>: remove user from a host."
     print
 
 
