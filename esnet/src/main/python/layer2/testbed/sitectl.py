@@ -20,6 +20,10 @@
 #
 
 
+sites = {}
+
+
+
 def print_syntax():
     print
     print "sitectl <cmd> <cmds options>"
@@ -49,3 +53,6 @@ if __name__ == '__main__':
     cmd = argv[1]
     if cmd == "help":
         print_syntax()
+    elif cmd == "create":
+        sitename = argv[2]
+

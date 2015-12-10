@@ -27,6 +27,7 @@ db = {}
 
 debug = False
 
+
 class Properties(object):
     def __init__(self, name,props={}):
         self.name = name
@@ -59,7 +60,6 @@ class Port(Properties):
         # configured by Link:
         self.props['links'] = [] # list of Link
         # Others
-        self.props['scopeIndex'] = {} # [vid] = Scope
         self.props['vlan'] = 0
         self.update(props)
     def __repr__(self):
@@ -84,6 +84,10 @@ class Node(Properties):
         self.props['ports'] = {} # [interfaceIndex] = Port
         self.update(props)
         self.props['domain'] = domain
+
+    def addPort(self,port):
+        self.props['ports'][port.name] = port
+        port.props['node'] = self
 
     def orderPorts(self,link):
         endpoints = link.props['endpoints']
@@ -127,24 +131,13 @@ class Host(Node):
     def setSite(self, site):
         self.props['site'] = site
 
-class ServiceVm(Node):
-    def __init__(self, name, domain=None,props={}):
-        if domain != None:
-            super(ServiceVm, self).__init__(name,domain=domain,props=props)
-        else:
-            super(ServiceVm, self).__init__(name,props=props)
-        self.props['role'] = 'ServiceVm'
-        self.update(props)
-
 class Switch(Node):
     def __init__(self, name, domain=None,props={}):
         if domain != None:
             super(Switch, self).__init__(name,domain=domain,props=props)
         else:
             super(Switch, self).__init__(name,props=props)
-    def addPort(self,port):
-        self.props['ports'][port.name] = port
-        port.props['node'] = self
+
 
 class HwSwitch(Switch):
     logger = Logger('HwSwitch')
@@ -154,72 +147,7 @@ class HwSwitch(Switch):
         else:
             super(HwSwitch, self).__init__(name,props=props)
         self.props['role'] = 'HwSwitch'
-        self.props['toCorePorts'] = {} # list of Port toward to coreRouter
-        self.props['toSwPorts'] = {} # list of Port toward to swSwitch
-        self.props['stitchedPortIndex'] = {} # [(hw|sw)_port.name] = (sw|hw)_port
         self.props['pop'] = None
-        self.props['sitePortIndex'] = {} # [sitename] = stitched port to core
-        self.props['wanPortIndex'] = {} # [pop.name] = Port
-
-    def connectPop(self, pop, hwlink, swlink):
-        """
-
-        :param pop:
-        :param hwlink:   CoreToHw
-        :param swlink:   HwToSw
-        :return:
-        """
-        self.props['wanPortIndex'][pop.name] = hwlink.props['portIndex'][self.name]
-        hwport = hwlink.props['portIndex'][self.name]
-        swport = swlink.props['portIndex'][self.name]
-        self.props['stitchedPortIndex'][hwport.name] = swport
-        self.props['stitchedPortIndex'][swport.name] = hwport
-        if debug:
-            print "HwSwitch.connectPop on " + self.name + " stitching " + hwport.name + " <-> " + swport.name
-
-    def addLink(self, hwlink,swlink):
-        hwport = hwlink.props['portIndex'][self.name]
-        swport = swlink.props['portIndex'][self.name]
-        self.props['toCorePorts'][hwport.name] = hwport
-        self.props['toSwPorts'][swport] = swport
-        self.props['stitchedPortIndex'][hwport.name] = swport
-        self.props['stitchedPortIndex'][swport.name] = hwport
-        if debug:
-            print "HwSwitch.addLink on " + self.name + " stitching " + hwport.name + " <-> " + swport.name
-
-    def addSite(self, site, link):
-        """
-
-        :param site:
-        :param link:   Core to Site
-        :return:
-        """
-        endpoints = link.props['endpoints']
-        myPort = None
-        myLink = None
-        (myPort,myLink) = self.portToRemote(endpoints[0])
-        if myPort == None:
-            (myPort,myLink) = self.portToRemote(endpoints[1])
-        if myPort == None:
-            HwSwitch.logger.error("Link %s is not connected to link %s",(link.name,self.name))
-            return
-
-        self.props['sitePortIndex'][site.name] = myPort
-
-    def toCorePort(self,hwlink):
-        # This implementation assumes that there is only one link between the hardware switch and
-        # the software switch
-        ports = self.toCorePorts()
-        if len(ports) != 1:
-            HwSwitch.logger.error("This implementation supports only one port to hardware switch. Found ",len(ports))
-        res = {ports.values()[0].name:ports.values[0]}
-        return res
-
-    def toCorePorts(self):
-        res = {}
-        for port in self.props['toCorePorts'].values():
-            res[port.name] = port
-        return res
 
 class SwSwitch(Switch):
     logger = Logger('SwSwitch')
@@ -229,32 +157,7 @@ class SwSwitch(Switch):
         else:
             super(SwSwitch, self).__init__(name,props=props)
         self.props['role'] = 'SwSwitch'
-        self.props['wanPortIndex'] = {} # [pop.name] = Port
-        self.props['sitePortIndex'] = {} # [site.name] = Port
-        self.props['vmPort'] = None # Port to serviceVm
-        self.props['vmPort.WAN'] = None # Port to serviceVm
-        self.props['toHwPorts'] = [] # list of Port to hwSwitch
         self.props['pop'] = None
-
-    def connectPop(self, pop, link):
-        """
-
-        :param pop:
-        :param link:   HwToSw
-        :return:
-        """
-        self.props['wanPortIndex'][pop.name] = link.props['portIndex'][self.name]
-    def addLink(self, swlink):
-        self.props['toHwPorts'].append(swlink.props['portIndex'][self.name])
-    def connectServiceVm(self, sitelink, wanlink):
-        self.props['vmPort'] = sitelink.props['portIndex'][self.name]
-        self.props['vmPort.WAN'] = wanlink.props['portIndex'][self.name]
-    def addSite(self, site, link):
-        (myPort,remotePort) = self.orderPorts(link)
-        if myPort == None:
-            SwSwitch.logger.error("Link %s is not connected to node %s",(link.name,self.name))
-            return
-        self.props['sitePortIndex'][site.name] = myPort
 
 class CoreRouter(Switch):
     def __init__(self, name, domain=None, props={}):
@@ -264,26 +167,8 @@ class CoreRouter(Switch):
             super(CoreRouter, self).__init__(name,props=props)
         self.props['role'] = 'CoreRouter'
         self.props['pop'] = None
-        self.props['toHwPorts'] = [] # nbOfLinks 'CoreToHw' ports
-        self.props['stitchedPortIndex'] = {} # [lanport.name] = stitched port (to hw)
-        self.props['stitchedPortIndex.WAN'] = {} # [wanport.name] = stitched port (to hw or to wan) (2 ways)
-        self.props['sitePortIndex'] = {} # [sitename] = tosite_port
-        self.props['wanPortIndex'] = {} # [popname] = towan_port
         self.props.update(props)
 
-    def connectPop(self, pop, wanlink, hwlink):
-        """
-        wanport = wanlink.props['portIndex'][self.name]
-        hwport = hwlink.props['portIndex'][self.name]
-        self.props['wanPortIndex'][pop.name] = wanport
-        self.props['stitchedPortIndex.WAN'][wanport.name] = hwport
-        self.props['stitchedPortIndex.WAN'][hwport.name] = wanport
-        """
-
-    def addLink(self, hwlink):
-        """
-        self.props['toHwPorts'].append(hwlink.props['portIndex'][self.name])
-        """
 
 class Link(Properties):
     def __init__(self, ports, vlan=0,props={}):
@@ -300,19 +185,6 @@ class Link(Properties):
         port.props['links'].append(self)
         self.props['vlan'] = vlan
 
-    def setPortType(self, type1, type2):
-        self.props['endpoints'][0].props['type'] = type1
-        self.props['endpoints'][1].props['type'] = type2
-
-    def getPortType(self):
-        type1 = "None"
-        type2 = "None"
-        if 'type' in self.props['endpoints'][0].props:
-            type1 = self.props['endpoints'][0].props['type']
-        if 'type' in self.props['endpoints'][1].props:
-            type2 = self.props['endpoints'][1].props['type']
-        return (type1,type2)
-
     def __repr__(self):
         return '%s.%r' % (self.name, self.props['vlan'])
 
@@ -325,34 +197,24 @@ class SDNPop(Properties):
         hwSwitch.props['pop'] = self
         swSwitch = SwSwitch(swswitchname)
         swSwitch.props['pop'] = self
-        serviceVm = ServiceVm('%s-vm' % self.name)
         coreRouter = CoreRouter(coreroutername)
         coreRouter.props['pop'] = self
 
         self.props['hwSwitch'] = hwSwitch
         self.props['swSwitch'] = swSwitch
-        self.props['serviceVm'] = serviceVm
         self.props['coreRouter'] = coreRouter
-
-
-    def addLinks(self,hwlink,swlink):
-        self.props['hwSwitch'].addLink(hwlink,swlink)
-        self.props['swSwitch'].addLink(swlink)
-
 
     def addSite(self, site, links):
         if len(links) != 1:
             # This implementation only supports one link between a site and a core router.
             SDNPop.logger.error("Only support one link between %s and network. Found %d" % (site.name,len(links)))
             return
-#        print "SDNPop.addSite with site " + site.name + " and links " + str(links)
 
         wanlink = links.values()[0] # Link where VC from site lands
         wanlinkeps = wanlink.props['endpoints']
         wanportName = None # switch port on the hw switch, need to find this
         # Iterate over core-facing ports to find the port where the site circuit lands
         for portName in self.props['hwSwitch'].props['toCorePorts']:
-#            print "  port " + portName
             ls = self.props['hwSwitch'].props['ports'][portName].props['links']
             for link in ls:
                 if debug:
@@ -361,30 +223,11 @@ class SDNPop(Properties):
                 if linkeps[0] == wanlinkeps[0] or linkeps[0] == wanlinkeps[1] or linkeps[1] == wanlinkeps[0] or linkeps[1] == wanlinkeps[1]:
                     wanportName = portName # found hardware switch port facing the site (circuit)
                     break
-#        print "found wanport " + wanportName
-
-        # find stitched port where wan traffic should go if from hw to sw switch
-        wanstitchedport = self.props['hwSwitch'].props['stitchedPortIndex'][wanportName]
-#        print "found wanstitchedport " + wanstitchedport.name + " with links " + str(wanstitchedport.props['links'])
 
         # Iterate over all of the links terminating on that port to find the one that
         # goes to the sw switch.  Presumably there is only one.
         swlink = None
         swport = None
-        for link in wanstitchedport.props['links']:
-#            print "  stitched port link " + link.name
-            linkeps = link.props['endpoints']
-            for port in self.props['swSwitch'].props['toHwPorts']:
-#                print "    try port " + port.name + " with links " + str(port.props['links'])
-                ls = port.props['links']
-                for l in ls:
-                    leps = l.props['endpoints']
-
-                    if leps[0] == linkeps[0] or leps[0] == linkeps[1] or leps[1] == linkeps[0] or leps[1] == linkeps[1]:
-                        swlink = l;
-                        swport = port;
-                        break
-#        print "found swport " + swport.name
 
         self.props['hwSwitch'].addSite(site,wanlink)
         self.props['swSwitch'].addSite(site,swlink)
@@ -393,29 +236,6 @@ class SDNPop(Properties):
         if debug:
             print "SDNPop.addSite completing with site " + site.name + " wanlink " + wanlink.name + " swlink " + swlink.name
 
-    def connectPop(self, pop,links):
-        """
-        Set up information in the switches in this POP to be able to find the links to use
-         to get to another POP
-        :param pop: The other POP
-        :param links: Array of plumbed VLAN links within our POP that are used to get to the other POP
-        :return: Ordered list of VLAN links, hardware-to-core and software-to-hardware
-        """
-        hwSwitch = self.props['hwSwitch']
-        swSwitch = self.props['swSwitch']
-        hwlink = None
-        swlink = None
-        for link in links.values():
-            if link.getPortType() == ('CoreToHw.WAN', 'HwToCore.WAN'):
-                # hw[tocore_port] --<hwlink>-- [core_port]core[wanPort] --<wanlink with vlan>-- pop
-                hwlink = link
-            if link.getPortType() == ('HwToSw.WAN', 'SwToHw.WAN'):
-                # hw[tocore_port] --<hwlink>-- [core_port]core[wanPort] --<wanlink with vlan>-- pop
-                swlink = link
-        # sw[tohw_port] --<swlink>-- [tosw_port]hw
-        hwSwitch.connectPop(pop, hwlink, swlink)
-        swSwitch.connectPop(pop, swlink)
-        return (hwlink,swlink)
 
 class VPN(Properties):
     VERSION = 1
@@ -434,7 +254,6 @@ class VPN(Properties):
         self.props['participantIndex'] = {} # [sitename] = (site, hosts, siteVlan)
         self.props['siteIndex'] = {} # [hwToCorePort.siteVlan] = site
         self.props['mat'] = None # MAC Address Translation
-        self.props['renderer'] = None # SDNPopsRenderer
         self.setPriority()
 
     def setPriority(self,priority="low"):
@@ -518,7 +337,6 @@ class VPN(Properties):
     def addHost(self, host):
         # could be invoked in CLI
         if not 'site' in host.props:
-            # this might be a serviceVm?
             return False
         site = host.props['site']
         if not site.name in self.props['participantIndex']:
@@ -529,7 +347,6 @@ class VPN(Properties):
     def delHost(self, host):
         # could be invoked in CLI
         if not 'site' in host.props:
-            # this might be a serviceVm?
             return False
         site = host.props['site']
         if not site.name in self.props['participantIndex']:
@@ -565,26 +382,6 @@ class Wan(Properties):
         self.props['links'] = [] # links between pops and their stitched link to hwSwitch
         self.update(props)
         self.topo = topo
-
-    def connectAll(self, pops):
-        for i in range(len(pops)):
-            pop1 = pops[i]
-            for j in range(i+1, len(pops)):
-                pop2 = pops[j]
-                self.connect(pop1, pop2)
-        self.props['pops'].extend(pops)
-
-    def connect(self, pop1, pop2):
-        # pop[wan_port] --wanlink -- [wan_port]pop
-        links = self.topo.getPopLinks(pop1,pop2)
-        if len(links) > 0:
-            (hwlink1, swlink1) = pop1.connectPop(pop=pop2, links=links)
-            self.props['links'].extend([hwlink1, swlink1])
-        links = self.topo.getPopLinks(pop2,pop1)
-        if len(links) > 0:
-            (hwlink2, swlink2) = pop2.connectPop(pop=pop1, links=links)
-            self.props['links'].extend([hwlink2, swlink2])
-
 
     def subsetLinks(self, pops):
         # return all links that connecting pops including the stitched links to hwSwitch

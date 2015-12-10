@@ -35,313 +35,202 @@ from layer2.common.utils import Logger
 # Note: Since flowmod could not forward a packet to where it comes from,
 #  multiple sites in the same pop must have different portNo! (otherwise, the broadcast won't work.)
 
-# Simulated sites ESnet production diskpt's
+sites = {
+    'wash' : {'name':"wash",'pop':'WASH','hosts':{'wash-tbn-1':{'interface':'eth11'}},'connected':{}},
+    'amst' : {'name':"amst",'pop':'AMST','hosts':{'amst-tbn-1':{'interface':'eth17'}},'connected':{}},
+    'cern' : {'name':"cern",'pop':'CERN','hosts':{'cern-272-tbn-1':{'interface':'eth14'}},'connected':{}},
 
-vpn=False
-
-lblsite = ["lbl.gov",['lbl-diskpt1@lbl.gov'],"denv"]
-anlsite = ["anl.gov",['anl-diskpt1@anl.gov'],"star"]
-bnlsite = ["bnl.gov",['bnl-diskpt1@bnl.gov'],"aofa"]
-washsite = ["site1.wash",['wash-tbn-1@site1.wash'],"wash"]
-amstsite = ["site2.amst",['amst-tbn-1@site2.asmt'],"amst"]
-cernsite = ["site3.cern",['cern-272-tbn-1@site3.cern'],"cern"]
-sites = None
-if vpn:
-    sites = [lblsite, anlsite, bnlsite,washsite,amstsite,cernsite]
-else:
-#    sites = [lblsite, anlsite, bnlsite]
-    sites = []
+    'aofa' : {'name':"aofa", 'pop':'AOFA','hosts':{'aofa-tbn-1':{'interface':'eth11'}}, 'connected':{}},
+    'denv' : {'name':"denv", 'pop':'DENV','hosts':{'denv-tbn-1':{'interface':'eth11'}}, 'connected':{}},
+    'star' : {'name':"star", 'pop':'STAR','hosts':{'star-tbn-4':{'interface':'eth17'}}, 'connected':{}}
+}
 
 # DENV
 denvlinks=[
-    ["denv-cr5","9/1/4","denv-tb-of-1","23",'core'],
-    ["denv-cr5","9/1/5","denv-tb-of-1","24",'none'],
-    ["denv-ovs","eth10","denv-tb-of-1","1",'hw'],
-    ["denv-tbn-1","eth11","denv-tb-of-1","2",'none']
+    ["denv-cr5","9/1/4","denv-tb-of-1","23"],
+    ["denv-cr5","9/1/5","denv-tb-of-1","24"],
+    ["denv-ovs","eth10","denv-tb-of-1","1"],
+    ["denv-tbn-1","eth11","denv-tb-of-1","2"]
 ]
-denvlinks_demo=[
-    ["denv-cr5","9/1/4","denv-tb-of-1","23",'core'],
-    ["denv-cr5","9/1/5","denv-tb-of-1","24",'site'],
-    ["denv-ovs","eth10","denv-tb-of-1","1",'hw'],
-    ["denv-ovs","eth11","denv-tb-of-1","2",'none']
-]
-if vpn:
-    denv=["denv",'denv-tb-of-1',"denv-cr5","denv-ovs",denvlinks_demo]
-else:
-    denv=["denv",'denv-tb-of-1',"denv-cr5","denv-ovs",denvlinks]
-
+denv=["denv",'denv-tb-of-1',"denv-cr5","denv-ovs",denvlinks]
 
 # WASH
 washlinks = [
-    ["wash-cr5","10/1/11","wash-tb-of-1","23",'core'],
-    ["wash-cr5","10/1/12","wash-tb-of-1","24",'site'],
-    ["wash-ovs","eth10","wash-tb-of-1","2",'hw'],
-    ["wash-tbn-1","eth11","wash-tb-of-1","1",'none']
+    ["wash-cr5","10/1/11","wash-tb-of-1","23"],
+    ["wash-cr5","10/1/12","wash-tb-of-1","24"],
+    ["wash-ovs","eth10","wash-tb-of-1","2"],
+    ["wash-tbn-1","eth11","wash-tb-of-1","1"]
 ]
-washlinks_demo = [
-    ["wash-cr5","10/1/12","wash-tb-of-1","24",'core'],
-    ["wash-cr5","10/1/11","wash-tb-of-1","2",'site'],  # FAKE
-    ["wash-ovs","eth10","wash-tb-of-1","1",'hw']
-]
-if vpn:
-    wash=["wash",'wash-tb-of-1',"wash-cr5","wash-ovs", washlinks_demo]
-else:
-    wash=["wash",'wash-tb-of-1',"wash-cr5","wash-ovs", washlinks]
+
+wash=["wash",'wash-tb-of-1',"wash-cr5","wash-ovs", washlinks]
 
 # AOFA
 aofalinks = [
-    ["aofa-cr5","10/1/3","aofa-tb-of-1","23",'core'],
-    ["aofa-cr5","10/1/4","aofa-tb-of-1","24",'site'],
-    ["aofa-ovs","eth10","aofa-tb-of-1","1",'hw'],
-    ["aofa-tbn-1","eth11","aofa-tb-of-1","2",'none']
+    ["aofa-cr5","10/1/3","aofa-tb-of-1","23"],
+    ["aofa-cr5","10/1/4","aofa-tb-of-1","24"],
+    ["aofa-ovs","eth10","aofa-tb-of-1","1"],
+    ["aofa-tbn-1","eth11","aofa-tb-of-1","2"]
 ]
-aofalinks_demo = [
-    ["aofa-cr5","10/1/3","aofa-tb-of-1","23",'core'],
-    ["aofa-cr5","10/1/4","aofa-tb-of-1","24",'site'],
-    ["aofa-ovs","eth10","aofa-tb-of-1","1",'hw'],
-    ["aofa-ovs","eth11","aofa-tb-of-1","2",'none']
-]
-if vpn:
-    aofa=["aofa",'aofa-tb-of-1',"aofa-cr5","aofa-ovs",aofalinks_demo]
-else:
-    aofa=["aofa",'aofa-tb-of-1',"aofa-cr5","aofa-ovs",aofalinks]
+
+
+aofa=["aofa",'aofa-tb-of-1',"aofa-cr5","aofa-ovs",aofalinks]
 
 # AMST
 amstlinks = [
-    ["amst-cr5","10/1/3","amst-tb-of-1","17",'core'],
-    ["amst-cr5","10/1/4","amst-tb-of-1","18",'site'],
-    ["amst-cr5","10/1/5","amst-tb-of-1","19",'none'],
-    ["amst-cr5","10/1/6","amst-tb-of-1","20",'none'],
-    ["amst-cr5","10/2/1","amst-tb-of-1","21",'none'],
-    ["amst-cr5","10/2/2","amst-tb-of-1","22",'none'],
-    ["amst-cr5","10/2/3","amst-tb-of-1","23",'none'],
-    ["amst-cr5","10/2/4","amst-tb-of-1","24",'none'],
-    ["amst-ovs","eth10","amst-tb-of-1","1",'hw'],
-    ["amst-ovs","eth11","amst-tb-of-1","2",'none'],
-    ["amst-ovs","eth12","amst-tb-of-1","3",'none'],
-    ["amst-ovs","eth13","amst-tb-of-1","4",'none'],
-    ["amst-ovs","eth14","amst-tb-of-1","5",'none'],
-    ["amst-ovs","eth15","amst-tb-of-1","6",'none'],
-    ["amst-ovs","eth16","amst-tb-of-1","7",'none'],
-    ["amst-tbn-1","eth17","amst-tb-of-1","8",'none']
+    ["amst-cr5","10/1/3","amst-tb-of-1","17"],
+    ["amst-cr5","10/1/4","amst-tb-of-1","18"],
+    ["amst-cr5","10/1/5","amst-tb-of-1","19"],
+    ["amst-cr5","10/1/6","amst-tb-of-1","20"],
+    ["amst-cr5","10/2/1","amst-tb-of-1","21"],
+    ["amst-cr5","10/2/2","amst-tb-of-1","22"],
+    ["amst-cr5","10/2/3","amst-tb-of-1","23"],
+    ["amst-cr5","10/2/4","amst-tb-of-1","24"],
+    ["amst-ovs","eth10","amst-tb-of-1","1"],
+    ["amst-ovs","eth11","amst-tb-of-1","2"],
+    ["amst-ovs","eth12","amst-tb-of-1","3"],
+    ["amst-ovs","eth13","amst-tb-of-1","4"],
+    ["amst-ovs","eth14","amst-tb-of-1","5"],
+    ["amst-ovs","eth15","amst-tb-of-1","6"],
+    ["amst-ovs","eth16","amst-tb-of-1","7"],
+    ["amst-tbn-1","eth17","amst-tb-of-1","8"]
 ]
 
-amstlinks_demo = [
-    ["amst-cr5","10/1/3","amst-tb-of-1","17",'core'],
-    ["amst-cr5","10/1/4","amst-tb-of-1","8",'site'],     # FAKE
-    ["amst-cr5","10/1/5","amst-tb-of-1","19",'none'],
-    ["amst-cr5","10/1/6","amst-tb-of-1","20",'none'],
-    ["amst-cr5","10/2/1","amst-tb-of-1","21",'none'],
-    ["amst-cr5","10/2/2","amst-tb-of-1","22",'none'],
-    ["amst-cr5","10/2/3","amst-tb-of-1","23",'none'],
-    ["amst-cr5","10/2/4","amst-tb-of-1","24",'none'],
-    ["amst-ovs","eth10","amst-tb-of-1","1",'hw'],
-    ["amst-ovs","eth11","amst-tb-of-1","2",'none'],
-    ["amst-ovs","eth12","amst-tb-of-1","3",'none'],
-    ["amst-ovs","eth13","amst-tb-of-1","4",'none'],
-    ["amst-ovs","eth14","amst-tb-of-1","5",'none'],
-    ["amst-ovs","eth15","amst-tb-of-1","6",'none'],
-    ["amst-ovs","eth16","amst-tb-of-1","7",'none']
-]
-if vpn:
-    amst=["amst",'amst-tb-of-1',"amst-cr5","amst-ovs",amstlinks_demo]
-else:
-    amst=["amst",'amst-tb-of-1',"amst-cr5","amst-ovs",amstlinks]
+amst=["amst",'amst-tb-of-1',"amst-cr5","amst-ovs",amstlinks]
 
 # CERN
 cernlinks = [
-    ["cern-272-cr5","10/1/4","cern-272-tb-of-1","20",'site'],
-    ["cern-272-cr5","10/1/5","cern-272-tb-of-1","21",'core'],
-    ["cern-272-cr5","10/1/6","cern-272-tb-of-1","22",'core'],
-    ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23",'none'],
-    ["cern-272-cr5","10/2/6","cern-272-tb-of-1","24",'none'],
-    ["cern-272-ovs","eth10","cern-272-tb-of-1","1",'hw'],
-    ["cern-272-ovs","eth11","cern-272-tb-of-1","2",'none'],
-    ["cern-272-ovs","eth12","cern-272-tb-of-1","3",'none'],
-    ["cern-272-ovs","eth13","cern-272-tb-of-1","4",'none'],
-    ["cern-272-tbn-1","eth14","cern-272-tb-of-1","5",'none']
+    ["cern-272-cr5","10/1/4","cern-272-tb-of-1","20"],
+    ["cern-272-cr5","10/1/5","cern-272-tb-of-1","21"],
+    ["cern-272-cr5","10/1/6","cern-272-tb-of-1","22"],
+    ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23"],
+    ["cern-272-cr5","10/2/6","cern-272-tb-of-1","24"],
+    ["cern-272-ovs","eth10","cern-272-tb-of-1","1"],
+    ["cern-272-ovs","eth11","cern-272-tb-of-1","2"],
+    ["cern-272-ovs","eth12","cern-272-tb-of-1","3"],
+    ["cern-272-ovs","eth13","cern-272-tb-of-1","4"],
+    ["cern-272-tbn-1","eth14","cern-272-tb-of-1","5"]
 ]
 
-cernlinks_demo = [
-    ["cern-272-cr5","10/1/4","cern-272-tb-of-1","5",'site'],  # FAKE
-    ["cern-272-cr5","10/1/5","cern-272-tb-of-1","21",'none'],
-    ["cern-272-cr5","10/1/6","cern-272-tb-of-1","22",'none'],
-    ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23",'core'],
-    ["cern-272-cr5","10/2/6","cern-272-tb-of-1","24",'core'],
-    ["cern-272-ovs","eth10","cern-272-tb-of-1","1",'hw'],
-    ["cern-272-ovs","eth11","cern-272-tb-of-1","2",'none'],
-    ["cern-272-ovs","eth12","cern-272-tb-of-1","3",'none'],
-    ["cern-272-ovs","eth13","cern-272-tb-of-1","4",'none']
-]
-if vpn:
-    cern=["cern",'cern-272-tb-of-1',"cern-272-cr5","cern-272-ovs",cernlinks_demo]
-else:
-    cern=["cern",'cern-272-tb-of-1',"cern-272-cr5","cern-272-ovs",cernlinks]
+cern=["cern",'cern-272-tb-of-1',"cern-272-cr5","cern-272-ovs",cernlinks]
 
 # ATLA
 atlalinks = [
-    ["atla-cr5","10/1/9","atla-tb-of-1","21",'core'],
-    ["atla-cr5","10/1/10","atla-tb-of-1","22",'site'],
-    ["atla-cr5","10/1/10","atla-tb-of-1","23",'none'],
-    ["atla-cr5","10/1/11","atla-tb-of-1","24",'none'],
-    ["atla-ovs","eth10","atla-tb-of-1","1",'hw'],
-    ["atla-ovs","eth11","atla-tb-of-1","2",'none'],
-    ["atla-ovs","eth12","atla-tb-of-1","3",'none'],
-    ["atla-ovs","eth13","atla-tb-of-1","4",'none']
+    ["atla-cr5","10/1/9","atla-tb-of-1","21"],
+    ["atla-cr5","10/1/10","atla-tb-of-1","22"],
+    ["atla-cr5","10/1/10","atla-tb-of-1","23"],
+    ["atla-cr5","10/1/11","atla-tb-of-1","24"],
+    ["atla-ovs","eth10","atla-tb-of-1","1"],
+    ["atla-ovs","eth11","atla-tb-of-1","2"],
+    ["atla-ovs","eth12","atla-tb-of-1","3"],
+    ["atla-ovs","eth13","atla-tb-of-1","4"]
 ]
 atla=["atla",'atla-tb-of-1',"atla-cr5","atla-ovs",atlalinks]
 
 # STAR
 starlinks = [
-    ["star-cr5","9/2/3","star-tb-of-1","17",'core'],
-    ["star-cr5","9/2/4","star-tb-of-1","18",'site'],
-    ["star-cr5","9/2/5","star-tb-of-1","19",'none'],
-    ["star-cr5","9/2/6","star-tb-of-1","20",'none'],
-    ["star-cr5","10/1/5","star-tb-of-1","21",'none'],
-    ["star-cr5","10/1/6","star-tb-of-1","22",'none'],
-    ["star-cr5","10/1/11","star-tb-of-1","23",'none'],
-    ["star-cr5","10/1/12","star-tb-of-1","24",'none'],
-    ["star-ovs","eth10","star-tb-of-1","1",'hw'],
-    ["star-ovs","eth11","star-tb-of-1","2",'none'],
-    ["star-ovs","eth12","star-tb-of-1","3",'none'],
-    ["star-ovs","eth13","star-tb-of-1","4",'none'],
-    ["star-ovs","eth14","star-tb-of-1","5",'none'],
-    ["star-ovs","eth15","star-tb-of-1","6",'none'],
-    ["star-ovs","eth16","star-tb-of-1","7",'none'],
-    ["star-tbn-4","eth17","star-tb-of-1","8",'none']
+    ["star-cr5","9/2/3","star-tb-of-1","17"],
+    ["star-cr5","9/2/4","star-tb-of-1","18"],
+    ["star-cr5","9/2/5","star-tb-of-1","19"],
+    ["star-cr5","9/2/6","star-tb-of-1","20"],
+    ["star-cr5","10/1/5","star-tb-of-1","21"],
+    ["star-cr5","10/1/6","star-tb-of-1","22"],
+    ["star-cr5","10/1/11","star-tb-of-1","23"],
+    ["star-cr5","10/1/12","star-tb-of-1","24"],
+    ["star-ovs","eth10","star-tb-of-1","1"],
+    ["star-ovs","eth11","star-tb-of-1","2"],
+    ["star-ovs","eth12","star-tb-of-1","3"],
+    ["star-ovs","eth13","star-tb-of-1","4"],
+    ["star-ovs","eth14","star-tb-of-1","5"],
+    ["star-ovs","eth15","star-tb-of-1","6"],
+    ["star-ovs","eth16","star-tb-of-1","7"],
+    ["star-tbn-4","eth17","star-tb-of-1","8"]
 ]
-starlinks_demo = [
-    ["star-cr5","9/2/3","star-tb-of-1","17",'core'],
-    ["star-cr5","9/2/4","star-tb-of-1","18",'site'],
-    ["star-cr5","9/2/5","star-tb-of-1","19",'none'],
-    ["star-cr5","9/2/6","star-tb-of-1","20",'none'],
-    ["star-cr5","10/1/5","star-tb-of-1","21",'none'],
-    ["star-cr5","10/1/6","star-tb-of-1","22",'none'],
-    ["star-cr5","10/1/11","star-tb-of-1","23",'none'],
-    ["star-cr5","10/1/12","star-tb-of-1","24",'none'],
-    ["star-ovs","eth10","star-tb-of-1","1",'hw'],
-    ["star-ovs","eth11","star-tb-of-1","2",'none'],
-    ["star-ovs","eth12","star-tb-of-1","3",'none'],
-    ["star-ovs","eth13","star-tb-of-1","4",'none'],
-    ["star-ovs","eth14","star-tb-of-1","5",'none'],
-    ["star-ovs","eth15","star-tb-of-1","6",'none'],
-    ["star-ovs","eth16","star-tb-of-1","7",'none'],
-    ["star-ovs","eth17","star-tb-of-1","8",'none']
-]
-if vpn:
-    star=["star",'star-tb-of-1',"star-cr5","star-ovs",starlinks_demo]
-else:
-    star=["star",'star-tb-of-1',"star-cr5","star-ovs",starlinks]
+
+star=["star",'star-tb-of-1',"star-cr5","star-ovs",starlinks]
 
 # LBL  POP is not yet deployed
 
-# CORE TO CORE OSCARS circuits
-#  GRI,src,dest,vlan.
-corecircuits = [
-    # DENV - STAR - AOFA 1Mbps + scavenger
-    ['es.net-5909',
-     'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/4:link=*',
-     'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/3:link=*',
-     582] ,
-    ['es.net-5972',
-     'urn:ogf:network:domain=es.net:node=star-cr5:port=9/2/3:link=*',
-     'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/4:link=*',
-     2953],
-    ['es.net-5971',
-     'urn:ogf:network:domain=es.net:node=star-cr5:port=9/2/3:link=*',
-     'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/3:link=*',
-     4054],
-    # WASH - AMST - CERN 9.5Gbps on WASH - CERN and AMST - CERN, 1Mbps on WASH - AMST
 
-    ['es.net-6074',
-     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
-    'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/2/5:link=*',
-     1232],
-    ['es.net-6072',
-     'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
-     'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/2/4:link=*',
-     3905],
-    ['es.net-6073',
-     'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/2/5:link=*',
-     'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/2/4:link=*',
-     3970]
-]
+amst_tbn_1 = {
+    'name': 'amst-tbn-1',
+    'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:e4:a8','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'90:e2:ba:89:e4:a9','props':{'data':False}}, \
+                    {'name': 'eth12','mac':'90:e2:ba:89:e5:10','props':{'data':False}}, \
+                    {'name': 'eth13','mac':'90:e2:ba:89:e5:11','props':{'data':False}}, \
+                    {'name': 'eth14','mac':'00:02:c9:34:f8:00','props':{'data':False}}, \
+                    {'name': 'eth15','mac':'00:02:c9:34:f8:01','props':{'data':False}}, \
+                    {'name': 'eth16','mac':'90:e2:ba:89:e5:24','props':{'data':False}}, \
+                    {'name': 'eth17','mac':'90:e2:ba:89:e5:25','props':{'data':True}} ],
+    'pop':"amst"
+}
 
-# SITE to SDN POP OSCARS circuits
-#  Site,GRI,src,dest,vlan
-# By convention, the source is always the router connected to the  host and the destination is
-#  always the core router connected to the SDN POP.
-sitecircuits = {}
+cern_272_tbn_1 = {
+    'name': 'cern-272-tbn-1',
+    'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:f5:00','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'90:e2:ba:89:f5:01','props':{'data':False}}, \
+                    {'name': 'eth12','mac':'00:02:c9:34:f7:b0','props':{'data':False}}, \
+                    {'name': 'eth13','mac':'00:02:c9:34:f7:b1','props':{'data':False}}, \
+                    {'name': 'eth14','mac':'90:e2:ba:89:ee:a0','props':{'data':True}} ],
+    'pop':"cern"
+}
 
-sitecircuits['lbl.gov'] = \
-    ['lbl.gov',
-     'es.net-5924',
-     'urn:ogf:network:domain=es.net:node=lbl-mr2:port=xe-9/3/0:link=*',
-     'urn:ogf:network:domain=es.net:node=denv-cr5:port=9/1/5:link=*',
-     1994]
+wash_tbn_1 = {
+    'name': 'wash-tbn-1',
+    'interfaces': [ {'name': 'eth10','mac':'00:60:dd:45:62:00','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'00:60:dd:46:52:30','props':{'data':True}} ],
+    'pop':"wash"
+}
 
-sitecircuits['anl.gov'] = \
-    ['anl.gov',
-     'es.net-5969',
-     'urn:ogf:network:domain=es.net:node=anl-mr2:port=xe-1/2/0:link=*',
-     'urn:ogf:network:domain=es.net:node=star-cr5:port=9/2/4:link=*',
-     3572]
+star_tbn_4 = {
+    'name': 'star-tbn-4',
+    'interfaces': [ {'name': 'eth10','mac':'00:60:dd:45:65:09','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'00:60:dd:45:65:08','props':{'data':False}}, \
+                    {'name': 'eth12','mac':'00:60:dd:45:64:f9','props':{'data':False}}, \
+                    {'name': 'eth13','mac':'00:60:dd:45:64:f8','props':{'data':False}}, \
+                    {'name': 'eth14','mac':'00:02:c9:24:48:00','props':{'data':False}}, \
+                    {'name': 'eth15','mac':'00:02:c9:24:48:01','props':{'data':False}}, \
+                    {'name': 'eth16','mac':'00:60:dd:45:64:ed','props':{'data':False}}, \
+                    {'name': 'eth17','mac':'00:60:dd:45:64:ec','props':{'data':True}} ],
+    'pop':"star"
+}
 
-sitecircuits['bnl.gov'] = \
-    ['bnl.gov',
-     'es.net-5925',
-     'urn:ogf:network:domain=es.net:node=bnl-mr2:port=xe-2/2/0:link=*',
-     'urn:ogf:network:domain=es.net:node=aofa-cr5:port=10/1/4:link=*',
-     116]
+denv_tbn_1 = {
+    'name': 'denv-tbn-1',
+    'interfaces': [ {'name': 'eth10','mac':'00:60:dd:46:52:32','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'00:60:dd:45:6f:b0','props':{'data':True}} ],
+    'pop':"denv"
+}
 
-# The following are simulated links
-if vpn:
-    sitecircuits['site1.wash'] = \
-        ['site1.wash',
-         'es.net-fake1',
-         'urn:ogf:network:domain=site1.wash:node=wash:port=xe-9/3/0:link=*',
-         'urn:ogf:network:domain=es.net:node=wash-cr5:port=10/1/12:link=*',
-         100]
+atla_tbn_1 = {
+    'name': 'atla-tbn-1',
+    'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:e2:54','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'90:e2:ba:89:e2:55','props':{'data':False}}, \
+                    {'name': 'eth12','mac':'90:e2:ba:89:f5:9c','props':{'data':False}}, \
+                    {'name': 'eth13','mac':'90:e2:ba:89:f5:9d','props':{'data':False}} ],
+    'pop':"atla"
+}
 
-    sitecircuits['site2.amst'] = \
-        ['site2.amst',
-         'es.net-fake2',
-         'urn:ogf:network:domain=site2.amst:node=amst:port=xe-9/3/0:link=*',
-         'urn:ogf:network:domain=es.net:node=amst-cr5:port=10/1/4:link=*',
-         100]
+aofa_tbn_1 = {
+    'name': 'aofa-tbn-1',
+    'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:ee:7c','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'90:e2:ba:89:ee:7d','props':{'data':True}} ],
+    'pop':"aofa"
+}
 
-    sitecircuits['site3.cern'] = \
-        ['site3.cern',
-         'es.net-fake3',
-         'urn:ogf:network:domain=site3.cern:node=cern:port=xe-9/3/0:link=*',
-         'urn:ogf:network:domain=es.net:node=cern-272-cr5:port=10/1/4:link=*',
-         100]
-else:
-    sitecircuits['site1.wash'] = \
-        ['site1.wash',
-         'es.net-fake1',
-         'urn:ogf:network:domain=site1.wash:node=wash-tbn-1:port=eth11:link=*',
-         'urn:ogf:network:domain=es.net:node=wash-tb-of-1:port=2:link=*',
-         100]
 
-    sitecircuits['site2.amst'] = \
-        ['site2.amst',
-         'es.net-fake2',
-         'urn:ogf:network:domain=site2.amst:node=amst-tbn-1:port=eth17:link=*',
-         'urn:ogf:network:domain=es.net:node=amst-tb-of-1:port=8link=*',
-         100]
-
-    sitecircuits['site3.cern'] = \
-        ['site3.cern',
-         'es.net-fake3',
-         'urn:ogf:network:domain=site3.cern:node=cern-272-tbn-1:port=eth14:link=*',
-         'urn:ogf:network:domain=es.net:node=cern-272-tb-of-1:port=5:link=*',
-         100]
+tbns = {'amst-tbn-1':amst_tbn_1,
+        'cern-272-tbn-1':cern_272_tbn_1,
+        'wash-tbn-1':wash_tbn_1,
+        'star-tbn-4':star_tbn_4,
+        'denv-tbn-1':denv_tbn_1,
+        'atla-tbn-1':atla_tbn_1,
+        'aofa-tbn-1':aofa_tbn_1}
 
 
 # SDN POP's
 locations=[denv,wash,aofa,amst,cern,atla,star]
 testbedPops = {"denv":denv,"wash":wash,"aofa":aofa,"amst":amst,"cern":cern,"atla":atla,"star":star}
+
 
 class TopoBuilder ():
 
@@ -367,44 +256,23 @@ class TopoBuilder ():
         self.popIndex = {} # [popname] = SDNPop
         self.wan = Wan(name='esnet',topo=self)
         self.controller = controller
-
-        if fileName != None:
-            self.loadConfiguration(fileName)
-        else:
-            self.locations = locations
-            self.sitesConfig = sites
+        self.locations = locations
+        self.sitesConfig = sites
         self.loadDefault()
+
+
+    def getNode(self,name):
+        if name in self.switchIndex:
+            return self.switchIndex[name]
+        elif name in self.hostIndex:
+            return self.hostIndex[name]
+        return None
 
     def addSwitch(self, switch):
         self.switchIndex[switch.name] = switch
 
     def addHost(self, host):
         self.hostIndex[host.name] = host
-
-    def addLink(self, link):
-        if link.name in self.linkIndex:
-            TopoBuilder.logger.error("link duplicate %s" % link.name)
-            return
-        self.linkIndex[link.name] = link
-        # Links are uni-directional. Create reverse link
-        rl = Link(ports=[link.props['endpoints'][1],link.props['endpoints'][0]],
-                  props=link.props,
-                  vlan=link.props['vlan'])
-        link.props['reverseLink'] = rl
-        rl.props['reverseLink'] = link
-        self.linkIndex[rl.name] = rl
-
-    def addLinks(self, links):
-        for link in links:
-            self.addLink(link)
-
-    def addSite(self,popname,site):
-        self.siteIndex[site.name] = site
-        pop = self.popIndex[popname]
-        site.setPop(pop)
-        links = self.getSiteOSCARSLinks(site)
-        # print "TopoBuilder.addSite " + site.name + " pop " + pop.name + " links " + str(links)
-        pop.addSite(site, links)
 
     def addSDNPop(self, popname, hwswitchname, coreroutername, swswitchname,links):
         """
@@ -435,93 +303,17 @@ class TopoBuilder ():
         self.addSwitch(hwSwitch)
         self.addSwitch(coreRouter)
         self.addSwitch(swSwitch)
-        self.addHost(pop.props['serviceVm'])
         self.popIndex[popname] = pop
 
-        hwLinks = []
-        swLinks = []
-
-        for l in links:
-            # Following is slightly a workaround: this class is currently used by two different topology, one with
-            # sites on remote hosts, the other using the testbed hosts as site.
-            srcNode = None
-            dstNode = None
-            if '-tbn-' in l[0]:
-                # This is a testbed host. We need to create it and add it
-                host = Host(l[0])
-                self.addHost(host)
-                srcNode = host
-            else:
-                srcNode = self.switchIndex[l[0]]
-            if '-tbn-' in l[2]:
-                # This is a testbed host. We need to create it and add it
-                host = Host(l[2])
-                self.addHost(host)
-                dstNode = host
-            else:
-                dstNode = self.switchIndex[l[2]]
-            (n1,p1,n2,p2,type) = (srcNode,
-                                  Port(l[1]),
-                                  dstNode,
-                                  Port(l[3]),
-                                  l[4])
-            p1.props['node'] = n1
-            n1.props['ports'][p1.name] = p1
-            p2.props['node'] = n2
-            n2.props['ports'][p2.name] = p2
-            link = Link(ports=[p1,p2])
-            link.props['type'] = type
-
-            if hwSwitch.name == n1.name and swSwitch.name == n2.name:
-                # Tag hardware and software switch ports according to
-                # whether they're supposed to be used for WAN traffic
-                # or site traffic.  WAN ports have links with type 'hw'.
-                # We need to set port types differently because we
-                # match PACKET_IN events with their scopes differently
-                # depending on whether the port corresponds to a WAN trunk
-                # (need to use VLAN ID of translated MAC addresses to
-                # demultiplex packets) or a site link (use VLAN ID to
-                # demultiplex packets to scopes).
-                if type == 'hw':
-                    link.setPortType('HwToSw.WAN', 'SwToHw.WAN')
-                else:
-                    link.setPortType('HwToSw', 'SwToHw')
-                swLinks.append(link)
-            elif hwSwitch.name == n2.name and swSwitch.name == n1.name:
-                # See above comment about setting the types of switch
-                # ports and why we need to do this.
-                if type == 'hw':
-                    link.setPortType('SwToHw.WAN', 'HwToSw.WAN')
-                else:
-                    link.setPortType('SwToHw', 'HwToSw')
-                swLinks.append(link)
-            elif hwSwitch.name == n1.name and coreRouter.name == n2.name:
-                # Tag the hardware switch ports according to whether they're
-                # facing the site (through the core) or facing the wan (again
-                # through the core).  This is only available from the link.
-                # This distinction needs to be made because we match
-                # up inbound PACKET_IN events with containing scopes in
-                # different ways.
-                if type == 'site':
-                    link.setPortType('HwToCore', 'CoreToHw')
-                else:
-                    link.setPortType('HwToCore.WAN', 'CoreToHw.WAN')
-                hwLinks.append(link)
-            elif hwSwitch.name == n2.name and coreRouter.name == n1.name:
-                # See above comment about tagging the hardware switch ports.
-                if type == 'site':
-                    link.setPortType('CoreToHw', 'HwToCore')
-                else:
-                    link.setPortType('CoreToHw.WAN', 'HwToCore.WAN')
-                hwLinks.append(link)
-            self.addLink(link)
-        index = 0
-        for link in hwLinks:
-            if index == len(swLinks):
-                break
-#            print "TopoBuilder.addSDNPop pop " + pop.name + " hw " + link.name + " sw " + swLinks[index].name
-            pop.addLinks(hwlink=link,swlink=swLinks[index])
-            index += 1
+        for [n1,p1,n2,p2] in links:
+            node1 = self.getNode(n1)
+            node2 = self.getNode(n2)
+            port1 = Port(name=p1,node=node1)
+            port2 = Port(name=p2,node=node2)
+            node1.addPort(port1)
+            node2.addPort(port2)
+            link = Link(ports = [port1,port2])
+            self.linkIndex[link.name] = link
 
 
     def getLink(self,n1,p1,n2,p2,vlan):
@@ -536,114 +328,6 @@ class TopoBuilder ():
                 return link
         return None
 
-    def getLinksByType(self,type1,type2,ordered=False):
-        res = {}
-        for link in self.linkIndex.values():
-            if link.getPortType() == (type1,type2):
-                res[link.name] = link
-                continue
-            if not ordered and link.getPortType() == (type2,type1):
-                res[link.name] = link
-                continue
-        return res
-
-    def getSiteOSCARSLinks(self,site):
-        res = {}
-        for link in self.linkIndex.values():
-            if not 'gri' in link.props:
-                continue
-            endpoints = link.props['endpoints']
-            node1 = endpoints[0].props['node']
-            node2 = endpoints[1].props['node']
-            if site.name == node2.props['domain']:
-                # Only keep links that points to the site
-                res[link.name] = link
-        return res
-
-    def getPopLinks(self,pop1,pop2):
-        """
-        Given a pair of POPs, locate the OSCARS circuit (if any) that connects their
-        core routers.  Then using the VLAN tag from that OSCARS circuit, create two links
-        parallel to the physical links connecting the hardware switch to the core,
-        and connecting the software switch to the hardware switch.  The newly-created
-        links have information about the OSCARS GRI and POPs.
-        :param pop1: POP for which we're creating VLAN links
-        :param pop2: Remote POP
-        :return: array of links
-        """
-        res = {}
-        coreRouter1 = pop1.props['coreRouter']
-        hwSwitch1 = pop1.props['hwSwitch']
-        swSwitch1 = pop1.props['swSwitch']
-        coreRouter2 = pop2.props['coreRouter']
-        vlan = 0
-        gri = ''
-        # Retrieve Core to Core OSCARS VLAN
-        for link in self.linkIndex.values():
-            if not 'gri' in link.props:
-                continue
-            endpoints = link.props['endpoints']
-            node1 = endpoints[0].props['node']
-            node2 = endpoints[1].props['node']
-            gri = link.props['gri']
-            if node1.name == coreRouter1.name and node2.name == coreRouter2.name:
-                vlan = link.props['vlan']
-                # Only look for links with non-zero VLANs since all valid OSCARS circuits have non-zero
-                # VLAN tags
-                if vlan > 0:
-                    break
-        # If we didn't find an inter-POP link, then we're done...don't create any other links within the POP
-        if vlan == 0:
-            return res
-        # We want to store the POPs into the links
-        pops = [ pop1, pop2 ]
-        # Retrieve corresponding CoreToHw link and create a new link for the plumbed VLAN
-        links = self.getLinksByType('CoreToHw.WAN', 'HwToCore.WAN')
-        for link in links.values():
-            if not 'core' in link.props['type']:
-                continue
-            endpoints = link.props['endpoints']
-            node1 = endpoints[0].props['node']
-            node2 = endpoints[1].props['node']
-            if node1.name == coreRouter1.name and node2.name == hwSwitch1.name:
-                res[link.name] = Link(ports=link.props['endpoints'],
-                                             vlan=vlan,
-                                             props=link.props)
-                res[link.name].props['pops'] = pops
-                res[link.name].props['gri'] = gri
-                break
-            if node2.name == coreRouter1.name and node1.name == hwSwitch1.name:
-                reverseLink = link.props['reverseLink']
-                res[reverseLink.name] = Link(ports=reverseLink.props['endpoints'],
-                                             vlan=vlan,
-                                             props=reverseLink.props)
-                res[reverseLink.name].props['pops'] = pops
-                res[reverseLink.name].props['gri'] = gri
-                break
-        # Retrieve corresponding HwToSw link and create a new link for the plumbed VLAN
-        links = self.getLinksByType('SwToHw.WAN','HwToSw.WAN')
-        for link in links.values():
-            if not 'hw' in link.props['type']:
-                continue
-            endpoints = link.props['endpoints']
-            node1 = endpoints[0].props['node']
-            node2 = endpoints[1].props['node']
-            if node1.name == swSwitch1.name and node2.name == hwSwitch1.name:
-                reverseLink = link.props['reverseLink']
-                res[reverseLink.name] = Link(ports=reverseLink.props['endpoints'],
-                                             vlan=vlan,
-                                             props=reverseLink.props)
-                res[reverseLink.name].props['pops'] = pops
-                res[reverseLink.name].props['gri'] = gri
-                break
-            if node1.name == swSwitch1.name and node2.name == hwSwitch1.name:
-                res[link.name] = Link(ports=link.props['endpoints'],
-                                      vlan=vlan,
-                                      props=link.props)
-                res[link.name].props['pops'] = pops
-                res[link.name].props['gri'] = gri
-                break
-        return res
 
     def updateSwitch(self, switch):
         role = switch.get('role')
@@ -666,6 +350,12 @@ class TopoBuilder ():
 
     def loadDefault(self):
 
+        # Adds Testbed hosts
+        global tbns
+        for (name,tbn) in tbns.items():
+            host = Host(name=name,domain="testbed100.es.net")
+            self.hostIndex[name] = host
+
         # init self.pops
         for location in self.locations:
             (popname, hwswitchname, coreroutername, swswitchname,links) = (location[0],
@@ -677,70 +367,9 @@ class TopoBuilder ():
 
             self.addSDNPop(popname, hwswitchname, coreroutername, swswitchname,links)
 
-        # create mesh between core routers, attached to VLANs between the core routers and hardware switches
-        for l in corecircuits:
-            (gri,srcURN,dstURN,vlan) = l
-            (srcNodeName,srcDomain,srcPortName,srcLink) = oscars.parseURN(srcURN)
-            (dstNodeName,dstDomain,dstPortName,dstLink)  = oscars.parseURN(dstURN)
-            # By convention, the source is always the router connected to the host. We do not yet know this
-            # switch, therefore we need to create it.
-            srcNode = self.switchIndex[srcNodeName]
-            srcPort = srcNode.props['ports'][srcPortName]
-            dstNode = self.switchIndex[dstNodeName]
-            dstPort = dstNode.props['ports'][dstPortName]
-            link = Link(ports=[srcPort,dstPort],vlan=vlan)
-            link.props['gri'] = gri
-            self.addLink(link)
-            srcNode.addLink(link)
-            dstNode.addLink(link)
-
-        # Add sites to the topology
-        for (siteName,hosts,pop) in sites:
-            site = Site(siteName)
-            (siteName,gri,srcURN,dstURN,vlan) = sitecircuits[siteName]
-            (srcNodeName,srcDomain,srcPortName,srcLink) = oscars.parseURN(srcURN)
-            (dstNodeName,dstDomain,dstPortName,dstLink)  = oscars.parseURN(dstURN)
-            # By convention, the source is always the router where the host directly connects to.
-            srcNode = Switch(srcNodeName,domain=siteName)
-            self.addSwitch(srcNode)
-            srcPort = Port(srcPortName)
-            srcNode.addPort(srcPort)
-            dstNode = self.switchIndex[dstNodeName]
-            dstPort = dstNode.props['ports'][dstPortName]
-            link = Link(ports=[srcPort,dstPort],vlan=vlan)
-            link.props['gri'] = gri
-            site.props['SiteToCore'] = link
-            self.addLink(link)
-            site.addSwitch(srcNode)
-            self.addSite(site=site,popname=pop)
-
-            for h in hosts:
-                host = Host(h,domain=siteName)
-                # Host are directly connected to core router. Build a link. Each host is connected using eth2
-                srcHostPort = Port("eth2")
-                srcHostPort.props['node'] = host
-                link = Link(ports=[srcHostPort,srcPort],vlan=vlan)
-                self.addLink(link)
-                site.addHost(host=host,link=link)
-                self.addHost(host)
-
-        self.wan.connectAll(self.popIndex.values())
 
         for switch in self.switchIndex.values():
             self.updateSwitch(switch)
-
-    def loadConfiguration(self,fileName):
-        """
-        loads the topology Mininet needs to create as described in a file. The format is a dictionary with
-        the following structure:
-
-
-        :param fileName:
-        :return:
-        """
-        f = open(fileName,"r")
-        self.config = eval (f.read())
-        f.close()
 
 if __name__ == '__main__':
     builder = TopoBuilder()

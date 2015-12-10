@@ -19,9 +19,10 @@
 # to permit others to do so.
 #
 from layer2.common.mac import MACAddress
-from layer2.testbed.hostctl import connectgri,tbns,getdatapaths
+from layer2.testbed.hostctl import connectgri,getdatapaths
 from layer2.testbed.oscars import getgri,getcoregris
 from layer2.testbed.topology import TestbedTopology
+from layer2.testbed.builder import tbns
 from layer2.vpn.mat import MAT
 
 import threading

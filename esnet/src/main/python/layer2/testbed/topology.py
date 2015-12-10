@@ -23,11 +23,10 @@ import sys
 
 from layer2.testbed.builder import TopoBuilder
 from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
-from layer2.common.mac import MACAddress
 from layer2.common.api import Properties, Port
-from layer2.common.openflow import Match, Action, FlowMod, Scope, SimpleController
 from layer2.odl.client import ODLClient
 from layer2.common.utils import singleton
+from layer2.testbed.oscars import getcoregris
 
 
 class TestbedNode(GenericNode,Properties):
@@ -106,9 +105,6 @@ class TestbedTopology (GenericTopologyProvider):
         # Links are assumed to be uni-directional. Create reverse link
         r = TestbedLink(node1=node2,port1=port2,node2=node1,port2=port1)
         self.addLink(r)
-
-    #def annotateLinks(selfs):
-    #    for link in self.
 
     def buildSite(self,site):
         for host in site.props['hosts']:

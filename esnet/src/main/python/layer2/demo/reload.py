@@ -19,19 +19,18 @@
 # to permit others to do so.
 #
 
-def reloadall():
-
-    from layer2.odl import ofctl
-    reload(ofctl)
-    from layer2.testbed import builder
-    reload(builder)
-    import layer2.testbed.topology
-    reload (layer2.testbed.topology)
-
-    from layer2.testbed import oscars
-    reload(oscars)
-    from layer2.testbed import hostctl
-    reload(hostctl)
+def cleandemomodules():
+    mods = []
+    toclean=["layer2","testbed","old","demo","vpn","api"]
+    for mod in sys.modules:
+        for p in toclean:
+            if p in mod:
+                mods.append(mod)
+    for mod in mods:
+        if mod in sys.modules:
+            print "Removing " + mod
+            sys.modules.pop(mod)
+    sys.path_importer_cache={}
 
 if __name__ == '__main__':
-    reloadall()
+    cleandemomodules()
