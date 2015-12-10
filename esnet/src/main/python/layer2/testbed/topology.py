@@ -26,8 +26,6 @@ from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, Gener
 from layer2.common.api import Properties, Port
 from layer2.odl.client import ODLClient
 from layer2.common.utils import singleton
-from layer2.testbed.oscars import getcoregris
-
 
 class TestbedNode(GenericNode,Properties):
     def __init__(self,name,props={}):
@@ -106,14 +104,6 @@ class TestbedTopology (GenericTopologyProvider):
         r = TestbedLink(node1=node2,port1=port2,node2=node1,port2=port1)
         self.addLink(r)
 
-    def buildSite(self,site):
-        for host in site.props['hosts']:
-            self.buildHost(host)
-
-    def buildSites(self):
-        for site in self.builder.siteIndex.values():
-            self.buildSite(site)
-
     def buildNodes(self):
         for switch in self.builder.switchIndex.values():
             self.buildSwitch(switch)
@@ -141,7 +131,6 @@ class TestbedTopology (GenericTopologyProvider):
                 self.controller = controller
         # Build topology
         self.builder = TopoBuilder(fileName = fileName, controller = self.controller)
-        self.buildSites()
         self.buildNodes()
         if docontroller and not controller:
             # now that self.builder is ready

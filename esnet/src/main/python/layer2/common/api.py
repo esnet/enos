@@ -383,18 +383,3 @@ class Wan(Properties):
         self.update(props)
         self.topo = topo
 
-    def subsetLinks(self, pops):
-        # return all links that connecting pops including the stitched links to hwSwitch
-        links = []
-        for i in range(len(pops)):
-            pop1 = pops[i]
-            coreRouter1 = pop1.props['coreRouter']
-            for j in range(i+1, len(pops)):
-                pop2 = pops[j]
-                coreRouter2 = pop2.props['coreRouter']
-                port1 = coreRouter1.props['wanPortIndex'][pop2.name]
-                links.append(port1.props['links'][0])
-                links.append(coreRouter1.props['stitchedPortIndex.WAN'][port1.name].props['links'][0])
-                port2 = coreRouter2.props['wanPortIndex'][pop1.name]
-                links.append(coreRouter2.props['stitchedPortIndex.WAN'][port2.name].props['links'][0])
-        return links

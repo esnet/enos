@@ -21,29 +21,11 @@
 #
 
 import struct,binascii
-from array import array
 
 from layer2.common.api import Node, SDNPop, Link, Port, Site, Wan, VPN, Host, HwSwitch, SwSwitch, Switch
-from layer2.common.mac import MACAddress
 from layer2.testbed import dpid, oscars
 
 from layer2.common.utils import Logger
-
-# All switches including site routers, core routers, hw switches, and sw switches should
-# not have the same name so that the name of each port could be unique.
-# site = [siteRouterName, [hostNames], popName, portNo]
-# Note: Since flowmod could not forward a packet to where it comes from,
-#  multiple sites in the same pop must have different portNo! (otherwise, the broadcast won't work.)
-
-sites = {
-    'wash' : {'name':"wash",'pop':'WASH','hosts':{'wash-tbn-1':{'interface':'eth11'}},'connected':{}},
-    'amst' : {'name':"amst",'pop':'AMST','hosts':{'amst-tbn-1':{'interface':'eth17'}},'connected':{}},
-    'cern' : {'name':"cern",'pop':'CERN','hosts':{'cern-272-tbn-1':{'interface':'eth14'}},'connected':{}},
-
-    'aofa' : {'name':"aofa", 'pop':'AOFA','hosts':{'aofa-tbn-1':{'interface':'eth11'}}, 'connected':{}},
-    'denv' : {'name':"denv", 'pop':'DENV','hosts':{'denv-tbn-1':{'interface':'eth11'}}, 'connected':{}},
-    'star' : {'name':"star", 'pop':'STAR','hosts':{'star-tbn-4':{'interface':'eth17'}}, 'connected':{}}
-}
 
 # DENV
 denvlinks=[
@@ -148,9 +130,6 @@ starlinks = [
 
 star=["star",'star-tb-of-1',"star-cr5","star-ovs",starlinks]
 
-# LBL  POP is not yet deployed
-
-
 amst_tbn_1 = {
     'name': 'amst-tbn-1',
     'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:e4:a8','props':{'data':False}}, \
@@ -231,7 +210,6 @@ tbns = {'amst-tbn-1':amst_tbn_1,
 locations=[denv,wash,aofa,amst,cern,atla,star]
 testbedPops = {"denv":denv,"wash":wash,"aofa":aofa,"amst":amst,"cern":cern,"atla":atla,"star":star}
 
-
 class TopoBuilder ():
 
     debug = False;
@@ -245,19 +223,13 @@ class TopoBuilder ():
         :param controller: Controller object (or subclass thereof)
         :return:
         """
-        self.hostID = 1
-        self.switchID = 1
-        self.dpidIndex = 1
         self.hostIndex = {} # [hostname] = Host
         self.switchIndex = {} # [switchname] = Switch
-        self.linkIndex = {} # [linkname] = Link
-        self.siteIndex = {} # [sitename] = Site
-        self.sitesConfig = []
+        self.linkIndex = {} # [linkname] = Links
         self.popIndex = {} # [popname] = SDNPop
         self.wan = Wan(name='esnet',topo=self)
         self.controller = controller
         self.locations = locations
-        self.sitesConfig = sites
         self.loadDefault()
 
 
@@ -343,10 +315,6 @@ class TopoBuilder ():
                 print sw.name,"\t",hexdpid,"\topenflow:" + str(int(hexdpid,16))
         print "\n\n"
 
-    def getSite(self,siteName):
-        if siteName in self.siteIndex.keys():
-            return self.siteIndex[siteName]
-        return None
 
     def loadDefault(self):
 
