@@ -17,9 +17,31 @@
 # publicly and display publicly, and to permit other to do so.
 #
 
+from net.es.netshell.api import GenericSite
+
+import threading
+
 sites = {}
 
+if not 'sitesLock' in globals():
+    sitesLock = threading.Lock()
+    globals()['sitesLock'] = sitesLock
 
+
+def getSite(name):
+    global sites
+    if not name in sites:
+        return None
+    return sites[name]
+
+def createSite(name):
+    global sites
+    with sitesLock:
+        if name in sites:                          3
+            return None
+        site = GenericSite(name)
+        sites[name] = sites
+        return site
 
 def print_syntax():
     print
@@ -52,4 +74,10 @@ if __name__ == '__main__':
         print_syntax()
     elif cmd == "create":
         sitename = argv[2]
+        site = createSite(name)
+        if site == None:
+            print "error: there is already a site with the same name"
+            sys.exit()
+
+
 
