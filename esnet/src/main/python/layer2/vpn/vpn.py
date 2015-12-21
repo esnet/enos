@@ -16,14 +16,134 @@
 # distribute copies to the public, prepare derivative works, and perform
 # publicly and display publicly, and to permit other to do so.
 #
-"""
-demo should be run first so that net, renderers, rendererIndex, vpns, vpnIndex
-are available.
-"""
 from layer2.common.mac import MACAddress
-from layer2.common.api import VPN
+from layer2.testbed.hostctl import connectgri,getdatapaths
+from layer2.testbed.oscars import getgri,getcoregris
+from layer2.testbed.topology import TestbedTopology
+from layer2.testbed.builder import tbns
 from layer2.vpn.mat import MAT
-from layer2.vpn.l2vpn import SDNPopsIntent, SDNPopsRenderer
+
+import threading
+
+sites = {
+    'wash' : {'name':"wash",'pop':'WASH','hosts':{'wash-tbn-1':{'interface':'eth11'}},'connected':{}},
+    'amst' : {'name':"amst",'pop':'AMST','hosts':{'amst-tbn-1':{'interface':'eth17'}},'connected':{}},
+    'cern' : {'name':"cern",'pop':'CERN','hosts':{'cern-272-tbn-1':{'interface':'eth14'}},'connected':{}},
+
+    'aofa' : {'name':"aofa", 'pop':'AOFA','hosts':{'aofa-tbn-1':{'interface':'eth11'}}, 'connected':{}},
+    'denv' : {'name':"denv", 'pop':'DENV','hosts':{'denv-tbn-1':{'interface':'eth11'}}, 'connected':{}},
+    'star' : {'name':"star", 'pop':'STAR','hosts':{'star-tbn-4':{'interface':'eth17'}}, 'connected':{}}
+}
+
+def interconnect(site1,site2):
+    pop1 = site1['pop']
+    pop2 = site2['pop']
+    (x,gri) = getcoregris(pop1,pop2).items()[0]
+    return gri
+
+if not 'VPNinstances' in globals() or VPNinstances == None:
+    VPNinstances = {}
+    globals()['VPNinstances'] = VPNinstances
+
+if not 'VPNindex' in globals():
+    VPNindex = 0
+    globals()['VPNindex'] = VPNindex
+
+if not 'VPNlock' in globals():
+    VPNlock = threading.Lock()
+    globals()['VPNlock'] = VPNlock
+
+if not 'VPNMAT' in globals():
+    VPNMAT = False
+    globals()['VPNMAT'] = VPNMAT
+
+class VPN():
+
+    def __init__(self,name):
+        global VPNinstances, VPNindex, VPNlock
+        with VPNlock:
+            VPNinstances['name'] = self
+            self.vid = VPNindex
+            VPNindex += 1
+        self.name = name
+        self.pops = {}
+        self.vpnsites = {}
+        self.priority = "low"
+        self.meter = 3
+        self.lock = threading.Lock()
+        self.mat = MAT(self.vid)
+
+    def getsite(self,host):
+        for (s,site) in self.vpnsites.items():
+            if host['name'] in site['hosts']:
+                return site
+        return None
+    def addpop(self,pop):
+        self.pops[pop.name] = pop
+        return True
+    def delpop(self,pop):
+        del self.pops[pop.name]
+        return True
+    def addsite(self,site):
+        self.vpnsites[site['name']] = site
+        return True
+    def delsite(self,site):
+        del self.vpnsites[site['name']]
+        return True
+    def generateMAC(self,host):
+        interface = getdatapaths(host)[0]
+        mac = interface['mac']
+        # MAT.translate is idempotent: if a translated mac has already been allocated for a given mac, the
+        # function will not generate a new mac but instead return the previously generated mac.
+        newmac = self.mat.translate(mac)
+        return str(newmac)
+
+    def addhost(self,host,vlan):
+        with self.lock:
+            hostsite = self.getsite(host)
+            hostsite['connected'][host['name']] = vlan
+            for (s,site) in self.vpnsites.items():
+                if site['name'] == hostsite['name']:
+                    continue
+                connected = site['connected']
+                for (r,remotevlan) in connected.items():
+                    gri = interconnect(hostsite,site)
+                    remotehost = tbns[r]
+                    host_mat = None
+                    remotehost_mat = None
+                    if VPNMAT:
+                        host_mat = self.generateMAC(host)
+                        remotehost_mat =  self.generateMAC(remotehost)
+                    # Add flows coming from other sites
+                    connectgri(host=host,
+                               host_rewitemac = host_mat,
+                               hostvlan=vlan,
+                               remotehost=remotehost,
+                               remotehostvlan = remotevlan,
+                               gri=gri,meter=self.meter)
+                    # Add flows going to other sites
+                    connectgri(host=remotehost,
+                               host_rewitemac = remotehost_mat,
+                               hostvlan=remotevlan,
+                               remotehost=host,
+                               remotehostvlan=vlan,
+                               gri=gri,
+                               meter=self.meter)
+
+        return True
+    def delhost(self,host):
+        return True
+
+    def setpriority(self,priority):
+        self.priority = priority
+        if priority == 'high':
+            self.meter = 5
+        else:
+            self.meter = 3
+
+    def getpriority(self):
+        return self.priority
+
 
 def usage():
     print "usage:"
@@ -39,7 +159,7 @@ def usage():
     print "vpn <vpn name> delpop <pop name>"
     print "vpn <vpn name> addsite <site name>"
     print "vpn <vpn name> delsite <site name>"
-    print "vpn <vpn name> addhost <host name>"
+    print "vpn <vpn name> addhost <host name> vlan <vlan>"
     print "vpn <vpn name> delhost <host name>"
     print "vpn <vpn name> tapsite <site name>"
     print "vpn <vpn name> untapsite <site name>"
@@ -49,6 +169,7 @@ def usage():
     print "vpn <vpn name> untapmac <MAC>"
     print "vpn <vpn name> settimeout <secs>"
     print "vpn <vpn name> visualize $conf"
+    print "vpn mat [<on|off>] Displays the MAC Address Translation feature, turn it on or off."
     print "Note: <vpn name> should not be any keyword such as create, delete, kill, or load"
 
 def toint(s):
@@ -95,111 +216,25 @@ def tovpn(s):
 def topop(s):
     return get(topo.builder.pops, topo.builder.popIndex, s)
 def tosite(s):
-    return get(topo.builder.siteIndex.values(), topo.builder.siteIndex, s)
+        if s in sites:
+            return sites[s]
+        else:
+            return None
 def tohost(s):
-    return get(topo.builder.hostIndex.values(), topo.builder.hostIndex, s)
+    return tbns[s]
 
 
 def addVpn(vpn):
-    renderer = vpn.props['renderer']
-    renderers.append(renderer)
-    rendererIndex[renderer.name] = renderer
     vpns.append(vpn)
     vpnIndex[vpn.name] = vpn
 
-def save(vpn, confname):
-    obj = vpn.serialize()
 
-def getNode(node, nodeIndex):
-    if node.name in nodeIndex:
-        return nodeIndex[node.name]
-    nodeIndex[node.name] = {'name':node.name, 'info':[]}
-    return nodeIndex[node.name]
-def linkname(node1, node2):
-    if node1.name <= node2.name:
-        return node1.name + ":" + node2.name
-    else:
-        return node2.name + ":" + node1.name
-def getLink(node1, node2, linkIndex):
-    name = linkname(node1, node2)
-    if name in linkIndex:
-        return linkIndex[name]
-    linkIndex[name] = {'name':name, 'endpoint1':node1.name, 'endpoint2':node2.name, 'info':[]}
-    return linkIndex[name]
-def visualize(vpn, confname):
-    obj = {}
-    nodeIndex = {}
-    linkIndex = {}
-    pops = []
-    for (site, hosts, siteVlan) in vpn.props['participants']:
-        siteRouter = site.props['siteRouter']
-        getNode(siteRouter, nodeIndex)['info'].append({'type':'text', 'attr':'role', 'value':"Site Router"})
-        for host in hosts:
-            getNode(host, nodeIndex)['info'].append({'type':'text', 'attr':'role', 'value':"End User"})
-            getLink(host, siteRouter, linkIndex)['info'].append({'type':'text','attr':'vlan','value':lanVlan})
-        pop = site.props['pop']
-        if not pop in pops:
-            coreRouter = pop.props['coreRouter']
-            getNode(coreRouter, nodeIndex)['info'].append({'type':'text', 'attr':'role', 'value':"Core Router"})
-            getLink(coreRouter, siteRouter, linkIndex)['info'].append({'type':'text','attr':'vlan','value':siteVlan})
-            hwSwitch = pop.props['hwSwitch']
-            getNode(hwSwitch, nodeIndex)['info'].append({'type':'text', 'attr':'role', 'value':"Hardware Switch"})
-            port = hwSwitch.props['sitePortIndex'][site.name]
-            getLink(coreRouter, hwSwitch, linkIndex)['info'].append({'type':'text','attr':'vlan','value':siteVlan})
-            swSwitch = pop.props['swSwitch']
-            getNode(swSwitch, nodeIndex)['info'].append({'type':'text', 'attr':'role', 'value':"Software Switch"})
-            getLink(swSwitch, hwSwitch, linkIndex)['info'].append({'type':'text','attr':'vlan','value':siteVlan})
-            serviceVm = pop.props['serviceVm']
-            getNode(serviceVm, nodeIndex)['info'].append({'type':'text', 'attr':'role', 'value':"Service Virtual Machine"})
-            getLink(swSwitch, serviceVm, linkIndex)['info'].append({'type':'text','attr':'vlan','value':siteVlan})
-            renderer = vpn.props['renderer']
-            hwScope = renderer.props['scopeIndex'][hwSwitch.name]
-            for flowmod in hwScope.props['flowmodIndex'].values():
-                getNode(hwSwitch, nodeIndex)['info'].append({'type':'text', 'attr':'flowmod', 'value':flowmod.visualize()})
-            swScope = renderer.props['scopeIndex'][swSwitch.name]
-            for flowmod in swScope.props['flowmodIndex'].values():
-                getNode(swSwitch, nodeIndex)['info'].append({'type':'text', 'attr':'flowmod', 'value':flowmod.visualize()})
-            for otherPop in pops:
-                vlan = coreRouter.props['wanPortIndex'][otherPop.name].props['links'][0].props['vlan']
-
-                otherCoreRouter = otherPop.props['coreRouter']
-                otherHwSwitch = otherPop.props['hwSwitch']
-                otherSwSwitch = otherPop.props['swSwitch']
-                otherServiceVm = otherPop.props['serviceVm']
-
-                getLink(coreRouter, otherCoreRouter, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
-                # pop
-                getLink(coreRouter, hwSwitch, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
-                getLink(swSwitch, hwSwitch, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
-                getLink(swSwitch, serviceVm, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
-                # other pop
-                getLink(otherCoreRouter, otherHwSwitch, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
-                getLink(otherSwSwitch, otherHwSwitch, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
-                getLink(otherSwSwitch, otherServiceVm, linkIndex)['info'].append({'type':'text','attr':'vlan','value':vlan})
-            pops.append(pop)
-
-    nodes = []
-    for node in nodeIndex.values():
-        nodes.append(node)
-    links = []
-    for link in linkIndex.values():
-        links.append(link)
-    obj['nodes'] = nodes
-    obj['links'] = links
-
-def load(confname):
-    print "Not implemented yet"
 
 def create(vpnname):
     if vpnname in vpnIndex:
         print "vpn %r exists already" % vpnname
         return
     vpn = VPN(vpnname)
-    intent = SDNPopsIntent(name=vpn.name, vpn=vpn, wan=topo.builder.wan)
-    renderer = SDNPopsRenderer(intent)
-    renderer.execute() # no function since no scope yet
-    vpn.props['renderer'] = renderer
-    vpn.props['mat'] = MAT(vpn.props['vid'])
     addVpn(vpn)
     print "VPN %s is created successfully." % vpn.name
 
@@ -208,14 +243,8 @@ def delete(vpnname):
         print "vpn name %s not found" % vpnname
         return
     vpn = vpnIndex[vpnname]
-    renderer = vpn.props['renderer']
-    if not renderer.clean():
-        print "Something's wrong while deleting the VPN. Please make sure all pop is deleted in the VPN"
-        return
     vpnIndex.pop(vpn.name)
     vpns.remove(vpn)
-    rendererIndex.pop(renderer.name)
-    renderers.remove(renderer)
 
 def kill(vpnname):
     if not vpnname in vpnIndex:
@@ -226,100 +255,70 @@ def kill(vpnname):
         for host in hosts:
             delhost(vpn, host)
         delsite(vpn, site)
-    renderer = vpn.props['renderer']
-    for pop in renderer.props['popIndex'].values():
-        delpop(vpn, pop)
     delete(vpnname)
 
 def execute(vpn):
-    vpn.props['renderer'].execute()
+    return
 
 def addpop(vpn, pop):
-    popsRenderer = rendererIndex[vpn.name]
-    if not popsRenderer.addPop(pop):
-        print "something's wrong while adding the pop."
-        # possible issues: duplicated pop
-        return
+    vpn.addpop(pop)
     print "Pop %s is added into VPN %s successfully." % (pop.name, vpn.name)
 
 def delpop(vpn, pop):
-    popsRenderer = rendererIndex[vpn.name]
-    if not popsRenderer.delPop(pop):
-        print "something's wrong while deleting the pop."
-        # possible issues: pop not empty
-        return
+    vpn.delpop(pop)
+    print "Pop %s had been removed from VPN %s successfully." % (pop.name, vpn.name)
 
 def addsite(vpn, site):
-    if not 'SiteToCore' in site.props:
-        print "site is not connected to the testbed"
-        return
-    link = site.props['SiteToCore']
-    popsRenderer = rendererIndex[vpn.name]
-    if not popsRenderer.addSite(site, link):
-        print "something's wrong while adding the site."
-        # possible issues: site.props['pop'] is not added into the VPN yet
-        return
-    if not vpn.addSite(site, link):
+    if not vpn.addsite(site):
         print "something's wrong while adding the site."
         # possible issues: duplicated site
         return
-    print "The site %s is added into VPN %s successfully" % (site.name, vpn.name)
+    print "The site %s is added into VPN %s successfully" % (site['name'], vpn.name)
 
 def delsite(vpn, site):
-    siteVlan = vpn.props['participantIndex'][site.name][2]
     if not vpn.checkSite(site):
         print "site not found in the vpn"
         return
-#    siteRenderer = rendererIndex[site.name]
-#    siteRenderer.delVlan(siteVlan)
-    popsRenderer = rendererIndex[vpn.name]
-    popsRenderer.delSite(site)
-    vpn.delSite(site)
+    vpn.delsite(site)
 
-def addhost(vpn, host):
-    print "vpn addhost",host
-    if not vpn.addHost(host):
+def addhost(vpn, host,vlan):
+    if not vpn.addhost(host,vlan):
         print "something wrong while adding the host; Please make sure that the site of the host joined the VPN."
         return
 
-    print "The host %s is added into VPN %s successfully" % (host.name, vpn.name)
+    print "The host %s is added into VPN %s successfully" % (host['name'], vpn.name)
 
 def delhost(vpn, host):
     if not vpn.delHost(host):
         print "something wrong while deleting the host; Please make sure that the host joined the VPN."
         return
-#    sitename = host.props['site'].name
-#    siteRenderer = rendererIndex[sitename]
-#    siteRenderer.delHost(host, vpn.props['participantIndex'][sitename][2])
 
 def tapsite(vpn, site):
-    vpn.props['renderer'].tapSiteCLI(site)
+    print "not implemented"
 
 def untapsite(vpn, site):
-    vpn.props['renderer'].untapSiteCLI(site)
+    print "not implemented"
 
 def taphost(vpn, host):
-    vpn.props['renderer'].tapHostCLI(host)
+    print "not implemented"
 
 def untaphost(vpn, host):
-    vpn.props['renderer'].untapHostCLI(host)
+    print "not implemented"
 
 def tapmac(vpn, mac):
-    vpn.props['renderer'].tapMacCLI(mac)
+    print "not implemented"
 
 def untapmac(vpn, mac):
-    vpn.props['renderer'].untapMacCLI(mac)
+    print "not implemented"
 
 def settimeout(vpn, timeout):
     if timeout < 0:
         print "invalid timeout"
         return
-    vpn.props['renderer'].setTimeout(timeout)
+    print "not implemented"
 
 def main():
-    if not 'topo' in globals():
-        print 'Please run demo first'
-        return
+    global VPNMAT
     try:
         command = sys.argv[1].lower()
         if command == 'create':
@@ -334,17 +333,27 @@ def main():
         elif command == 'load':
             confname = sys.argv[2]
             load(confname)
+        elif command == "mat":
+            if 'on' in sys.argv:
+                VPNMAT = True
+            if 'off' in sys.argv:
+                VPNMAT = False
+            state = {True:'on',False:'off'}
+            print "MAC Address Translation feature is",state[VPNMAT]
         else:
             vpn = get(vpns, vpnIndex, sys.argv[1])
             command = sys.argv[2].lower()
             if command == 'execute':
                 execute(vpn)
             elif command == 'getprio':
-                prio = vpn.getPriority()
+                prio = vpn.getpriority()
                 print prio
             elif command == 'setprio':
-                vpn.setPriority(sys.argv[3])
+                vpn.setpriority(sys.argv[3])
             elif command == 'addpop':
+                if not sys.argv[3] in topo.builder.popIndex:
+                    print "unknown SDN POP"
+                    return
                 pop = topo.builder.popIndex[sys.argv[3]]
                 addpop(vpn, pop)
             elif command == 'delpop':
@@ -352,13 +361,20 @@ def main():
                 delpop(vpn, pop)
             elif command == 'addsite':
                 site = tosite(sys.argv[3])
+                if site == None:
+                    print "unknown site"
+                    return
                 addsite(vpn, site)
             elif command == 'delsite':
                 site = tosite(sys.argv[3])
+                if site == None:
+                    print "unknown site"
+                    return
                 delsite(vpn, site)
             elif command == 'addhost':
                 host = tohost(sys.argv[3])
-                addhost(vpn, host)
+                vlan = sys.argv[5]
+                addhost(vpn, host,vlan)
             elif command == 'delhost':
                 host = tohost(sys.argv[3])
                 if host == None:
@@ -366,9 +382,15 @@ def main():
                 delhost(vpn, host)
             elif command == 'tapsite':
                 site = tosite(sys.argv[3])
+                if site == None:
+                    print "unknown site"
+                    return
                 tapsite(vpn, site)
             elif command == 'untapsite':
                 site = tosite(sys.argv[3])
+                if site == None:
+                    print "unknown site"
+                    return
                 untapsite(vpn, site)
             elif command == 'taphost':
                 host = tohost(sys.argv[3])
@@ -385,18 +407,33 @@ def main():
             elif command == 'settimeout':
                 timeout = tofloat(sys.argv[3])
                 settimeout(vpn, timeout)
-            elif command == 'save':
-                confname = sys.argv[3]
-                save(vpn, confname)
-            elif command == 'visualize':
-                confname = sys.argv[3]
-                visualize(vpn, confname)
             else:
                 print "unknown command"
                 usage()
     except:
-#        print "Invalid arguments"
-#        usage()
+        #        print "Invalid arguments"
+        #        usage()
         raise
+
+# Retrieve topology
+if not 'topo' in globals() or topo == None:
+    topo = TestbedTopology()
+    globals()['topo'] = topo
+if 'vpnIndex' not in globals() or vpnIndex == None:
+    vpnIndex = {}
+    globals()['vpnIndex'] = vpnIndex
+if 'vpns' not in globals() or vpns == None:
+    vpns = []
+    globals()['vpns'] = vpns
+
 if __name__ == '__main__':
+    if not 'topo' in globals() or topo == None:
+        topo = TestbedTopology()
+        globals()['topo'] = topo
+    if 'vpnIndex' not in globals() or vpnIndex == None:
+        vpnIndex = {}
+        globals()['vpnIndex'] = vpnIndex
+    if 'vpns' not in globals() or vpns == None:
+        vpns = []
+        globals()['vpns'] = vpns
     main()
