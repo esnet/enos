@@ -37,10 +37,10 @@ def getSite(name):
 def createSite(name):
     global sites
     with sitesLock:
-        if name in sites:                          3
+        if name in sites:
             return None
         site = GenericSite(name)
-        sites[name] = sites
+        sites[name] = site
         return site
 
 def print_syntax():
