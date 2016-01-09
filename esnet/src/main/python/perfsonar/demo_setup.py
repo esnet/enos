@@ -51,6 +51,10 @@ def main():
         global topo
         topo=TestbedTopology()
 
+    if not 'PSTests' in globals():
+        PSTests = {}
+        globals()['PSTests'] = PSTests
+
     if not 'perf_testers' in globals():
        global perf_testers
     
