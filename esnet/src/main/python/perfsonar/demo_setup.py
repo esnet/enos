@@ -44,7 +44,7 @@ def add_ps_nodes():
                 node_name = desc[3:]
                 ps_node.setResourceName(node_name)
                 ps_node.addLink(links.get(link))
-                perf_testers[node_name] = ps_node
+                perf_testers[node_name+'.es.net'] = ps_node
 
 def main():
     if not 'topo' in globals() or topo == None:

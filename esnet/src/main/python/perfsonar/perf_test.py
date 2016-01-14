@@ -22,10 +22,10 @@
 # Configures the initial ENOS deployment. Currently hard coded for ESnet deployment
 #
 
-import argparse
 import sys
-import datetime
+import traceback
 from net.es.enos.esnet import PerfSONARTester
+from net.es.netshell.kernel.perfsonar import Bwctl
 #Note: If argparse throws error related to sys.path or sys.prefix, please ensure both are set to the
 # correct Jython path in your environment.
 
@@ -38,6 +38,7 @@ class PerfsonarTest():
         self.testtype = "bwctl" #since that is the only test supported now
         self.interval = 0
         self.expires = 0
+        self.initiator=""
 
     def getname(self):
         return self.name
@@ -47,6 +48,9 @@ class PerfsonarTest():
 
     def getdestination(self):
         return self.destination
+
+    def getinitiator(self):
+        return self.initiator
 
     def gettesttype(self):
         return self.testtype
@@ -68,12 +72,17 @@ class PerfsonarTest():
             return
         self.source=source
 
-
     def setdestination(self,destination):
         if self.destination != "":
             print "Attempting to re-assign destination"
             return
         self.destination = destination
+   
+    def setinitiator(self,hostname):
+        if self.initiator != "":
+            print "Attempting to re-assign initiator"
+            return
+        self.initiator=hostname
 
 
 def usage():
@@ -83,6 +92,7 @@ def usage():
     print "\nperf_test <testname> source <hostname>"
     print "\nperf_test <testname> destination <hostname>"
     print "\nperf_test <testname> show"
+    print "\nperf_test <testname> run"
     print "\n\n"    
 
 def showtesters():
@@ -104,6 +114,10 @@ def gettest(testname):
 
 def addhost(test,hosttype,hostname):
     #TODO: check if host is present in perf_testers
+
+    if not hostname in perf_testers.keys():
+        print "Please choose a valid perfsonar end point"
+        return
     if test is None:
         print "Test not defined"
         return
@@ -111,8 +125,10 @@ def addhost(test,hosttype,hostname):
         test.setsource(hostname)
     elif hosttype == 'destination':
         test.setdestination(hostname)
+    elif hosttype == 'initiator':
+        test.setinitiator(hostname)
     else:
-        print "Unknown type of host. Accepted values: source|destination"
+        print "Unknown type of host. Accepted values: source|destination|initiator"
         return
 
 def printtest(test):
@@ -123,7 +139,22 @@ def printtest(test):
     print "Test name: %s" %test.getname()
     print "Source: %s" %test.getsource()
     print "Destination: %s" %test.getdestination()
+    print "Initiator: %s" %test.getinitiator()
+
+def runtest(test): 
+    if test is None:
+        print "Test is not defined"
+        return
+    source = test.getsource()
+    destination = test.getdestination()
     
+    if (source == '') or (destination == ''):
+        print "Please define source/destination"
+        return
+    bwctl = Bwctl.getInstance()
+    result = bwctl.runBwctlTest(test.getsource(),test.getdestination())
+    return
+
 def main():
 
     if not 'PSTests' in globals():
@@ -131,6 +162,10 @@ def main():
         globals()['PSTests'] = PSTests
 
     try:
+        if (len(sys.argv)<2):
+            usage()
+            return
+
         command = sys.argv[1].lower()
         
         if command == 'create':
@@ -141,24 +176,31 @@ def main():
             create_test(testname)
         elif command == 'showtesters':
             showtesters()
+        #TODO: a command to list all the tests
         elif command == 'help':
             usage()
         else:
             testname=sys.argv[1].lower()
             pstest = gettest(testname)
+            if pstest is None:
+                print "Test does not exist"
+                return
             command = sys.argv[2].lower()
             if command == 'source' or command == 'destination':
                 host = sys.argv[3].lower()
                 addhost(pstest,command,host)
             elif command == 'show':
                 printtest(pstest)
+            elif command == 'run':
+                runtest(pstest)
             else:
                 print "Unknown command"
                 usage()
 
     except:
         usage()
-        raise Exception("unable to parse command")
+        traceback.print_exc()
+        raise Exception("Error running command")
 
 if __name__ == '__main__':
     main()
