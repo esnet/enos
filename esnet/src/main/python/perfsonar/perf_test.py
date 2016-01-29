@@ -26,6 +26,8 @@ import sys
 import traceback
 from net.es.enos.esnet import PerfSONARTester
 from net.es.netshell.kernel.perfsonar import Bwctl
+from net.es.netshell.rexec import SSHRemoteExecution
+
 #Note: If argparse throws error related to sys.path or sys.prefix, please ensure both are set to the
 # correct Jython path in your environment.
 
@@ -39,6 +41,9 @@ class PerfsonarTest():
         self.interval = 0
         self.expires = 0
         self.initiator=""
+        self.initiatorport=22
+        self.initiatoruser='enos'
+        self.keyfile=""
 
     def getname(self):
         return self.name
@@ -52,6 +57,12 @@ class PerfsonarTest():
     def getinitiator(self):
         return self.initiator
 
+    def getinitiatorport(self):
+        return self.initiatorport
+
+    def getkeyfile(self):
+        return self.keyfile
+
     def gettesttype(self):
         return self.testtype
 
@@ -60,6 +71,9 @@ class PerfsonarTest():
 
     def getexpires(self):
         return self.expires
+    
+    def getinitiatoruser(self):
+        return self.initiatoruser
 
     def setname(self,testname):
         if self.name is not None:
@@ -84,6 +98,14 @@ class PerfsonarTest():
             return
         self.initiator=hostname
 
+    def setinitiatorport(self,port):
+        self.initiatorport=port
+ 
+    def setkeyfile(self,keyfile):
+        self.keyfile=keyfile
+
+    def setinitiatoruser(self,initiatoruser):
+        self.initiatoruser=initiatoruser
 
 def usage():
     print "\nperf_test help"
@@ -91,8 +113,13 @@ def usage():
     print "\nperf_test create <testname>"
     print "\nperf_test <testname> source <hostname>"
     print "\nperf_test <testname> destination <hostname>"
+    print "\nperf_test <testname> initiator <hostname>"
+    print "\nperf_test <testname> initiatorport <hostname>. Default: 22"
+    print "\nperf_test <testname> initiatoruser <username>. Default: enos"
+    print "\nperf_test <testname> keyfile <hostname>"
     print "\nperf_test <testname> show"
     print "\nperf_test <testname> run"
+    print "\nperf_test <testname> runandsave"
     print "\n\n"    
 
 def showtesters():
@@ -111,11 +138,36 @@ def create_test(testname):
 def gettest(testname):
     return PSTests[testname]
 
+def addport(test,hosttype,port):
+    #TODO: check if host is present in perf_testers
+
+    if test is None:
+        print "Test not defined"
+        return
+    if hosttype == 'initiatorport':
+        test.setinitiatorport(int(port))
+    else:
+        print "Unknown value. Accepted values: initiatorport"
+        return
+
+def addkeyfile(test,keyfile):
+    if test is None:
+        print "Test not defined"
+        return
+    test.setkeyfile(keyfile)
+    return
+
+def addusername(test,initiatoruser):
+    if test is None:
+        print "Test not defined"
+        return
+    test.setinitiatoruser(initiatoruser)
+    return
 
 def addhost(test,hosttype,hostname):
     #TODO: check if host is present in perf_testers
 
-    if not hostname in perf_testers.keys():
+    if not hostname in perf_testers.keys() and hosttype != 'initiator':
         print "Please choose a valid perfsonar end point"
         return
     if test is None:
@@ -139,27 +191,101 @@ def printtest(test):
     print "Test name: %s" %test.getname()
     print "Source: %s" %test.getsource()
     print "Destination: %s" %test.getdestination()
-    print "Initiator: %s" %test.getinitiator()
-
+    print "\nInitiator: %s" %test.getinitiator()
+    print "Initiator port: %d" %test.getinitiatorport()
+    print "Initiator username: %s" %test.getinitiatoruser()
+    print "\nKey file: %s" %test.getkeyfile()
+ 
 def runtest(test): 
     if test is None:
         print "Test is not defined"
         return
+    initiator = test.getinitiator() 
+    initiatorport=test.getinitiatorport()
     source = test.getsource()
     destination = test.getdestination()
     
     if (source == '') or (destination == ''):
         print "Please define source/destination"
         return
-    bwctl = Bwctl.getInstance()
-    result = bwctl.runBwctlTest(test.getsource(),test.getdestination())
-    return
+
+    if initiator is None:
+        print "Please specify initiator"
+        return
+    username=test.getinitiatoruser()
+    keyfile=test.getkeyfile()
+    ssh_client = SSHRemoteExecution(initiator, initiatorport,username, keyfile)
+    ssh_client.setOut(sys.stdout)
+    command = "bwctl -s " + source + "  -c " + destination +" -T iperf -t 10 -a 1 --parsable --verbose "
+    ssh_client.setCommand(command)
+
+    ret = ssh_client.loadKeys()
+    ssh_client.exec()
+    output_stream=ssh_client.getAccessRemoteOutputStream()
+
+    print "Output"
+    data = output_stream.read()
+    while data != -1:
+        sys.stdout.write(chr(data))
+        data=output_stream.read()
+
+
+def runandsavetest(test):
+    if test is None:
+        print "Test is not defined"
+        return
+    initiator = test.getinitiator()
+    initiatorport=test.getinitiatorport()
+    source = test.getsource()
+    destination = test.getdestination()
+
+    if (source == '') or (destination == ''):
+        print "Please define source/destination"
+        return
+
+    if initiator is None:
+        print "Please specify initiator"
+        return
+    username=test.getinitiatoruser()
+    keyfile=test.getkeyfile()
+    ssh_client = SSHRemoteExecution(initiator, initiatorport,username, keyfile)
+    ssh_client.setOut(sys.stdout)
+    user='gridftp'
+    key='fedd4d4c49ed04e1124931bb0e581724f375259f'
+    dburl='http://perfsonar-archive.es.net/esmond/archive'
+    command = "bwctl -s " + source + "  -c " + destination +" -T iperf3 -t 10 -a 1 --parsable --verbose" +\
+                     " |& " +\
+                     "esmond-ps-pipe --user "+user +" --key "+key+ " -U "+dburl
+    ssh_client.setCommand(command)
+    ret = ssh_client.loadKeys()
+    ssh_client.exec()
+    output_stream=ssh_client.getAccessRemoteOutputStream()
+
+    print "Output"
+    data = output_stream.read()
+    while data != -1:
+        sys.stdout.write(chr(data))
+        data=output_stream.read()
+  
+    getmetadata_command = 'esmond-ps-get-metadata --url http://perfsonar-archive.es.net/ --src '+source+' --dest'+ destination+'--output-format json'
+    ssh_client.setCommand(getmetadata_command)    
+        
+    ssh_client.exec()
+    output_stream=ssh_client.getAccessRemoteOutputStream()
+
+    print "Output"
+    data = output_stream.read()
+    while data != -1:
+        sys.stdout.write(chr(data))
+        data=output_stream.read()
 
 def main():
 
     if not 'PSTests' in globals():
         PSTests = {}
         globals()['PSTests'] = PSTests
+   
+    
 
     try:
         if (len(sys.argv)<2):
@@ -186,13 +312,25 @@ def main():
                 print "Test does not exist"
                 return
             command = sys.argv[2].lower()
-            if command == 'source' or command == 'destination':
+            if command == 'source' or command == 'destination' or command == 'initiator':
                 host = sys.argv[3].lower()
                 addhost(pstest,command,host)
+            elif command == 'initiatorport':
+                port = sys.argv[3]
+                addport(pstest,command,port)
+            elif command == 'keyfile':
+                keyfile=sys.argv[3]
+                keyfile= sys.netshell_root.toString()+keyfile
+                addkeyfile(pstest,keyfile)
+            elif command == 'initiatoruser':
+                user = sys.argv[3]
+                addusername(pstest,user)
             elif command == 'show':
                 printtest(pstest)
             elif command == 'run':
                 runtest(pstest)
+            elif command == 'runandsave':
+                runandsavetest(pstest)
             else:
                 print "Unknown command"
                 usage()
