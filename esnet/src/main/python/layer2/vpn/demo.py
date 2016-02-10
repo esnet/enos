@@ -27,7 +27,7 @@ from net.es.netshell.controller.core import Controller
 
 import random
 from layer2.common.utils import InitLogger, Logger
-from layer2.vpn.reload import reloadall
+from layer2.vpn.reload import cleandemomodules
 
 if not 'firstTime' in globals():
     firstTime = True
@@ -36,7 +36,7 @@ if not 'firstTime' in globals():
 try:
     if topo == TestbedTopology(): # singleton
         print "Reloading modules"
-        reloadall()
+        cleandemomodules()
         if topo == TestbedTopology(): # singleton
             print "Please reload first"
     else: # rare situation; topo might be reloaded in python interactive intepreter manually
@@ -58,7 +58,7 @@ def workaround():
         cont = Controller.getInstance()
         cont.reinit()
         firstTime = False
-        reloadall()
+        cleandemomodules()
 
 
 def main():
