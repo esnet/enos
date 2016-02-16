@@ -55,7 +55,7 @@ Installation
         chown $USER /var/netshell     # if needed
         mkdir /var/netshell/etc
         touch /var/netshell/etc/init.py
-        cp netshell/distribution/netshell-root/etc/profile.py /var/netshell/etc/init.py/
+        cp netshell/distribution/netshell-root/etc/profile.py /var/netshell/etc
 
 7.  Compile and install the netshell and enos sources to the local Maven cache:
 
