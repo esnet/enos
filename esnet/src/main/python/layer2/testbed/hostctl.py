@@ -17,16 +17,23 @@
 # distribute copies to the public, prepare derivative works, and perform
 # publicly and display publicly, and to permit other to do so.
 #
+import struct
+import jarray
+from java.math import BigInteger
+
 from layer2.testbed.oscars import getgri,getgrinode,displaygri,griendpoints
 from layer2.testbed.topology import TestbedTopology,getlinks,linkednode
 from layer2.odl.ofctl import corsaforward
 from layer2.testbed.topology import TestbedTopology
 
+from net.es.netshell.controller.client import SdnControllerClient
 
 # Hardcode information about hosts. Eventually this should be discovered by the ENOS
 # host agent registering its interfaces and other meta data.
 
 default_controller="aofa-tbn-1.testbed100.es.net"
+
+scc = SdnControllerClient()
 
 def getdatapaths(host):
     interfaces = []
@@ -69,17 +76,29 @@ def connectremoteplane(switch,
         broadcast = "FF:FF:FF:FF:FF:FF"
     flowid = baseid + "to-remote-host"
 
-    corsaforward (switch,
-                  flowid,
-                  remotehost_port,
-                  hostmac,
-                  remotehost_vlan,
-                  remotehwport_tocore,
-                  translated_hostmac,
-                  corevlan,
-                  meter,
-                  controller=default_controller)
-
+    #corsaforward (switch,
+    #              flowid,
+    #              remotehost_port,
+    #              hostmac,
+    #              remotehost_vlan,
+    #              remotehwport_tocore,
+    #              translated_hostmac,
+    #              corevlan,
+    #              meter,
+    #              controller=default_controller)
+    scc.SdnInstallForward1(javaByteArray(switch.props['dpid']),
+                           1,
+                           BigInteger.ZERO,
+                           str(remotehost_port),
+                           remotehost_vlan,
+                           "00:00:00:00:00:00",
+                           hostmac,
+                           str(remotehwport_tocore),
+                           corevlan,
+                           translated_hostmac,
+                           0,
+                           0,
+                           meter)
 
 def connectdataplane(switch,
                      host,
@@ -112,6 +131,7 @@ def connectdataplane(switch,
                       tocorevlan,
                       meter,
                       controller=default_controller)
+        # XXX convert to SdnInstallForward1()
 
         flowid = baseid + "-broadcast-in"
         corsaforward (sw,
@@ -124,18 +144,32 @@ def connectdataplane(switch,
                       hostvlan,
                       meter,
                       controller=default_controller)
+        # XXX convert to SdnInstallForward1()
 
     flowid = baseid + "-to-host"
-    corsaforward (sw,
-                  flowid,
-                  tocoreport,
-                  translated_hostmac,
-                  tocorevlan,
-                  tohostport,
-                  hostmac,
-                  hostvlan,
-                  meter,
-                  controller=default_controller)
+#    corsaforward (sw,
+#                  flowid,
+#                  tocoreport,
+#                  translated_hostmac,
+#                  tocorevlan,
+#                  tohostport,
+#                  hostmac,
+#                  hostvlan,
+#                  meter,
+#                  controller=default_controller)
+    scc.SdnInstallForward1(javaByteArray(sw.props['dpid']),
+                           1,
+                           BigInteger.ZERO,
+                           str(tocoreport),
+                           tocorevlan,
+                           "00:00:00:00:00:00",
+                           translated_hostmac,
+                           str(tohostport),
+                           hostvlan,
+                           hostmac,
+                           0,
+                           0,
+                           meter)
 
 
 def getgriport(hwswitch,core,griport):
@@ -284,6 +318,17 @@ def connectgri(host,
 
     return True
 
+def javaByteArray(a):
+    """
+    Make a Java array of bytes from unsigned bytes in Python.  Note that Java
+    bytes are signed, whereas in Python they may be either signed or unsigned.
+    :param a:
+    :return:
+    """
+    b = jarray.zeros(len(a), 'b')
+    for i in range(len(a)):
+        b[i] = struct.unpack('b', struct.pack('B', a[i]))[0]
+    return b
 
 def print_syntax():
     print
@@ -299,7 +344,6 @@ def print_syntax():
     print "\t\tcommand will create an initial password."
     print "\trem-user <host-name> user <user-name>: remove user from a host."
     print
-
 
 # Retrieve topology
 if not 'topo' in globals() or topo == None:

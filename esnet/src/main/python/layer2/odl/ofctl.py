@@ -62,7 +62,7 @@ def getswitches(controller=None):
     url = "http://" + controller + ":8181/restconf/config/opendaylight-inventory:nodes/"
     response = urlsend(url=url,auth=True)
     if response == None:
-        print "no active swicthes"
+        print "no active switches"
         return None
     nodes = response['nodes']['node']
     switches = []
@@ -75,7 +75,7 @@ def getswitches(controller=None):
             continue
         print sw.name
         switches.append(sw)
-    print "\nSwitch list is stored into Pything global variable 'switches'"
+    print "\nSwitch list is stored into Python global variable 'switches'"
     globals()['switches'] = switches
 
 def dumpflows(switch,table,controller=None):
@@ -174,7 +174,7 @@ def decodeflow(response):
                             vid = action['set-vlan-id-action']['vlan-id']
                             print "\t\t\t\torder",order2,"set vlan-id",vid
                             continue
-                        print "unkwon action:",action
+                        print "unknown action:",action
 
 def getflows(switch,table,safe=True,controller=None):
     global ctrl
