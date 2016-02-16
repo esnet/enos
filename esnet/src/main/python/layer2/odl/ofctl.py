@@ -59,7 +59,7 @@ def getswitches(controller=None):
     global ctrl
     if controller == None:
         controller = ctrl
-    url = "http://" + controller + ":8181/restconf/config/opendaylight-inventory:nodes/"
+    url = "http://" + controller + ":8181/restconf/operational/opendaylight-inventory:nodes/"
     response = urlsend(url=url,auth=True)
     if response == None:
         print "no active switches"
