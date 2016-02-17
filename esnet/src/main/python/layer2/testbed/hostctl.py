@@ -33,7 +33,9 @@ from net.es.netshell.controller.client import SdnControllerClient
 
 default_controller="aofa-tbn-1.testbed100.es.net"
 
-scc = SdnControllerClient()
+if not 'SCC' in globals() or SCC == None:
+    SCC = SdnControllerClient()
+    globals()['SCC'] = SCC
 
 def getdatapaths(host):
     interfaces = []
@@ -86,15 +88,15 @@ def connectremoteplane(switch,
     #              corevlan,
     #              meter,
     #              controller=default_controller)
-    scc.SdnInstallForward1(javaByteArray(switch.props['dpid']),
+    SCC.SdnInstallForward1(javaByteArray(switch.props['dpid']),
                            1,
                            BigInteger.ZERO,
                            str(remotehost_port),
-                           remotehost_vlan,
+                           int(remotehost_vlan),
                            "00:00:00:00:00:00",
                            hostmac,
                            str(remotehwport_tocore),
-                           corevlan,
+                           int(corevlan),
                            translated_hostmac,
                            0,
                            0,
@@ -157,15 +159,15 @@ def connectdataplane(switch,
 #                  hostvlan,
 #                  meter,
 #                  controller=default_controller)
-    scc.SdnInstallForward1(javaByteArray(sw.props['dpid']),
+    SCC.SdnInstallForward1(javaByteArray(sw.props['dpid']),
                            1,
                            BigInteger.ZERO,
                            str(tocoreport),
-                           tocorevlan,
+                           int(tocorevlan),
                            "00:00:00:00:00:00",
                            translated_hostmac,
                            str(tohostport),
-                           hostvlan,
+                           int(hostvlan),
                            hostmac,
                            0,
                            0,
