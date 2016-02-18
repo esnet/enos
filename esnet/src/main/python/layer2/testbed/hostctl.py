@@ -54,6 +54,9 @@ def display(host):
             datastatus = "Reserved for OVS"
         print "\t\tname", interface['name'],"mac",interface['mac'],datastatus
 
+def setmeter(switch, meter, cr, cbs, er, ebs):
+    return SCC.SdnInstallMeter(javaByteArray(switch.props['dpid']), meter, cr, cbs, er, ebs)
+
 def connectremoteplane(switch,
                        host,
                        hostvlan,

@@ -17,7 +17,7 @@
 # publicly and display publicly, and to permit other to do so.
 #
 from layer2.common.mac import MACAddress
-from layer2.testbed.hostctl import connectgri,getdatapaths
+from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter
 from layer2.testbed.oscars import getgri,getcoregris
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns
@@ -80,8 +80,26 @@ class VPN():
         return None
     def addpop(self,pop):
         self.pops[pop.name] = pop
-        return True
+
+        # We need to make sure that meter(s) are set correctly on the switches in the POP.
+        # In particular we need to do this on Corsas before pushing flows to it that reference
+        # any of the meters we use here.  This code is a bit of a hard-coded hack, but it'll
+        # have to do until we can figure out what's the desired behavior.  Note that we can
+        # set a meter multiple times.  It is however a requirement that the driver needs to
+        # have a set a meter before a flow references it; in particular we cannot use an
+        # external mechanism (e.g. CLI) to set the meter and then try to have the driver
+        # push a flow that references it.
+        sw = pop.props['hwSwitch']
+        meter = self.meter
+        rc = setmeter(sw, meter, 0, 0, 0, 0)
+
+        return rc
     def delpop(self,pop):
+        # Ideally we would undo the meter setting that was done in addpop.  But at this point
+        # we don't have a mechanism for handling the fact that a meter might be in use by
+        # flows for multiple VPNs.  If we indiscriminantly delete a meter, we might blow away
+        # flows in use by some other, unrelated VPNs.  This is solely an issue on the Corsas
+        # at this point.
         del self.pops[pop.name]
         return True
     def addsite(self,site):
@@ -261,11 +279,15 @@ def execute(vpn):
     return
 
 def addpop(vpn, pop):
-    vpn.addpop(pop)
+    if not vpn.addpop(pop):
+        print "Error while adding pop."
+        return
     print "Pop %s is added into VPN %s successfully." % (pop.name, vpn.name)
 
 def delpop(vpn, pop):
-    vpn.delpop(pop)
+    if not vpn.delpop(pop):
+        print "Error while deleting pop."
+        return
     print "Pop %s had been removed from VPN %s successfully." % (pop.name, vpn.name)
 
 def addsite(vpn, site):
