@@ -36,6 +36,13 @@ sites = {
 }
 
 def interconnect(site1,site2):
+    """
+    Given two sites, return a GRI to be used for VPN traffic between them.
+    Assumes that the first applicable GRI is the one to be used.
+    :param site1:
+    :param site2:
+    :return:
+    """
     pop1 = site1['pop']
     pop2 = site2['pop']
     (x,gri) = getcoregris(pop1,pop2).items()[0]
@@ -120,26 +127,29 @@ class VPN():
         with self.lock:
             hostsite = self.getsite(host)
             hostsite['connected'][host['name']] = vlan
+            # Iterate over all sites that are "remote" to this host
             for (s,site) in self.vpnsites.items():
                 if site['name'] == hostsite['name']:
+                    # XXX Need to add forwarding entries to/from other hosts at the same site?
                     continue
                 connected = site['connected']
+                # For each of those sites, iterate over the hosts at that site
                 for (r,remotevlan) in connected.items():
-                    gri = interconnect(hostsite,site)
+                    gri = interconnect(hostsite,site) # XXX can this be in the site loop?
                     remotehost = tbns[r]
                     host_mat = None
                     remotehost_mat = None
                     if VPNMAT:
                         host_mat = self.generateMAC(host)
                         remotehost_mat =  self.generateMAC(remotehost)
-                    # Add flows coming from other sites
+                    # Add flows coming from other site/host
                     connectgri(host=host,
                                host_rewritemac= host_mat,
                                hostvlan=vlan,
                                remotehost=remotehost,
                                remotehostvlan = remotevlan,
                                gri=gri,meter=self.meter)
-                    # Add flows going to other sites
+                    # Add flows going to other site/host
                     connectgri(host=remotehost,
                                host_rewritemac= remotehost_mat,
                                hostvlan=remotevlan,
@@ -153,6 +163,11 @@ class VPN():
         return True
 
     def setpriority(self,priority):
+        """
+        Set the priority for this VPN's flows.
+        Can be either "high" or low, but in the current implementation this must be
+        set before any POPs, sites, or hosts are added.
+        """
         self.priority = priority
         if priority == 'high':
             self.meter = 5

@@ -141,7 +141,8 @@ def displaygri(gri,name=None):
 
 def getcoregris(pop1=None,pop2=None):
     """
-    Returns the list of reservations that are
+    Returns the list of reservations that are for ENOS used between two POPs.
+    Relies on parsing the descriptions of the reservations.
     :param pop1:
     :param pop2:
     :return:

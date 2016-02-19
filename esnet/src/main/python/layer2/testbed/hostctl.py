@@ -69,6 +69,11 @@ def connectremoteplane(switch,
                        meter=3,
                        dobroadcast=False,
                        host_rewritemac = None):
+    """
+    Set up forwarding entry on a switch/pop that is remote to a given host.
+    This entry takes traffic from a site, translating MAC if necessary,
+    and forwarding on a WAN circuit headed towards the host.
+    """
     global default_controller
     hostmac = getdatapaths(host)[0]['mac']
     translated_hostmac = hostmac
@@ -81,16 +86,6 @@ def connectremoteplane(switch,
         broadcast = "FF:FF:FF:FF:FF:FF"
     flowid = baseid + "to-remote-host"
 
-    #corsaforward (switch,
-    #              flowid,
-    #              remotehost_port,
-    #              hostmac,
-    #              remotehost_vlan,
-    #              remotehwport_tocore,
-    #              translated_hostmac,
-    #              corevlan,
-    #              meter,
-    #              controller=default_controller)
     SCC.SdnInstallForward1(javaByteArray(switch.props['dpid']),
                            1,
                            BigInteger.ZERO,
@@ -117,6 +112,9 @@ def connectdataplane(switch,
                      meter=3,
                      dobroadcast=False,
                      host_rewritemac = None):
+    """
+    Set up forwarding entries on the switches local to a host.
+    """
     global default_controller
     baseid = host['name'] +":"+hostport+":"+str(hostvlan)+"-"+gri.getName()
     hostmac = getdatapaths(host)[0]['mac']
@@ -125,6 +123,9 @@ def connectdataplane(switch,
         translated_hostmac = host_rewritemac
     if dobroadcast:
         broadcast = "FF:FF:FF:FF:FF:FF"
+#        translated_broadcast = broadcast
+#        if False:
+#            translated_broadcast = MAT()
         flowid = baseid + "-broadcast-out"
         corsaforward (switch,
                       flowid,
@@ -151,17 +152,9 @@ def connectdataplane(switch,
                       controller=default_controller)
         # XXX convert to SdnInstallForward1()
 
+    # Forward inbound WAN traffic from core router to local site/host.
+    # Also de-translate destination MAC address if necessary.
     flowid = baseid + "-to-host"
-#    corsaforward (sw,
-#                  flowid,
-#                  tocoreport,
-#                  translated_hostmac,
-#                  tocorevlan,
-#                  tohostport,
-#                  hostmac,
-#                  hostvlan,
-#                  meter,
-#                  controller=default_controller)
     SCC.SdnInstallForward1(javaByteArray(sw.props['dpid']),
                            1,
                            BigInteger.ZERO,
@@ -208,6 +201,20 @@ def connect (localpop,
              remotehostvlan,
              meter=3,
              host_rewritemac = None):
+    """
+    Given a host and a remote host, and the POPs to which their sites are attached, set up two-way forwarding.
+    This function takes care of finding the hardware switch and ports.
+    :param localpop:
+    :param remotepop:
+    :param host:
+    :param remotehost:
+    :param gri:
+    :param hostvlan:
+    :param remotehostvlan:
+    :param meter:
+    :param host_rewritemac:
+    :return:
+    """
     hostname = host['name']
     remotehostname = remotehost['name']
     core = localpop.props['coreRouter']
@@ -225,9 +232,9 @@ def connect (localpop,
     remotehwswitch = remotepop.props['hwSwitch']
     remotehwswitchname = remotehwswitch.name
     remotelinks = getlinks(remotecorename, remotehwswitchname)
-    # Find hwswith/port - core/port
+    # Find hwswitch/port - core/port
     hwport_tocore = getgriport(hwswitch,core,coreport)
-    # Find remotehwswith/port - remotecore/port
+    # Find remotehwswitch/port - remotecore/port
     remotehwport_tocore = getgriport(remotehwswitch,remotecore,remotecoreport)
 
     # Find the port on the HwSwitch that is connected to the host's port
@@ -293,6 +300,10 @@ def connectgri(host,
                remotehostvlan,
                meter=3,
                host_rewritemac=None):
+    """
+    Set up forwarding entries to connect a host to a remote host via a given GRI.
+    This function takes care of figuring out the POPs involved.
+    """
     # Get both endpoints of the GRI
     (e1,e2) = griendpoints(gri)
     hostpop = topo.builder.popIndex[host['pop']]
