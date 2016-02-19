@@ -134,14 +134,14 @@ class VPN():
                         remotehost_mat =  self.generateMAC(remotehost)
                     # Add flows coming from other sites
                     connectgri(host=host,
-                               host_rewitemac = host_mat,
+                               host_rewritemac= host_mat,
                                hostvlan=vlan,
                                remotehost=remotehost,
                                remotehostvlan = remotevlan,
                                gri=gri,meter=self.meter)
                     # Add flows going to other sites
                     connectgri(host=remotehost,
-                               host_rewitemac = remotehost_mat,
+                               host_rewritemac= remotehost_mat,
                                hostvlan=remotevlan,
                                remotehost=host,
                                remotehostvlan=vlan,

@@ -68,12 +68,12 @@ def connectremoteplane(switch,
                        gri,
                        meter=3,
                        dobroadcast=False,
-                       host_rewitemac = None):
+                       host_rewritemac = None):
     global default_controller
     hostmac = getdatapaths(host)[0]['mac']
     translated_hostmac = hostmac
-    if host_rewitemac != None:
-        translated_hostmac = host_rewitemac
+    if host_rewritemac != None:
+        translated_hostmac = host_rewritemac
 
     baseid = host['name'] + ":"+str(hostvlan)+"-"+gri.getName()
     if dobroadcast:
@@ -116,13 +116,13 @@ def connectdataplane(switch,
                      gri,
                      meter=3,
                      dobroadcast=False,
-                     host_rewitemac = None):
+                     host_rewritemac = None):
     global default_controller
     baseid = host['name'] +":"+hostport+":"+str(hostvlan)+"-"+gri.getName()
     hostmac = getdatapaths(host)[0]['mac']
     translated_hostmac = hostmac
-    if host_rewitemac != None:
-        translated_hostmac = host_rewitemac
+    if host_rewritemac != None:
+        translated_hostmac = host_rewritemac
     if dobroadcast:
         broadcast = "FF:FF:FF:FF:FF:FF"
         flowid = baseid + "-broadcast-out"
@@ -207,7 +207,7 @@ def connect (localpop,
              hostvlan,
              remotehostvlan,
              meter=3,
-             host_rewitemac = None):
+             host_rewritemac = None):
     hostname = host['name']
     remotehostname = remotehost['name']
     core = localpop.props['coreRouter']
@@ -254,7 +254,7 @@ def connect (localpop,
                      corevlan,
                      gri,
                      meter,
-                     host_rewitemac = host_rewitemac)
+                     host_rewritemac= host_rewritemac)
 
     # Find the port on the remote HwSwitch that is connected to the remote host's port
     links = getlinks(remotehostname, remotehwswitchname)
@@ -281,7 +281,7 @@ def connect (localpop,
                        corevlan = corevlan,
                        gri = gri,
                        meter = meter,
-                       host_rewitemac = host_rewitemac)
+                       host_rewritemac= host_rewritemac)
 
     return True
 
@@ -292,7 +292,7 @@ def connectgri(host,
                hostvlan,
                remotehostvlan,
                meter=3,
-               host_rewitemac=None):
+               host_rewritemac=None):
     # Get both endpoints of the GRI
     (e1,e2) = griendpoints(gri)
     hostpop = topo.builder.popIndex[host['pop']]
@@ -317,7 +317,7 @@ def connectgri(host,
                   hostvlan = hostvlan,
                   remotehostvlan = remotehostvlan,
                   meter = meter,
-                  host_rewitemac = host_rewitemac)
+                  host_rewritemac= host_rewritemac)
     if not res:
         return
 
