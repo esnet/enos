@@ -334,6 +334,129 @@ def connectgri(host,
 
     return True
 
+def swconnect(localpop, remotepop, mac, gri, meter):
+    """ Set up two-way connectivity between ports on the software switches for a given MAC
+    :param localpop:
+    :param remotepop:
+    :param mac:
+    :param gri
+    :param meter:
+    :return:
+    """
+    core = localpop.props['coreRouter']
+    corename = core.name
+    (corename,coredom,coreport,corevlan) = getgrinode(gri,corename)
+    remotecore = remotepop.props['coreRouter']
+    remotecorename = remotecore.name
+    (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecorename)
+
+    hwswitch = localpop.props['hwSwitch']
+    hwswitchname = hwswitch.name
+    swswitch = localpop.props['swSwitch']
+    swswitchname = swswitch.name
+
+    remotehwswitch = remotepop.props['hwSwitch']
+    remotehwswitchname = remotehwswitch.name
+    remoteswswitch = remotepop.props['swSwitch']
+    remoteswswitchname = remoteswswitch.name
+
+    # Find hwswitch/port - core/port
+    hwport_tocore = getgriport(hwswitch,core,coreport)
+    # Find remotehwswitch/port - remotecore/port
+    remotehwport_tocore = getgriport(remotehwswitch,remotecore,remotecoreport)
+
+    links = getlinks(hwswitchname, swswitchname)
+    if links == None or len(links) == 0:
+        print "No links from ", hwswitchname, " to ", swswitchname
+        return None
+    hwswlink = None
+    for l in links:
+        (node, port) = linkednode(l, swswitchname)
+        if port != None:
+            # Found the (a) link
+            hwswlink = l
+            hwport_tosw = port
+            break
+
+    remotelinks = getlinks(remotehwswitchname, remoteswswitchname)
+    if remotelinks == None or len(remotelinks) == 0:
+        print "No links from ", remotehwswitchname, " to ", remoteswswitchname
+        return None
+    remotehwswlink = None
+    for l in remotelinks:
+        (node, port) = linkednode(l, remoteswswitchname)
+        if port != None:
+            # Found the (a) link
+            remotehwswlink = l
+            remotehwport_tosw = port
+            break
+
+    # Find the ports on hwswitch and remotehwswitch that go to the corresponding software switches
+
+    # Set up forwarding for broadcast traffic from the new local pop
+    # Install outbound flow on hwswitch from swswitch to the GRI
+    SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+                           1,
+                           BigInteger.ZERO,
+                           str(hwport_tosw), # hw port facing software switch
+                           int(corevlan),
+                           "00:00:00:00:00:00",
+                           mac,
+                           str(hwport_tocore),
+                           int(corevlan),
+                           mac,
+                           0,
+                           0,
+                           meter)
+    # Install inbound flow on remotehwswitch from GRI to remoteswswitch
+    SCC.SdnInstallForward1(javaByteArray(remotehwswitch.props['dpid']),
+                           1,
+                           BigInteger.ZERO,
+                           str(remotehwport_tocore),
+                           int(remotecorevlan),
+                           "00:00:00:00:00:00",
+                           mac,
+                           str(remotehwport_tosw), # remotehw port facing remote software switch
+                           int(remotecorevlan),
+                           mac,
+                           0,
+                           0,
+                           meter)
+
+    # Set up forwarding for broadcast traffic to the new local pop
+    # Install inbound flow on hwswitch from GRI to swswitch
+    SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+                           1,
+                           BigInteger.ZERO,
+                           str(hwport_tocore),
+                           int(corevlan),
+                           "00:00:00:00:00:00",
+                           mac,
+                           str(hwport_tosw), # hw port facing software switch
+                           int(corevlan),
+                           mac,
+                           0,
+                           0,
+                           meter)
+
+    # Install outbound flow on remotehwswitch from remoteswswitch to GRI
+    SCC.SdnInstallForward1(javaByteArray(remotehwswitch.props['dpid']),
+                           1,
+                           BigInteger.ZERO,
+                           str(remotehwport_tosw), # remotehw port facing remote software switch
+                           int(remotecorevlan),
+                           "00:00:00:00:00:00",
+                           mac,
+                           str(remotehwport_tocore),
+                           int(remotecorevlan),
+                           mac,
+                           0,
+                           0,
+                           meter)
+
+    # Return something
+    return True
+
 def javaByteArray(a):
     """
     Make a Java array of bytes from unsigned bytes in Python.  Note that Java

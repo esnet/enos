@@ -17,7 +17,7 @@
 # publicly and display publicly, and to permit other to do so.
 #
 from layer2.common.mac import MACAddress
-from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter
+from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter,swconnect
 from layer2.testbed.oscars import getgri,getcoregris
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns
@@ -45,7 +45,17 @@ def interconnect(site1,site2):
     """
     pop1 = site1['pop']
     pop2 = site2['pop']
-    (x,gri) = getcoregris(pop1,pop2).items()[0]
+    return interconnectpops(pop1,pop2)
+
+def interconnectpops(pop1,pop2):
+    """
+    Given two POPs, return a GRI to be used to VPN traffic between them.
+    Assumes that the first applicable GRI is the one to be used.
+    :param pop1: Name of POP
+    :param pop2: Name of POP
+    :return:
+    """
+    (x,gri) = getcoregris(pop1.upper(),pop2.upper()).items()[0]
     return gri
 
 if not 'VPNinstances' in globals() or VPNinstances == None:
@@ -86,19 +96,36 @@ class VPN():
                 return site
         return None
     def addpop(self,pop):
-        self.pops[pop.name] = pop
+        rc = True
 
-        # We need to make sure that meter(s) are set correctly on the switches in the POP.
-        # In particular we need to do this on Corsas before pushing flows to it that reference
-        # any of the meters we use here.  This code is a bit of a hard-coded hack, but it'll
-        # have to do until we can figure out what's the desired behavior.  Note that we can
-        # set a meter multiple times.  It is however a requirement that the driver needs to
-        # have a set a meter before a flow references it; in particular we cannot use an
-        # external mechanism (e.g. CLI) to set the meter and then try to have the driver
-        # push a flow that references it.
-        sw = pop.props['hwSwitch']
-        meter = self.meter
-        rc = setmeter(sw, meter, 0, 0, 0, 0)
+        with self.lock:
+
+            # We need to make sure that meter(s) are set correctly on the switches in the POP.
+            # In particular we need to do this on Corsas before pushing flows to it that reference
+            # any of the meters we use here.  This code is a bit of a hard-coded hack, but it'll
+            # have to do until we can figure out what's the desired behavior.  Note that we can
+            # set a meter multiple times.  It is however a requirement that the driver needs to
+            # have a set a meter before a flow references it; in particular we cannot use an
+            # external mechanism (e.g. CLI) to set the meter and then try to have the driver
+            # push a flow that references it.
+            sw = pop.props['hwSwitch']
+            meter = self.meter
+            rc = setmeter(sw, meter, 0, 0, 0, 0)
+            # if not rc:
+
+            # Iterate over the existing POPs to set up entries to handle broadcast traffic
+            # between the POP being added and the existing POPs.  These all go in the
+            # hardware switches.
+            broadcastmac = "FF:FF:FF:FF:FF:FF"
+            broadcastmac_mat = broadcastmac
+            if VPNMAT:
+                broadcastmac_mat = self.generateMAC(broadcast)
+            for (remotepopname, remotepop) in self.pops.items():
+                gri = interconnectpops(pop.name.upper(), remotepop.name.upper())
+                swconnect(pop, remotepop, broadcastmac_mat, gri, self.meter)
+
+            # This POP is now added.
+            self.pops[pop.name] = pop
 
         return rc
     def delpop(self,pop):
