@@ -17,7 +17,7 @@
 # publicly and display publicly, and to permit other to do so.
 #
 from layer2.common.mac import MACAddress
-from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter,swconnect
+from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter,swconnect,connecthostbroadcast
 from layer2.testbed.oscars import getgri,getcoregris
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns
@@ -149,6 +149,8 @@ class VPN():
         # function will not generate a new mac but instead return the previously generated mac.
         newmac = self.mat.translate(mac)
         return str(newmac)
+    def generateBroadcastMAC(self):
+        return str(self.mat.translate("FF:FF:FF:FF:FF:FF"))
 
     def addhost(self,host,vlan):
         with self.lock:
@@ -166,9 +168,11 @@ class VPN():
                     remotehost = tbns[r]
                     host_mat = None
                     remotehost_mat = None
+                    broadcast_mat = None
                     if VPNMAT:
                         host_mat = self.generateMAC(host)
                         remotehost_mat =  self.generateMAC(remotehost)
+                        broadcast_mat = self.generateBroadcastMAC()
                     # Add flows coming from other site/host
                     connectgri(host=host,
                                host_rewritemac= host_mat,
@@ -184,6 +188,14 @@ class VPN():
                                remotehostvlan=vlan,
                                gri=gri,
                                meter=self.meter)
+                    # Add broadcast flows.  Technically these are per-site not per-host,
+                    # but VLANs are currently (incorrectly?) assigned on the basis of a host.
+                    pop = self.pops[hostsite['pop'].lower()]
+                    connecthostbroadcast(localpop= pop,
+                                         host= host,
+                                         hostvlan= vlan,
+                                         meter= self.meter,
+                                         broadcast_rewritemac= broadcast_mat)
 
         return True
     def delhost(self,host):

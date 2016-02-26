@@ -67,7 +67,6 @@ def connectremoteplane(switch,
                        corevlan,
                        gri,
                        meter=3,
-                       dobroadcast=False,
                        host_rewritemac = None):
     """
     Set up forwarding entry on a switch/pop that is remote to a given host.
@@ -81,9 +80,6 @@ def connectremoteplane(switch,
         translated_hostmac = host_rewritemac
 
     baseid = host['name'] + ":"+str(hostvlan)+"-"+gri.getName()
-    if dobroadcast:
-        flowid = baseid + "-broadcast-out"
-        broadcast = "FF:FF:FF:FF:FF:FF"
     flowid = baseid + "to-remote-host"
 
     SCC.SdnInstallForward1(javaByteArray(switch.props['dpid']),
@@ -110,7 +106,6 @@ def connectdataplane(switch,
                      tocorevlan,
                      gri,
                      meter=3,
-                     dobroadcast=False,
                      host_rewritemac = None):
     """
     Set up forwarding entries on the switches local to a host.
@@ -121,36 +116,6 @@ def connectdataplane(switch,
     translated_hostmac = hostmac
     if host_rewritemac != None:
         translated_hostmac = host_rewritemac
-    if dobroadcast:
-        broadcast = "FF:FF:FF:FF:FF:FF"
-#        translated_broadcast = broadcast
-#        if False:
-#            translated_broadcast = MAT()
-        flowid = baseid + "-broadcast-out"
-        corsaforward (switch,
-                      flowid,
-                      tohostport,
-                      broadcast,
-                      hostvlan,
-                      tocoreport,
-                      broadcast,
-                      tocorevlan,
-                      meter,
-                      controller=default_controller)
-        # XXX convert to SdnInstallForward1()
-
-        flowid = baseid + "-broadcast-in"
-        corsaforward (sw,
-                      flowid,
-                      tocoreport,
-                      broadcast,
-                      tocorevlan,
-                      tohostport,
-                      broadcast,
-                      hostvlan,
-                      meter,
-                      controller=default_controller)
-        # XXX convert to SdnInstallForward1()
 
     # Forward inbound WAN traffic from core router to local site/host.
     # Also de-translate destination MAC address if necessary.
@@ -292,6 +257,80 @@ def connect (localpop,
 
     return True
 
+def connecthostbroadcast(localpop,
+                         host,
+                         hostvlan,
+                         meter=3,
+                         broadcast_rewritemac = None):
+
+    hostname = host['name']
+    datapath = getdatapaths(host)[0] # Assumes the first datapath
+    hostport = datapath['name']
+    hwswitch = localpop.props['hwSwitch']
+    hwswitchname = hwswitch.name
+    swswitch = localpop.props['swSwitch']
+    swswitchname = swswitch.name
+
+    # Find the port on the HwSwitch that is connected to the host's port
+    links = getlinks(hostname, hwswitchname)
+    if links == None or len(links) == 0:
+        print "No links from",hostname,"to",hwswitchname
+        return False
+    hostlink = None
+    for link in links:
+        (node,port) = linkednode (link, hwswitchname)
+        if port != None and port == hostport:
+            # found the link
+            hostlink = link
+            break
+    (node,hwport_tohost) = linkednode ( hostlink,hostname)
+
+    # Find the port on the HwSwitch connected to the software switch
+    links = getlinks(hwswitchname, swswitchname)
+    if links == None or len(links) == 0:
+        print "No links from", hwswitchname, "to", swswitchname
+        return False
+    swswitchlink = None
+    for link in links:
+        (node, port) = linkednode(link, swswitchname)
+        if port != None:
+            # Found the link we're looking for
+            swswitchlink = link
+            hwport_tosw = port
+            break
+
+    broadcast = "FF:FF:FF:FF:FF:FF"
+    translated_broadcast = broadcast
+    if broadcast_rewritemac != None:
+        translated_broadcast = broadcast_rewritemac
+
+    SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+                           1,
+                           BigInteger.ZERO,
+                           str(hwport_tosw),
+                           int(hostvlan),
+                           "00:00:00:00:00:00",
+                           translated_broadcast,
+                           str(hwport_tohost),
+                           int(hostvlan),
+                           broadcast,
+                           0,
+                           0,
+                           meter)
+
+    SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+                           1,
+                           BigInteger.ZERO,
+                           str(hwport_tohost),
+                           int(hostvlan),
+                           "00:00:00:00:00:00",
+                           broadcast,
+                           str(hwport_tosw),
+                           int(hostvlan),
+                           translated_broadcast,
+                           0,
+                           0,
+                           meter)
 
 def connectgri(host,
                gri,
