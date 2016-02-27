@@ -17,11 +17,13 @@
 # publicly and display publicly, and to permit other to do so.
 #
 from layer2.common.mac import MACAddress
-from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter,swconnect,connecthostbroadcast
-from layer2.testbed.oscars import getgri,getcoregris
+from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter,swconnect,connecthostbroadcast,deleteforward,connectentryfanout
+from layer2.testbed.oscars import getgri,getcoregris,getgrinode
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns
 from layer2.vpn.mat import MAT
+
+from net.es.netshell.controller.client import SdnControllerClientL2Forward
 
 import threading
 
@@ -83,8 +85,10 @@ class VPN():
             self.vid = VPNindex
             VPNindex += 1
         self.name = name
-        self.pops = {}
-        self.vpnsites = {}
+        self.pops = {} # pop name -> pop
+        self.vpnsites = {} # site name -> site
+        self.entryfanoutflows = {} # host name -> FlowHandle
+        self.exitfanoutflows = {} # pop name -> FlowHandle
         self.priority = "low"
         self.meter = 3
         self.lock = threading.Lock()
@@ -156,23 +160,25 @@ class VPN():
         with self.lock:
             hostsite = self.getsite(host)
             hostsite['connected'][host['name']] = vlan
+            host_mat = None
+            broadcast_mat = "FF:FF:FF:FF:FF:FF"
+            if VPNMAT:
+                host_mat = self.generateMAC(host)
+                broadcast_mat = self.generateBroadcastMAC()
+
             # Iterate over all sites that are "remote" to this host
             for (s,site) in self.vpnsites.items():
                 if site['name'] == hostsite['name']:
                     # XXX Need to add forwarding entries to/from other hosts at the same site?
                     continue
                 connected = site['connected']
+                gri = interconnect(hostsite, site)
                 # For each of those sites, iterate over the hosts at that site
                 for (r,remotevlan) in connected.items():
-                    gri = interconnect(hostsite,site) # XXX can this be in the site loop?
                     remotehost = tbns[r]
-                    host_mat = None
                     remotehost_mat = None
-                    broadcast_mat = None
                     if VPNMAT:
-                        host_mat = self.generateMAC(host)
                         remotehost_mat =  self.generateMAC(remotehost)
-                        broadcast_mat = self.generateBroadcastMAC()
                     # Add flows coming from other site/host
                     connectgri(host=host,
                                host_rewritemac= host_mat,
@@ -188,16 +194,62 @@ class VPN():
                                remotehostvlan=vlan,
                                gri=gri,
                                meter=self.meter)
-                    # Add broadcast flows.  Technically these are per-site not per-host,
-                    # but VLANs are currently (incorrectly?) assigned on the basis of a host.
-                    pop = self.pops[hostsite['pop'].lower()]
-                    connecthostbroadcast(localpop= pop,
-                                         host= host,
-                                         hostvlan= vlan,
-                                         meter= self.meter,
-                                         broadcast_rewritemac= broadcast_mat)
+
+            # Add flows to get broadcast traffic between the host and the software switch.
+            # Technically these flows are per-site not per-host,
+            # but VLANs are currently (incorrectly?) assigned on the basis of a host.
+            pop = self.pops[hostsite['pop'].lower()]
+            connecthostbroadcast(localpop= pop,
+                                 host= host,
+                                 hostvlan= vlan,
+                                 meter= self.meter,
+                                 broadcast_rewritemac= broadcast_mat)
+
+            # Create entry fanout flow on the software switch.  This flow fans out traffic
+            # from the host/site to other hosts/sites on the same POP, as well as to all the
+            # other POPs.
+            # XXX need to re-run this part if we add another host/site to this POP or add
+            # another POP
+            forwards = []
+            localpopname = hostsite['pop'].lower()
+            localpop = self.pops[localpopname]
+
+            # Locate all other hosts/sites on this POP
+            for (otherhostname, otherhostvlan) in hostsite['connected'].items():
+                if otherhostname != host['name']:
+                    fwd = SdnControllerClientL2Forward()
+                    fwd.outPort = "0" # to be filled in by connectentryfanout
+                    fwd.vlan = otherhostvlan
+                    fwd.dstMac = "FF:FF:FF:FF:FF:FF"
+                    forwards.append(fwd)
+
+            # Locate other POPs
+            for (otherpopname, otherpop) in self.pops.items():
+                if otherpopname != localpopname:
+                    gri = interconnectpops(localpopname, otherpopname)
+                    (corename, coredom, coreport, corevlan) = getgrinode(gri, localpop.props['coreRouter'].name)
+                    fwd = SdnControllerClientL2Forward()
+                    fwd.outPort = "0" # to be filled in by connectentryfanout
+                    fwd.vlan = int(corevlan)
+                    fwd.dstMac = broadcast_mat
+                    forwards.append(fwd)
+
+            # If we've already made an entry fanout flow for this host, then delete it.
+            if host['name'] in self.entryfanoutflows:
+                oldfh = self.entryfanoutflows[host['name']]
+                deleteforward(oldfh)
+                del self.entryfanoutflows[host['name']]
+            fh = connectentryfanout(localpop= pop,
+                                    host= host,
+                                    hostvlan= vlan,
+                                    forwards= forwards,
+                                    meter= self.meter,
+                                    mac= "FF:FF:FF:FF:FF:FF")
+            if fh != None:
+                self.entryfanoutflows[host['name']] = fh
 
         return True
+
     def delhost(self,host):
         return True
 

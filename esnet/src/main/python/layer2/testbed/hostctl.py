@@ -26,7 +26,7 @@ from layer2.testbed.topology import TestbedTopology,getlinks,linkednode
 from layer2.odl.ofctl import corsaforward
 from layer2.testbed.topology import TestbedTopology
 
-from net.es.netshell.controller.client import SdnControllerClient
+from net.es.netshell.controller.client import SdnControllerClient, SdnControllerClientL2Forward
 
 # Hardcode information about hosts. Eventually this should be discovered by the ENOS
 # host agent registering its interfaces and other meta data.
@@ -262,6 +262,16 @@ def connecthostbroadcast(localpop,
                          hostvlan,
                          meter=3,
                          broadcast_rewritemac = None):
+    """
+    Create entries on the local hardware switch that pass broadcast traffic
+    to and from the connected host
+    :param localpop: POP object
+    :param host: host object
+    :param hostvlan: VLAN number of host attachment
+    :param meter:
+    :param broadcast_rewritemac: Mapped Ethernet broadcast address
+    :return:
+    """
 
     hostname = host['name']
     datapath = getdatapaths(host)[0] # Assumes the first datapath
@@ -331,6 +341,72 @@ def connecthostbroadcast(localpop,
                            0,
                            0,
                            meter)
+
+def connectentryfanout(localpop,
+                       host,
+                       hostvlan,
+                       forwards,
+                       meter,
+                       mac):
+    """
+    Create fanout entry on source POP's software switch
+    :param localpop:  POP object
+    :param host: host object
+    :param hostvlan: VLAN number of host attachment
+    :param forwards: array of SDNControllerClientL2Forward
+    :param meter:
+    :param mac:
+    :return: SdnControllerClientFlowHandle
+    """
+    hostname = host['name']
+    hwswitch = localpop.props['hwSwitch']
+    hwswitchname = hwswitch.name
+    swswitch = localpop.props['swSwitch']
+    swswitchname = swswitch.name
+
+    # print "connectentryfanout localpop", localpop, "host", host, "hostvlan", hostvlan, "mac", mac
+
+    # Find the port on the software switch connected to the hardware switch
+    links = getlinks(swswitchname, hwswitchname)
+    if links == None or len(links) == 0:
+        print "No links from", swswitchname, "to", hwswitchname
+        return None
+    hwswitchlink = None
+    swport_tohw = None
+    for link in links:
+        (node, port) = linkednode(link, hwswitchname)
+        if port != None:
+            # Found it!
+            hwswitchlink = link
+            swport_tohw = port
+            break
+    if swport_tohw == None:
+        print "No output port on", swswitchname, "facing", hwswitchname
+        return None
+
+    # The fanout flow is "interesting" in that the input plus the multiple outputs
+    # all are on the same port (but different VLANs).  Fill in the outputs.
+    for f in forwards:
+        f.outPort = str(swport_tohw)
+        # print "FORW:  outport", f.outPort, "vlan", f.vlan, "dstMac", f.dstMac
+
+    # Convert the list of forwarding destinations to a Java array.
+    fwdsarr = jarray.array(forwards, SdnControllerClientL2Forward)
+
+    # print "dpid", swswitch.props['dpid']
+    fh = SCC.SdnInstallForward(javaByteArray(swswitch.props['dpid']),
+                               1,
+                               BigInteger.ZERO,
+                               str(swport_tohw),
+                               int(hostvlan),
+                               None, # XXX not sure what goes here
+                               mac,
+                               fwdsarr,
+                               0,
+                               0,
+                               meter)
+
+    return fh
 
 def connectgri(host,
                gri,
@@ -495,6 +571,14 @@ def swconnect(localpop, remotepop, mac, gri, meter):
 
     # Return something
     return True
+
+def deleteforward(fh):
+    """
+    Delete a configured flow
+    :param fh: SdnControllerClientFlowHandle
+    :return:
+    """
+    SCC.SdnDeleteForward(fh)
 
 def javaByteArray(a):
     """
