@@ -17,7 +17,7 @@
 # publicly and display publicly, and to permit other to do so.
 #
 from layer2.common.mac import MACAddress
-from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter,swconnect,connecthostbroadcast,deleteforward,connectentryfanout
+from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter,swconnect,connecthostbroadcast,deleteforward,connectentryfanout,connectexitfanout
 from layer2.testbed.oscars import getgri,getcoregris,getgrinode
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns
@@ -85,10 +85,10 @@ class VPN():
             self.vid = VPNindex
             VPNindex += 1
         self.name = name
-        self.pops = {} # pop name -> pop
-        self.vpnsites = {} # site name -> site
-        self.entryfanoutflows = {} # host name -> FlowHandle
-        self.exitfanoutflows = {} # pop name -> FlowHandle
+        self.pops = {}              # pop name -> pop
+        self.vpnsites = {}          # site name -> site
+        self.entryfanoutflows = {}  # host name -> FlowHandle
+        self.exitfanoutflows = {}   # exit pop name -> (entry pop name, FlowHandle)
         self.priority = "low"
         self.meter = 3
         self.lock = threading.Lock()
@@ -244,9 +244,55 @@ class VPN():
                                     hostvlan= vlan,
                                     forwards= forwards,
                                     meter= self.meter,
-                                    mac= "FF:FF:FF:FF:FF:FF")
+                                    mac= broadcast_mat)
             if fh != None:
                 self.entryfanoutflows[host['name']] = fh
+
+            # Create exit fanout flows on the software switch.  This flow fans out traffic
+            # from other POPs, to hosts/sites on this POP.
+            # XXX need to re-run this part if we add another host/site to this POP or
+            # add another POP
+            # XXX Note that for a given port, the exit fanout flows are all identical,
+            # except that their match VLAN numbers are different, corresponding to the VLAN
+            # of the core OSCARS circuits.  We might possibly be able to collapse these down
+            # to a single flow rule if we don't try to match on the VLAN tag.  It's not clear
+            # if we want to do this or not, there might be some security and/or reliability
+            # implications to doing this change.
+            forwards = []
+            if localpopname in self.exitfanoutflows:
+                exitfanoutflows = self.exitfanoutflows[localpopname]
+            else:
+                exitfanoutflows = {}
+                self.exitfanoutflows[localpopname] = exitfanoutflows
+            # Locate all hosts/sites on this POP.
+            print "addhost locate hosts for exit fanout flow"
+            for (otherhostname, otherhostvlan) in hostsite['connected'].items():
+                fwd = SdnControllerClientL2Forward()
+                fwd.outPort = "0" # to be filled in by connectexitfanout
+                fwd.vlan = int(otherhostvlan)
+                fwd.dstMac = "FF:FF:FF:FF:FF:FF"
+                forwards.append(fwd)
+                print "  ", otherhostname
+
+            # Iterate over source POPs
+            for (srcpopname, srcpop) in self.pops.items():
+                if srcpopname != localpopname:
+                    # Get the VLAN coming from the core for this source POP
+                    gri = interconnectpops(localpopname, srcpopname)
+                    (corename, coredom, coreport, corevlan) = getgrinode(gri, localpop.props['coreRouter'].name)
+
+                    # If we already made an exit fanout flow for this source POP, delete it
+                    if srcpopname in exitfanoutflows:
+                        oldfh = exitfanoutflows[srcpopname]
+                        deleteforward(oldfh)
+                        del exitfanoutflows[srcpopname]
+                    fh = connectexitfanout(localpop= pop,
+                                           corevlan= corevlan,
+                                           forwards= forwards,
+                                           meter= self.meter,
+                                           mac= broadcast_mat)
+                    if fh != None:
+                        exitfanoutflows[srcpopname] = fh
 
         return True
 

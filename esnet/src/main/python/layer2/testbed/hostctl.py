@@ -408,6 +408,69 @@ def connectentryfanout(localpop,
 
     return fh
 
+def connectexitfanout(localpop,
+                       corevlan,
+                       forwards,
+                       meter,
+                       mac):
+    """
+    Create exit fanout flow on software switch of a destination POP.
+    This handles broadcast traffic before it exits the network
+    :param localpop: POP object
+    :param corevlan: VLAN number coming from core
+    :param forwards: array of SDNControllerClientL2Forward
+    :param meter:
+    :param mac:
+    :return: SDNControllerClientFlowHandle
+    """
+
+    hwswitch = localpop.props['hwSwitch']
+    hwswitchname = hwswitch.name
+    swswitch = localpop.props['swSwitch']
+    swswitchname = swswitch.name
+
+    # print "connectexitfanout localpop", localpop, "corevlan", corevlan, "mac", mac
+
+    # Find the port on the software switch connected to the hardware switch
+    links = getlinks(swswitchname, hwswitchname)
+    if links == None or len(links) == 0:
+        print "No links from", swswitchname, "to", hwswitchname
+        return None
+    hwswitchlink = None
+    swport_tohw = None
+    for link in links:
+        (node, port) = linkednode(link, hwswitchname)
+        if port != None:
+            # Found it!
+            hwswitchlink = link
+            swport_tohw = port
+            break
+    if swport_tohw == None:
+        print "No output port on", swswitchname, "facing", hwswitchname
+        return None
+
+    for f in forwards:
+        f.outPort = str(swport_tohw)
+        # print "FORW:  outport", f.outPort, "vlan", f.vlan, "dstMac", f.dstMac
+
+    # Convert the list of forwarding destinations to a Java array.
+    fwdsarr = jarray.array(forwards, SdnControllerClientL2Forward)
+
+    # print "dpid", swswitch.props['dpid']
+    fh = SCC.SdnInstallForward(javaByteArray(swswitch.props['dpid']),
+                               1,
+                               BigInteger.ZERO,
+                               str(swport_tohw),
+                               int(corevlan),
+                               None,
+                               mac,
+                               fwdsarr,
+                               0,
+                               0,
+                               meter)
+
+    return fh
+
 def connectgri(host,
                gri,
                remotehost,
