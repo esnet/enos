@@ -83,8 +83,8 @@ cernlinks = [
     ["cern-272-cr5","10/1/6","cern-272-tb-of-1","22"],
     ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23"],
     ["cern-272-cr5","10/2/6","cern-272-tb-of-1","24"],
-    ["cern-272-ovs","eth10","cern-272-tb-of-1","2"],    # Miswired, does not correspond to WASH deployment document
-    ["cern-272-ovs","eth11","cern-272-tb-of-1","1"],    # Miswired, does not correspond to WASH deployment document
+    ["cern-272-ovs","eth10","cern-272-tb-of-1","2"],    # Miswired, does not correspond to CERN-272 deployment document
+    ["cern-272-ovs","eth11","cern-272-tb-of-1","1"],    # Miswired, does not correspond to CERN-272 deployment document
     ["cern-272-ovs","eth12","cern-272-tb-of-1","3"],
     ["cern-272-ovs","eth13","cern-272-tb-of-1","4"],
     ["cern-272-tbn-1","eth14","cern-272-tb-of-1","5"]
