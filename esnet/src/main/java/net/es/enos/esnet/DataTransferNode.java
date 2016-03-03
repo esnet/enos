@@ -100,11 +100,8 @@ public class DataTransferNode extends Host {
         // Load from local file system
         DataTransferNode dtn = null;
         try {
-            dtn = (DataTransferNode) PersistentObject.newObject(DataTransferNode.class,
-                                                                Paths.get(DTN_DIR, name).toString());
+            dtn = (DataTransferNode) PersistentObject.newObjectFromFile(Paths.get(DTN_DIR, name).toString());
             dtn.shortName = name;
-        } catch (IOException e) {
-            e.printStackTrace();
         } catch (InstantiationException e) {
             e.printStackTrace();
         }
@@ -113,7 +110,7 @@ public class DataTransferNode extends Host {
     }
 
     public void save() throws IOException {
-        this.save(Paths.get(DTN_DIR, this.getResourceName()).toString());
+        this.saveToFile(Paths.get(DTN_DIR, this.getResourceName()).toString());
     }
 
     /**

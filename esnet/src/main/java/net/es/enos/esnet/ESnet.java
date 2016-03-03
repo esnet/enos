@@ -41,7 +41,6 @@ public final class ESnet extends NetworkProvider {
     private ESnetTopology topology;
     private static Object instanceMutex = new Object();
     private static final Logger logger = LoggerFactory.getLogger(ESnet.class);
-    private OSCARS oscars;
 
     public static ESnet instance() {
         synchronized (ESnet.instanceMutex) {
@@ -63,7 +62,6 @@ public final class ESnet extends NetworkProvider {
             logger.error("Layer2 local topology is not a ESnetTopology. It is a " + topo.getClass().getCanonicalName());
         }
         this.topology = (ESnetTopology) topo;
-        this.oscars = new OSCARS();
     }
 
     @Override
@@ -143,9 +141,6 @@ public final class ESnet extends NetworkProvider {
         }
         if ( ! this.supportProfile(profile)) {
             throw new IOException("does not support this profile");
-        }
-        if ( ! oscars.canProvision(path))  {
-            throw new SecurityException("not authorized to provision this path");
         }
         Method method = null;
         try {
