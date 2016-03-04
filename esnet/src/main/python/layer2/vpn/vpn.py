@@ -87,6 +87,9 @@ class VPN():
         self.name = name
         self.pops = {}              # pop name -> pop
         self.vpnsites = {}          # site name -> site
+        self.popflows = {}          # pop name -> (FlowHandle)
+        self.siteflows = {}         # site name -> (FlowHandle)
+        self.hostflows = {}         # host name -> (FlowHandle)
         self.entryfanoutflows = {}  # host name -> FlowHandle
         self.exitfanoutflows = {}   # exit pop name -> (entry pop name, FlowHandle)
         self.priority = "low"
@@ -103,6 +106,8 @@ class VPN():
         rc = True
 
         with self.lock:
+
+            fhlist = [] # List of FlowHandles for this POP
 
             # We need to make sure that meter(s) are set correctly on the switches in the POP.
             # In particular we need to do this on Corsas before pushing flows to it that reference
@@ -126,10 +131,15 @@ class VPN():
                 broadcastmac_mat = self.generateMAC(broadcast)
             for (remotepopname, remotepop) in self.pops.items():
                 gri = interconnectpops(pop.name.upper(), remotepop.name.upper())
-                swconnect(pop, remotepop, broadcastmac_mat, gri, self.meter)
+                fhs = swconnect(pop, remotepop, broadcastmac_mat, gri, self.meter)
+                self.popflows[remotepop.name].extend(fhs)
+                fhlist.extend(fhs)
 
             # This POP is now added.
             self.pops[pop.name] = pop
+            self.popflows[pop.name] = fhlist
+
+            # print "addpop ending with pop flow handles", self.popflows[pop.name]
 
         return rc
     def delpop(self,pop):
@@ -138,12 +148,19 @@ class VPN():
         # flows for multiple VPNs.  If we indiscriminantly delete a meter, we might blow away
         # flows in use by some other, unrelated VPNs.  This is solely an issue on the Corsas
         # at this point.
+        if self.popflows(pop.name):
+            self.deletefhs(self.popflows[pop.name])
+            del self.popflows[pop.name]
         del self.pops[pop.name]
         return True
     def addsite(self,site):
         self.vpnsites[site['name']] = site
+        self.siteflows[site['name']] = []
         return True
     def delsite(self,site):
+        if self.siteflows(site['name']):
+            self.deletefhs(self.siteflows[site['name']])
+            del self.siteflows[site['name']]
         del self.vpnsites[site['name']]
         return True
     def generateMAC(self,host):
@@ -155,6 +172,11 @@ class VPN():
         return str(newmac)
     def generateBroadcastMAC(self):
         return str(self.mat.translate("FF:FF:FF:FF:FF:FF"))
+    def deletefhs(self, fhs):
+        for f in fhs.items():
+            if f.isValid():
+                deleteforward(f)
+                f.invalidate()
 
     def addhost(self,host,vlan):
         with self.lock:
@@ -165,6 +187,7 @@ class VPN():
             if VPNMAT:
                 host_mat = self.generateMAC(host)
                 broadcast_mat = self.generateBroadcastMAC()
+            self.hostflows[host['name']] = []
 
             # Iterate over all sites that are "remote" to this host
             for (s,site) in self.vpnsites.items():
@@ -179,21 +202,30 @@ class VPN():
                     remotehost_mat = None
                     if VPNMAT:
                         remotehost_mat =  self.generateMAC(remotehost)
+                    fhlist = []
+
                     # Add flows coming from other site/host
-                    connectgri(host=host,
+                    fhs = connectgri(host=host,
                                host_rewritemac= host_mat,
                                hostvlan=vlan,
                                remotehost=remotehost,
                                remotehostvlan = remotevlan,
                                gri=gri,meter=self.meter)
+                    if fhs != None:
+                        fhlist.extend(fhs)
                     # Add flows going to other site/host
-                    connectgri(host=remotehost,
+                    fhs = connectgri(host=remotehost,
                                host_rewritemac= remotehost_mat,
                                hostvlan=remotevlan,
                                remotehost=host,
                                remotehostvlan=vlan,
                                gri=gri,
                                meter=self.meter)
+                    if fhs != None:
+                        fhlist.extend(fhs)
+
+                    self.hostflows[host['name']].extend(fhlist)
+                    self.hostflows[remotehost['name']].extend(fhlist)
 
             # Add flows to get broadcast traffic between the host and the software switch.
             # Technically these flows are per-site not per-host,
@@ -237,8 +269,10 @@ class VPN():
             # If we've already made an entry fanout flow for this host, then delete it.
             if host['name'] in self.entryfanoutflows:
                 oldfh = self.entryfanoutflows[host['name']]
-                deleteforward(oldfh)
-                del self.entryfanoutflows[host['name']]
+                if oldfh.isValid():
+                    deleteforward(oldfh)
+                    del self.entryfanoutflows[host['name']]
+                    oldfh.invalidate()
             fh = connectentryfanout(localpop= pop,
                                     host= host,
                                     hostvlan= vlan,
@@ -247,6 +281,7 @@ class VPN():
                                     mac= broadcast_mat)
             if fh != None:
                 self.entryfanoutflows[host['name']] = fh
+                self.hostflows[host['name']].append(fh)
 
             # Create exit fanout flows on the software switch.  This flow fans out traffic
             # from other POPs, to hosts/sites on this POP.
@@ -265,14 +300,12 @@ class VPN():
                 exitfanoutflows = {}
                 self.exitfanoutflows[localpopname] = exitfanoutflows
             # Locate all hosts/sites on this POP.
-            print "addhost locate hosts for exit fanout flow"
             for (otherhostname, otherhostvlan) in hostsite['connected'].items():
                 fwd = SdnControllerClientL2Forward()
                 fwd.outPort = "0" # to be filled in by connectexitfanout
                 fwd.vlan = int(otherhostvlan)
                 fwd.dstMac = "FF:FF:FF:FF:FF:FF"
                 forwards.append(fwd)
-                print "  ", otherhostname
 
             # Iterate over source POPs
             for (srcpopname, srcpop) in self.pops.items():
@@ -284,8 +317,10 @@ class VPN():
                     # If we already made an exit fanout flow for this source POP, delete it
                     if srcpopname in exitfanoutflows:
                         oldfh = exitfanoutflows[srcpopname]
-                        deleteforward(oldfh)
-                        del exitfanoutflows[srcpopname]
+                        if oldfh.isValid():
+                            deleteforward(oldfh)
+                            del exitfanoutflows[srcpopname]
+                            oldfh.invaldate()
                     fh = connectexitfanout(localpop= pop,
                                            corevlan= corevlan,
                                            forwards= forwards,
@@ -293,10 +328,16 @@ class VPN():
                                            mac= broadcast_mat)
                     if fh != None:
                         exitfanoutflows[srcpopname] = fh
+                        self.popflows[srcpopname].append(fh)
+
+        # print "addhost ending with host flow handles", self.hostflows[host['name']]
 
         return True
 
     def delhost(self,host):
+        if self.hostflows(host['name']):
+            self.deletefhs(self.hostflows(host['name']))
+            del self.hostflows[host['name']]
         return True
 
     def setpriority(self,priority):

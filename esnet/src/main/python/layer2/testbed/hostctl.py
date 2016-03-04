@@ -71,7 +71,7 @@ def connectremoteplane(switch,
     """
     Set up forwarding entry on a switch/pop that is remote to a given host.
     This entry takes traffic from a site, translating MAC if necessary,
-    and forwarding on a WAN circuit headed towards the host.
+    and forwarding on a WAN circuit headed towards the host.  Returns a FlowHandle.
     """
     global default_controller
     hostmac = getdatapaths(host)[0]['mac']
@@ -82,7 +82,7 @@ def connectremoteplane(switch,
     baseid = host['name'] + ":"+str(hostvlan)+"-"+gri.getName()
     flowid = baseid + "to-remote-host"
 
-    SCC.SdnInstallForward1(javaByteArray(switch.props['dpid']),
+    fh = SCC.SdnInstallForward1(javaByteArray(switch.props['dpid']),
                            1,
                            BigInteger.ZERO,
                            str(remotehost_port),
@@ -95,6 +95,7 @@ def connectremoteplane(switch,
                            0,
                            0,
                            meter)
+    return fh
 
 def connectdataplane(switch,
                      host,
@@ -109,6 +110,7 @@ def connectdataplane(switch,
                      host_rewritemac = None):
     """
     Set up forwarding entries on the switches local to a host.
+    Returns a FlowHandle.
     """
     global default_controller
     baseid = host['name'] +":"+hostport+":"+str(hostvlan)+"-"+gri.getName()
@@ -120,7 +122,7 @@ def connectdataplane(switch,
     # Forward inbound WAN traffic from core router to local site/host.
     # Also de-translate destination MAC address if necessary.
     flowid = baseid + "-to-host"
-    SCC.SdnInstallForward1(javaByteArray(sw.props['dpid']),
+    fh = SCC.SdnInstallForward1(javaByteArray(sw.props['dpid']),
                            1,
                            BigInteger.ZERO,
                            str(tocoreport),
@@ -133,6 +135,7 @@ def connectdataplane(switch,
                            0,
                            0,
                            meter)
+    return fh
 
 
 def getgriport(hwswitch,core,griport):
@@ -178,7 +181,7 @@ def connect (localpop,
     :param remotehostvlan:
     :param meter:
     :param host_rewritemac:
-    :return:
+    :return: List of FlowHandles
     """
     hostname = host['name']
     remotehostname = remotehost['name']
@@ -216,7 +219,7 @@ def connect (localpop,
             break
     (node,hwport_tohost) = linkednode ( hostlink,hostname)
 
-    connectdataplane(hwswitch,
+    fh1 = connectdataplane(hwswitch,
                      host,
                      hostport,
                      hostvlan,
@@ -227,6 +230,8 @@ def connect (localpop,
                      gri,
                      meter,
                      host_rewritemac= host_rewritemac)
+    if fh1 == None:
+        return None
 
     # Find the port on the remote HwSwitch that is connected to the remote host's port
     links = getlinks(remotehostname, remotehwswitchname)
@@ -243,7 +248,7 @@ def connect (localpop,
 
     (node,remotehwport_tohost) = linkednode ( hostlink,remotehostname)
 
-    connectremoteplane(switch = remotehwswitch,
+    fh2 = connectremoteplane(switch = remotehwswitch,
                        host = host,
                        hostvlan = hostvlan,
                        remotehost_port = remotehwport_tohost,
@@ -254,8 +259,12 @@ def connect (localpop,
                        gri = gri,
                        meter = meter,
                        host_rewritemac= host_rewritemac)
+    if fh2 == None:
+        SCC.deleteforward(fh1)
+        return None
 
-    return True
+    fhs = (fh1, fh2)
+    return fhs
 
 def connecthostbroadcast(localpop,
                          host,
@@ -314,7 +323,7 @@ def connecthostbroadcast(localpop,
     if broadcast_rewritemac != None:
         translated_broadcast = broadcast_rewritemac
 
-    SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+    fh1 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
                            1,
                            BigInteger.ZERO,
                            str(hwport_tosw),
@@ -327,8 +336,10 @@ def connecthostbroadcast(localpop,
                            0,
                            0,
                            meter)
+    if fh1 == None:
+        return None
 
-    SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+    fh2 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
                            1,
                            BigInteger.ZERO,
                            str(hwport_tohost),
@@ -341,6 +352,11 @@ def connecthostbroadcast(localpop,
                            0,
                            0,
                            meter)
+    if fh2 == None:
+        SCC.deleteforward(fh1)
+        return None
+
+    return (fh1, fh2)
 
 def connectentryfanout(localpop,
                        host,
@@ -481,6 +497,7 @@ def connectgri(host,
     """
     Set up forwarding entries to connect a host to a remote host via a given GRI.
     This function takes care of figuring out the POPs involved.
+    Return a list of FlowHandles
     """
     # Get both endpoints of the GRI
     (e1,e2) = griendpoints(gri)
@@ -507,10 +524,7 @@ def connectgri(host,
                   remotehostvlan = remotehostvlan,
                   meter = meter,
                   host_rewritemac= host_rewritemac)
-    if not res:
-        return
-
-    return True
+    return res
 
 def swconnect(localpop, remotepop, mac, gri, meter):
     """ Set up two-way connectivity between ports on the software switches for a given MAC
@@ -519,7 +533,7 @@ def swconnect(localpop, remotepop, mac, gri, meter):
     :param mac:
     :param gri
     :param meter:
-    :return:
+    :return: List of FlowHandles
     """
     core = localpop.props['coreRouter']
     corename = core.name
@@ -573,7 +587,7 @@ def swconnect(localpop, remotepop, mac, gri, meter):
 
     # Set up forwarding for broadcast traffic from the new local pop
     # Install outbound flow on hwswitch from swswitch to the GRI
-    SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+    fh1 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
                            1,
                            BigInteger.ZERO,
                            str(hwport_tosw), # hw port facing software switch
@@ -586,8 +600,11 @@ def swconnect(localpop, remotepop, mac, gri, meter):
                            0,
                            0,
                            meter)
+    if fh1 == None:
+        return None
+
     # Install inbound flow on remotehwswitch from GRI to remoteswswitch
-    SCC.SdnInstallForward1(javaByteArray(remotehwswitch.props['dpid']),
+    fh2 = SCC.SdnInstallForward1(javaByteArray(remotehwswitch.props['dpid']),
                            1,
                            BigInteger.ZERO,
                            str(remotehwport_tocore),
@@ -600,10 +617,13 @@ def swconnect(localpop, remotepop, mac, gri, meter):
                            0,
                            0,
                            meter)
+    if fh2 == None:
+        SCC.deleteforward(fh1)
+        return None
 
     # Set up forwarding for broadcast traffic to the new local pop
     # Install inbound flow on hwswitch from GRI to swswitch
-    SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+    fh3 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
                            1,
                            BigInteger.ZERO,
                            str(hwport_tocore),
@@ -616,9 +636,13 @@ def swconnect(localpop, remotepop, mac, gri, meter):
                            0,
                            0,
                            meter)
+    if fh3 == None:
+        SCC.deleteforward(fh1)
+        SCC.deleteforward(fh2)
+        return None
 
     # Install outbound flow on remotehwswitch from remoteswswitch to GRI
-    SCC.SdnInstallForward1(javaByteArray(remotehwswitch.props['dpid']),
+    fh4 = SCC.SdnInstallForward1(javaByteArray(remotehwswitch.props['dpid']),
                            1,
                            BigInteger.ZERO,
                            str(remotehwport_tosw), # remotehw port facing remote software switch
@@ -631,9 +655,14 @@ def swconnect(localpop, remotepop, mac, gri, meter):
                            0,
                            0,
                            meter)
+    if fh4 == None:
+        SCC.deleteforward(fh1)
+        SCC.deleteforward(fh2)
+        SCC.deleteforward(fh3)
+        return None
 
     # Return something
-    return True
+    return (fh1, fh2, fh3, fh4)
 
 def deleteforward(fh):
     """
