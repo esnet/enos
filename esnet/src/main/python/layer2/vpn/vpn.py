@@ -114,18 +114,18 @@ class VPN(Resource):
         self.meter = self.properties['meter']
         self.pops = eval (self.properties['pops'])
         self.vpnsites = eval (self.properties['vpnsites'])
-        self.entryfanoutflows = eval (self.properties['entryfanoutflows'])
         self.exitfanoutflows = eval (self.properties['exitfanoutflows'])
+        self.entryfanoutflows = eval (self.properties['entryfanoutflows'])
         self.mat = MAT.deserialize(self.properties['mat'])
 
     def save(self):
-        self.properties['vid'] = self. VPNindex
+        self.properties['vid'] = self. vid
         self.properties['priority'] = self.priority
         self.properties['meter'] = self.meter
         self.properties['mat'] = str(self.mat.serialize())
         self.properties['pops'] = str(self.pops)
         self.properties['vpnsites'] = str(self.vpnsites)
-        self.properties['entryfanouflows'] = str(self.entryfanoutflows)
+        self.properties['entryfanoutflows'] = str(self.entryfanoutflows)
         self.properties['exitfanoutflows'] = str(self.exitfanoutflows)
 
 

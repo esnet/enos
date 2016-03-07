@@ -49,7 +49,8 @@ class MAT(Properties):
         return obj
 
     @staticmethod
-    def deserialize(obj):
+    def deserialize(doc):
+        obj = eval(doc)
         mat = MAT(obj['vid'])
         mat.props['hid'] = obj['hid']
         for (hid, mac) in obj['mac'].items():
