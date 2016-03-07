@@ -17,13 +17,23 @@
 # publicly and display publicly, and to permit other to do so.
 #
 from layer2.common.mac import MACAddress
-from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter,swconnect,connecthostbroadcast,deleteforward,connectentryfanout,connectexitfanout
 from layer2.testbed.oscars import getgri,getcoregris,getgrinode
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns
 from layer2.vpn.mat import MAT
+from net.es.netshell.api import Resource
 
-from net.es.netshell.controller.client import SdnControllerClientL2Forward
+import sys
+if "debugNoController" in dir(sys) and sys.debugNoController:
+    class X:
+        something=True
+
+    def SdnControllerClientL2Forward():
+        return X()
+else:
+    from net.es.netshell.controller.client import SdnControllerClientL2Forward
+
+from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter,swconnect,connecthostbroadcast,deleteforward,connectentryfanout,connectexitfanout
 
 import threading
 
@@ -76,9 +86,9 @@ if not 'VPNMAT' in globals():
     VPNMAT = False
     globals()['VPNMAT'] = VPNMAT
 
-class VPN():
-
+class VPN(Resource):
     def __init__(self,name):
+        Resource.__init__(self,name)
         global VPNinstances, VPNindex, VPNlock
         with VPNlock:
             VPNinstances['name'] = self
@@ -97,11 +107,34 @@ class VPN():
         self.lock = threading.Lock()
         self.mat = MAT(self.vid)
 
+    def restore(self):
+        self.name = self.getResourceName()
+        self.vid = self.properties['vid']
+        self.priority = self.properties['priority']
+        self.meter = self.properties['meter']
+        self.pops = eval (self.properties['pops'])
+        self.vpnsites = eval (self.properties['vpnsites'])
+        self.entryfanoutflows = eval (self.properties['entryfanoutflows'])
+        self.exitfanoutflows = eval (self.properties['exitfanoutflows'])
+        self.mat = MAT.deserialize(self.properties['mat'])
+
+    def save(self):
+        self.properties['vid'] = self. VPNindex
+        self.properties['priority'] = self.priority
+        self.properties['meter'] = self.meter
+        self.properties['mat'] = str(self.mat.serialize())
+        self.properties['pops'] = str(self.pops)
+        self.properties['vpnsites'] = str(self.vpnsites)
+        self.properties['entryfanouflows'] = str(self.entryfanoutflows)
+        self.properties['exitfanoutflows'] = str(self.exitfanoutflows)
+
+
     def getsite(self,host):
         for (s,site) in self.vpnsites.items():
             if host['name'] in site['hosts']:
                 return site
         return None
+
     def addpop(self,pop):
         rc = True
 

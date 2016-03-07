@@ -20,10 +20,12 @@
 import sys
 
 from layer2.testbed.builder import TopoBuilder
-from net.es.netshell.api import GenericTopologyProvider, TopologyProvider, GenericHost, GenericNode, GenericPort, GenericLink
+from net.es.netshell.api import GenericTopologyProvider,TopologyProvider,GenericHost,GenericNode,GenericPort,GenericLink,Container
+from net.es.netshell.kernel.exec import KernelThread
+from net.es.netshell.boot import BootStrap
 from layer2.common.api import Properties, Port
-from layer2.odl.client import ODLClient
 from layer2.common.utils import singleton
+
 
 class TestbedNode(GenericNode,Properties):
     def __init__(self,name,props={}):
@@ -37,6 +39,7 @@ class TestbedNode(GenericNode,Properties):
             if port.name == name:
                 return port
         return None
+
 
 class TestbedLink(GenericLink,Properties):
     def __init__(self,node1,port1,node2,port2,props={}):
@@ -67,7 +70,7 @@ class TestbedTopology (GenericTopologyProvider):
         sys.stdout.flush()
 
     def buildSwitch(self, switch):
-        enosSwitch = TestbedNode(switch.name, props=dict(switch.props, controller=self.controller))
+        enosSwitch = TestbedNode(switch.name, props=dict(switch.props))
         self.addNode(enosSwitch)
         switch.props['enosNode'] = enosSwitch
 
@@ -117,22 +120,10 @@ class TestbedTopology (GenericTopologyProvider):
         for e in graph.edgeSet():
             graph.setEdgeWeight(e, 1)
 
-    def __init__(self, fileName = None, controller = None):
-
-        docontroller = False
-        self.controller = None
-        if docontroller:
-            if not controller:
-
-                self.controller = ODLClient(topology=self)
-            else:
-                self.controller = controller
+    def __init__(self, fileName = None):
         # Build topology
-        self.builder = TopoBuilder(fileName = fileName, controller = self.controller)
+        self.builder = TopoBuilder(fileName = fileName)
         self.buildNodes()
-        if docontroller and not controller:
-            # now that self.builder is ready
-            self.controller.init()
 
 def linkednode(link,host,port=None):
     """
@@ -177,6 +168,13 @@ def displaylink(link):
     (srcNode,srcPort,dstNode,dstPort,vlan) = parselink(link)
     print "Link src",srcNode,srcPort,"\tdst",dstNode,dstPort,"\tvlan",vlan
 
+def createdb(containerName):
+    user = KernelThread.currentKernelThread().getUser()
+    if not  BootStrap.getBootStrap().getDataBase().collectionExists(user.getName(),containerName):
+        Container.createContainer(user.getName(),containerName)
+    container = Container.getContainer(containerName)
+
+
 def print_syntax():
     print
     print "topology <cmd> <cmds options>"
@@ -184,6 +182,7 @@ def print_syntax():
     print " Commands are:"
     print "\nhelp"
     print "\tPrints this help."
+    print "\ncreate-db <container name> creates a container and populates it with the topology."
     print "\nshow-link:"
     print "\n\tshow-link all Displays all links."
     print "\n\tshow-link all host <host name> [port <port name> Displays all links ending\n\tonto the specified host."
@@ -207,6 +206,9 @@ if __name__ == '__main__':
     cmd = argv[1]
     if cmd == "help":
         print_syntax()
+    elif cmd == "create-db":
+        container = argv[2]
+        createdb(container)
     elif cmd == "show-link":
         link = argv[2]
         if link == 'all':

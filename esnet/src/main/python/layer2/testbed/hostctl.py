@@ -26,7 +26,30 @@ from layer2.testbed.topology import TestbedTopology,getlinks,linkednode
 from layer2.odl.ofctl import corsaforward
 from layer2.testbed.topology import TestbedTopology
 
-from net.es.netshell.controller.client import SdnControllerClient, SdnControllerClientL2Forward
+import sys
+if "debugNoController" in dir(sys) and sys.debugNoController:
+    class X:
+        something=True
+    class Z:
+        something=True
+        def SdnInstallMeter(*args):
+            print "Stub InstallMeter",args[1:]
+        def SdnInstallForward1 (*args):
+            print "Stub InstallForward1",args[1:]
+        def SdnInstallForward (*args):
+            print "Stub InstallForward",args[1:]
+        def SdnDeleteForward (*args):
+            print "Stub DeleteForward",args[1:]
+
+
+    def SdnControllerClientL2Forward():
+        return X()
+
+    def SdnControllerClient():
+        return Z()
+
+else:
+    from net.es.netshell.controller.client import SdnControllerClient, SdnControllerClientL2Forward
 
 # Hardcode information about hosts. Eventually this should be discovered by the ENOS
 # host agent registering its interfaces and other meta data.
