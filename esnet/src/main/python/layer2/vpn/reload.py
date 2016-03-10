@@ -31,3 +31,5 @@ def cleandemomodules():
 
 if __name__ == '__main__':
     cleandemomodules()
+    vpns=[]
+    vpnIndex={}

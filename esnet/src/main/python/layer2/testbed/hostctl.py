@@ -29,7 +29,12 @@ from layer2.testbed.topology import TestbedTopology
 import sys
 if "debugNoController" in dir(sys) and sys.debugNoController:
     class X:
-        something=True
+        value = None
+        def __init__(self,*args):
+            value = args
+        def __repr__(self):
+            return str(self.value);
+
     class Z:
         something=True
         def SdnInstallMeter(*args):
@@ -45,8 +50,15 @@ if "debugNoController" in dir(sys) and sys.debugNoController:
             print "Stub DeleteForward",args[1:]
 
 
-    def SdnControllerClientL2Forward():
-        return X()
+    from net.es.netshell.api import PersistentObject
+    class SdnControllerClientL2Forward (PersistentObject):
+        def __init__(self,outPort,vlan,dstMac):
+            PersistentObject.__init__(self)
+            self.properties['outPort'] = str(outPort)
+            self.properties['vlan'] = str(vlan)
+            self.properties['dstMac'] = str(dstMac)
+        def __repr__(self):
+            return self.saveToJSON()
 
     def SdnControllerClient():
         return Z()
