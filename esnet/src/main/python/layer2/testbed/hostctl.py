@@ -34,10 +34,13 @@ if "debugNoController" in dir(sys) and sys.debugNoController:
         something=True
         def SdnInstallMeter(*args):
             print "Stub InstallMeter",args[1:]
+            return True
         def SdnInstallForward1 (*args):
             print "Stub InstallForward1",args[1:]
+            return X(args)
         def SdnInstallForward (*args):
             print "Stub InstallForward",args[1:]
+            return X(args)
         def SdnDeleteForward (*args):
             print "Stub DeleteForward",args[1:]
 
