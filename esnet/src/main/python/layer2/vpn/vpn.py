@@ -21,15 +21,12 @@ from layer2.testbed.oscars import getgri,getcoregris,getgrinode
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns
 from layer2.vpn.mat import MAT
-from net.es.netshell.api import Resource
+from net.es.netshell.api import Resource,Container
+from net.es.netshell.boot import BootStrap
 
 import sys
 if "debugNoController" in dir(sys) and sys.debugNoController:
-    class X:
-        something=True
-
-    def SdnControllerClientL2Forward():
-        return X()
+    from layer2.testbed.hostctl import SdnControllerClientL2Forward
 else:
     from net.es.netshell.controller.client import SdnControllerClientL2Forward
 
@@ -86,6 +83,56 @@ if not 'VPNMAT' in globals():
     VPNMAT = False
     globals()['VPNMAT'] = VPNMAT
 
+class VPNService(Resource):
+    def __init__(self):
+        Resource.__init__(self,"ServicePersistentState")
+        self.container = Container.getContainer("MultiPointVPNService")
+        if self.container == None:
+
+            # First time the service is running initialize it.
+            self.create()
+            self.saveService()
+        else:
+            self.restore()
+
+    def create(self):
+        # Creates the VPN service container
+        Container.createContainer("MultiPointVPNService")
+        self.container = Container.getContainer("MultiPointVPNService")
+        self.vpns = []
+
+    def saveService(self):
+        cache = globals()['vpns']
+        for vpn in cache:
+            if not vpn.name in cache:
+                self.vpns.append(vpn.name)
+        self.properties['vpns'] = str(self.vpns)
+        try:
+            self.save(self.container)
+        except:
+            print "Failed to save VPN Service"
+
+    def restore(self):
+        self.container.loadResource(self.getResourceName())
+        self.vpns = eval(self.properties['vpns'])
+        cache = globals()['vpns']
+        for name in self.vpns:
+            if not vpn in cache:
+                vpn = self.restoreVPN(name)
+                cache[name] = vpn
+
+    def saveVPN(self,vpn):
+        if not vpn.name in self.vpns:
+            self.vpns.append(vpn.name)
+        if vpn.name == "ServicePersistentState":
+            # a vpn cannot have the same name as the VPNService resource name.
+            raise ValueError("VPN instances cannot this reserved name.")
+        self.container.saveResource(vpn)
+
+    def restoreVPN(self,vpnName):
+        return self.container.loadResource(vpnName)
+
+
 class VPN(Resource):
     def __init__(self,name):
         Resource.__init__(self,name)
@@ -106,28 +153,36 @@ class VPN(Resource):
         self.meter = 3
         self.lock = threading.Lock()
         self.mat = MAT(self.vid)
+        self.saveVPN()
 
-    def restore(self):
-        self.name = self.getResourceName()
-        self.vid = self.properties['vid']
-        self.priority = self.properties['priority']
-        self.meter = self.properties['meter']
-        self.pops = eval (self.properties['pops'])
-        self.vpnsites = eval (self.properties['vpnsites'])
-        self.exitfanoutflows = eval (self.properties['exitfanoutflows'])
-        self.entryfanoutflows = eval (self.properties['entryfanoutflows'])
-        self.mat = MAT.deserialize(self.properties['mat'])
-
-    def save(self):
+    def saveVPN(self):
         self.properties['vid'] = self. vid
         self.properties['priority'] = self.priority
         self.properties['meter'] = self.meter
         self.properties['mat'] = str(self.mat.serialize())
-        self.properties['pops'] = str(self.pops)
+        tmp = []
+        for p in self.pops:
+            tmp.append(p)
+        self.properties['pops'] = str(tmp)
         self.properties['vpnsites'] = str(self.vpnsites)
         self.properties['entryfanoutflows'] = str(self.entryfanoutflows)
         self.properties['exitfanoutflows'] = str(self.exitfanoutflows)
+        globals()['vpnService'].saveVPN(self)
 
+    def restore(self):
+        topo = globals()['topo']
+        self.name = self.getResourceName()
+        self.vid = self.properties['vid']
+        self.priority = self.properties['priority']
+        self.meter = self.properties['meter']
+        tmp = eval(self.properties['pops'])
+        self.pops={}
+        for p in tmp:
+            self.pops[p] = topo.builder.popIndex[p]
+        self.vpnsites = eval (self.properties['vpnsites'])
+        self.exitfanoutflows = eval (self.properties['exitfanoutflows'])
+        self.entryfanoutflows = eval (self.properties['entryfanoutflows'])
+        self.mat = MAT.deserialize(self.properties['mat'])
 
     def getsite(self,host):
         for (s,site) in self.vpnsites.items():
@@ -684,4 +739,11 @@ if __name__ == '__main__':
     if 'vpns' not in globals() or vpns == None:
         vpns = []
         globals()['vpns'] = vpns
+
+    if BootStrap.getBootStrap().getDataBase() != None:
+        # NetShell is configured to use a database.
+        vpnService = VPNService()
+        globals()['vpnService'] = vpnService
+    else:
+        globals()['vpnService'] = None
     main()

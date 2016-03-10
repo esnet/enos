@@ -52,7 +52,7 @@ if "debugNoController" in dir(sys) and sys.debugNoController:
 
     from net.es.netshell.api import PersistentObject
     class SdnControllerClientL2Forward (PersistentObject):
-        def __init__(self,outPort,vlan,dstMac):
+        def __init__(self,outPort=None,vlan=None,dstMac=None):
             PersistentObject.__init__(self)
             self.properties['outPort'] = str(outPort)
             self.properties['vlan'] = str(vlan)
