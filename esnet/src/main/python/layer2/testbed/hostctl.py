@@ -92,6 +92,14 @@ def display(host):
             datastatus = "Reserved for OVS"
         print "\t\tname", interface['name'],"mac",interface['mac'],datastatus
 
+def setcallback(cb):
+    SCC.setCallback(cb)
+    print "callback set"
+
+def clearcallback():
+    SCC.clearCallback()
+    print "callback cleared"
+
 def setmeter(switch, meter, cr, cbs, er, ebs):
     return SCC.SdnInstallMeter(javaByteArray(switch.props['dpid']), meter, cr, cbs, er, ebs)
 

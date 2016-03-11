@@ -16,6 +16,8 @@
 # distribute copies to the public, prepare derivative works, and perform
 # publicly and display publicly, and to permit other to do so.
 #
+import binascii
+import logging
 from layer2.common.mac import MACAddress
 from layer2.testbed.oscars import getgri,getcoregris,getgrinode
 from layer2.testbed.topology import TestbedTopology
@@ -28,9 +30,9 @@ import sys
 if "debugNoController" in dir(sys) and sys.debugNoController:
     from layer2.testbed.hostctl import SdnControllerClientL2Forward
 else:
-    from net.es.netshell.controller.client import SdnControllerClientL2Forward
+    from net.es.netshell.controller.client import SdnControllerClientL2Forward, SdnControllerClientCallback
 
-from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter,swconnect,connecthostbroadcast,deleteforward,connectentryfanout,connectexitfanout
+from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter,swconnect,connecthostbroadcast,deleteforward,connectentryfanout,connectexitfanout,setcallback,clearcallback
 
 import threading
 
@@ -82,6 +84,52 @@ if not 'VPNlock' in globals():
 if not 'VPNMAT' in globals():
     VPNMAT = False
     globals()['VPNMAT'] = VPNMAT
+
+class VpnCallback(SdnControllerClientCallback):
+    def __init__(self, name):
+        self.logger = logging.getLogger("VpnCallback")
+        self.logger.setLevel(logging.INFO)
+        self.logger.info("VpnCallback created")
+        self.name = name
+    def packetInCallback(self, dpid, inPort, payload):
+        """
+        Receive a PACKET_IN callback
+        """
+        # print "VpnCallback entry name", self.name, "dpid", dpid, "inPort", inPort, "payload", payload
+        # Decode the callback.  First get the switch
+        self.logger.info("PACKET_IN")
+        switch = None
+        hexdpid = binascii.hexlify(dpid)
+        # topo global
+        if not 'topo' in globals():
+            self.logger.error("No topo object")
+        for sw in topo.builder.switchIndex.values():
+            if 'dpid' in sw.props.keys() and binascii.hexlify(sw.props['dpid']) == hexdpid:
+                switch = sw
+                break
+        if switch == None:
+            self.logger.error("Can't find switch " + str(dpid))
+            return
+        enosSwitch = switch.props['enosNode']
+
+        # Now find the port
+        if inPort not in switch.props['ports'].keys():
+            self.logger.error("Can't find port " + inPort + " on switch " + switch.name)
+            return
+        port = switch.props['ports'][inPort]
+        enosPort = port.props['enosPort']
+
+        # Figure out how to print this
+        print "VpnCallback decode switch", switch.name, "port", port.name
+        self.logger.info("VpnCallback decode switch " + switch.name + " port " + port.name)
+        return
+
+# Start callback if we don't have one already
+if not 'VPNcallback' in globals():
+    VPNcallback = VpnCallback("MP-VPN Service")
+    setcallback(VPNcallback)
+    globals()['VPNcallback'] = VPNcallback
+    print "VPNcallback set"
 
 class VPNService(Resource):
     def __init__(self):
