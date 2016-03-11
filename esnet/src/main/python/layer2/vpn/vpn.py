@@ -23,12 +23,13 @@ from layer2.testbed.oscars import getgri,getcoregris,getgrinode
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns
 from layer2.vpn.mat import MAT
+from layer2.common.utils import mapResource
 from net.es.netshell.api import Resource,Container
 from net.es.netshell.boot import BootStrap
 
 import sys
 if "debugNoController" in dir(sys) and sys.debugNoController:
-    from layer2.testbed.hostctl import SdnControllerClientL2Forward
+    from layer2.testbed.hostctl import SdnControllerClientL2Forward, SdnControllerClientCallback
 else:
     from net.es.netshell.controller.client import SdnControllerClientL2Forward, SdnControllerClientCallback
 
@@ -68,10 +69,6 @@ def interconnectpops(pop1,pop2):
     """
     (x,gri) = getcoregris(pop1.upper(),pop2.upper()).items()[0]
     return gri
-
-if not 'VPNinstances' in globals() or VPNinstances == None:
-    VPNinstances = {}
-    globals()['VPNinstances'] = VPNinstances
 
 if not 'VPNindex' in globals():
     VPNindex = 0
@@ -133,15 +130,15 @@ if not 'VPNcallback' in globals():
 
 class VPNService(Resource):
     def __init__(self):
-        Resource.__init__(self,"ServicePersistentState")
+        Resource.__init__(self,"ServicePersistentState","net.es.netshell.api.Resource")
         self.container = Container.getContainer("MultiPointVPNService")
         if self.container == None:
-
             # First time the service is running initialize it.
             self.create()
             self.saveService()
         else:
-            self.restore()
+            self.loadService()
+
 
     def create(self):
         # Creates the VPN service container
@@ -151,23 +148,30 @@ class VPNService(Resource):
 
     def saveService(self):
         cache = globals()['vpns']
+        cacheIndex = globals()['vpnIndex']
         for vpn in cache:
-            if not vpn.name in cache:
-                self.vpns.append(vpn.name)
+            vpn.saveVPN()
+            if not vpn.getResourceName() in self.vpns:
+                self.vpns.append(vpn.getResourceName())
         self.properties['vpns'] = str(self.vpns)
         try:
             self.save(self.container)
         except:
             print "Failed to save VPN Service"
 
-    def restore(self):
-        self.container.loadResource(self.getResourceName())
+    def loadService(self):
+        stored = self.container.loadResource(self.getResourceName())
+        mapResource (obj=self,resource=stored)
         self.vpns = eval(self.properties['vpns'])
         cache = globals()['vpns']
+        cacheIndex = globals()['vpnIndex']
         for name in self.vpns:
-            if not vpn in cache:
-                vpn = self.restoreVPN(name)
-                cache[name] = vpn
+            if not name in cacheIndex:
+                stored = self.loadVPN(name)
+                vpn = VPN(stored.getResourceName())
+                mapResource(obj=vpn,resource=stored)
+                cache.append(vpn)
+                cacheIndex[name] = vpn
 
     def saveVPN(self,vpn):
         if not vpn.name in self.vpns:
@@ -177,16 +181,16 @@ class VPNService(Resource):
             raise ValueError("VPN instances cannot this reserved name.")
         self.container.saveResource(vpn)
 
-    def restoreVPN(self,vpnName):
+    def loadVPN(self,vpnName):
         return self.container.loadResource(vpnName)
 
 
 class VPN(Resource):
     def __init__(self,name):
-        Resource.__init__(self,name)
-        global VPNinstances, VPNindex, VPNlock
+        Resource.__init__(self,name,"net.es.netshell.api.Resource")
+
+        global VPNindex, VPNlock
         with VPNlock:
-            VPNinstances['name'] = self
             self.vid = VPNindex
             VPNindex += 1
         self.name = name
@@ -201,7 +205,6 @@ class VPN(Resource):
         self.meter = 3
         self.lock = threading.Lock()
         self.mat = MAT(self.vid)
-        self.saveVPN()
 
     def saveVPN(self):
         self.properties['vid'] = self. vid
@@ -217,7 +220,10 @@ class VPN(Resource):
         self.properties['exitfanoutflows'] = str(self.exitfanoutflows)
         globals()['vpnService'].saveVPN(self)
 
-    def restore(self):
+    def loadVPN(self):
+        stored = self.container.loadResource(self.getResourceName())
+        mapFromJavaObject(pyobj=self,jobj=stored)
+
         topo = globals()['topo']
         self.name = self.getResourceName()
         self.vid = self.properties['vid']
@@ -682,8 +688,9 @@ def main():
             vpnname = sys.argv[2]
             kill(vpnname)
         elif command == 'load':
-            confname = sys.argv[2]
-            load(confname)
+            globals()['vpnService'].loadService()
+        elif command == "save":
+            globals()['vpnService'].saveService()
         elif command == "mat":
             if 'on' in sys.argv:
                 VPNMAT = True

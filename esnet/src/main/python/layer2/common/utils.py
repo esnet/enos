@@ -24,6 +24,9 @@ import struct, array
 import threading
 import inspect
 
+
+from net.es.netshell.api import Resource
+
 """
 This method is used to implement a singleton. In order to make a singleton class:
 
@@ -70,4 +73,19 @@ def print_stack():
     while frame:
         print '[%r] %r:%r' % (tid, frame.f_code, frame.f_lineno)
         frame = frame.f_back
+
+def mapResource(obj,resource):
+    for x in dir(resource):
+        attr = resource.__getattribute__(x)
+        if inspect.ismethod(attr) or inspect.isclass(attr) or inspect.isbuiltin(attr) or x == "__doc__":
+            pass
+        else:
+            try:
+                obj.__setattr__(x,attr)
+            except:
+                pass
+
+
+
+
 

@@ -60,6 +60,10 @@ if "debugNoController" in dir(sys) and sys.debugNoController:
         def __repr__(self):
             return self.saveToJSON()
 
+    class SdnControllerClientCallback:
+        def setcallBack(self*args):
+            print "Stub setcallBack",args[1:]
+
     def SdnControllerClient():
         return Z()
 
