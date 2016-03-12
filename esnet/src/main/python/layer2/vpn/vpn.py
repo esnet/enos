@@ -17,7 +17,7 @@
 # publicly and display publicly, and to permit other to do so.
 #
 import binascii
-import logging
+import logging,random
 from layer2.common.mac import MACAddress
 from layer2.testbed.oscars import getgri,getcoregris,getgrinode
 from layer2.testbed.topology import TestbedTopology
@@ -70,9 +70,6 @@ def interconnectpops(pop1,pop2):
     (x,gri) = getcoregris(pop1.upper(),pop2.upper()).items()[0]
     return gri
 
-if not 'VPNindex' in globals():
-    VPNindex = 0
-    globals()['VPNindex'] = VPNindex
 
 if not 'VPNlock' in globals():
     VPNlock = threading.Lock()
@@ -81,6 +78,13 @@ if not 'VPNlock' in globals():
 if not 'VPNMAT' in globals():
     VPNMAT = False
     globals()['VPNMAT'] = VPNMAT
+
+def newVid():
+    with globals()['VPNlock']:
+        while True:
+            v = random.randint(1,65535)
+            if not v in globals()['vpnIndexById']:
+                return v
 
 class VpnCallback(SdnControllerClientCallback):
     def __init__(self, name):
@@ -148,7 +152,6 @@ class VPNService(Resource):
 
     def saveService(self):
         cache = globals()['vpns']
-        cacheIndex = globals()['vpnIndex']
         for vpn in cache:
             vpn.saveVPN()
             if not vpn.getResourceName() in self.vpns:
@@ -172,6 +175,7 @@ class VPNService(Resource):
                 mapResource(obj=vpn,resource=stored)
                 cache.append(vpn)
                 cacheIndex[name] = vpn
+                globals()['vpnIndexById'][vpn.vid] = vpn
 
     def saveVPN(self,vpn):
         if not vpn.name in self.vpns:
@@ -188,11 +192,7 @@ class VPNService(Resource):
 class VPN(Resource):
     def __init__(self,name):
         Resource.__init__(self,name,"net.es.netshell.api.Resource")
-
-        global VPNindex, VPNlock
-        with VPNlock:
-            self.vid = VPNindex
-            VPNindex += 1
+        self.vid = newVid()
         self.name = name
         self.pops = {}              # pop name -> pop
         self.vpnsites = {}          # site name -> site
@@ -580,6 +580,7 @@ def tohost(s):
 def addVpn(vpn):
     vpns.append(vpn)
     vpnIndex[vpn.name] = vpn
+    globals()['vpnIndexById'][vpn.vid] = vpn
 
 
 
@@ -598,6 +599,7 @@ def delete(vpnname):
     vpn = vpnIndex[vpnname]
     vpnIndex.pop(vpn.name)
     vpns.remove(vpn)
+    globals()['vpnIndexById'].remove(vpn.vid)
 
 def kill(vpnname):
     if not vpnname in vpnIndex:
@@ -780,6 +782,9 @@ if not 'topo' in globals() or topo == None:
 if 'vpnIndex' not in globals() or vpnIndex == None:
     vpnIndex = {}
     globals()['vpnIndex'] = vpnIndex
+if 'vpnIndexById' not in globals() or vpnIndexById == None:
+    vpnIndexById = {}
+    globals()['vpnIndexById'] = vpnIndexById
 if 'vpns' not in globals() or vpns == None:
     vpns = []
     globals()['vpns'] = vpns

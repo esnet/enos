@@ -48,6 +48,8 @@ if "debugNoController" in dir(sys) and sys.debugNoController:
             return X(args)
         def SdnDeleteForward (*args):
             print "Stub DeleteForward",args[1:]
+        def setCallback(*args):
+            pass
 
 
     from net.es.netshell.api import PersistentObject
@@ -61,7 +63,7 @@ if "debugNoController" in dir(sys) and sys.debugNoController:
             return self.saveToJSON()
 
     class SdnControllerClientCallback:
-        def setcallBack(self*args):
+        def setcallBack(*args):
             print "Stub setcallBack",args[1:]
 
     def SdnControllerClient():

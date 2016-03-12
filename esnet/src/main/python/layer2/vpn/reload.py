@@ -35,3 +35,7 @@ if __name__ == '__main__':
     vpnIndex={}
     if 'vpnService' in globals():
         globals().pop('vpnService')
+    if 'VPNindex' in globals():
+        globals().pop('VPNindex')
+    if 'vpnIndexById' in globals():
+        globals().pop('vpnIndexById')

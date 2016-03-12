@@ -50,8 +50,9 @@ class MACAddress(object):
         return self.data[0] == 0xFF and self.getHid() == 0xFFFF
     def getVid(self):
         return (self.data[1] << 16) + (self.data[2] << 8) + self.data[3]
+    def setSid(self,sid=0):
+        self.data[1] = sid & 0xFF
     def setVid(self, vid):
-        self.data[1] = vid >> 16
         self.data[2] = (vid >> 8) & 0xFF
         self.data[3] = vid & 0xFF
     def getHid(self):
