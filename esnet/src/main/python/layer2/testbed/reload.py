@@ -18,7 +18,7 @@
 #
 def cleandemomodules():
     mods = []
-    toclean=["layer2","testbed","old","demo","vpn","api"]
+    toclean=["layer2","testbed","odl","demo","vpn","api"]
     for mod in sys.modules:
         for p in toclean:
             if p in mod:
