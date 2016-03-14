@@ -96,6 +96,60 @@ def addlink(topology,linkname,srcnodename,dstnodename,both=False):
     container.saveResource(dstnode)
     return True
 
+def dellink(topology,linkname,srcnodename,dstnodename,both=False):
+    container = Container.getContainer(topology)
+    if container == None:
+        print topology,"does not exist."
+        return False
+    srcnode = container.loadResource(srcnodename)
+    if srcnode == None:
+        print srcnodename,"does not exist"
+        return False
+    dstnode = container.loadResource(dstnodename)
+    if dstnode == None:
+        print dstnodename,"does not exist"
+        return False
+    link = container.loadResource(linkname + "-" + srcnodename + "-" + dstnodename)
+    if link == None:
+        print linkname,"does not exist"
+        return False
+    srcport = container.loadResource(srcnodename + "-" + link.getResourceName())
+    if srcport == None:
+        print "link port does not exist"
+        return False
+    srcport.properties['Link'] = link.getResourceName()
+    srcport.properties['Node'] = srcnodename
+    srcnode.properties['Ports'][srcport.getResourceName()] = srcport.getEid()
+    dstport = container.loadResource(dstnodename + "-" + link.getResourceName())
+    if dstport == None:
+        print "link port does not exist"
+        return False
+    dstport.properties['Link'] = link.getResourceName()
+    dstnode.properties['Ports'][dstport.getResourceName()]= dstport.getEid()
+    link.properties['SrcPort'] = srcnodename
+    link.properties['DstPort'] = dstnodename
+    link.setWeight(1) # default
+    container.saveResource(link)
+    container.saveResource(srcport)
+    container.saveResource(dstport)
+    if both:
+        link = Link(linkname + "-" + dstnodename + "-" + srcnodename)
+        srcport = Port(dstnodename + "-" + link.getResourceName())
+        srcport.properties['Link'] = link.getResourceName()
+        srcnode.properties['Ports'][dstport.getResourceName()] = dstport.getEid()
+        dstport = Port(srcnodename + "-" + link.getResourceName())
+        dstport.properties['Link'] = link.getResourceName()
+        dstnode.properties['Ports'][srcport.getResourceName()] = srcport.getEid()
+        link.properties['SrcPort'] = dstnodename
+        link.properties['DstPort'] = srcnodename
+        link.setWeight(1) # default
+        container.saveResource(link)
+        container.saveResource(srcport)
+        container.saveResource(dstport)
+    container.saveResource(srcnode)
+    container.saveResource(dstnode)
+    return True
+
 def print_syntax():
     print
     print "topoctl <cmd> <cmds options>"
