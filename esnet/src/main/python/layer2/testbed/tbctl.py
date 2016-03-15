@@ -18,9 +18,11 @@
 # publicly and display publicly, and to permit other to do so.
 #
 
-from layer2.testbed.topoctl import createtopo,addnode,addlink
+from layer2.testbed.topoctl import createtopo,addnode,addlink,getnode
 from layer2.testbed.topology import TestbedTopology
-from layer2.testbed.builder import tbns
+from layer2.testbed.builder import tbns,epipelinks,getPopRouter
+
+from net.es.netshell.api import Container,ResourceAnchor
 
 
 def createinv(toponame):
@@ -49,6 +51,33 @@ def createinv(toponame):
             dstportname=topolink.getDstPort().getResourceName())
         link.getProperties().putAll(topolink.getProperties())
 
+def epipetopo(toponame,inv):
+    inventory = Container.getContainer(inv)
+    newtopo = createtopo(toponame)
+    topo = TestbedTopology()
+    nodes = {}
+    for [src,dst] in epipelinks:
+        srcnode = None
+        dstnode = None
+        if not src in nodes:
+            srcnode = addnode(toponame,src)
+            router = getnode(inv,getPopRouter(src))
+            anchor = inventory.getResourceAnchor(router)
+            srcnode.setParentResourceAnchor(anchor)
+            nodes[src] = [srcnode,router]
+            newtopo.saveResource(srcnode)
+        else:
+            srcnode = nodes[src]
+
+        if not dst in nodes:
+            dstnode = addnode(toponame,dst)
+            router = getnode(inv,getPopRouter(dst))
+            anchor = inventory.getResourceAnchor(router)
+            dstnode.setParentResourceAnchor(anchor)
+            nodes[dst] = [dstnode,router]
+            newtopo.saveResource(dstnode)
+        else:
+            dstnode = nodes[dst]
 
 
 def print_syntax():
@@ -59,6 +88,8 @@ def print_syntax():
     print "\t\tPrints this help."
     print "\tcreate-inv <inventory name>"
     print "\t\tCreate a new container with the testbed network elements"
+    print "\tepipe-topo <topology name> inv <inventory name>"
+    print "\t\tcreates the epipe topology into a new topology container."
 
 if __name__ == '__main__':
     argv = sys.argv
@@ -72,3 +103,7 @@ if __name__ == '__main__':
     elif cmd == "create-inv":
         topology = argv[2]
         createinv (topology)
+    elif cmd == "epipe-topo":
+        topology = argv[2]
+        inventory = argv[4]
+        epipetopo(topology,inventory)

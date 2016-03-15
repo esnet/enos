@@ -24,6 +24,19 @@ from layer2.testbed import dpid, oscars
 
 from layer2.common.utils import Logger
 
+# EPIPES PATHS
+epipelinks=[
+    ["denv","star"],
+    ["denv","atla"],
+    ["atla","wash"],
+    ["star","wash"],
+    ["star","aofa"],
+    ["aofa","wash"],
+    ["aofa","amst"],
+    ["wash","cern"],
+    ["amst","cern"]
+]
+
 # DENV
 denvlinks=[
     ["denv-cr5","9/1/4","denv-tb-of-1","23"],
@@ -206,6 +219,15 @@ tbns = {'amst-tbn-1':amst_tbn_1,
 # SDN POP's
 locations=[denv,wash,aofa,amst,cern,atla,star]
 testbedPops = {"denv":denv,"wash":wash,"aofa":aofa,"amst":amst,"cern":cern,"atla":atla,"star":star}
+
+def getPopRouter(popname):
+    pop = getPop(popname)
+    return pop[2]
+
+def getPop(popname):
+    global testbedPops
+    return testbedPops[popname]
+
 
 class TopoBuilder ():
 

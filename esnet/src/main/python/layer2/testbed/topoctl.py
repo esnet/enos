@@ -28,7 +28,8 @@ def toPortName(port):
     return port.split("::")[1]
 
 def createtopo(topology):
-    container = Container.createContainer(topology)
+    Container.createContainer(topology)
+    container = Container.getContainer(topology)
     return container
 
 def deletetopo(topology):
@@ -45,6 +46,13 @@ def addnode(topology,nodename):
     node.properties['Ports'] = {}
     container.saveResource(node)
     return node
+
+def getnode(topology,nodename):
+    container = Container.getContainer(topology)
+    if container == None:
+        print topology,"does not exist."
+        return None
+    return container.loadResource(nodename)
 
 def delnode(topology,nodename):
     container = Container.getContainer(topology)
