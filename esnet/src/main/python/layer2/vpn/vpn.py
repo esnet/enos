@@ -38,6 +38,11 @@ from layer2.testbed.hostctl import connectgri,getdatapaths,setmeter,swconnect,co
 
 import threading
 
+# XXX For each site, connected is a hash that maps from a host name to a VLAN tag.  But VLAN tags
+# are tracked on the basis of sites not hosts.
+#
+# XXX Also this state should really be kept per-VPN.  As it is, it doesn't look like we support multiple
+# VPNs very well since a given host can only appear in the connected map once.
 sites = {
     'wash' : {'name':"wash",'pop':'WASH','hosts':{'wash-tbn-1':{'interface':'eth11'}},'connected':{}},
     'amst' : {'name':"amst",'pop':'AMST','hosts':{'amst-tbn-1':{'interface':'eth17'}},'connected':{}},
@@ -205,6 +210,7 @@ class VPN(Resource):
         self.name = name
         self.pops = {}              # pop name -> pop
         self.vpnsites = {}          # site name -> site
+        self.vpnsitevlans = {}      # site name -> vlan tag for attachment
         self.popflows = {}          # pop name -> (FlowHandle)
         self.siteflows = {}         # site name -> (FlowHandle)
         self.hostflows = {}         # host name -> (FlowHandle)
@@ -225,6 +231,7 @@ class VPN(Resource):
             tmp.append(p)
         self.properties['pops'] = str(tmp)
         self.properties['vpnsites'] = str(self.vpnsites)
+        self.properties['vpnsitevlans'] = str(self.vpnsitevlans)
         self.properties['entryfanoutflows'] = str(self.entryfanoutflows)
         self.properties['exitfanoutflows'] = str(self.exitfanoutflows)
         globals()['vpnService'].saveVPN(self)
@@ -243,6 +250,7 @@ class VPN(Resource):
         for p in tmp:
             self.pops[p] = topo.builder.popIndex[p]
         self.vpnsites = eval (self.properties['vpnsites'])
+        self.vpnsitevlans = eval (self.properties['vpnsitevlans'])
         self.exitfanoutflows = eval (self.properties['exitfanoutflows'])
         self.entryfanoutflows = eval (self.properties['entryfanoutflows'])
         self.mat = MAT.deserialize(self.properties['mat'])
@@ -299,20 +307,22 @@ class VPN(Resource):
         # flows for multiple VPNs.  If we indiscriminantly delete a meter, we might blow away
         # flows in use by some other, unrelated VPNs.  This is solely an issue on the Corsas
         # at this point.
-        if self.popflows(pop.name):
+        if pop.name in self.popflows.keys():
             self.deletefhs(self.popflows[pop.name])
             del self.popflows[pop.name]
         del self.pops[pop.name]
         return True
-    def addsite(self,site):
+    def addsite(self,site,vlan):
         self.vpnsites[site['name']] = site
+        self.vpnsitevlans[site['name']] = vlan
         self.siteflows[site['name']] = []
         return True
     def delsite(self,site):
-        if self.siteflows(site['name']):
+        if site['name'] in self.siteflows.keys():
             self.deletefhs(self.siteflows[site['name']])
             del self.siteflows[site['name']]
         del self.vpnsites[site['name']]
+        del self.vpnsitevlans[site['name']]
         return True
     def generateMAC(self,host):
         interface = getdatapaths(host)[0]
@@ -329,9 +339,10 @@ class VPN(Resource):
                 deleteforward(f)
                 f.invalidate()
 
-    def addhost(self,host,vlan):
+    def addhost(self,host):
         with self.lock:
             hostsite = self.getsite(host)
+            vlan = self.vpnsitevlans[hostsite['name']] # get VLAN from the site attachment
             hostsite['connected'][host['name']] = vlan
             host_mat = None
             broadcast_mat = "FF:FF:FF:FF:FF:FF"
@@ -348,6 +359,7 @@ class VPN(Resource):
                 connected = site['connected']
                 gri = interconnect(hostsite, site)
                 # For each of those sites, iterate over the hosts at that site
+                # XXX remotevlan can really come from self.vpnsitevlans[site['name']]
                 for (r,remotevlan) in connected.items():
                     remotehost = tbns[r]
                     remotehost_mat = None
@@ -486,8 +498,8 @@ class VPN(Resource):
         return True
 
     def delhost(self,host):
-        if self.hostflows(host['name']):
-            self.deletefhs(self.hostflows(host['name']))
+        if host['name'] in self.hostflows.keys():
+            self.deletefhs(self.hostflows[host['name']])
             del self.hostflows[host['name']]
         return True
 
@@ -519,9 +531,9 @@ def usage():
     print "vpn <vpn name> setprio"
     print "vpn <vpn name> addpop <pop name>"
     print "vpn <vpn name> delpop <pop name>"
-    print "vpn <vpn name> addsite <site name>"
+    print "vpn <vpn name> addsite <site name> vlan <vlan>"
     print "vpn <vpn name> delsite <site name>"
-    print "vpn <vpn name> addhost <host name> vlan <vlan>"
+    print "vpn <vpn name> addhost <host name>"
     print "vpn <vpn name> delhost <host name>"
     print "vpn <vpn name> tapsite <site name>"
     print "vpn <vpn name> untapsite <site name>"
@@ -636,8 +648,8 @@ def delpop(vpn, pop):
         return
     print "Pop %s had been removed from VPN %s successfully." % (pop.name, vpn.name)
 
-def addsite(vpn, site):
-    if not vpn.addsite(site):
+def addsite(vpn, site, vlan):
+    if not vpn.addsite(site, vlan):
         print "something's wrong while adding the site."
         # possible issues: duplicated site
         return
@@ -649,8 +661,8 @@ def delsite(vpn, site):
         return
     vpn.delsite(site)
 
-def addhost(vpn, host,vlan):
-    if not vpn.addhost(host,vlan):
+def addhost(vpn, host):
+    if not vpn.addhost(host):
         print "something wrong while adding the host; Please make sure that the site of the host joined the VPN."
         return
 
@@ -733,7 +745,8 @@ def main():
                 if site == None:
                     print "unknown site"
                     return
-                addsite(vpn, site)
+                vlan = sys.argv[5]
+                addsite(vpn, site, vlan)
             elif command == 'delsite':
                 site = tosite(sys.argv[3])
                 if site == None:
@@ -742,8 +755,7 @@ def main():
                 delsite(vpn, site)
             elif command == 'addhost':
                 host = tohost(sys.argv[3])
-                vlan = sys.argv[5]
-                addhost(vpn, host,vlan)
+                addhost(vpn, host)
             elif command == 'delhost':
                 host = tohost(sys.argv[3])
                 if host == None:
