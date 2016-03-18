@@ -68,7 +68,6 @@ def delnode(topology,nodename):
 
 def addlink(topology,linkname,srcnodename,dstnodename,srcportname=None,dstportname=None):
     container = Container.getContainer(topology)
-    from net.es.netshell.api import Resource
     if container == None:
         print topology,"does not exist."
         return None
@@ -87,23 +86,25 @@ def addlink(topology,linkname,srcnodename,dstnodename,srcportname=None,dstportna
     srcport =  container.loadResource(toPortResourceName(srcnodename,srcportname));
     if srcport == None:
         srcport = Port(toPortResourceName(srcnodename,srcportname))
-        srcnode.properties['Ports'][srcport.getResourceName()] = srcport.getEid()
+        srcnode.properties['Ports'][srcportname] = {}
         srcport.properties['Links'] = {}
         srcport.properties['Node'] = container.getResourceAnchor(srcnode)
         container.saveResource(srcport)
+    srcnode.properties['Ports'][srcportname] = container.getResourceAnchor(srcport)
     srcport.properties['Links'][linkname] = container.getResourceAnchor(link)
     if dstportname == None:
         dstportname = toPortResourceName(dstnodename,link.getResourceName());
     dstport =  container.loadResource(toPortResourceName(dstnodename,dstportname));
     if dstport == None:
         dstport = Port(toPortResourceName(dstnodename,dstportname))
-        dstnode.properties['Ports'][dstport.getResourceName()]= dstport.getEid()
+        dstnode.properties['Ports'][dstportname]= {}
         dstport.properties['Links'] = {}
         dstport.properties['Node'] = container.getResourceAnchor(dstnode)
         container.saveResource(dstport)
+    dstnode.properties['Ports'][dstportname] = container.getResourceAnchor(dstport)
     dstport.properties['Links'][linkname] = container.getResourceAnchor(link)
-    link.properties['SrcPort'] = container.getResourceAnchor(srcnode)
-    link.properties['DstPort'] = container.getResourceAnchor(dstnode)
+    link.properties['SrcPort'] = container.getResourceAnchor(srcport)
+    link.properties['DstPort'] = container.getResourceAnchor(dstport)
     link.setWeight(1) # default
     container.saveResource(link)
     container.saveResource(srcport)
