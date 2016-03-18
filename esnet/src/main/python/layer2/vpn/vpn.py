@@ -26,6 +26,7 @@ from layer2.vpn.mat import MAT
 from layer2.common.utils import mapResource
 from net.es.netshell.api import Resource,Container
 from net.es.netshell.boot import BootStrap
+from net.es.netshell.controller.intf import EthernetFrame
 
 import sys
 if "debugNoController" in dir(sys) and sys.debugNoController:
@@ -96,9 +97,7 @@ class VpnCallback(SdnControllerClientCallback):
         """
         Receive a PACKET_IN callback
         """
-        # print "VpnCallback entry name", self.name, "dpid", dpid, "inPort", inPort, "payload", payload
         # Decode the callback.  First get the switch
-        self.logger.info("PACKET_IN")
         switch = None
         hexdpid = binascii.hexlify(dpid)
         # topo global
@@ -120,9 +119,19 @@ class VpnCallback(SdnControllerClientCallback):
         port = switch.props['ports'][inPort]
         enosPort = port.props['enosPort']
 
+        frame = EthernetFrame.packetToFrame(payload)
+        if frame == None:
+            self.logger.error("Cannot parse Ethernet frame")
+            return
+
         # Figure out how to print this
-        print "VpnCallback decode switch", switch.name, "port", port.name
-        self.logger.info("VpnCallback decode switch " + switch.name + " port " + port.name)
+        self.logger.info("VpnCallback decode switch " + switch.name + " port " + port.name + " vlan " + str(frame.getVid()) +
+                         " src " + EthernetFrame.byteString(frame.getSrcMac()) +
+                         " dst " + EthernetFrame.byteString(frame.getDstMac()) +
+                         " etherType " + hex(frame.getEtherType()))
+        if frame.getEtherType() == EthernetFrame.ETHERTYPE_LLDP:
+            self.logger.debug("Ignore LLDP frame")
+
         return
 
 # Start callback if we don't have one already
