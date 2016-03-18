@@ -44,13 +44,13 @@ import threading
 # XXX Also this state should really be kept per-VPN.  As it is, it doesn't look like we support multiple
 # VPNs very well since a given host can only appear in the connected map once.
 sites = {
-    'wash' : {'name':"wash",'pop':'WASH','hosts':{'wash-tbn-1':{'interface':'eth11'}},'connected':{}},
-    'amst' : {'name':"amst",'pop':'AMST','hosts':{'amst-tbn-1':{'interface':'eth17'}},'connected':{}},
-    'cern' : {'name':"cern",'pop':'CERN','hosts':{'cern-272-tbn-1':{'interface':'eth14'}},'connected':{}},
+    'wash' : {'name':"wash",'pop':'WASH','hwport':'1','hosts':{'wash-tbn-1':{'interface':'eth11'}},'connected':{}},
+    'amst' : {'name':"amst",'pop':'AMST','hwport':'8','hosts':{'amst-tbn-1':{'interface':'eth17'}},'connected':{}},
+    'cern' : {'name':"cern",'pop':'CERN','hwport':'5','hosts':{'cern-272-tbn-1':{'interface':'eth14'}},'connected':{}},
 
-    'aofa' : {'name':"aofa", 'pop':'AOFA','hosts':{'aofa-tbn-1':{'interface':'eth11'}}, 'connected':{}},
-    'denv' : {'name':"denv", 'pop':'DENV','hosts':{'denv-tbn-1':{'interface':'eth11'}}, 'connected':{}},
-    'star' : {'name':"star", 'pop':'STAR','hosts':{'star-tbn-4':{'interface':'eth17'}}, 'connected':{}}
+    'aofa' : {'name':"aofa",'pop':'AOFA','hwport':'2','hosts':{'aofa-tbn-1':{'interface':'eth11'}}, 'connected':{}},
+    'denv' : {'name':"denv",'pop':'DENV','hwport':'2','hosts':{'denv-tbn-1':{'interface':'eth11'}}, 'connected':{}},
+    'star' : {'name':"star",'pop':'STAR','hwport':'8','hosts':{'star-tbn-4':{'interface':'eth17'}}, 'connected':{}}
 }
 
 def interconnect(site1,site2):
@@ -316,6 +316,73 @@ class VPN(Resource):
         self.vpnsites[site['name']] = site
         self.vpnsitevlans[site['name']] = vlan
         self.siteflows[site['name']] = []
+
+        broadcast_mat = "FF:FF:FF:FF:FF:FF"
+        if VPNMAT:
+            broadcast_mat = self.generateBroadcastMAC()
+
+        # Add flows to get broadcast traffic between the site and the software switch.
+        pop = self.pops[site['pop'].lower()]
+        fhs = connecthostbroadcast(localpop= pop,
+                                   hwport_tosite= site['hwport'],
+                                   sitevlan= vlan,
+                                   meter= self.meter,
+                                   broadcast_rewritemac= broadcast_mat)
+        if fhs == None:
+            return False
+        self.siteflows[site['name']].extend(fhs)
+
+        # Create exit fanout flows on the software switch.  This flow fans out traffic
+        # from other POPs, to hosts/sites on this POP.
+        # XXX need to re-run this part if we add another host/site to this POP or
+        # add another POP
+        # XXX Note that for a given port, the exit fanout flows are all identical,
+        # except that their match VLAN numbers are different, corresponding to the VLAN
+        # of the core OSCARS circuits.  We might possibly be able to collapse these down
+        # to a single flow rule if we don't try to match on the VLAN tag.  It's not clear
+        # if we want to do this or not, there might be some security and/or reliability
+        # implications to doing this change.
+        localpop = pop
+        localpopname = localpop.name
+
+        forwards = []
+        if localpopname in self.exitfanoutflows:
+            exitfanoutflows = self.exitfanoutflows[localpopname]
+        else:
+            exitfanoutflows = {}
+            self.exitfanoutflows[localpopname] = exitfanoutflows
+        # Locate all sites on this POP, including the one we're adding now.
+        # Be ready to forward to their
+        for (site2name, site2) in self.vpnsites.items():
+            if (site2['pop'] == site['pop']):
+                fwd = SdnControllerClientL2Forward()
+                fwd.outPort = "0" # to be filled in by connectexitfanout
+                fwd.vlan = int(self.vpnsitevlans[site2name])
+                fwd.dstMac = "FF:FF:FF:FF:FF:FF"
+                forwards.append(fwd)
+
+        # Iterate over source POPs
+        for (srcpopname, srcpop) in self.pops.items():
+            if srcpopname != localpopname:
+                # Get the VLAN coming from the core for this source POP
+                gri = interconnectpops(localpopname, srcpopname)
+                (corename, coredom, coreport, corevlan) = getgrinode(gri, localpop.props['coreRouter'].name)
+
+                # If we already made an exit fanout flow for this source POP, delete it
+                if srcpopname in exitfanoutflows:
+                    oldfh = exitfanoutflows[srcpopname]
+                    if oldfh.isValid():
+                        deleteforward(oldfh)
+                        del exitfanoutflows[srcpopname]
+                        oldfh.invaldate()
+                fh = connectexitfanout(localpop= pop,
+                                       corevlan= corevlan,
+                                       forwards= forwards,
+                                       meter= self.meter,
+                                       mac= broadcast_mat)
+                if fh != None:
+                    exitfanoutflows[srcpopname] = fh
+                    self.popflows[srcpopname].append(fh)
         return True
     def delsite(self,site):
         if site['name'] in self.siteflows.keys():
@@ -351,6 +418,7 @@ class VPN(Resource):
                 broadcast_mat = self.generateBroadcastMAC()
             self.hostflows[host['name']] = []
 
+            # Install flows for unicast traffic
             # Iterate over all sites that are "remote" to this host
             for (s,site) in self.vpnsites.items():
                 if site['name'] == hostsite['name']:
@@ -359,8 +427,8 @@ class VPN(Resource):
                 connected = site['connected']
                 gri = interconnect(hostsite, site)
                 # For each of those sites, iterate over the hosts at that site
-                # XXX remotevlan can really come from self.vpnsitevlans[site['name']]
-                for (r,remotevlan) in connected.items():
+                remotevlan = self.vpnsitevlans[site['name']]
+                for (r, x) in connected.items():
                     remotehost = tbns[r]
                     remotehost_mat = None
                     if VPNMAT:
@@ -389,16 +457,6 @@ class VPN(Resource):
 
                     self.hostflows[host['name']].extend(fhlist)
                     self.hostflows[remotehost['name']].extend(fhlist)
-
-            # Add flows to get broadcast traffic between the host and the software switch.
-            # Technically these flows are per-site not per-host,
-            # but VLANs are currently (incorrectly?) assigned on the basis of a host.
-            pop = self.pops[hostsite['pop'].lower()]
-            connecthostbroadcast(localpop= pop,
-                                 host= host,
-                                 hostvlan= vlan,
-                                 meter= self.meter,
-                                 broadcast_rewritemac= broadcast_mat)
 
             # Create entry fanout flow on the software switch.  This flow fans out traffic
             # from the host/site to other hosts/sites on the same POP, as well as to all the
@@ -436,7 +494,7 @@ class VPN(Resource):
                     deleteforward(oldfh)
                     del self.entryfanoutflows[host['name']]
                     oldfh.invalidate()
-            fh = connectentryfanout(localpop= pop,
+            fh = connectentryfanout(localpop= localpop,
                                     host= host,
                                     hostvlan= vlan,
                                     forwards= forwards,
@@ -445,53 +503,6 @@ class VPN(Resource):
             if fh != None:
                 self.entryfanoutflows[host['name']] = fh
                 self.hostflows[host['name']].append(fh)
-
-            # Create exit fanout flows on the software switch.  This flow fans out traffic
-            # from other POPs, to hosts/sites on this POP.
-            # XXX need to re-run this part if we add another host/site to this POP or
-            # add another POP
-            # XXX Note that for a given port, the exit fanout flows are all identical,
-            # except that their match VLAN numbers are different, corresponding to the VLAN
-            # of the core OSCARS circuits.  We might possibly be able to collapse these down
-            # to a single flow rule if we don't try to match on the VLAN tag.  It's not clear
-            # if we want to do this or not, there might be some security and/or reliability
-            # implications to doing this change.
-            forwards = []
-            if localpopname in self.exitfanoutflows:
-                exitfanoutflows = self.exitfanoutflows[localpopname]
-            else:
-                exitfanoutflows = {}
-                self.exitfanoutflows[localpopname] = exitfanoutflows
-            # Locate all hosts/sites on this POP.
-            for (otherhostname, otherhostvlan) in hostsite['connected'].items():
-                fwd = SdnControllerClientL2Forward()
-                fwd.outPort = "0" # to be filled in by connectexitfanout
-                fwd.vlan = int(otherhostvlan)
-                fwd.dstMac = "FF:FF:FF:FF:FF:FF"
-                forwards.append(fwd)
-
-            # Iterate over source POPs
-            for (srcpopname, srcpop) in self.pops.items():
-                if srcpopname != localpopname:
-                    # Get the VLAN coming from the core for this source POP
-                    gri = interconnectpops(localpopname, srcpopname)
-                    (corename, coredom, coreport, corevlan) = getgrinode(gri, localpop.props['coreRouter'].name)
-
-                    # If we already made an exit fanout flow for this source POP, delete it
-                    if srcpopname in exitfanoutflows:
-                        oldfh = exitfanoutflows[srcpopname]
-                        if oldfh.isValid():
-                            deleteforward(oldfh)
-                            del exitfanoutflows[srcpopname]
-                            oldfh.invaldate()
-                    fh = connectexitfanout(localpop= pop,
-                                           corevlan= corevlan,
-                                           forwards= forwards,
-                                           meter= self.meter,
-                                           mac= broadcast_mat)
-                    if fh != None:
-                        exitfanoutflows[srcpopname] = fh
-                        self.popflows[srcpopname].append(fh)
 
         # print "addhost ending with host flow handles", self.hostflows[host['name']]
 

@@ -319,42 +319,25 @@ def connect (localpop,
     return fhs
 
 def connecthostbroadcast(localpop,
-                         host,
-                         hostvlan,
+                         hwport_tosite,
+                         sitevlan,
                          meter=3,
                          broadcast_rewritemac = None):
     """
     Create entries on the local hardware switch that pass broadcast traffic
     to and from the connected host
     :param localpop: POP object
-    :param host: host object
-    :param hostvlan: VLAN number of host attachment
+    :param hwport_tosite: port on hardware switch facing the site (string)
+    :param sitevlan: VLAN number of site attachment
     :param meter:
     :param broadcast_rewritemac: Mapped Ethernet broadcast address
     :return:
     """
 
-    hostname = host['name']
-    datapath = getdatapaths(host)[0] # Assumes the first datapath
-    hostport = datapath['name']
     hwswitch = localpop.props['hwSwitch']
     hwswitchname = hwswitch.name
     swswitch = localpop.props['swSwitch']
     swswitchname = swswitch.name
-
-    # Find the port on the HwSwitch that is connected to the host's port
-    links = getlinks(hostname, hwswitchname)
-    if links == None or len(links) == 0:
-        print "No links from",hostname,"to",hwswitchname
-        return False
-    hostlink = None
-    for link in links:
-        (node,port) = linkednode (link, hwswitchname)
-        if port != None and port == hostport:
-            # found the link
-            hostlink = link
-            break
-    (node,hwport_tohost) = linkednode ( hostlink,hostname)
 
     # Find the port on the HwSwitch connected to the software switch
     links = getlinks(hwswitchname, swswitchname)
@@ -379,11 +362,11 @@ def connecthostbroadcast(localpop,
                            1,
                            BigInteger.ZERO,
                            str(hwport_tosw),
-                           int(hostvlan),
+                           int(sitevlan),
                            "00:00:00:00:00:00",
                            translated_broadcast,
-                           str(hwport_tohost),
-                           int(hostvlan),
+                           str(hwport_tosite),
+                           int(sitevlan),
                            broadcast,
                            0,
                            0,
@@ -394,12 +377,12 @@ def connecthostbroadcast(localpop,
     fh2 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
                            1,
                            BigInteger.ZERO,
-                           str(hwport_tohost),
-                           int(hostvlan),
+                           str(hwport_tosite),
+                           int(sitevlan),
                            "00:00:00:00:00:00",
                            broadcast,
                            str(hwport_tosw),
-                           int(hostvlan),
+                           int(sitevlan),
                            translated_broadcast,
                            0,
                            0,
@@ -467,7 +450,7 @@ def connectentryfanout(localpop,
                                BigInteger.ZERO,
                                str(swport_tohw),
                                int(hostvlan),
-                               None, # XXX not sure what goes here
+                               None, # XXX not sure what goes here, host MAC?
                                mac,
                                fwdsarr,
                                0,
