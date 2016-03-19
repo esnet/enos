@@ -129,14 +129,42 @@ class VpnCallback(SdnControllerClientCallback):
             self.logger.error("Cannot parse Ethernet frame")
             return
 
-        # Figure out how to print this
-        self.logger.info("VpnCallback decode switch " + switch.name + " port " + port.name + " vlan " + str(frame.getVid()) +
+        switchpopname = switch.props['pop'].name
+
+        # Log the packet we got
+        self.logger.info("VpnCallback decode switch " + switch.name +
+                         " (" + switchpopname + ") " +
+                         " port " + port.name + " vlan " + str(frame.getVid()) +
                          " src " + EthernetFrame.byteString(frame.getSrcMac()) +
                          " dst " + EthernetFrame.byteString(frame.getDstMac()) +
                          " etherType " + hex(frame.getEtherType()))
-        if frame.getEtherType() == EthernetFrame.ETHERTYPE_LLDP:
-            self.logger.debug("Ignore LLDP frame")
 
+        # Ignore some packets
+        if frame.getEtherType() == EthernetFrame.ETHERTYPE_LLDP:
+            self.logger.debug("LLDP frame ignored")
+            return
+
+        # Figure out which VPN (if any) this belongs to
+        vpn = None
+        vpnSiteName = None
+
+        # Iterate over all VPNs then all site attachments.
+        # If we can match the POP and VLAN, then we've got a match for the site attachments
+        # XXX There is probably a more efficient way to do this.
+        # XXX Note we can't do any port-based matching because all of the traffic from the
+        # hardware switch to the software switch shows up on the same port on the software
+        # switch, which is the one generating the PACKET_IN message.
+        for v in globals()['vpns']:
+            for (sitename,site) in v.vpnsites.items():
+                if site['pop'].lower() == switchpopname and int(v.vpnsitevlans[sitename]) == frame.getVid():
+                    vpn = v
+                    vpnSiteName = sitename
+        if vpn == None:
+            self.logger.error("Unable to find VPN or site for inbound packet")
+            return
+
+        # MAC layer
+        self.logger.info("  Source vpn " + vpn.name + " site " + vpnSiteName + " src " + EthernetFrame.byteString(frame.getSrcMac()))
         return
 
 # Start callback if we don't have one already
