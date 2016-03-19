@@ -21,6 +21,17 @@
 
 from net.es.netshell.api import Container,Node,Port,Link,ResourceAnchor
 
+Port="Port"
+Ports="Ports"
+Link="Links"
+Links="Links"
+Node="Node"
+Nodes="Nodes"
+Host="Host"
+Hosts="Host"
+SrcPort="SrcPort"
+DstPort="DstPort"
+
 def toPortResourceName(node,port):
     return node + "--" + port
 
@@ -43,7 +54,7 @@ def addnode(topology,nodename):
         print topology,"does not exist."
         return None
     node = Node(nodename)
-    node.properties['Ports'] = {}
+    node.properties[Ports] = {}
     container.saveResource(node)
     return node
 
@@ -69,15 +80,15 @@ def delnode(topology,nodename):
 def addlink(topology,linkname,srcnodename,dstnodename,srcportname=None,dstportname=None):
     container = Container.getContainer(topology)
     if container == None:
-        print topology,"does not exist."
+        print "topology ",topology," does not exist."
         return None
     srcnode = container.loadResource(srcnodename)
     if srcnode == None:
-        print srcnodename,"does not exist"
+        print "src node ",srcnodename," does not exist"
         return None
     dstnode = container.loadResource(dstnodename)
     if dstnode == None:
-        print dstnodename,"does not exist"
+        print "dst node ",dstnodename," does not exist"
         return None
     link = Link(linkname)
     container.saveResource(link)
@@ -86,29 +97,31 @@ def addlink(topology,linkname,srcnodename,dstnodename,srcportname=None,dstportna
     srcport =  container.loadResource(toPortResourceName(srcnodename,srcportname));
     if srcport == None:
         srcport = Port(toPortResourceName(srcnodename,srcportname))
-        srcnode.properties['Ports'][srcportname] = {}
-        srcport.properties['Links'] = {}
-        srcport.properties['Node'] = container.getResourceAnchor(srcnode)
+        srcnode.properties[Ports][srcportname] = {}
+        srcport.properties[Links] = {}
+        srcport.properties[Node] = container.getResourceAnchor(srcnode)
         container.saveResource(srcport)
-    srcnode.properties['Ports'][srcportname] = container.getResourceAnchor(srcport)
-    srcport.properties['Links'][linkname] = container.getResourceAnchor(link)
+    srcnode.properties[Ports][srcportname] = container.getResourceAnchor(srcport)
+    srcport.properties[Links][linkname] = container.getResourceAnchor(link)
     if dstportname == None:
         dstportname = toPortResourceName(dstnodename,link.getResourceName());
     dstport =  container.loadResource(toPortResourceName(dstnodename,dstportname));
     if dstport == None:
         dstport = Port(toPortResourceName(dstnodename,dstportname))
-        dstnode.properties['Ports'][dstportname]= {}
-        dstport.properties['Links'] = {}
-        dstport.properties['Node'] = container.getResourceAnchor(dstnode)
+        dstnode.properties[Ports][dstportname]= {}
+        dstport.properties[Links] = {}
+        dstport.properties[Node] = container.getResourceAnchor(dstnode)
         container.saveResource(dstport)
-    dstnode.properties['Ports'][dstportname] = container.getResourceAnchor(dstport)
-    dstport.properties['Links'][linkname] = container.getResourceAnchor(link)
-    link.properties['SrcPort'] = container.getResourceAnchor(srcport)
-    link.properties['DstPort'] = container.getResourceAnchor(dstport)
+    dstnode.properties[Ports][dstportname] = container.getResourceAnchor(dstport)
+    dstport.properties[Links][linkname] = container.getResourceAnchor(link)
+    link.properties[SrcPort] = container.getResourceAnchor(srcport)
+    link.properties[DstPort] = container.getResourceAnchor(dstport)
     link.setWeight(1) # default
     container.saveResource(link)
     container.saveResource(srcport)
     container.saveResource(dstport)
+    container.saveResource(srcnode)
+    container.saveResource(dstnode)
     return link
 
 def dellink(topology,linkname,srcnodename,dstnodename,both=False):
@@ -116,54 +129,8 @@ def dellink(topology,linkname,srcnodename,dstnodename,both=False):
     if container == None:
         print topology,"does not exist."
         return False
-    srcnode = container.loadResource(srcnodename)
-    if srcnode == None:
-        print srcnodename,"does not exist"
-        return False
-    dstnode = container.loadResource(dstnodename)
-    if dstnode == None:
-        print dstnodename,"does not exist"
-        return False
-    link = container.loadResource(linkname + "-" + srcnodename + "-" + dstnodename)
-    if link == None:
-        print linkname,"does not exist"
-        return False
-    srcport = container.loadResource(srcnodename + "-" + link.getResourceName())
-    if srcport == None:
-        print "link port does not exist"
-        return False
-    srcport.properties['Link'] = link.getResourceName()
-    srcport.properties['Node'] = srcnodename
-    srcnode.properties['Ports'][srcport.getResourceName()] = srcport.getEid()
-    dstport = container.loadResource(dstnodename + "-" + link.getResourceName())
-    if dstport == None:
-        print "link port does not exist"
-        return False
-    dstport.properties['Link'] = link.getResourceName()
-    dstnode.properties['Ports'][dstport.getResourceName()]= dstport.getEid()
-    link.properties['SrcPort'] = srcnodename
-    link.properties['DstPort'] = dstnodename
-    link.setWeight(1) # default
-    container.saveResource(link)
-    container.saveResource(srcport)
-    container.saveResource(dstport)
-    if both:
-        link = Link(linkname + "-" + dstnodename + "-" + srcnodename)
-        srcport = Port(dstnodename + "-" + link.getResourceName())
-        srcport.properties['Link'] = link.getResourceName()
-        srcnode.properties['Ports'][dstport.getResourceName()] = dstport.getEid()
-        dstport = Port(srcnodename + "-" + link.getResourceName())
-        dstport.properties['Link'] = link.getResourceName()
-        dstnode.properties['Ports'][srcport.getResourceName()] = srcport.getEid()
-        link.properties['SrcPort'] = dstnodename
-        link.properties['DstPort'] = srcnodename
-        link.setWeight(1) # default
-        container.saveResource(link)
-        container.saveResource(srcport)
-        container.saveResource(dstport)
-    container.saveResource(srcnode)
-    container.saveResource(dstnode)
-    return True
+    print "not yet implemented"
+    return False
 
 def print_syntax():
     print

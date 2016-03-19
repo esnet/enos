@@ -193,14 +193,14 @@ def print_syntax():
 if not 'topo' in globals() or topo == None:
     topo = TestbedTopology()
     globals()['topo'] = topo
-global topo
 
 if __name__ == '__main__':
     # Retrieve topology
+    global topo
     if not 'topo' in globals():
         topo = TestbedTopology()
         globals()['topo'] = topo
-    global topo
+
     argv = sys.argv
 
     cmd = argv[1]

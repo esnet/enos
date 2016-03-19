@@ -24,8 +24,8 @@ from layer2.testbed import dpid, oscars
 
 from layer2.common.utils import Logger
 
-# EPIPES PATHS
-epipelinks=[
+# Logical POPs topology
+poptopology=[
     ["denv","star"],
     ["denv","atla"],
     ["atla","wash"],
