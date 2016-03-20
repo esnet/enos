@@ -87,5 +87,3 @@ def mapResource(obj,resource):
 
 
 
-
-

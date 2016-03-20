@@ -196,7 +196,6 @@ if not 'topo' in globals() or topo == None:
 
 if __name__ == '__main__':
     # Retrieve topology
-    global topo
     if not 'topo' in globals():
         topo = TestbedTopology()
         globals()['topo'] = topo

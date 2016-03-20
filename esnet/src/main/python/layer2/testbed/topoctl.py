@@ -21,22 +21,26 @@
 
 from net.es.netshell.api import Container,Node,Port,Link,ResourceAnchor
 
-Port="Port"
-Ports="Ports"
-Link="Links"
-Links="Links"
-Node="Node"
-Nodes="Nodes"
-Host="Host"
-Hosts="Host"
-SrcPort="SrcPort"
-DstPort="DstPort"
+PortKey="Port"
+PortsKey="Ports"
+LinkKey="Links"
+LinksKey="Links"
+NodeKey="Node"
+NodesKey="Nodes"
+HostKey="Host"
+HostsKey="Host"
+SrcPortKey="SrcPort"
+DstPortKey="DstPort"
+VlanKey="VLAN"
 
-def toPortResourceName(node,port):
-    return node + "--" + port
+def toPortResourceName(node,port,vlan):
+    return node + "--" + port + "--" + str(vlan)
 
 def toPortName(port):
-    return port.split("::")[1]
+    return port.split("--")[1]
+
+def toPortVlan(port):
+    return port.split("--")[2]
 
 def createtopo(topology):
     Container.createContainer(topology)
@@ -54,7 +58,7 @@ def addnode(topology,nodename):
         print topology,"does not exist."
         return None
     node = Node(nodename)
-    node.properties[Ports] = {}
+    node.properties[PortsKey] = {}
     container.saveResource(node)
     return node
 
@@ -77,7 +81,7 @@ def delnode(topology,nodename):
     node.delete(container)
     return True
 
-def addlink(topology,linkname,srcnodename,dstnodename,srcportname=None,dstportname=None):
+def addlink(topology,linkname,srcnodename,dstnodename,srcportname,dstportname,srcvlan=0,dstvlan=0):
     container = Container.getContainer(topology)
     if container == None:
         print "topology ",topology," does not exist."
@@ -92,31 +96,30 @@ def addlink(topology,linkname,srcnodename,dstnodename,srcportname=None,dstportna
         return None
     link = Link(linkname)
     container.saveResource(link)
-    if srcportname == None:
-        srcportname = toPortResourceName(srcnodename,link.getResourceName())
-    srcport =  container.loadResource(toPortResourceName(srcnodename,srcportname));
+    srcport =  container.loadResource(toPortResourceName(srcnodename,srcportname,srcvlan));
     if srcport == None:
-        srcport = Port(toPortResourceName(srcnodename,srcportname))
-        srcnode.properties[Ports][srcportname] = {}
-        srcport.properties[Links] = {}
-        srcport.properties[Node] = container.getResourceAnchor(srcnode)
+        srcport = Port(toPortResourceName(srcnodename,srcportname,srcvlan))
+        srcnode.properties[PortsKey][srcportname] = {}
+        srcport.properties[LinksKey] = {}
+        srcport.properties[VlanKey] = srcvlan
+        srcport.properties[NodeKey] = container.getResourceAnchor(srcnode)
         container.saveResource(srcport)
-    srcnode.properties[Ports][srcportname] = container.getResourceAnchor(srcport)
-    srcport.properties[Links][linkname] = container.getResourceAnchor(link)
-    if dstportname == None:
-        dstportname = toPortResourceName(dstnodename,link.getResourceName());
-    dstport =  container.loadResource(toPortResourceName(dstnodename,dstportname));
+    srcnode.properties[PortsKey][srcportname] = container.getResourceAnchor(srcport)
+    srcport.properties[LinksKey][linkname] = container.getResourceAnchor(link)
+    dstport =  container.loadResource(toPortResourceName(dstnodename,dstportname,dstvlan));
     if dstport == None:
-        dstport = Port(toPortResourceName(dstnodename,dstportname))
-        dstnode.properties[Ports][dstportname]= {}
-        dstport.properties[Links] = {}
-        dstport.properties[Node] = container.getResourceAnchor(dstnode)
+        dstport = Port(toPortResourceName(dstnodename,dstportname,dstvlan))
+        dstnode.properties[PortsKey][dstportname]= {}
+        dstport.properties[LinksKey] = {}
+        dstport.properties[NodeKey] = container.getResourceAnchor(dstnode)
+        dstport.properties[VlanKey] = dstvlan
         container.saveResource(dstport)
-    dstnode.properties[Ports][dstportname] = container.getResourceAnchor(dstport)
-    dstport.properties[Links][linkname] = container.getResourceAnchor(link)
-    link.properties[SrcPort] = container.getResourceAnchor(srcport)
-    link.properties[DstPort] = container.getResourceAnchor(dstport)
+    dstnode.properties[PortsKey][dstportname] = container.getResourceAnchor(dstport)
+    dstport.properties[LinksKey][linkname] = container.getResourceAnchor(link)
+    link.properties[SrcPortKey] = container.getResourceAnchor(srcport)
+    link.properties[DstPortKey] = container.getResourceAnchor(dstport)
     link.setWeight(1) # default
+
     container.saveResource(link)
     container.saveResource(srcport)
     container.saveResource(dstport)

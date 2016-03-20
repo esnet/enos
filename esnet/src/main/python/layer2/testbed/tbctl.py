@@ -18,7 +18,8 @@
 # publicly and display publicly, and to permit other to do so.
 #
 
-from layer2.testbed.topoctl import createtopo,addnode,addlink,getnode,Links,Nodes,Ports,Host,Hosts
+from layer2.testbed.topoctl import createtopo,addnode,addlink,getnode,LinksKey,NodesKey,PortsKey,HostKey,HostsKey
+from layer2.testbed.topoctl import SrcPortKey,DstPortKey,NodeKey,VlanKey,toPortName
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns,poptopology,getPopRouter,testbedPops
 
@@ -32,8 +33,8 @@ Pops="Pops"
 
 def createinv(toponame):
     newtopo = createtopo(toponame)
-    newtopo.properties[Nodes] = {}
-    newtopo.properties[Links] = {}
+    newtopo.properties[NodesKey] = {}
+    newtopo.properties[LinksKey] = {}
     topo = TestbedTopology()
     # Adds nodes
     nodes = topo.getNodes()
@@ -43,7 +44,7 @@ def createinv(toponame):
         node = addnode(toponame,nodename)
         node.getProperties().putAll(toponode.getProperties())
         newtopo.saveResource(node)
-        newtopo.properties[Nodes][nodename] = newtopo.getResourceAnchor(node)
+        newtopo.properties[NodesKey][nodename] = newtopo.getResourceAnchor(node)
 
     # Adds links
     links = topo.getLinks()
@@ -60,7 +61,7 @@ def createinv(toponame):
             dstportname=topolink.getDstPort().getResourceName())
         link.getProperties().putAll(topolink.getProperties())
         newtopo.saveResource(link)
-        newtopo.properties[Links][linkname] = newtopo.getResourceAnchor(link)
+        newtopo.properties[LinksKey][linkname] = newtopo.getResourceAnchor(link)
     newtopo.save()
 
 def createpops(popsname,inv):
@@ -81,7 +82,7 @@ def createpops(popsname,inv):
         pop.properties[HwSwitch] = pops.getResourceAnchor(hwswitch)
         pop.properties[SwSwitch] = pops.getResourceAnchor(swswitch)
         pop.properties[CoreRouter] = pops.getResourceAnchor(corerouter)
-        pop.properties[Links] = {}
+        pop.properties[LinksKey] = {}
         # Find and add the POP testbed host
         for tbn in tbns.values():
             if tbn['pop'] == popname:
@@ -102,7 +103,7 @@ def createpops(popsname,inv):
                            dstportname=dstportname)
             if link == None:
                 print "Could not add link " + linkname
-            pop.properties[Links][linkname] = pops.getResourceAnchor(linkname)
+            pop.properties[LinksKey][linkname] = pops.getResourceAnchor(linkname)
             link.setParentResourceAnchor(inventory.getResourceAnchor(invlink))
             pops.saveResource(link)
             # Reverse link
@@ -111,20 +112,36 @@ def createpops(popsname,inv):
             if invlink == None:
                 print "Cannot find reverse link in inventory: ",linkname
                 continue
-            pop.properties[Links][linkname] = inventory.getResourceAnchor(linkname)
+            pop.properties[LinksKey][linkname] = inventory.getResourceAnchor(linkname)
         pops.saveResource(pop)
         pops.properties[Pops][popname] = pops.getResourceAnchor(pop)
     pops.save()
     return pops
 
-def createlink (srcpop,dstpop,vlanbase,maxiter):
-    srcnode = Container.fromAnchor(srcpop.properties[CoreRouter])
+def createlink (topo,srcpop,dstpop,vlanbase,maxiter):
+    srcanchor = srcpop.properties[CoreRouter]
+    srcnode = Container.fromAnchor(srcanchor)
+    dstanchor = dstpop.properties[CoreRouter]
     dstnode = Container.fromAnchor(dstpop.properties[CoreRouter])
-    srcports = srcnode.properties[Ports]
+    toposrcnode = topo.loadResource(srcnode.getResourceName())
+    if toposrcnode == None:
+        # Does not exists yet, create it
+        toposrcnode = addnode(topo.getResourceName(),srcnode.getResourceName())
+        container = Container.getContainer(srcanchor['containerOwner'],srcanchor['containerName'])
+        toposrcnode.setParentResourceAnchor(container.getResourceAnchor(srcnode))
+        topo.saveResource(toposrcnode)
+    topodstnode = topo.loadResource(dstnode.getResourceName())
+    if topodstnode == None:
+        # Does not exists yet, create it
+        topodstnode = addnode(topo.getResourceName(),dstnode.getResourceName())
+        container = Container.getContainer(dstanchor['containerOwner'],dstanchor['containerName'])
+        topodstnode.setParentResourceAnchor(container.getResourceAnchor(dstnode))
+        topo.saveResource(topodstnode)
+    srcports = srcnode.properties[PortsKey]
     srcpop.properties['counter'] += 1
     dstpop.properties['counter'] += 1
     srcportindex = srcpop.properties['counter'] % len(srcports)
-    dstports = dstnode.properties[Ports]
+    dstports = dstnode.properties[PortsKey]
     dstportindex = dstpop.properties['counter'] % len(dstports)
     vlan = vlanbase
     while maxiter > 0:
@@ -136,18 +153,37 @@ def createlink (srcpop,dstpop,vlanbase,maxiter):
             dstport = dstports.keys()[dstportindex]
             srcpop.properties['vlanmap'].append(vlan)
             dstpop.properties['vlanmap'].append(vlan)
-            return (srcport,dstport,vlan)
+
+            link = addlink(topology=topo.getResourceName(),
+                           linkname=srcpop.getResourceName()+"--"+dstpop.getResourceName(),
+                           srcnodename=srcnode.getResourceName(),
+                           srcportname=srcport,
+                           dstnodename=dstnode.getResourceName(),
+                           dstportname=dstport,
+                           srcvlan=vlan,
+                           dstvlan=vlan)
+
+            return (link)
         vlan += 1
         maxiter -= 1
     return None
 
-
+def printLink(topo,link):
+    srcport=topo.fromAnchor(link.properties[SrcPortKey])
+    dstport=topo.fromAnchor(link.properties[DstPortKey])
+    srcvlan = srcport.properties[VlanKey]
+    dstvlan = dstport.properties[VlanKey]
+    srcnode=topo.fromAnchor(srcport.properties[NodeKey])
+    dstnode=topo.fromAnchor(dstport.properties[NodeKey])
+    s = srcnode.getResourceName() + ":" + toPortName(srcport.getResourceName()) + ":" + str(srcvlan)
+    s = s + ":" + dstnode.getResourceName() + ":" + toPortName(dstport.getResourceName()) + ":" + str(dstvlan)
+    print s
 
 def createcorelinks(containername,popsname,vlanbase,maxiter=10):
     pops = Container.getContainer(popsname)
     links = createtopo(containername)
     popsmap={}
-    for [src,dst] in poptopology:
+    for (src,dst) in poptopology:
         if (not src in popsmap):
             pop = pops.loadResource(src)
             if pop == None:
@@ -166,13 +202,10 @@ def createcorelinks(containername,popsname,vlanbase,maxiter=10):
             pop.properties['vlanmap'] = []
         srcpop = popsmap.get(src)
         dstpop = popsmap.get(dst)
-        (srcportname,dstportname,vlan) = createlink(srcpop,dstpop,vlanbase,maxiter)
-        # Create a new Port resources for this vlan
-        srcrouter = srcpop.properties[CoreRouter]
-        dstrouter = dstpop.properties[CoreRouter]
-        link = (srcrouter['resourceName'],srcportname,dstrouter['resourceName'],dstportname,vlanbase)
-        print link
-
+        link = createlink(links,srcpop,dstpop,vlanbase,maxiter)
+        if link == None:
+            print "cannot create " + srcpop + " to " + dstpop
+        printLink(links,link)
 
 def print_syntax():
     print "ESnet Testbed Utility"
@@ -184,7 +217,7 @@ def print_syntax():
     print "\t\tCreate a new container with the testbed network elements. Many of tbctl commands"
     print "\t\t\trequire an inventory container."
     print "\tcreate-pops <container name> inv <container name>"
-    print "\tcreate-corelinks <container name> pops <container name> vlan <base vlan> [max <max. vlan iteration>"
+    print "\tcreate-corelinks <container name> pops <container name> vlan <base vlan> [max <max. vlan iteration>]"
     print "\t\tcreates the links between POP's."
 
 if __name__ == '__main__':
@@ -210,4 +243,4 @@ if __name__ == '__main__':
         maxiter = 10
         if len(argv) > 7:
             maxiter = int(argv[8])
-        createcorelinks(topology,pops,vlanbase,maxiter)
+        links = createcorelinks(topology,pops,vlanbase,maxiter)
