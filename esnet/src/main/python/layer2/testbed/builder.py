@@ -37,6 +37,9 @@ poptopology=[
     ["amst","cern"]
 ]
 
+defaultvlanbase=980
+defaultvlaniter=10
+
 # DENV
 denvlinks=[
     ["denv-cr5","9/1/4","denv-tb-of-1","23"],

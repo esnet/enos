@@ -21,7 +21,7 @@
 from layer2.testbed.topoctl import createtopo,addnode,addlink,getnode,LinksKey,NodesKey,PortsKey,HostKey,HostsKey
 from layer2.testbed.topoctl import SrcPortKey,DstPortKey,NodeKey,VlanKey,toPortName
 from layer2.testbed.topology import TestbedTopology
-from layer2.testbed.builder import tbns,poptopology,getPopRouter,testbedPops
+from layer2.testbed.builder import tbns,poptopology,getPopRouter,testbedPops,defaultvlanbase,defaultvlaniter
 
 from net.es.netshell.api import Container,Link,Resource
 
@@ -187,7 +187,7 @@ def printLink(topo,link):
     s = s + ":" + dstnode.getResourceName() + ":" + toPortName(dstport.getResourceName()) + ":" + str(dstvlan)
     print s
 
-def createcorelinks(containername,popsname,vlanbase,maxiter=10):
+def createcorelinks(containername,popsname,vlanbase=defaultvlanbase,maxiter=defaultvlaniter):
     pops = Container.getContainer(popsname)
     links = createtopo(containername)
     popsmap={}
@@ -250,8 +250,9 @@ if __name__ == '__main__':
     elif cmd == "create-corelinks":
         topology = argv[2]
         pops = argv[4]
-        vlanbase = int(argv[6])
-        maxiter = 10
+        vlanbase = defaultvlanbase
+        maxiter = defaultvlaniter
         if len(argv) > 7:
+            vlanbase = int(argv[6])
             maxiter = int(argv[8])
         createcorelinks(topology,pops,vlanbase,maxiter)
