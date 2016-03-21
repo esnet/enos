@@ -162,8 +162,16 @@ def createlink (topo,srcpop,dstpop,vlanbase,maxiter):
                            dstportname=dstport,
                            srcvlan=vlan,
                            dstvlan=vlan)
+            rlink= addlink(topology=topo.getResourceName(),
+                           linkname=dstpop.getResourceName()+"--"+srcpop.getResourceName(),
+                           srcnodename=dstnode.getResourceName(),
+                           srcportname=dstport,
+                           dstnodename=srcnode.getResourceName(),
+                           dstportname=srcport,
+                           srcvlan=vlan,
+                           dstvlan=vlan)
 
-            return (link)
+            return (link,rlink)
         vlan += 1
         maxiter -= 1
     return None
@@ -202,10 +210,13 @@ def createcorelinks(containername,popsname,vlanbase,maxiter=10):
             pop.properties['vlanmap'] = []
         srcpop = popsmap.get(src)
         dstpop = popsmap.get(dst)
-        link = createlink(links,srcpop,dstpop,vlanbase,maxiter)
+        (link ,rlink)= createlink(links,srcpop,dstpop,vlanbase,maxiter)
         if link == None:
             print "cannot create " + srcpop + " to " + dstpop
+        if rlink == None:
+            print "cannot create " + dstpop + " to " + srcpop
         printLink(links,link)
+        printLink(links,rlink)
 
 def print_syntax():
     print "ESnet Testbed Utility"
@@ -243,4 +254,4 @@ if __name__ == '__main__':
         maxiter = 10
         if len(argv) > 7:
             maxiter = int(argv[8])
-        links = createcorelinks(topology,pops,vlanbase,maxiter)
+        createcorelinks(topology,pops,vlanbase,maxiter)
