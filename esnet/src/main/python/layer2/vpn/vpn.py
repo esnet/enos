@@ -297,6 +297,58 @@ class VPN(Resource):
                 return site
         return None
 
+    def makeentryfanoutflows(self, localpop, hostmac, hostvlan, hostsite):
+        # Create entry fanout flow on the software switch.  This flow fans out traffic
+        # from the host/site to other hosts/sites on the same POP, as well as to all the
+        # other POPs.
+        # XXX need to re-run this part if we add another host/site to this POP or add
+        # another POP
+        # XXX What we need to do is to abstract this into a function that can be called
+        # from addpop/delpop in a loop over all hosts, or addsite/delsite in a loop over
+        # hosts in a single POP.
+        forwards = []
+
+        broadcast_mat = "FF:FF:FF:FF:FF:FF"
+        if VPNMAT:
+            broadcast_mat = self.generateBroadcastMAC()
+
+        # Locate all other sites on this POP.  For each of these, make a forwarding entry to it.
+        for (othersitename, othersite) in self.vpnsites.items():
+            if othersite['pop'].lower() == localpop.name and othersitename != hostsite['name']:
+                fwd = SdnControllerClientL2Forward()
+                fwd.outPort = "0" # to be filled in by connectentryfanout
+                fwd.vlan = int(self.vpnsitevlans[othersitename])
+                fwd.dstMac = "FF:FF:FF:FF:FF:FF"
+                forwards.append(fwd)
+
+        # Locate other POPs
+        for (otherpopname, otherpop) in self.pops.items():
+            if otherpopname != localpop.name:
+                gri = interconnectpops(localpop.name, otherpopname)
+                (corename, coredom, coreport, corevlan) = getgrinode(gri, localpop.props['coreRouter'].name)
+                fwd = SdnControllerClientL2Forward()
+                fwd.outPort = "0" # to be filled in by connectentryfanout
+                fwd.vlan = int(corevlan)
+                fwd.dstMac = broadcast_mat
+                forwards.append(fwd)
+
+        # If we've already made an entry fanout flow for this host, then delete it.
+        if hostmac in self.entryfanoutflows:
+            oldfh = self.entryfanoutflows[hostmac]
+            if oldfh.isValid():
+                deleteforward(oldfh)
+                del self.entryfanoutflows[hostmac]
+                oldfh.invalidate()
+        fh = connectentryfanoutmac(localpop= localpop,
+                                   hostmac= hostmac,
+                                   hostvlan= hostvlan,
+                                   forwards= forwards,
+                                   meter= self.meter,
+                                   mac= broadcast_mat)
+        if fh != None:
+            self.entryfanoutflows[hostmac] = fh
+        return fh
+
     def addpop(self,pop):
         rc = True
 
@@ -334,6 +386,16 @@ class VPN(Resource):
             self.pops[pop.name] = pop
             self.popflows[pop.name] = fhlist
 
+            # Regenerate entry fanout flows for various hosts because they need to learn
+            # about a new POP
+            for (hostmac, hostsitename) in self.hostsites.items():
+                hostsite = self.vpnsites[hostsitename]
+                hostvlan = self.vpnsitevlans[hostsitename]
+                localpop = self.pops[hostsite['pop'].lower()]
+                fh = self.makeentryfanoutflows(localpop= localpop, hostmac= hostmac, hostvlan= hostvlan, hostsite= hostsite)
+                if fh != None:
+                    self.hostflows[hostmac].append(fh)
+
             # print "addpop ending with pop flow handles", self.popflows[pop.name]
 
         return rc
@@ -347,7 +409,19 @@ class VPN(Resource):
             self.deletefhs(self.popflows[pop.name])
             del self.popflows[pop.name]
         del self.pops[pop.name]
+
+        # Regenerate entry fanout flows for various hosts because they don't need to fanout
+        # to this POP anymore
+        for (hostmac, hostsitename) in self.hostsites.items():
+            hostsite = self.vpnsites[hostsitename]
+            hostvlan = self.vpnsitevlans[hostsitename]
+            localpop = self.pops[hostsite['pop'].lower()]
+            fh = self.makeentryfanoutflows(localpop= localpop, hostmac= hostmac, hostvlan= hostvlan, hostsite= hostsite)
+            if fh != None:
+                self.hostflows[hostmac].append(fh)
+
         return True
+
     def addsite(self,site,vlan):
         self.vpnsites[site['name']] = site
         self.vpnsitevlans[site['name']] = vlan
@@ -419,13 +493,41 @@ class VPN(Resource):
                 if fh != None:
                     exitfanoutflows[srcpopname] = fh
                     self.popflows[srcpopname].append(fh)
+
+        # Regenerate entry fanout flows for various hosts on this POP because they just
+        # learned a new site.
+        for (hostmac, hostsitename) in self.hostsites.items():
+            hostsite = self.vpnsites[hostsitename]
+            if hostsite['pop'].lower() == localpopname:
+                hostvlan = self.vpnsitevlans[hostsitename]
+                localpop = self.pops[hostsite['pop'].lower()]
+                fh = self.makeentryfanoutflows(localpop= localpop, hostmac= hostmac, hostvlan= hostvlan, hostsite= hostsite)
+                if fh != None:
+                    self.hostflows[hostmac].append(fh)
+
         return True
     def delsite(self,site):
+        localpop = self.pops[site['pop'].lower()]
+        localpopname = localpop.name
+
         if site['name'] in self.siteflows.keys():
             self.deletefhs(self.siteflows[site['name']])
             del self.siteflows[site['name']]
         del self.vpnsites[site['name']]
         del self.vpnsitevlans[site['name']]
+
+        # Regenerate entry fanout flows for various hosts on this POP because they need
+        # to forget this site
+        for (hostmac, hostsitename) in self.hostsites.items():
+            hostsite = self.vpnsites[hostsitename]
+            if hostsite['pop'].lower() == localpopname:
+                hostvlan = self.vpnsitevlans[hostsitename]
+                localpop = self.pops[hostsite['pop'].lower()]
+                fh = self.makeentryfanoutflows(localpop= localpop, hostmac= hostmac, hostvlan= hostvlan, hostsite= hostsite)
+                if fh != None:
+                    self.hostflows[hostmac].append(fh)
+
+
         return True
     # YYY
     def generateMAC(self,host):
@@ -445,7 +547,7 @@ class VPN(Resource):
     def generateBroadcastMAC(self):
         return str(self.mat.translate("FF:FF:FF:FF:FF:FF"))
     def deletefhs(self, fhs):
-        for f in fhs.items():
+        for f in fhs:
             if f.isValid():
                 deleteforward(f)
                 f.invalidate()
@@ -646,52 +748,7 @@ class VPN(Resource):
                 self.hostflows[hostmac].extend(fhlist)
                 self.hostflows[remotehostmac].extend(fhlist)
 
-            # Create entry fanout flow on the software switch.  This flow fans out traffic
-            # from the host/site to other hosts/sites on the same POP, as well as to all the
-            # other POPs.
-            # XXX need to re-run this part if we add another host/site to this POP or add
-            # another POP
-            # XXX What we need to do is to abstract this into a function that can be called
-            # from addpop/delpop in a loop over all hosts, or addsite/delsite in a loop over
-            # hosts in a single POP.
-            forwards = []
-
-            # Locate all other sites on this POP.  For each of these, make a forwarding entry to it.
-            for (othersitename, othersite) in self.vpnsites.items():
-                if othersite['pop'].lower() == localpopname and othersitename != hostsite['name']:
-                    fwd = SdnControllerClientL2Forward()
-                    fwd.outPort = "0" # to be filled in by connectentryfanout
-                    fwd.vlan = int(self.vpnsitevlans[othersitename])
-                    fwd.dstMac = "FF:FF:FF:FF:FF:FF"
-                    forwards.append(fwd)
-
-            # Locate other POPs
-            for (otherpopname, otherpop) in self.pops.items():
-                if otherpopname != localpopname:
-                    gri = interconnectpops(localpopname, otherpopname)
-                    (corename, coredom, coreport, corevlan) = getgrinode(gri, localpop.props['coreRouter'].name)
-                    fwd = SdnControllerClientL2Forward()
-                    fwd.outPort = "0" # to be filled in by connectentryfanout
-                    fwd.vlan = int(corevlan)
-                    fwd.dstMac = broadcast_mat
-                    forwards.append(fwd)
-
-            # If we've already made an entry fanout flow for this host, then delete it.
-            if hostmac in self.entryfanoutflows:
-                oldfh = self.entryfanoutflows[hostmac]
-                if oldfh.isValid():
-                    deleteforward(oldfh)
-                    del self.entryfanoutflows[hostmac]
-                    oldfh.invalidate()
-            fh = connectentryfanoutmac(localpop= localpop,
-                                    hostmac= hostmac,
-                                    hostvlan= vlan,
-                                    forwards= forwards,
-                                    meter= self.meter,
-                                    mac= broadcast_mat)
-            if fh != None:
-                self.entryfanoutflows[hostmac] = fh
-            # XXX end of part to be abstracted
+            fh = self.makeentryfanoutflows(localpop, hostmac, vlan, hostsite)
 
             if fh != None:
                 self.hostsites[hostmac] = hostsite['name']
@@ -705,6 +762,8 @@ class VPN(Resource):
         if hostmac in self.hostflows.keys():
             self.deletefhs(self.hostflows[hostmac])
             del self.hostflows[hostmac]
+        if hostmac in self.hostsites.keys():
+            del self.hostsites[hostmac]
         return True
 
 
@@ -887,6 +946,11 @@ def delhost(vpn, host):
         print "something wrong while deleting the host; Please make sure that the host joined the VPN."
         return
 
+def delhostbymac(vpn, mac):
+    if not vpn.delhostbymac(mac):
+        print "something wrong while deleting the host; Please make sure that the host joined the VPN."
+        return
+
 def tapsite(vpn, site):
     print "not implemented"
 
@@ -985,6 +1049,9 @@ def main():
                 if host == None:
                     return
                 delhost(vpn, host)
+            elif command == 'delhostbymac':
+                mac = sys.argv[3]
+                delhostbymac(vpn, mac)
             elif command == 'tapsite':
                 site = tosite(sys.argv[3])
                 if site == None:
