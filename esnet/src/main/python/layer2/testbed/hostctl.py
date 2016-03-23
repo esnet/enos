@@ -109,6 +109,7 @@ def clearcallback():
 def setmeter(switch, meter, cr, cbs, er, ebs):
     return SCC.SdnInstallMeter(javaByteArray(switch.props['dpid']), meter, cr, cbs, er, ebs)
 
+# YYY
 def connectremoteplane(switch,
                        host,
                        hostvlan,
@@ -135,20 +136,60 @@ def connectremoteplane(switch,
     flowid = baseid + "to-remote-host"
 
     fh = SCC.SdnInstallForward1(javaByteArray(switch.props['dpid']),
-                           1,
-                           BigInteger.ZERO,
-                           str(remotehost_port),
-                           int(remotehost_vlan),
-                           "00:00:00:00:00:00",
-                           hostmac,
-                           str(remotehwport_tocore),
-                           int(corevlan),
-                           translated_hostmac,
-                           0,
-                           0,
-                           meter)
+                                1,
+                                BigInteger.ZERO,
+                                str(remotehost_port),
+                                int(remotehost_vlan),
+                                "00:00:00:00:00:00",
+                                hostmac,
+                                str(remotehwport_tocore),
+                                int(corevlan),
+                                translated_hostmac,
+                                0,
+                                0,
+                                meter)
     return fh
 
+def connectremoteplanemac(remotesw,
+                          hostmac,
+                          hostvlan,
+                          remotehost_port,
+                          remotehost_vlan,
+                          remotehwport_tocore,
+                          corevlan,
+                          gri,
+                          meter=3,
+                          host_rewritemac = None):
+    """
+    Set up forwarding entry on a switch/pop that is remote to a given host.
+    This entry takes traffic from a site, translating MAC if necessary,
+    and forwarding on a WAN circuit headed towards the host.  Returns a FlowHandle.
+    """
+    translated_hostmac = hostmac
+    if host_rewritemac != None:
+        translated_hostmac = host_rewritemac
+
+    baseid = hostmac + ":"+str(hostvlan)+"-"+gri.getName()
+    flowid = baseid + "from-remote-host"
+
+    fh = SCC.SdnInstallForward1(javaByteArray(remotesw.props['dpid']),
+                                1,
+                                BigInteger.ZERO,
+                                str(remotehost_port),
+                                int(remotehost_vlan),
+                                "00:00:00:00:00:00",
+                                hostmac,
+                                str(remotehwport_tocore),
+                                int(corevlan),
+                                translated_hostmac,
+                                0,
+                                0,
+                                meter)
+    return fh
+
+
+
+# YYY
 def connectdataplane(switch,
                      host,
                      hostport,
@@ -175,19 +216,56 @@ def connectdataplane(switch,
     # Also de-translate destination MAC address if necessary.
     flowid = baseid + "-to-host"
     fh = SCC.SdnInstallForward1(javaByteArray(sw.props['dpid']),
-                           1,
-                           BigInteger.ZERO,
-                           str(tocoreport),
-                           int(tocorevlan),
-                           "00:00:00:00:00:00",
-                           translated_hostmac,
-                           str(tohostport),
-                           int(hostvlan),
-                           hostmac,
-                           0,
-                           0,
-                           meter)
+                                1,
+                                BigInteger.ZERO,
+                                str(tocoreport),
+                                int(tocorevlan),
+                                "00:00:00:00:00:00",
+                                translated_hostmac,
+                                str(tohostport),
+                                int(hostvlan),
+                                hostmac,
+                                0,
+                                0,
+                                meter)
     return fh
+
+def connectdataplanemac(hostmac,
+                        hostvlan,
+                        sw,
+                        tohostport,
+                        tocoreport,
+                        tocorevlan,
+                        gri,
+                        meter=3,
+                        host_rewritemac = None):
+    """
+    Set up forwarding entries on the switches local to a host.
+    Returns a FlowHandle.
+    """
+    baseid = hostmac +":"+str(hostvlan)+"-"+gri.getName()
+    translated_hostmac = hostmac
+    if host_rewritemac != None:
+        translated_hostmac = host_rewritemac
+
+    # Forward inbound WAN traffic from core router to local site/host.
+    # Also de-translate destination MAC address if necessary.
+    flowid = baseid + "-to-host"
+    fh = SCC.SdnInstallForward1(javaByteArray(sw.props['dpid']),
+                                1,
+                                BigInteger.ZERO,
+                                str(tocoreport),
+                                int(tocorevlan),
+                                "00:00:00:00:00:00",
+                                translated_hostmac,
+                                str(tohostport),
+                                int(hostvlan),
+                                hostmac,
+                                0,
+                                0,
+                                meter)
+    return fh
+
 
 
 def getgriport(hwswitch,core,griport):
@@ -212,6 +290,7 @@ def getgriport(hwswitch,core,griport):
     (node,hwport_tocore) = linkednode (corelink,corename)
     return hwport_tocore
 
+# YYY
 def connect (localpop,
              remotepop,
              host,
@@ -318,6 +397,81 @@ def connect (localpop,
     fhs = (fh1, fh2)
     return fhs
 
+def connectmac(localpop,
+               remotepop,
+               localsiteport,
+               localsitevlan,
+               remotesiteport,
+               remotesitevlan,
+               hostmac,
+               gri,
+               meter=3,
+               host_rewritemac = None):
+    """
+    Given a pair of sites, and a host at one of the sites, set up one-way forwarding to get
+    unicast packets to the host.
+    This function takes care of finding the hardware switch and inter-POP ports.
+    :param localpop:        SDNpop
+    :param remotepop:       SDNpop
+    :param localsitevlan:   VLAN tag
+    :param localsiteport:   local hardware switch port for site attachment
+    :param remotesitevlan:  VLAN tag
+    :param remotesiteport:  remote hardware switch port for site attachment
+    :param hostmac:         local host MAC address (string)
+    :param gri:
+    :param meter:
+    :param host_rewritemac: translated local host MAC address
+    :return: List of FlowHandles
+    """
+    core = localpop.props['coreRouter']
+    corename = core.name
+    (corename,coredom,coreport,corevlan) = getgrinode(gri,corename)
+    remotecore = remotepop.props['coreRouter']
+    remotecorename = remotecore.name
+    (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecorename)
+
+    # Find hwswitch/port - core/port
+    hwswitch = localpop.props['hwSwitch']
+    hwport_tocore = getgriport(hwswitch,core,coreport)
+    # Find remotehwswitch/port - remotecore/port
+    remotehwswitch = remotepop.props['hwSwitch']
+    remotehwport_tocore = getgriport(remotehwswitch,remotecore,remotecoreport)
+
+    # Find the port on the HwSwitch that is connected to the host's port
+    hwport_tosite = localsiteport
+
+    fh1 = connectdataplanemac(hostmac= hostmac,
+                              hostvlan= localsitevlan,
+                              sw= hwswitch,
+                              tohostport= hwport_tosite,
+                              tocoreport= hwport_tocore,
+                              tocorevlan= corevlan,
+                              gri= gri,
+                              meter= meter,
+                              host_rewritemac= host_rewritemac)
+    if fh1 == None:
+        return None
+
+    # Find the port on the remote HwSwitch that is connected to the remote host's port
+    remotehwport_tosite = remotesiteport
+
+    fh2 = connectremoteplanemac(remotesw = remotehwswitch,
+                                hostmac= hostmac,
+                                hostvlan= localsitevlan,
+                                remotehost_port= remotehwport_tosite,
+                                remotehost_vlan= remotesitevlan,
+                                remotehwport_tocore= remotehwport_tocore,
+                                corevlan= corevlan,
+                                gri= gri,
+                                meter= meter,
+                                host_rewritemac= host_rewritemac)
+    if fh2 == None:
+        SCC.deleteforward(fh1)
+        return None
+
+    fhs = (fh1, fh2)
+    return fhs
+
 def connecthostbroadcast(localpop,
                          hwport_tosite,
                          sitevlan,
@@ -344,12 +498,11 @@ def connecthostbroadcast(localpop,
     if links == None or len(links) == 0:
         print "No links from", hwswitchname, "to", swswitchname
         return False
-    swswitchlink = None
+    hwport_tosw = None
     for link in links:
         (node, port) = linkednode(link, swswitchname)
         if port != None:
             # Found the link we're looking for
-            swswitchlink = link
             hwport_tosw = port
             break
 
@@ -393,6 +546,7 @@ def connecthostbroadcast(localpop,
 
     return (fh1, fh2)
 
+#YYY
 def connectentryfanout(localpop,
                        host,
                        hostvlan,
@@ -451,6 +605,73 @@ def connectentryfanout(localpop,
                                str(swport_tohw),
                                int(hostvlan),
                                None, # XXX not sure what goes here, host MAC?
+                               mac,
+                               fwdsarr,
+                               0,
+                               0,
+                               meter)
+
+    return fh
+
+def connectentryfanoutmac(localpop,
+                       hostmac,
+                       hostvlan,
+                       forwards,
+                       meter,
+                       mac):
+    """
+    Create fanout entry on source POP's software switch
+    :param localpop:  POP object
+    :param hostmac: host MAC address
+    :param hostvlan: VLAN number of host attachment
+    :param forwards: array of SDNControllerClientL2Forward
+    :param meter:
+    :param mac:
+    :return: SdnControllerClientFlowHandle
+    """
+    hwswitch = localpop.props['hwSwitch']
+    hwswitchname = hwswitch.name
+    swswitch = localpop.props['swSwitch']
+    swswitchname = swswitch.name
+
+    # print "connectentryfanout localpop", localpop, "host", host, "hostvlan", hostvlan, "mac", mac
+
+    # Find the port on the software switch connected to the hardware switch
+    links = getlinks(swswitchname, hwswitchname)
+    if links == None or len(links) == 0:
+        print "No links from", swswitchname, "to", hwswitchname
+        return None
+    hwswitchlink = None
+    swport_tohw = None
+    for link in links:
+        (node, port) = linkednode(link, hwswitchname)
+        if port != None:
+            # Found it!
+            hwswitchlink = link
+            swport_tohw = port
+            break
+    if swport_tohw == None:
+        print "No output port on", swswitchname, "facing", hwswitchname
+        return None
+
+    # The fanout flow is "interesting" in that the input plus the multiple outputs
+    # all are on the same port (but different VLANs).  Fill in the outputs.
+    for f in forwards:
+        f.outPort = str(swport_tohw)
+        # print "FORW:  outport", f.outPort, "vlan", f.vlan, "dstMac", f.dstMac
+
+    # Convert the list of forwarding destinations to a Java array.
+    fwdsarr = jarray.array(forwards, SdnControllerClientL2Forward)
+
+    # print "dpid", swswitch.props['dpid']
+    # This flow being installed is unusual in that it does a source MAC address
+    # filter as well
+    fh = SCC.SdnInstallForward(javaByteArray(swswitch.props['dpid']),
+                               1,
+                               BigInteger.ZERO,
+                               str(swport_tohw),
+                               int(hostvlan),
+                               hostmac,
                                mac,
                                fwdsarr,
                                0,
@@ -522,6 +743,7 @@ def connectexitfanout(localpop,
 
     return fh
 
+# YYY
 def connectgri(host,
                gri,
                remotehost,
@@ -559,6 +781,56 @@ def connectgri(host,
                   remotehostvlan = remotehostvlan,
                   meter = meter,
                   host_rewritemac= host_rewritemac)
+    return res
+
+def connectgrimac(hostmac,
+                  siteport,
+                  sitevlan,
+                  sitepop,
+                  remotesiteport,
+                  remotesitevlan,
+                  gri,
+                  meter=3,
+                  host_rewritemac=None):
+    """
+    Set up forwarding entries to connect a host to a remote POP via a given GRI.
+    This function takes care of figuring out the POPs involved.
+    :param hostmac:         MAC address of source (string)
+    :param siteport:        port on hardware switch facing site
+    :param sitevlan:        VLAN to site
+    :param sitepop:         SDNpop
+    :param remotesiteport:  port on remote hardware switch facing remote site
+    :param remotesitevlan:  VLAN to site
+    :param gri:
+    :param meter:           meter
+    :param host_rewritemac: Translated MAC address (string)
+    :return: List of FlowHandles or False
+    """
+    # Get both endpoints of the GRI
+    (e1,e2) = griendpoints(gri)
+    core1 = topo.builder.switchIndex[e1[1]]
+    core2 = topo.builder.switchIndex[e2[1]]
+    pop1 = core1.props['pop']
+    pop2 = core2.props['pop']
+    remotepop = None
+    if sitepop.name == pop1.name:
+        remotepop = pop2
+    elif sitepop.name == pop2.name:
+        remotepop = pop1
+    if remotepop == None:
+        print "gri",gri, "does not provide connectivity for",hostmac,"from",remotepop.name,"to",sitepop.name
+        return False
+
+    res = connectmac(localpop= sitepop,
+                     remotepop= remotepop,
+                     localsiteport= siteport,
+                     localsitevlan= sitevlan,
+                     remotesiteport= remotesiteport,
+                     remotesitevlan= remotesitevlan,
+                     hostmac= hostmac,
+                     gri= gri,
+                     meter = meter,
+                     host_rewritemac= host_rewritemac)
     return res
 
 def swconnect(localpop, remotepop, mac, gri, meter):
