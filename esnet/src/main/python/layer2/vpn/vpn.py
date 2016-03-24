@@ -35,7 +35,7 @@ if "debugNoController" in dir(sys) and sys.debugNoController:
 else:
     from net.es.netshell.controller.client import SdnControllerClient, SdnControllerClientL2Forward, SdnControllerClientCallback
 
-from layer2.testbed.hostctl import connectgri,connectgrimac,getdatapaths,setmeter,swconnect,connecthostbroadcast,deleteforward,connectentryfanout,connectentryfanoutmac,connectexitfanout,setcallback,clearcallback
+from layer2.testbed.hostctl import connectgrimac,getdatapaths,setmeter,swconnect,connecthostbroadcast,deleteforward,connectentryfanoutmac,connectexitfanout,setcallback,clearcallback
 
 import threading
 
@@ -659,6 +659,8 @@ def usage():
     print "vpn create <vpn name>"
     print "vpn delete <vpn name>"
     print "vpn kill <vpn name>"
+    print "vpn shutdown"
+    print "vpn logging <file>"
     print "vpn load $conf"
     print "vpn <vpn name> execute"
     print "vpn <vpn name> save $conf"
@@ -678,6 +680,9 @@ def usage():
     print "vpn <vpn name> untapmac <MAC>"
     print "vpn <vpn name> settimeout <secs>"
     print "vpn <vpn name> visualize $conf"
+    print "vpn <vpn name> listpops"
+    print "vpn <vpn name> listsites"
+    print "vpn <vpn name> listhosts"
     print "vpn mat [<on|off>] Displays the MAC Address Translation feature, turn it on or off."
     print "Note: <vpn name> should not be any keyword such as create, delete, kill, or load"
 
@@ -858,6 +863,19 @@ def main():
                 VPNMAT = False
             state = {True:'on',False:'off'}
             print "MAC Address Translation feature is",state[VPNMAT]
+        elif command == "shutdown":
+            if 't' in globals():
+                t.stop()
+                del globals()['t']
+            if 'VPNcallback' in globals():
+                SCC.clearCallback()
+                del globals()['clearCallback']
+            if 'SCC' in globals():
+                del globals()['SCC']
+        elif command == "logging":
+            logname = sys.argv[2]
+            logging.basicConfig(format='%(asctime)s %(levelname)8s %(message)s', filename=logname, filemode='a', level=logging.INFO)
+            logging.info("test")
         else:
             vpn = get(vpns, vpnIndex, sys.argv[1])
             command = sys.argv[2].lower()
@@ -901,6 +919,24 @@ def main():
             elif command == 'delhostbymac':
                 mac = sys.argv[3]
                 delhostbymac(vpn, mac)
+            elif command == 'listhosts':
+                print "%17s  %17s  %s" % ("MAC", "Translated MAC", "Site")
+                for (hostmac, hostsite) in vpn.hostsites.items():
+                    hostmacmat = hostmac
+                    if VPNMAT:
+                        hostmacmat = vpn.generateMAC2(hostmac)
+                    print "%17s  %17s  %s" % (hostmac, hostmacmat, hostsite)
+            elif command == 'listsites':
+                print "%6s  %6s  %20s  %8s  %4s" % ("Site", "POP", "Switch", "Port", "VLAN")
+                for (sitename, site) in vpn.vpnsites.items():
+                    hwswitch = topo.builder.popIndex[site['pop'].lower()].props['hwSwitch']
+                    hwport = site['hwport']
+                    vlan = vpn.vpnsitevlans[sitename]
+                    print "%6s  %6s  %20s  %8s  %4s" % (sitename, site['pop'], hwswitch.name, hwport, vlan)
+            elif command == 'listpops':
+                print "%6s  %20s  %20s  %20s" % ("POP", "Core Router", "Hardware Switch", "Software Switch")
+                for (popname, pop) in vpn.pops.items():
+                    print "%6s  %20s  %20s  %20s" % (popname, pop.props['coreRouter'], pop.props['hwSwitch'], pop.props['swSwitch'])
             elif command == 'tapsite':
                 site = tosite(sys.argv[3])
                 if site == None:
