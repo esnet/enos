@@ -869,7 +869,7 @@ def main():
                 del globals()['t']
             if 'VPNcallback' in globals():
                 SCC.clearCallback()
-                del globals()['clearCallback']
+                del globals()['VPNcallback']
             if 'SCC' in globals():
                 del globals()['SCC']
         elif command == "logging":
