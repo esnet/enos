@@ -116,7 +116,7 @@ def decodeflow(response):
                 if 'ethernet-destination' in ethernet.keys():
                     dest = ethernet['ethernet-destination']['address']
                 if 'ethernet-source' in ethernet.keys():
-                    dest = ethernet['ethernet-source']['address']
+                    source = ethernet['ethernet-source']['address']
             priority = flow ['priority']
             cookie = ""
             if 'cookie'  in flow:
