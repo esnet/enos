@@ -308,7 +308,7 @@ class VPN(Resource):
                 fwd = SdnControllerClientL2Forward()
                 fwd.outPort = "0" # to be filled in by connectentryfanout
                 fwd.vlan = int(self.vpnsitevlans[othersitename])
-                fwd.dstMac = "FF:FF:FF:FF:FF:FF"
+                fwd.dstMac =  broadcast_mat
                 forwards.append(fwd)
 
         # Locate other POPs
@@ -458,7 +458,7 @@ class VPN(Resource):
                 fwd = SdnControllerClientL2Forward()
                 fwd.outPort = "0" # to be filled in by connectexitfanout
                 fwd.vlan = int(self.vpnsitevlans[site2name])
-                fwd.dstMac = "FF:FF:FF:FF:FF:FF"
+                fwd.dstMac = broadcast_mat
                 forwards.append(fwd)
 
         # Iterate over source POPs
@@ -541,6 +541,10 @@ class VPN(Resource):
         :param hostmac: MAC address (string)
         :return: boolean True if successful
         """
+
+        # Normalize MAC address to lower-case
+        hostmac = hostmac.lower()
+
         with self.lock:
 
             # See if the host already exists
@@ -568,7 +572,6 @@ class VPN(Resource):
             broadcast_mat = "FF:FF:FF:FF:FF:FF"
             if VPNMAT:
                 host_mat = self.generateMAC2(hostmac)
-                broadcast_mat = self.generateBroadcastMAC()
             self.hostflows[hostmac] = []
 
             # Install flows for unicast traffic
@@ -629,14 +632,19 @@ class VPN(Resource):
         return True
 
     def delhostbymac(self,hostmac):
+
+        # Normalize MAC address to lower-case
+        hostmac = hostmac.lower()
+
+        if hostmac in self.hostsites.keys():
+            del self.hostsites[hostmac]
+        else:
+            return False
+
         if hostmac in self.hostflows.keys():
             self.deletefhs(self.hostflows[hostmac])
             del self.hostflows[hostmac]
-        if hostmac in self.hostsites.keys():
-            del self.hostsites[hostmac]
         return True
-
-
 
     def setpriority(self,priority):
         """
@@ -728,7 +736,7 @@ def get(l, d, index):
 def tovpn(s):
     return get(vpns, vpnIndex, s)
 def topop(s):
-    return get(topo.builder.pops, topo.builder.popIndex, s)
+    return get(None, topo.builder.popIndex, s)
 def tosite(s):
         if s in sites:
             return sites[s]
@@ -796,10 +804,10 @@ def addsite(vpn, site, vlan):
     print "The site %s is added into VPN %s successfully" % (site['name'], vpn.name)
 
 def delsite(vpn, site):
-    if not vpn.checkSite(site):
-        print "site not found in the vpn"
+    if not vpn.delsite(site):
+        print "could not delete site"
         return
-    vpn.delsite(site)
+    print "Site %s removed from VPN %s successfully." % (site['name'], vpn.name)
 
 def addhostbymac(vpn, site, mac):
     if not vpn.addhostbymac(site, mac):
