@@ -768,17 +768,20 @@ def delete(vpnname):
     vpn = vpnIndex[vpnname]
     vpnIndex.pop(vpn.name)
     vpns.remove(vpn)
-    globals()['vpnIndexById'].remove(vpn.vid)
+    globals()['vpnIndexById'].pop(vpn.vid)
+    print "VPN %s removed successfully." % (vpn.name)
 
 def kill(vpnname):
     if not vpnname in vpnIndex:
         print "vpn name %s not found" % vpnname
         return
     vpn = vpnIndex[vpnname]
-    for (site, hosts, siteVlan) in vpn.props['participantIndex'].values():
-        for host in hosts:
-            delhost(vpn, host)
-        delsite(vpn, site)
+    for h in vpn.hostsites.keys():
+        delhostbymac(vpn, h)
+    for s in vpn.vpnsites.values():
+        delsite(vpn, s)
+    for p in vpn.pops.values():
+        delpop(vpn, p)
     delete(vpnname)
 
 def execute(vpn):
