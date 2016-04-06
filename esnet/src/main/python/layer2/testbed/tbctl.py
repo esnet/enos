@@ -53,7 +53,7 @@ def createinv(toponame):
         srcnode = topolink.getSrcNode()
         dstnode = topolink.getDstNode()
         link = addlink(
-            topology=toponame,
+            topology=newtopo,
             linkname=linkname,
             srcnodename=srcnode.getResourceName(),
             srcportname=topolink.getSrcPort().getResourceName(),

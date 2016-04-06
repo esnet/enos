@@ -20,7 +20,7 @@
 #
 # Configures the initial ENOS deployment. Currently hard coded for ESnet deployment
 #
-from net.es.enos.esnet import ESnetTopology, ESnet, DataTransferNode, DataTransferNodeInterface, DataTransferNodeLink
+from net.es.enos.esnet import ESnetTopology, DataTransferNode, DataTransferNodeInterface, DataTransferNodeLink
 from java.util import ArrayList
 
 # Creates ESnet DataTransferNode's
@@ -52,8 +52,6 @@ def createDTN(name, type, interfaces, links):
 # Register ESnetTopology as the defaul local layer2 topology provider
 ESnetTopology.registerToFactory()
 
-# Register ESnet as the defaul local layer2 network provider
-ESnet.registerToFactory()
 
 createDTN(name="bnl-diskpt1",type="10000000000",
           interfaces =

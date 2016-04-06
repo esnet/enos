@@ -19,7 +19,7 @@
 #
 
 
-from net.es.netshell.api import Container,Node,Port,Link,ResourceAnchor
+from net.es.netshell.api import Container,Node,Port,Link,Resource
 
 PortKey="Port"
 PortsKey="Ports"
@@ -82,7 +82,12 @@ def delnode(topology,nodename):
     return True
 
 def addlink(topology,linkname,srcnodename,dstnodename,srcportname,dstportname,srcvlan=0,dstvlan=0):
-    container = Container.getContainer(topology)
+
+    container = None
+    if isinstance(topology,Container):
+        container = topology
+    else:
+        container = Container.getContainer(topology)
     if container == None:
         print "topology ",topology," does not exist."
         return None
@@ -95,7 +100,6 @@ def addlink(topology,linkname,srcnodename,dstnodename,srcportname,dstportname,sr
         print "dst node ",dstnodename," does not exist"
         return None
     link = Link(linkname)
-    container.saveResource(link)
     srcport =  container.loadResource(toPortResourceName(srcnodename,srcportname,srcvlan));
     if srcport == None:
         srcport = Port(toPortResourceName(srcnodename,srcportname,srcvlan))
@@ -119,7 +123,6 @@ def addlink(topology,linkname,srcnodename,dstnodename,srcportname,dstportname,sr
     link.properties[SrcPortKey] = container.getResourceAnchor(srcport)
     link.properties[DstPortKey] = container.getResourceAnchor(dstport)
     link.setWeight(1) # default
-
     container.saveResource(link)
     container.saveResource(srcport)
     container.saveResource(dstport)
