@@ -21,4 +21,5 @@ before_script:
 install:
   - cd /tmp/ && git clone https://github.com/esnet/netshell.git && cd /tmp/netshell && mvn clean install
 
-script: mvn clean test
+script:
+  - mvn test
