@@ -18,5 +18,7 @@ before_script:
   - sleep 15
   - mongo mydb_test --eval 'db.addUser("travis", "test");'
 
+install:
+  - cd /tmp/ && git clone https://github.com/esnet/netshell.git && cd /tmp/netshell && mvn clean install
 
 script: mvn clean test
