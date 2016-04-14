@@ -18,7 +18,7 @@
 # publicly and display publicly, and to permit other to do so.
 #
 
-from layer2.testbed.topoctl import createtopo,addnode,addlink,getnode,LinksKey,NodesKey,PortsKey,HostKey,HostsKey
+from layer2.testbed.topoctl import createtopo,addnode,addlink,getnode,PortsKey,HostKey,HostsKey
 from layer2.testbed.topoctl import SrcPortKey,DstPortKey,NodeKey,VlanKey,toPortName
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns,poptopology,getPopRouter,testbedPops,defaultvlanbase,defaultvlaniter
@@ -33,8 +33,6 @@ Pops="Pops"
 
 def createinv(toponame):
     newtopo = createtopo(toponame)
-    newtopo.properties[NodesKey] = {}
-    newtopo.properties[LinksKey] = {}
     topo = TestbedTopology()
     # Adds nodes
     nodes = topo.getNodes()
@@ -44,7 +42,6 @@ def createinv(toponame):
         node = addnode(toponame,nodename)
         node.getProperties().putAll(toponode.getProperties())
         newtopo.saveResource(node)
-        newtopo.properties[NodesKey][nodename] = newtopo.getResourceAnchor(node)
 
     # Adds links
     links = topo.getLinks()
@@ -61,7 +58,6 @@ def createinv(toponame):
             dstportname=topolink.getDstPort().getResourceName())
         link.getProperties().putAll(topolink.getProperties())
         newtopo.saveResource(link)
-        newtopo.properties[LinksKey][linkname] = newtopo.getResourceAnchor(link)
     newtopo.save()
 
 def createpops(popsname,inv):
@@ -82,7 +78,6 @@ def createpops(popsname,inv):
         pop.properties[HwSwitch] = pops.getResourceAnchor(hwswitch)
         pop.properties[SwSwitch] = pops.getResourceAnchor(swswitch)
         pop.properties[CoreRouter] = pops.getResourceAnchor(corerouter)
-        pop.properties[LinksKey] = {}
         # Find and add the POP testbed host
         for tbn in tbns.values():
             if tbn['pop'] == popname:
@@ -103,7 +98,6 @@ def createpops(popsname,inv):
                            dstportname=dstportname)
             if link == None:
                 print "Could not add link " + linkname
-            pop.properties[LinksKey][linkname] = pops.getResourceAnchor(linkname)
             link.setParentResourceAnchor(inventory.getResourceAnchor(invlink))
             pops.saveResource(link)
             # Reverse link
@@ -112,7 +106,6 @@ def createpops(popsname,inv):
             if invlink == None:
                 print "Cannot find reverse link in inventory: ",linkname
                 continue
-            pop.properties[LinksKey][linkname] = inventory.getResourceAnchor(linkname)
         pops.saveResource(pop)
         pops.properties[Pops][popname] = pops.getResourceAnchor(pop)
     pops.save()
@@ -230,6 +223,7 @@ def print_syntax():
     print "\tcreate-pops <container name> inv <container name>"
     print "\tcreate-corelinks <container name> pops <container name> vlan <base vlan> [max <max. vlan iteration>]"
     print "\t\tcreates the links between POP's."
+    print "\tgetpath <container> src <src node> dst <dst node>"
 
 if __name__ == '__main__':
     argv = sys.argv
