@@ -18,8 +18,12 @@
 # publicly and display publicly, and to permit other to do so.
 #
 import struct
+import array
 import jarray
+import binascii
 from java.math import BigInteger
+
+from net.es.netshell.api import Container
 
 from layer2.testbed.oscars import getgri,getgrinode,displaygri,griendpoints
 from layer2.testbed.topology import TestbedTopology,getlinks,linkednode
@@ -107,7 +111,7 @@ def clearcallback():
     print "callback cleared"
 
 def setmeter(switch, meter, cr, cbs, er, ebs):
-    return SCC.SdnInstallMeter(javaByteArray(switch.props['dpid']), meter, cr, cbs, er, ebs)
+    return SCC.SdnInstallMeter(javaByteArray2(switch.properties['DPID']), meter, cr, cbs, er, ebs)
 
 def connectremoteplanemac(remotesw,
                           hostmac,
@@ -190,8 +194,8 @@ def getgriport(hwswitch,core,griport):
     port on the core router connected to the HwSwitch. This function returns the port on the HwSwitch that
     is connected to the the core router when the OSCARS circuit terminates.
     """
-    hwswitchname = hwswitch.name
-    corename = core.name
+    hwswitchname = hwswitch.resourceName
+    corename = core.resourceName
     links = getlinks(corename, hwswitchname)
     if links == None or len(links) == 0:
         print "No links from",corename,"to",hwswitchname
@@ -537,29 +541,29 @@ def connectgrimac(hostmac,
 
 def swconnect(localpop, remotepop, mac, gri, meter):
     """ Set up two-way connectivity between ports on the software switches for a given MAC
-    :param localpop:
-    :param remotepop:
+    :param localpop: POP object (Resource)
+    :param remotepop: POP object (Resource)
     :param mac:
     :param gri
     :param meter:
     :return: List of FlowHandles
     """
-    core = localpop.props['coreRouter']
-    corename = core.name
+    core = Container.fromAnchor(localpop.properties['CoreRouter'])
+    corename = core.resourceName
     (corename,coredom,coreport,corevlan) = getgrinode(gri,corename)
-    remotecore = remotepop.props['coreRouter']
-    remotecorename = remotecore.name
+    remotecore = Container.fromAnchor(remotepop.properties['CoreRouter'])
+    remotecorename = remotecore.resourceName
     (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecorename)
 
-    hwswitch = localpop.props['hwSwitch']
-    hwswitchname = hwswitch.name
-    swswitch = localpop.props['swSwitch']
-    swswitchname = swswitch.name
+    hwswitch = Container.fromAnchor(localpop.properties['HwSwitch'])
+    hwswitchname = hwswitch.resourceName
+    swswitch = Container.fromAnchor(localpop.properties['SwSwitch'])
+    swswitchname = swswitch.resourceName
 
-    remotehwswitch = remotepop.props['hwSwitch']
-    remotehwswitchname = remotehwswitch.name
-    remoteswswitch = remotepop.props['swSwitch']
-    remoteswswitchname = remoteswswitch.name
+    remotehwswitch = Container.fromAnchor(remotepop.properties['HwSwitch'])
+    remotehwswitchname = remotehwswitch.resourceName
+    remoteswswitch = Container.fromAnchor(remotepop.properties['SwSwitch'])
+    remoteswswitchname = remoteswswitch.resourceName
 
     # Find hwswitch/port - core/port
     hwport_tocore = getgriport(hwswitch,core,coreport)
@@ -596,7 +600,7 @@ def swconnect(localpop, remotepop, mac, gri, meter):
 
     # Set up forwarding for broadcast traffic from the new local pop
     # Install outbound flow on hwswitch from swswitch to the GRI
-    fh1 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+    fh1 = SCC.SdnInstallForward1(javaByteArray2(hwswitch.properties['DPID']),
                            1,
                            BigInteger.ZERO,
                            str(hwport_tosw), # hw port facing software switch
@@ -613,7 +617,7 @@ def swconnect(localpop, remotepop, mac, gri, meter):
         return None
 
     # Install inbound flow on remotehwswitch from GRI to remoteswswitch
-    fh2 = SCC.SdnInstallForward1(javaByteArray(remotehwswitch.props['dpid']),
+    fh2 = SCC.SdnInstallForward1(javaByteArray2(remotehwswitch.properties['DPID']),
                            1,
                            BigInteger.ZERO,
                            str(remotehwport_tocore),
@@ -632,7 +636,7 @@ def swconnect(localpop, remotepop, mac, gri, meter):
 
     # Set up forwarding for broadcast traffic to the new local pop
     # Install inbound flow on hwswitch from GRI to swswitch
-    fh3 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+    fh3 = SCC.SdnInstallForward1(javaByteArray2(hwswitch.properties['DPID']),
                            1,
                            BigInteger.ZERO,
                            str(hwport_tocore),
@@ -651,7 +655,7 @@ def swconnect(localpop, remotepop, mac, gri, meter):
         return None
 
     # Install outbound flow on remotehwswitch from remoteswswitch to GRI
-    fh4 = SCC.SdnInstallForward1(javaByteArray(remotehwswitch.props['dpid']),
+    fh4 = SCC.SdnInstallForward1(javaByteArray2(remotehwswitch.properties['DPID']),
                            1,
                            BigInteger.ZERO,
                            str(remotehwport_tosw), # remotehw port facing remote software switch
@@ -692,6 +696,13 @@ def javaByteArray(a):
     for i in range(len(a)):
         b[i] = struct.unpack('b', struct.pack('B', a[i]))[0]
     return b
+
+def javaByteArray2(s):
+    """
+    Make a Java array of bytes from a string of hex digits.
+    """
+    a = array.array('B', binascii.unhexlify(s))
+    return javaByteArray(a)
 
 def print_syntax():
     print

@@ -25,7 +25,7 @@ from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns
 from layer2.vpn.mat import MAT
 from layer2.common.utils import mapResource
-from net.es.netshell.api import Resource,Container
+from net.es.netshell.api import Resource,Container,ResourceAnchor
 from net.es.netshell.boot import BootStrap
 from net.es.netshell.controller.intf import EthernetFrame
 
@@ -179,6 +179,9 @@ class VPNService(Resource):
         if self.container == None:
             # First time the service is running initialize it.
             self.create()
+            # We should accept a topology name as an argument
+            self.properties['topology'] = "tbpops"
+            self.topology = Container.getContainer(self.properties['topology'])
             self.saveService()
         else:
             self.loadService()
@@ -205,6 +208,8 @@ class VPNService(Resource):
     def loadService(self):
         stored = self.container.loadResource(self.getResourceName())
         mapResource (obj=self,resource=stored)
+        self.container = Container.getContainer("MultiPointVPNService")
+        self.topology = Container.getContainer(self.properties['topology'])
         self.vpns = eval(self.properties['vpns'])
         cache = globals()['vpns']
         cacheIndex = globals()['vpnIndex']
@@ -354,7 +359,7 @@ class VPN(Resource):
             # have a set a meter before a flow references it; in particular we cannot use an
             # external mechanism (e.g. CLI) to set the meter and then try to have the driver
             # push a flow that references it.
-            sw = pop.props['hwSwitch']
+            sw = Container.fromAnchor(pop.properties['HwSwitch'])
             meter = self.meter
             rc = setmeter(sw, meter, 0, 0, 0, 0)
             # if not rc:
@@ -367,14 +372,14 @@ class VPN(Resource):
             if VPNMAT:
                 broadcastmac_mat = self.generateBroadcastMAC()
             for (remotepopname, remotepop) in self.pops.items():
-                gri = interconnectpops(pop.name.upper(), remotepop.name.upper())
+                gri = interconnectpops(pop.resourceName.upper(), remotepop.resourceName.upper())
                 fhs = swconnect(pop, remotepop, broadcastmac_mat, gri, self.meter)
-                self.popflows[remotepop.name].extend(fhs)
+                self.popflows[remotepop.resourceName].extend(fhs)
                 fhlist.extend(fhs)
 
             # This POP is now added.
-            self.pops[pop.name] = pop
-            self.popflows[pop.name] = fhlist
+            self.pops[pop.resourceName] = pop
+            self.popflows[pop.resourceName] = fhlist
 
             # Regenerate entry fanout flows for various hosts because they need to learn
             # about a new POP
@@ -737,6 +742,9 @@ def tovpn(s):
     return get(vpns, vpnIndex, s)
 def topop(s):
     return get(None, topo.builder.popIndex, s)
+def topop2(s):
+    p = vpnService.topology.loadResource(s)
+    return p
 def tosite(s):
         if s in sites:
             return sites[s]
@@ -744,7 +752,6 @@ def tosite(s):
             return None
 def tohost(s):
     return tbns[s]
-
 
 def addVpn(vpn):
     vpns.append(vpn)
@@ -791,13 +798,13 @@ def addpop(vpn, pop):
     if not vpn.addpop(pop):
         print "Error while adding pop."
         return
-    print "Pop %s is added into VPN %s successfully." % (pop.name, vpn.name)
+    print "Pop %s is added into VPN %s successfully." % (pop.resourceName, vpn.name)
 
 def delpop(vpn, pop):
     if not vpn.delpop(pop):
         print "Error while deleting pop."
         return
-    print "Pop %s had been removed from VPN %s successfully." % (pop.name, vpn.name)
+    print "Pop %s had been removed from VPN %s successfully." % (pop.resourceName, vpn.name)
 
 def addsite(vpn, site, vlan):
     if not vpn.addsite(site, vlan):
@@ -887,6 +894,10 @@ def main():
             logname = sys.argv[2]
             logging.basicConfig(format='%(asctime)s %(levelname)8s %(message)s', filename=logname, filemode='a', level=logging.INFO)
             logging.info("test")
+        elif command == 'listvpns':
+            print "%20s" % ("VPN")
+            for vpn in vpns:
+                print "%20s" % vpn.name
         else:
             vpn = get(vpns, vpnIndex, sys.argv[1])
             command = sys.argv[2].lower()
@@ -898,10 +909,10 @@ def main():
             elif command == 'setprio':
                 vpn.setpriority(sys.argv[3])
             elif command == 'addpop':
-                if not sys.argv[3] in topo.builder.popIndex:
+                pop = topop2(sys.argv[3])
+                if pop == None:
                     print "unknown SDN POP"
                     return
-                pop = topo.builder.popIndex[sys.argv[3]]
                 addpop(vpn, pop)
             elif command == 'delpop':
                 pop = topop(sys.argv[3])
@@ -940,13 +951,31 @@ def main():
             elif command == 'listsites':
                 print "%6s  %6s  %20s  %8s  %4s" % ("Site", "POP", "Switch", "Port", "VLAN")
                 for (sitename, site) in vpn.vpnsites.items():
-                    hwswitch = topo.builder.popIndex[site['pop'].lower()].props['hwSwitch']
+                    if BootStrap.getBootStrap().getDataBase() != None:
+                        popname = site['pop'] # string
+                        popref = vpnService.topology.properties["Pops"][popname] # hash
+                        popanchor = ResourceAnchor(str(popref["containerOwner"]), str(popref["containerName"]), str(popref["resourceName"]))
+                        pop = vpnService.topology.toResource(popanchor)
+                        hwswitchref = pop.properties["HwSwitch"]
+                        hwswitchanchor = ResourceAnchor(hwswitchref["containerOwner"], hwswitchref["containerName"], popref["resourceName"])
+                        hwswitch = vpnService.topology.toResource(hwswitchanchor.properties[""])
+                        hwswitchname = hwswitch.resourceName
+                    else:
+                        hwswitchname = topo.builder.popIndex[site['pop'].lower()].props['hwSwitch'].name
                     hwport = site['hwport']
                     vlan = vpn.vpnsitevlans[sitename]
-                    print "%6s  %6s  %20s  %8s  %4s" % (sitename, site['pop'], hwswitch.name, hwport, vlan)
+                    print "%6s  %6s  %20s  %8s  %4s" % (sitename, site['pop'], hwswitchname, hwport, vlan)
             elif command == 'listpops':
                 print "%6s  %20s  %20s  %20s" % ("POP", "Core Router", "Hardware Switch", "Software Switch")
                 for (popname, pop) in vpn.pops.items():
+                    if BootStrap.getBootStrap().getDataBase() != None:
+                        coreRouterName = pop.properties['CoreRouter']
+                        hwSwitchName = pop.properties['HwSwitch']
+                        swSwitchName = pop.properties['SwSwitch']
+                    else:
+                        coreRouterName = pop.props['coreRouter']
+                        hwSwitchName = pop.props['hwSwitch']
+                        swSwitchName = pop.props['swSwitch']
                     print "%6s  %20s  %20s  %20s" % (popname, pop.props['coreRouter'], pop.props['hwSwitch'], pop.props['swSwitch'])
             elif command == 'tapsite':
                 site = tosite(sys.argv[3])
@@ -1021,10 +1050,12 @@ if __name__ == '__main__':
         vpns = []
         globals()['vpns'] = vpns
 
-    if BootStrap.getBootStrap().getDataBase() != None:
-        # NetShell is configured to use a database.
-        vpnService = VPNService()
-        globals()['vpnService'] = vpnService
-    else:
-        globals()['vpnService'] = None
+    if 'vpnService' not in globals():
+        if BootStrap.getBootStrap().getDataBase() != None:
+            # NetShell is configured to use a database.
+            vpnService = VPNService()
+            globals()['vpnService'] = vpnService
+        else:
+            globals()['vpnService'] = None
+
     main()

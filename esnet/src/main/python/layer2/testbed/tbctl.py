@@ -17,6 +17,7 @@
 # distribute copies to the public, prepare derivative works, and perform
 # publicly and display publicly, and to permit other to do so.
 #
+import binascii
 
 from layer2.testbed.topoctl import createtopo,addnode,addlink,getnode,PortsKey,HostKey,HostsKey
 from layer2.testbed.topoctl import SrcPortKey,DstPortKey,NodeKey,VlanKey,toPortName
@@ -25,11 +26,17 @@ from layer2.testbed.builder import tbns,poptopology,getPopRouter,testbedPops,def
 
 from net.es.netshell.api import Container,Link,Resource
 
-Role="Role"
 HwSwitch = "HwSwitch"
 SwSwitch = "SwSwitch"
 CoreRouter = "CoreRouter"
+Host = "Host"
+
 Pops="Pops"
+
+Domain = "Domain"
+Dpid = "DPID"
+Pop = "Pop"
+Role="Role"
 
 def createinv(toponame):
     newtopo = createtopo(toponame)
@@ -40,7 +47,16 @@ def createinv(toponame):
         toponode = nodes.get(nodename)
         # Add this node to the topology
         node = addnode(toponame,nodename)
-        node.getProperties().putAll(toponode.getProperties())
+        # node.getProperties().putAll(toponode.getProperties())
+        # Copy selected properties
+        if 'domain' in toponode.props.keys():
+            node.properties[Domain] = toponode.props['domain']
+        if 'dpid' in toponode.props.keys():
+            node.properties[Dpid] = binascii.hexlify(toponode.props['dpid'])
+        if 'pop' in toponode.props.keys():
+            node.properties[Pop] = toponode.props['pop'].name
+        if 'role' in toponode.props.keys():
+            node.properties[Role] = toponode.props['role']
         newtopo.saveResource(node)
 
     # Adds links
@@ -60,6 +76,12 @@ def createinv(toponame):
         newtopo.saveResource(link)
     newtopo.save()
 
+def copyswitchprops(switch, invcontainer, name):
+    invswitch = invcontainer.loadResource(name)
+    for propname in (Domain, Dpid, Pop, Role):
+        if propname in invswitch.properties.keys():
+            switch.properties[propname] = invswitch.properties[propname]
+
 def createpops(popsname,inv):
     inventory = Container.getContainer(inv)
     pops = createtopo(popsname)
@@ -72,6 +94,9 @@ def createpops(popsname,inv):
         hwswitch.setParentResourceAnchor(inventory.getResourceAnchor(hwname))
         swswitch.setParentResourceAnchor(inventory.getResourceAnchor(swname))
         corerouter.setParentResourceAnchor(inventory.getResourceAnchor(coreroutername))
+        copyswitchprops(hwswitch, inventory, hwname)
+        copyswitchprops(swswitch, inventory, swname)
+        copyswitchprops(corerouter, inventory, coreroutername)
         pops.saveResource(hwswitch)
         pops.saveResource(swswitch)
         pops.saveResource(corerouter)
@@ -83,6 +108,8 @@ def createpops(popsname,inv):
             if tbn['pop'] == popname:
                 host = addnode(popsname,tbn['name'])
                 host.setParentResourceAnchor(inventory.getResourceAnchor(tbn['name']))
+                copyswitchprops(host, inventory, tbn['name'])
+                host.properties[Role] = Host
                 pops.saveResource(host)
         for (srcnodename,srcportname,dstnodename,dstportname) in links:
             linkname = Link.buildName(srcnodename,srcportname,dstnodename,dstportname)
