@@ -606,7 +606,8 @@ class VPN(Resource):
                 fhlist = []
 
                 # Add flows coming from other site/host
-                fhs = connectgrimac(hostmac=hostmac,
+                fhs = connectgrimac(topology= vpnService.topology,
+                                    hostmac= hostmac,
                                     siteport= hostsite['hwport'],
                                     sitevlan= vlan,
                                     sitepop= localpop,
@@ -618,7 +619,8 @@ class VPN(Resource):
                 if fhs != None:
                     fhlist.extend(fhs)
                 # Add flows going to other site/host
-                fhs = connectgrimac(hostmac= remotehostmac,
+                fhs = connectgrimac(topology= vpnService.topology,
+                                    hostmac= remotehostmac,
                                     siteport= remotesite['hwport'],
                                     sitevlan= remotevlan,
                                     sitepop= remotepop,

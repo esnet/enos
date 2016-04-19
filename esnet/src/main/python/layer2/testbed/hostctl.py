@@ -28,7 +28,6 @@ from net.es.netshell.api import Container
 from layer2.testbed.oscars import getgri,getgrinode,displaygri,griendpoints
 from layer2.testbed.topology import TestbedTopology,getlinks,linkednode
 from layer2.odl.ofctl import corsaforward
-from layer2.testbed.topology import TestbedTopology
 
 import sys
 if "debugNoController" in dir(sys) and sys.debugNoController:
@@ -489,7 +488,8 @@ def connectexitfanout(localpop,
 
     return fh
 
-def connectgrimac(hostmac,
+def connectgrimac(topology,
+                  hostmac,
                   siteport,
                   sitevlan,
                   sitepop,
@@ -501,31 +501,44 @@ def connectgrimac(hostmac,
     """
     Set up forwarding entries to connect a host to a remote POP via a given GRI.
     This function takes care of figuring out the POPs involved.
+    :param topology:        Topology/Container, needed for finding GRI endpoints
     :param hostmac:         MAC address of source (string)
     :param siteport:        port on hardware switch facing site
     :param sitevlan:        VLAN to site
-    :param sitepop:         SDNpop
+    :param sitepop:         POP object
     :param remotesiteport:  port on remote hardware switch facing remote site
     :param remotesitevlan:  VLAN to site
     :param gri:
     :param meter:           meter
     :param host_rewritemac: Translated MAC address (string)
-    :return: List of FlowHandles or False
+    :return: List of FlowHandles or None
     """
     # Get both endpoints of the GRI
     (e1,e2) = griendpoints(gri)
-    core1 = topo.builder.switchIndex[e1[1]]
-    core2 = topo.builder.switchIndex[e2[1]]
-    pop1 = core1.props['pop']
-    pop2 = core2.props['pop']
-    remotepop = None
-    if sitepop.name == pop1.name:
-        remotepop = pop2
-    elif sitepop.name == pop2.name:
-        remotepop = pop1
+    core1 = topology.loadResource(e1[1])
+    if 'Role' not in core1.properties.keys() or core1.properties['Role'] != 'CoreRouter' or 'Pop' not in core1.properties.keys():
+        print core1.resourceName, "is not a core router"
+        return None
+    core2 = topology.loadResource(e2[1])
+    if 'Role' not in core2.properties.keys() or core2.properties['Role'] != 'CoreRouter' or 'Pop' not in core2.properties.keys():
+        print core1.resourceName, "is not a core router"
+        return None
+    pop1name = core1.properties['Pop']
+    pop2name = core2.properties['Pop']
+
+    remotepopname = None
+    if sitepop.resourceName == pop1name:
+        remotepopname = pop2name
+    elif sitepop.resourceName == pop2name:
+        remotepopname = pop1name
+    if remotepopname == None:
+        print "gri", gri, "does not provide connectivity for", hostmac, "from", remotepop.resourceName, "to", sitepop.resourceName
+        return None
+
+    remotepop = topology.loadResource(remotepopname)
     if remotepop == None:
-        print "gri",gri, "does not provide connectivity for",hostmac,"from",remotepop.name,"to",sitepop.name
-        return False
+        print "Unable to retrieve remote POP", remotepopname
+        return None
 
     res = connectmac(localpop= sitepop,
                      remotepop= remotepop,
