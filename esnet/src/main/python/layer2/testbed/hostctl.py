@@ -135,7 +135,7 @@ def connectremoteplanemac(remotesw,
     baseid = hostmac + ":"+str(hostvlan)+"-"+gri.getName()
     flowid = baseid + "from-remote-host"
 
-    fh = SCC.SdnInstallForward1(javaByteArray(remotesw.props['dpid']),
+    fh = SCC.SdnInstallForward1(javaByteArray2(remotesw.properties['DPID']),
                                 1,
                                 BigInteger.ZERO,
                                 str(remotehost_port),
@@ -171,7 +171,7 @@ def connectdataplanemac(hostmac,
     # Forward inbound WAN traffic from core router to local site/host.
     # Also de-translate destination MAC address if necessary.
     flowid = baseid + "-to-host"
-    fh = SCC.SdnInstallForward1(javaByteArray(sw.props['dpid']),
+    fh = SCC.SdnInstallForward1(javaByteArray2(sw.properties['DPID']),
                                 1,
                                 BigInteger.ZERO,
                                 str(tocoreport),
@@ -224,8 +224,8 @@ def connectmac(localpop,
     Given a pair of sites, and a host at one of the sites, set up one-way forwarding to get
     unicast packets to the host.
     This function takes care of finding the hardware switch and inter-POP ports.
-    :param localpop:        SDNpop
-    :param remotepop:       SDNpop
+    :param localpop:        POP object
+    :param remotepop:       POP object
     :param localsitevlan:   VLAN tag
     :param localsiteport:   local hardware switch port for site attachment
     :param remotesitevlan:  VLAN tag
@@ -236,18 +236,18 @@ def connectmac(localpop,
     :param host_rewritemac: translated local host MAC address
     :return: List of FlowHandles
     """
-    core = localpop.props['coreRouter']
-    corename = core.name
+    core = Container.fromAnchor(localpop.properties['CoreRouter'])
+    corename = core.resourceName
     (corename,coredom,coreport,corevlan) = getgrinode(gri,corename)
-    remotecore = remotepop.props['coreRouter']
-    remotecorename = remotecore.name
+    remotecore = Container.fromAnchor(remotepop.properties['CoreRouter'])
+    remotecorename = remotecore.resourceName
     (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecorename)
 
     # Find hwswitch/port - core/port
-    hwswitch = localpop.props['hwSwitch']
+    hwswitch = Container.fromAnchor(localpop.properties['HwSwitch'])
     hwport_tocore = getgriport(hwswitch,core,coreport)
     # Find remotehwswitch/port - remotecore/port
-    remotehwswitch = remotepop.props['hwSwitch']
+    remotehwswitch = Container.fromAnchor(remotepop.properties['HwSwitch'])
     remotehwport_tocore = getgriport(remotehwswitch,remotecore,remotecoreport)
 
     # Find the port on the HwSwitch that is connected to the host's port
@@ -301,10 +301,10 @@ def connecthostbroadcast(localpop,
     :return:
     """
 
-    hwswitch = localpop.props['hwSwitch']
-    hwswitchname = hwswitch.name
-    swswitch = localpop.props['swSwitch']
-    swswitchname = swswitch.name
+    hwswitch = Container.fromAnchor(localpop.properties['HwSwitch'])
+    hwswitchname = hwswitch.resourceName
+    swswitch = Container.fromAnchor(localpop.properties['SwSwitch'])
+    swswitchname = swswitch.resourceName
 
     # Find the port on the HwSwitch connected to the software switch
     links = getlinks(hwswitchname, swswitchname)
@@ -324,7 +324,7 @@ def connecthostbroadcast(localpop,
     if broadcast_rewritemac != None:
         translated_broadcast = broadcast_rewritemac
 
-    fh1 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+    fh1 = SCC.SdnInstallForward1(javaByteArray2(hwswitch.properties['DPID']),
                            1,
                            BigInteger.ZERO,
                            str(hwport_tosw),
@@ -340,7 +340,7 @@ def connecthostbroadcast(localpop,
     if fh1 == None:
         return None
 
-    fh2 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+    fh2 = SCC.SdnInstallForward1(javaByteArray2(hwswitch.properties['DPID']),
                            1,
                            BigInteger.ZERO,
                            str(hwport_tosite),
@@ -375,10 +375,10 @@ def connectentryfanoutmac(localpop,
     :param mac:
     :return: SdnControllerClientFlowHandle
     """
-    hwswitch = localpop.props['hwSwitch']
-    hwswitchname = hwswitch.name
-    swswitch = localpop.props['swSwitch']
-    swswitchname = swswitch.name
+    hwswitch = Container.fromAnchor(localpop.properties['HwSwitch'])
+    hwswitchname = hwswitch.resourceName
+    swswitch = Container.fromAnchor(localpop.properties['SwSwitch'])
+    swswitchname = swswitch.resourceName
 
     # print "connectentryfanout localpop", localpop, "host", host, "hostvlan", hostvlan, "mac", mac
 
@@ -412,7 +412,7 @@ def connectentryfanoutmac(localpop,
     # print "dpid", swswitch.props['dpid']
     # This flow being installed is unusual in that it does a source MAC address
     # filter as well
-    fh = SCC.SdnInstallForward(javaByteArray(swswitch.props['dpid']),
+    fh = SCC.SdnInstallForward(javaByteArray2(swswitch.properties['DPID']),
                                1,
                                BigInteger.ZERO,
                                str(swport_tohw),
@@ -442,10 +442,10 @@ def connectexitfanout(localpop,
     :return: SDNControllerClientFlowHandle
     """
 
-    hwswitch = localpop.props['hwSwitch']
-    hwswitchname = hwswitch.name
-    swswitch = localpop.props['swSwitch']
-    swswitchname = swswitch.name
+    hwswitch = Container.fromAnchor(localpop.properties['HwSwitch'])
+    hwswitchname = hwswitch.resourceName
+    swswitch = Container.fromAnchor(localpop.properties['SwSwitch'])
+    swswitchname = swswitch.resourceName
 
     # print "connectexitfanout localpop", localpop, "corevlan", corevlan, "mac", mac
 
@@ -475,7 +475,7 @@ def connectexitfanout(localpop,
     fwdsarr = jarray.array(forwards, SdnControllerClientL2Forward)
 
     # print "dpid", swswitch.props['dpid']
-    fh = SCC.SdnInstallForward(javaByteArray(swswitch.props['dpid']),
+    fh = SCC.SdnInstallForward(javaByteArray2(swswitch.properties['DPID']),
                                1,
                                BigInteger.ZERO,
                                str(swport_tohw),
