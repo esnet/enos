@@ -102,8 +102,8 @@ class VpnCallback(SdnControllerClientCallback):
 
     def indexSwitches(self):
         # Index all the switches by DPID so we can find them
-        topo = self.vpnService.topology
-        nodes = topo.loadResources({"resourceType" : "Node"})
+        topology = self.vpnService.topology
+        nodes = topology.loadResources({"resourceType" : "Node"})
         for n in nodes:
             if 'DPID' in n.properties.keys():
                 self.switchIndex[n.properties['DPID']] = n
@@ -749,8 +749,6 @@ def get(l, d, index):
         sys.exit(1)
 def tovpn(s):
     return get(vpns, vpnIndex, s)
-def topop(s):
-    return get(None, topo.builder.popIndex, s)
 def topop2(s):
     p = vpnService.topology.loadResource(s)
     return p
@@ -807,37 +805,37 @@ def addpop(vpn, pop):
     if not vpn.addpop(pop):
         print "Error while adding pop."
         return
-    print "Pop %s is added into VPN %s successfully." % (pop.resourceName, vpn.name)
+    print "POP %s has been added into VPN %s successfully." % (pop.resourceName, vpn.name)
 
 def delpop(vpn, pop):
     if not vpn.delpop(pop):
         print "Error while deleting pop."
         return
-    print "Pop %s had been removed from VPN %s successfully." % (pop.resourceName, vpn.name)
+    print "POP %s has been removed from VPN %s successfully." % (pop.resourceName, vpn.name)
 
 def addsite(vpn, site, vlan):
     if not vpn.addsite(site, vlan):
-        print "something's wrong while adding the site."
+        print "Error while adding site %s to VPN %s ." % (site['name'], vpn.name)
         # possible issues: duplicated site
         return
-    print "The site %s is added into VPN %s successfully" % (site['name'], vpn.name)
+    print "Site %s has been added into VPN %s successfully." % (site['name'], vpn.name)
 
 def delsite(vpn, site):
     if not vpn.delsite(site):
         print "could not delete site"
         return
-    print "Site %s removed from VPN %s successfully." % (site['name'], vpn.name)
+    print "Site %s has been removed from VPN %s successfully." % (site['name'], vpn.name)
 
 def addhostbymac(vpn, site, mac):
     if not vpn.addhostbymac(site, mac):
-        print "something wrong while adding the host; Please make sure that the site of the host joined the VPN."
+        print "Error while adding host."
         return
 
-    print "The host %s is added into VPN %s successfully at site %s" % (mac, vpn.name, site['name'])
+    print "Host %s has been added into VPN %s successfully at site %s" % (mac, vpn.name, site['name'])
 
 def delhostbymac(vpn, mac):
     if not vpn.delhostbymac(mac):
-        print "something wrong while deleting the host; Please make sure that the host joined the VPN."
+        print "Error while deleting host."
         return
 
 def tapsite(vpn, site):
@@ -963,13 +961,11 @@ def main():
             elif command == 'listsites':
                 print "%6s  %6s  %20s  %8s  %4s" % ("Site", "POP", "Switch", "Port", "VLAN")
                 for (sitename, site) in vpn.vpnsites.items():
-                    if BootStrap.getBootStrap().getDataBase() != None:
-                        popname = site['pop'].lower() # string
-                        pop = Container.fromAnchor(vpnService.topology.properties['Pops'][popname])
-                        hwswitch = Container.fromAnchor(pop.properties['HwSwitch'])
-                        hwswitchname = hwswitch.resourceName
-                    else:
-                        hwswitchname = topo.builder.popIndex[site['pop'].lower()].props['hwSwitch'].name
+                    popname = site['pop'].lower() # string
+                    pop = Container.fromAnchor(vpnService.topology.properties['Pops'][popname])
+                    hwswitch = Container.fromAnchor(pop.properties['HwSwitch'])
+                    hwswitchname = hwswitch.resourceName
+
                     hwport = site['hwport']
                     vlan = vpn.vpnsitevlans[sitename]
                     print "%6s  %6s  %20s  %8s  %4s" % (sitename, site['pop'], hwswitchname, hwport, vlan)
@@ -1046,12 +1042,8 @@ if __name__ == '__main__':
         globals()['vpns'] = vpns
 
     if 'vpnService' not in globals():
-        if BootStrap.getBootStrap().getDataBase() != None:
-            # NetShell is configured to use a database.
-            vpnService = VPNService()
-            globals()['vpnService'] = vpnService
-        else:
-            globals()['vpnService'] = None
+        vpnService = VPNService()
+        globals()['vpnService'] = vpnService
 
     # Start callback if we don't have one already
     if 'SCC' not in globals() or SCC == None:

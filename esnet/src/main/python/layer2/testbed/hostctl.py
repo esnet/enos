@@ -26,8 +26,7 @@ from java.math import BigInteger
 from net.es.netshell.api import Container
 
 from layer2.testbed.oscars import getgri,getgrinode,displaygri,griendpoints
-from layer2.testbed.topology import TestbedTopology,getlinks,linkednode
-from layer2.odl.ofctl import corsaforward
+from layer2.testbed.topology import getlinks,linkednode
 
 import sys
 if "debugNoController" in dir(sys) and sys.debugNoController:
@@ -732,14 +731,7 @@ def print_syntax():
     print "\trem-user <host-name> user <user-name>: remove user from a host."
     print
 
-# Retrieve topology
-if not 'topo' in globals() or topo == None:
-    topo = TestbedTopology()
-    globals()['topo'] = topo
-
-
 if __name__ == '__main__':
-    global topo
     argv = sys.argv
 
     cmd = argv[1]
