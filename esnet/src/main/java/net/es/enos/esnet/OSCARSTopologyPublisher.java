@@ -27,6 +27,8 @@ import com.sun.jersey.api.json.JSONConfiguration;
 import com.sun.jersey.client.urlconnection.HTTPSProperties;
 import net.es.netshell.api.PersistentObject;
 import net.es.netshell.api.TopologyFactory;
+import net.es.netshell.boot.BootStrap;
+import org.apache.commons.io.IOUtils;
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -84,7 +86,7 @@ public class OSCARSTopologyPublisher {
 
     public String toString() {
         // Check if we have today's topology already cached
-        if (this.isCached()) {
+        if (!BootStrap.getBootStrap().isStandAlone() && this.isCached()) {
             try {
                 logger.info("Loading topology from cache");
                 return this.loadTopology();
@@ -96,18 +98,19 @@ public class OSCARSTopologyPublisher {
         if ( ! this.isToday()) {
             return null;
         }
-
         // Today's topology has not yet been downloaded or there was a problem reading it from file. Download
         // from URL.
         String topology = this.loadFromUrl();
         if (topology == null) {
             return null;
         }
-        // Save it into the cache / archive
-        try {
-            this.saveTopology(topology);
-        } catch (IOException e) {
-            e.printStackTrace();
+        if(!BootStrap.getBootStrap().isStandAlone()) {
+            // Save it into the cache / archive
+            try {
+                this.saveTopology(topology);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         return topology;
     }
@@ -196,7 +199,6 @@ public class OSCARSTopologyPublisher {
         try {
             ClientConfig clientConfig = new DefaultClientConfig();
 
-
             SSLContext sslcontext = null;
             TrustManager[] trustAllCerts = new TrustManager[]{new TopologyTrustManager()};
 
@@ -218,15 +220,13 @@ public class OSCARSTopologyPublisher {
             clientConfig.getFeatures().put(JSONConfiguration.FEATURE_POJO_MAPPING, Boolean.TRUE);
 
             WebResource webResource = client.resource(OSCARSTopologyPublisher.ESNET_DEFAULT_URL);
-
             ClientResponse response = webResource.accept("application/json").get(ClientResponse.class);
             if (response.getStatus() != 200) {
                 throw new RuntimeException("Failed : HTTP error code : "
                         + response.getStatus());
             }
-
-            String output = response.getEntity(String.class);
-            output = this.normalize(output);
+            String txt = IOUtils.toString(response.getEntityInputStream());
+            String output = this.normalize(txt);
             return output;
 
         } catch (Exception e) {

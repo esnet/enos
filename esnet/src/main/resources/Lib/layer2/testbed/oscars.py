@@ -16,14 +16,11 @@
 # distribute copies to the public, prepare derivative works, and perform
 # publicly and display publicly, and to permit other to do so.
 #
-from net.es.netshell.api import TopologyFactory,TopologyProvider
-from net.es.enos.esnet import OSCARSReservations
+from net.es.enos.esnet import ESnetTopology,OSCARSReservations
 from org.joda.time import DateTime
 
-
-
-topology = TopologyFactory.instance()
-esnet = topology.retrieveTopologyProvider("localLayer2")
+if not 'esnet' in globals():
+    globals()['esnet'] = ESnetTopology()
 
 def makeURN (node,domain="es.net",port="",link=""):
     """

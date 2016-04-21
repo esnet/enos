@@ -20,7 +20,7 @@
 import struct,binascii
 
 from layer2.common.api import Node, SDNPop, Link, Port, Site, Wan, Host, HwSwitch, SwSwitch, Switch
-from layer2.testbed import dpid, oscars
+from layer2.testbed import dpid
 
 from layer2.common.utils import Logger
 
