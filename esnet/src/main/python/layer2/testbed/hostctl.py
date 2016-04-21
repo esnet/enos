@@ -26,7 +26,6 @@ from java.math import BigInteger
 from net.es.netshell.api import Container
 
 from layer2.testbed.oscars import getgri,getgrinode,displaygri,griendpoints
-from layer2.testbed.topology import getlinks,linkednode
 
 import sys
 if "debugNoController" in dir(sys) and sys.debugNoController:
@@ -99,6 +98,60 @@ def display(host):
         if not interface['props']['data']:
             datastatus = "Reserved for OVS"
         print "\t\tname", interface['name'],"mac",interface['mac'],datastatus
+
+def getlinks2(topology, node1, node2):
+    """
+    Return all of the links between two nodes in a topology
+    :param topology: (topology object)
+    :param node1: (string)
+    :param node2: (string)
+    :return: list of node objects (resources)
+    """
+    allLinks = topology.loadResources({"resourceType":"Link"})
+    links = []
+    for l in allLinks:
+        (dstNode,dstPort) = linkednode2(l,node1)
+        if (dstNode,dstPort) == (None, None):
+            continue
+        (dstNode,dstPort) = linkednode2(l,node2)
+        if (dstNode,dstPort) == (None, None):
+            continue
+        links.append(l)
+    return links
+
+def parselink2(link):
+    """
+    Parse the name of a link and return a list of parsed elements.
+    Names are in the form:  "atla-cr5--10/1/10--atla-tb-of-1--23".
+    XXX WAN links have different names.  We need to parse them
+    differently to get the endpoints.
+    :param link: link object as resource
+    :return: 5-tuple of source node and port, destination node and port, and VLAN (all strings)
+    """
+    [srcNode,srcPort,dstNode,dstPort] = link.resourceName.split("--")
+    return (srcNode,srcPort,dstNode,dstPort,"0")
+
+def linkednode2(link, host, port= None):
+    """
+    Retrieve the host/port connected to provide host/port
+    :param link: link object as resource
+    :param host: name of host (string)
+    :param port: optional (string)
+    :return: name of node (string), name of port (string)
+    """
+    (srcNode,srcPort,dstNode,dstPort,vlan) = parselink2(link)
+
+    if (port != None):
+        if (srcNode,srcPort) == (host,port):
+            return (dstNode,dstPort)
+        elif (dstNode,dstPort) == (host,port):
+            return (srcNode,srcPort)
+        return (None,None)
+    if srcNode == host:
+        return (dstNode,dstPort)
+    elif dstNode == host:
+        return (srcNode,srcPort)
+    return (None,None)
 
 def setcallback(cb):
     SCC.setCallback(cb)
@@ -186,7 +239,7 @@ def connectdataplanemac(hostmac,
 
 
 
-def getgriport(hwswitch,core,griport):
+def getgriport(topology,hwswitch,core,griport):
     """
     In the following logical topology <Host> - <HwSwitch> - <Core Router>, the OSCARS circuits ends onto the
     port on the core router connected to the HwSwitch. This function returns the port on the HwSwitch that
@@ -194,18 +247,19 @@ def getgriport(hwswitch,core,griport):
     """
     hwswitchname = hwswitch.resourceName
     corename = core.resourceName
-    links = getlinks(corename, hwswitchname)
+
+    links = getlinks2(topology, corename, hwswitchname)
     if links == None or len(links) == 0:
         print "No links from",corename,"to",hwswitchname
         return False
     corelink = None
     for link in links:
-        (node,port) = linkednode (link, hwswitchname)
+        (node,port) = linkednode2(link, hwswitchname)
         if port != None and port == griport:
             # found the link between HwSwith and Core that ends to the OSCARS circuit.
             corelink = link
             break
-    (node,hwport_tocore) = linkednode (corelink,corename)
+    (node,hwport_tocore) = linkednode2(corelink,corename)
     return hwport_tocore
 
 def connectmac(localpop,
@@ -242,11 +296,13 @@ def connectmac(localpop,
     (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecorename)
 
     # Find hwswitch/port - core/port
+    topology = Container.getContainer(localpop.properties['HwSwitch']['containerName'])
+
     hwswitch = Container.fromAnchor(localpop.properties['HwSwitch'])
-    hwport_tocore = getgriport(hwswitch,core,coreport)
+    hwport_tocore = getgriport(topology, hwswitch, core, coreport)
     # Find remotehwswitch/port - remotecore/port
     remotehwswitch = Container.fromAnchor(remotepop.properties['HwSwitch'])
-    remotehwport_tocore = getgriport(remotehwswitch,remotecore,remotecoreport)
+    remotehwport_tocore = getgriport(topology, remotehwswitch, remotecore, remotecoreport)
 
     # Find the port on the HwSwitch that is connected to the host's port
     hwport_tosite = localsiteport
@@ -303,15 +359,16 @@ def connecthostbroadcast(localpop,
     hwswitchname = hwswitch.resourceName
     swswitch = Container.fromAnchor(localpop.properties['SwSwitch'])
     swswitchname = swswitch.resourceName
+    topology = Container.getContainer(localpop.properties['SwSwitch']['containerName'])
 
     # Find the port on the HwSwitch connected to the software switch
-    links = getlinks(hwswitchname, swswitchname)
+    links = getlinks2(topology, hwswitchname, swswitchname)
     if links == None or len(links) == 0:
         print "No links from", hwswitchname, "to", swswitchname
         return False
     hwport_tosw = None
     for link in links:
-        (node, port) = linkednode(link, swswitchname)
+        (node, port) = linkednode2(link, swswitchname)
         if port != None:
             # Found the link we're looking for
             hwport_tosw = port
@@ -377,18 +434,19 @@ def connectentryfanoutmac(localpop,
     hwswitchname = hwswitch.resourceName
     swswitch = Container.fromAnchor(localpop.properties['SwSwitch'])
     swswitchname = swswitch.resourceName
+    topology = Container.getContainer(localpop.properties['SwSwitch']['containerName'])
 
     # print "connectentryfanout localpop", localpop, "host", host, "hostvlan", hostvlan, "mac", mac
 
     # Find the port on the software switch connected to the hardware switch
-    links = getlinks(swswitchname, hwswitchname)
+    links = getlinks2(topology, swswitchname, hwswitchname)
     if links == None or len(links) == 0:
         print "No links from", swswitchname, "to", hwswitchname
         return None
     hwswitchlink = None
     swport_tohw = None
     for link in links:
-        (node, port) = linkednode(link, hwswitchname)
+        (node, port) = linkednode2(link, hwswitchname)
         if port != None:
             # Found it!
             hwswitchlink = link
@@ -444,18 +502,19 @@ def connectexitfanout(localpop,
     hwswitchname = hwswitch.resourceName
     swswitch = Container.fromAnchor(localpop.properties['SwSwitch'])
     swswitchname = swswitch.resourceName
+    topology = Container.getContainer(localpop.properties['SwSwitch']['containerName'])
 
     # print "connectexitfanout localpop", localpop, "corevlan", corevlan, "mac", mac
 
     # Find the port on the software switch connected to the hardware switch
-    links = getlinks(swswitchname, hwswitchname)
+    links = getlinks2(topology, swswitchname, hwswitchname)
     if links == None or len(links) == 0:
         print "No links from", swswitchname, "to", hwswitchname
         return None
     hwswitchlink = None
     swport_tohw = None
     for link in links:
-        (node, port) = linkednode(link, hwswitchname)
+        (node, port) = linkednode2(link, hwswitchname)
         if port != None:
             # Found it!
             hwswitchlink = link
@@ -577,31 +636,33 @@ def swconnect(localpop, remotepop, mac, gri, meter):
     remoteswswitch = Container.fromAnchor(remotepop.properties['SwSwitch'])
     remoteswswitchname = remoteswswitch.resourceName
 
-    # Find hwswitch/port - core/port
-    hwport_tocore = getgriport(hwswitch,core,coreport)
-    # Find remotehwswitch/port - remotecore/port
-    remotehwport_tocore = getgriport(remotehwswitch,remotecore,remotecoreport)
+    topology = Container.getContainer(localpop.properties['SwSwitch']['containerName'])
 
-    links = getlinks(hwswitchname, swswitchname)
+    # Find hwswitch/port - core/port
+    hwport_tocore = getgriport(topology, hwswitch, core, coreport)
+    # Find remotehwswitch/port - remotecore/port
+    remotehwport_tocore = getgriport(topology, remotehwswitch, remotecore, remotecoreport)
+
+    links = getlinks2(topology, hwswitchname, swswitchname)
     if links == None or len(links) == 0:
         print "No links from ", hwswitchname, " to ", swswitchname
         return None
     hwswlink = None
     for l in links:
-        (node, port) = linkednode(l, swswitchname)
+        (node, port) = linkednode2(l, swswitchname)
         if port != None:
             # Found the (a) link
             hwswlink = l
             hwport_tosw = port
             break
 
-    remotelinks = getlinks(remotehwswitchname, remoteswswitchname)
+    remotelinks = getlinks2(topology, remotehwswitchname, remoteswswitchname)
     if remotelinks == None or len(remotelinks) == 0:
         print "No links from ", remotehwswitchname, " to ", remoteswswitchname
         return None
     remotehwswlink = None
     for l in remotelinks:
-        (node, port) = linkednode(l, remoteswswitchname)
+        (node, port) = linkednode2(l, remoteswswitchname)
         if port != None:
             # Found the (a) link
             remotehwswlink = l
