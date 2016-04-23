@@ -18,13 +18,14 @@
 # publicly and display publicly, and to permit other to do so.
 #
 import struct
+import array
 import jarray
+import binascii
 from java.math import BigInteger
 
+from net.es.netshell.api import Container
+
 from layer2.testbed.oscars import getgri,getgrinode,displaygri,griendpoints
-from layer2.testbed.topology import TestbedTopology,getlinks,linkednode
-from layer2.odl.ofctl import corsaforward
-from layer2.testbed.topology import TestbedTopology
 
 import sys
 if "debugNoController" in dir(sys) and sys.debugNoController:
@@ -98,6 +99,60 @@ def display(host):
             datastatus = "Reserved for OVS"
         print "\t\tname", interface['name'],"mac",interface['mac'],datastatus
 
+def getlinks2(topology, node1, node2):
+    """
+    Return all of the links between two nodes in a topology
+    :param topology: (topology object)
+    :param node1: (string)
+    :param node2: (string)
+    :return: list of node objects (resources)
+    """
+    allLinks = topology.loadResources({"resourceType":"Link"})
+    links = []
+    for l in allLinks:
+        (dstNode,dstPort) = linkednode2(l,node1)
+        if (dstNode,dstPort) == (None, None):
+            continue
+        (dstNode,dstPort) = linkednode2(l,node2)
+        if (dstNode,dstPort) == (None, None):
+            continue
+        links.append(l)
+    return links
+
+def parselink2(link):
+    """
+    Parse the name of a link and return a list of parsed elements.
+    Names are in the form:  "atla-cr5--10/1/10--atla-tb-of-1--23".
+    XXX WAN links have different names.  We need to parse them
+    differently to get the endpoints.
+    :param link: link object as resource
+    :return: 5-tuple of source node and port, destination node and port, and VLAN (all strings)
+    """
+    [srcNode,srcPort,dstNode,dstPort] = link.resourceName.split("--")
+    return (srcNode,srcPort,dstNode,dstPort,"0")
+
+def linkednode2(link, host, port= None):
+    """
+    Retrieve the host/port connected to provide host/port
+    :param link: link object as resource
+    :param host: name of host (string)
+    :param port: optional (string)
+    :return: name of node (string), name of port (string)
+    """
+    (srcNode,srcPort,dstNode,dstPort,vlan) = parselink2(link)
+
+    if (port != None):
+        if (srcNode,srcPort) == (host,port):
+            return (dstNode,dstPort)
+        elif (dstNode,dstPort) == (host,port):
+            return (srcNode,srcPort)
+        return (None,None)
+    if srcNode == host:
+        return (dstNode,dstPort)
+    elif dstNode == host:
+        return (srcNode,srcPort)
+    return (None,None)
+
 def setcallback(cb):
     SCC.setCallback(cb)
     print "callback set"
@@ -107,7 +162,7 @@ def clearcallback():
     print "callback cleared"
 
 def setmeter(switch, meter, cr, cbs, er, ebs):
-    return SCC.SdnInstallMeter(javaByteArray(switch.props['dpid']), meter, cr, cbs, er, ebs)
+    return SCC.SdnInstallMeter(javaByteArray2(switch.properties['DPID']), meter, cr, cbs, er, ebs)
 
 def connectremoteplanemac(remotesw,
                           hostmac,
@@ -131,7 +186,7 @@ def connectremoteplanemac(remotesw,
     baseid = hostmac + ":"+str(hostvlan)+"-"+gri.getName()
     flowid = baseid + "from-remote-host"
 
-    fh = SCC.SdnInstallForward1(javaByteArray(remotesw.props['dpid']),
+    fh = SCC.SdnInstallForward1(javaByteArray2(remotesw.properties['DPID']),
                                 1,
                                 BigInteger.ZERO,
                                 str(remotehost_port),
@@ -167,7 +222,7 @@ def connectdataplanemac(hostmac,
     # Forward inbound WAN traffic from core router to local site/host.
     # Also de-translate destination MAC address if necessary.
     flowid = baseid + "-to-host"
-    fh = SCC.SdnInstallForward1(javaByteArray(sw.props['dpid']),
+    fh = SCC.SdnInstallForward1(javaByteArray2(sw.properties['DPID']),
                                 1,
                                 BigInteger.ZERO,
                                 str(tocoreport),
@@ -184,26 +239,27 @@ def connectdataplanemac(hostmac,
 
 
 
-def getgriport(hwswitch,core,griport):
+def getgriport(topology,hwswitch,core,griport):
     """
     In the following logical topology <Host> - <HwSwitch> - <Core Router>, the OSCARS circuits ends onto the
     port on the core router connected to the HwSwitch. This function returns the port on the HwSwitch that
     is connected to the the core router when the OSCARS circuit terminates.
     """
-    hwswitchname = hwswitch.name
-    corename = core.name
-    links = getlinks(corename, hwswitchname)
+    hwswitchname = hwswitch.resourceName
+    corename = core.resourceName
+
+    links = getlinks2(topology, corename, hwswitchname)
     if links == None or len(links) == 0:
         print "No links from",corename,"to",hwswitchname
         return False
     corelink = None
     for link in links:
-        (node,port) = linkednode (link, hwswitchname)
+        (node,port) = linkednode2(link, hwswitchname)
         if port != None and port == griport:
             # found the link between HwSwith and Core that ends to the OSCARS circuit.
             corelink = link
             break
-    (node,hwport_tocore) = linkednode (corelink,corename)
+    (node,hwport_tocore) = linkednode2(corelink,corename)
     return hwport_tocore
 
 def connectmac(localpop,
@@ -220,8 +276,8 @@ def connectmac(localpop,
     Given a pair of sites, and a host at one of the sites, set up one-way forwarding to get
     unicast packets to the host.
     This function takes care of finding the hardware switch and inter-POP ports.
-    :param localpop:        SDNpop
-    :param remotepop:       SDNpop
+    :param localpop:        POP object
+    :param remotepop:       POP object
     :param localsitevlan:   VLAN tag
     :param localsiteport:   local hardware switch port for site attachment
     :param remotesitevlan:  VLAN tag
@@ -232,19 +288,21 @@ def connectmac(localpop,
     :param host_rewritemac: translated local host MAC address
     :return: List of FlowHandles
     """
-    core = localpop.props['coreRouter']
-    corename = core.name
+    core = Container.fromAnchor(localpop.properties['CoreRouter'])
+    corename = core.resourceName
     (corename,coredom,coreport,corevlan) = getgrinode(gri,corename)
-    remotecore = remotepop.props['coreRouter']
-    remotecorename = remotecore.name
+    remotecore = Container.fromAnchor(remotepop.properties['CoreRouter'])
+    remotecorename = remotecore.resourceName
     (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecorename)
 
     # Find hwswitch/port - core/port
-    hwswitch = localpop.props['hwSwitch']
-    hwport_tocore = getgriport(hwswitch,core,coreport)
+    topology = Container.getContainer(localpop.properties['HwSwitch']['containerName'])
+
+    hwswitch = Container.fromAnchor(localpop.properties['HwSwitch'])
+    hwport_tocore = getgriport(topology, hwswitch, core, coreport)
     # Find remotehwswitch/port - remotecore/port
-    remotehwswitch = remotepop.props['hwSwitch']
-    remotehwport_tocore = getgriport(remotehwswitch,remotecore,remotecoreport)
+    remotehwswitch = Container.fromAnchor(remotepop.properties['HwSwitch'])
+    remotehwport_tocore = getgriport(topology, remotehwswitch, remotecore, remotecoreport)
 
     # Find the port on the HwSwitch that is connected to the host's port
     hwport_tosite = localsiteport
@@ -297,19 +355,20 @@ def connecthostbroadcast(localpop,
     :return:
     """
 
-    hwswitch = localpop.props['hwSwitch']
-    hwswitchname = hwswitch.name
-    swswitch = localpop.props['swSwitch']
-    swswitchname = swswitch.name
+    hwswitch = Container.fromAnchor(localpop.properties['HwSwitch'])
+    hwswitchname = hwswitch.resourceName
+    swswitch = Container.fromAnchor(localpop.properties['SwSwitch'])
+    swswitchname = swswitch.resourceName
+    topology = Container.getContainer(localpop.properties['SwSwitch']['containerName'])
 
     # Find the port on the HwSwitch connected to the software switch
-    links = getlinks(hwswitchname, swswitchname)
+    links = getlinks2(topology, hwswitchname, swswitchname)
     if links == None or len(links) == 0:
         print "No links from", hwswitchname, "to", swswitchname
         return False
     hwport_tosw = None
     for link in links:
-        (node, port) = linkednode(link, swswitchname)
+        (node, port) = linkednode2(link, swswitchname)
         if port != None:
             # Found the link we're looking for
             hwport_tosw = port
@@ -320,7 +379,7 @@ def connecthostbroadcast(localpop,
     if broadcast_rewritemac != None:
         translated_broadcast = broadcast_rewritemac
 
-    fh1 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+    fh1 = SCC.SdnInstallForward1(javaByteArray2(hwswitch.properties['DPID']),
                            1,
                            BigInteger.ZERO,
                            str(hwport_tosw),
@@ -336,7 +395,7 @@ def connecthostbroadcast(localpop,
     if fh1 == None:
         return None
 
-    fh2 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+    fh2 = SCC.SdnInstallForward1(javaByteArray2(hwswitch.properties['DPID']),
                            1,
                            BigInteger.ZERO,
                            str(hwport_tosite),
@@ -371,22 +430,23 @@ def connectentryfanoutmac(localpop,
     :param mac:
     :return: SdnControllerClientFlowHandle
     """
-    hwswitch = localpop.props['hwSwitch']
-    hwswitchname = hwswitch.name
-    swswitch = localpop.props['swSwitch']
-    swswitchname = swswitch.name
+    hwswitch = Container.fromAnchor(localpop.properties['HwSwitch'])
+    hwswitchname = hwswitch.resourceName
+    swswitch = Container.fromAnchor(localpop.properties['SwSwitch'])
+    swswitchname = swswitch.resourceName
+    topology = Container.getContainer(localpop.properties['SwSwitch']['containerName'])
 
     # print "connectentryfanout localpop", localpop, "host", host, "hostvlan", hostvlan, "mac", mac
 
     # Find the port on the software switch connected to the hardware switch
-    links = getlinks(swswitchname, hwswitchname)
+    links = getlinks2(topology, swswitchname, hwswitchname)
     if links == None or len(links) == 0:
         print "No links from", swswitchname, "to", hwswitchname
         return None
     hwswitchlink = None
     swport_tohw = None
     for link in links:
-        (node, port) = linkednode(link, hwswitchname)
+        (node, port) = linkednode2(link, hwswitchname)
         if port != None:
             # Found it!
             hwswitchlink = link
@@ -408,7 +468,7 @@ def connectentryfanoutmac(localpop,
     # print "dpid", swswitch.props['dpid']
     # This flow being installed is unusual in that it does a source MAC address
     # filter as well
-    fh = SCC.SdnInstallForward(javaByteArray(swswitch.props['dpid']),
+    fh = SCC.SdnInstallForward(javaByteArray2(swswitch.properties['DPID']),
                                1,
                                BigInteger.ZERO,
                                str(swport_tohw),
@@ -438,22 +498,23 @@ def connectexitfanout(localpop,
     :return: SDNControllerClientFlowHandle
     """
 
-    hwswitch = localpop.props['hwSwitch']
-    hwswitchname = hwswitch.name
-    swswitch = localpop.props['swSwitch']
-    swswitchname = swswitch.name
+    hwswitch = Container.fromAnchor(localpop.properties['HwSwitch'])
+    hwswitchname = hwswitch.resourceName
+    swswitch = Container.fromAnchor(localpop.properties['SwSwitch'])
+    swswitchname = swswitch.resourceName
+    topology = Container.getContainer(localpop.properties['SwSwitch']['containerName'])
 
     # print "connectexitfanout localpop", localpop, "corevlan", corevlan, "mac", mac
 
     # Find the port on the software switch connected to the hardware switch
-    links = getlinks(swswitchname, hwswitchname)
+    links = getlinks2(topology, swswitchname, hwswitchname)
     if links == None or len(links) == 0:
         print "No links from", swswitchname, "to", hwswitchname
         return None
     hwswitchlink = None
     swport_tohw = None
     for link in links:
-        (node, port) = linkednode(link, hwswitchname)
+        (node, port) = linkednode2(link, hwswitchname)
         if port != None:
             # Found it!
             hwswitchlink = link
@@ -471,7 +532,7 @@ def connectexitfanout(localpop,
     fwdsarr = jarray.array(forwards, SdnControllerClientL2Forward)
 
     # print "dpid", swswitch.props['dpid']
-    fh = SCC.SdnInstallForward(javaByteArray(swswitch.props['dpid']),
+    fh = SCC.SdnInstallForward(javaByteArray2(swswitch.properties['DPID']),
                                1,
                                BigInteger.ZERO,
                                str(swport_tohw),
@@ -485,7 +546,8 @@ def connectexitfanout(localpop,
 
     return fh
 
-def connectgrimac(hostmac,
+def connectgrimac(topology,
+                  hostmac,
                   siteport,
                   sitevlan,
                   sitepop,
@@ -497,31 +559,44 @@ def connectgrimac(hostmac,
     """
     Set up forwarding entries to connect a host to a remote POP via a given GRI.
     This function takes care of figuring out the POPs involved.
+    :param topology:        Topology/Container, needed for finding GRI endpoints
     :param hostmac:         MAC address of source (string)
     :param siteport:        port on hardware switch facing site
     :param sitevlan:        VLAN to site
-    :param sitepop:         SDNpop
+    :param sitepop:         POP object
     :param remotesiteport:  port on remote hardware switch facing remote site
     :param remotesitevlan:  VLAN to site
     :param gri:
     :param meter:           meter
     :param host_rewritemac: Translated MAC address (string)
-    :return: List of FlowHandles or False
+    :return: List of FlowHandles or None
     """
     # Get both endpoints of the GRI
     (e1,e2) = griendpoints(gri)
-    core1 = topo.builder.switchIndex[e1[1]]
-    core2 = topo.builder.switchIndex[e2[1]]
-    pop1 = core1.props['pop']
-    pop2 = core2.props['pop']
-    remotepop = None
-    if sitepop.name == pop1.name:
-        remotepop = pop2
-    elif sitepop.name == pop2.name:
-        remotepop = pop1
+    core1 = topology.loadResource(e1[1])
+    if 'Role' not in core1.properties.keys() or core1.properties['Role'] != 'CoreRouter' or 'Pop' not in core1.properties.keys():
+        print core1.resourceName, "is not a core router"
+        return None
+    core2 = topology.loadResource(e2[1])
+    if 'Role' not in core2.properties.keys() or core2.properties['Role'] != 'CoreRouter' or 'Pop' not in core2.properties.keys():
+        print core1.resourceName, "is not a core router"
+        return None
+    pop1name = core1.properties['Pop']
+    pop2name = core2.properties['Pop']
+
+    remotepopname = None
+    if sitepop.resourceName == pop1name:
+        remotepopname = pop2name
+    elif sitepop.resourceName == pop2name:
+        remotepopname = pop1name
+    if remotepopname == None:
+        print "gri", gri, "does not provide connectivity for", hostmac, "from", remotepop.resourceName, "to", sitepop.resourceName
+        return None
+
+    remotepop = topology.loadResource(remotepopname)
     if remotepop == None:
-        print "gri",gri, "does not provide connectivity for",hostmac,"from",remotepop.name,"to",sitepop.name
-        return False
+        print "Unable to retrieve remote POP", remotepopname
+        return None
 
     res = connectmac(localpop= sitepop,
                      remotepop= remotepop,
@@ -537,55 +612,57 @@ def connectgrimac(hostmac,
 
 def swconnect(localpop, remotepop, mac, gri, meter):
     """ Set up two-way connectivity between ports on the software switches for a given MAC
-    :param localpop:
-    :param remotepop:
+    :param localpop: POP object (Resource)
+    :param remotepop: POP object (Resource)
     :param mac:
     :param gri
     :param meter:
     :return: List of FlowHandles
     """
-    core = localpop.props['coreRouter']
-    corename = core.name
+    core = Container.fromAnchor(localpop.properties['CoreRouter'])
+    corename = core.resourceName
     (corename,coredom,coreport,corevlan) = getgrinode(gri,corename)
-    remotecore = remotepop.props['coreRouter']
-    remotecorename = remotecore.name
+    remotecore = Container.fromAnchor(remotepop.properties['CoreRouter'])
+    remotecorename = remotecore.resourceName
     (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecorename)
 
-    hwswitch = localpop.props['hwSwitch']
-    hwswitchname = hwswitch.name
-    swswitch = localpop.props['swSwitch']
-    swswitchname = swswitch.name
+    hwswitch = Container.fromAnchor(localpop.properties['HwSwitch'])
+    hwswitchname = hwswitch.resourceName
+    swswitch = Container.fromAnchor(localpop.properties['SwSwitch'])
+    swswitchname = swswitch.resourceName
 
-    remotehwswitch = remotepop.props['hwSwitch']
-    remotehwswitchname = remotehwswitch.name
-    remoteswswitch = remotepop.props['swSwitch']
-    remoteswswitchname = remoteswswitch.name
+    remotehwswitch = Container.fromAnchor(remotepop.properties['HwSwitch'])
+    remotehwswitchname = remotehwswitch.resourceName
+    remoteswswitch = Container.fromAnchor(remotepop.properties['SwSwitch'])
+    remoteswswitchname = remoteswswitch.resourceName
+
+    topology = Container.getContainer(localpop.properties['SwSwitch']['containerName'])
 
     # Find hwswitch/port - core/port
-    hwport_tocore = getgriport(hwswitch,core,coreport)
+    hwport_tocore = getgriport(topology, hwswitch, core, coreport)
     # Find remotehwswitch/port - remotecore/port
-    remotehwport_tocore = getgriport(remotehwswitch,remotecore,remotecoreport)
+    remotehwport_tocore = getgriport(topology, remotehwswitch, remotecore, remotecoreport)
 
-    links = getlinks(hwswitchname, swswitchname)
+    links = getlinks2(topology, hwswitchname, swswitchname)
     if links == None or len(links) == 0:
         print "No links from ", hwswitchname, " to ", swswitchname
         return None
     hwswlink = None
     for l in links:
-        (node, port) = linkednode(l, swswitchname)
+        (node, port) = linkednode2(l, swswitchname)
         if port != None:
             # Found the (a) link
             hwswlink = l
             hwport_tosw = port
             break
 
-    remotelinks = getlinks(remotehwswitchname, remoteswswitchname)
+    remotelinks = getlinks2(topology, remotehwswitchname, remoteswswitchname)
     if remotelinks == None or len(remotelinks) == 0:
         print "No links from ", remotehwswitchname, " to ", remoteswswitchname
         return None
     remotehwswlink = None
     for l in remotelinks:
-        (node, port) = linkednode(l, remoteswswitchname)
+        (node, port) = linkednode2(l, remoteswswitchname)
         if port != None:
             # Found the (a) link
             remotehwswlink = l
@@ -596,7 +673,7 @@ def swconnect(localpop, remotepop, mac, gri, meter):
 
     # Set up forwarding for broadcast traffic from the new local pop
     # Install outbound flow on hwswitch from swswitch to the GRI
-    fh1 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+    fh1 = SCC.SdnInstallForward1(javaByteArray2(hwswitch.properties['DPID']),
                            1,
                            BigInteger.ZERO,
                            str(hwport_tosw), # hw port facing software switch
@@ -613,7 +690,7 @@ def swconnect(localpop, remotepop, mac, gri, meter):
         return None
 
     # Install inbound flow on remotehwswitch from GRI to remoteswswitch
-    fh2 = SCC.SdnInstallForward1(javaByteArray(remotehwswitch.props['dpid']),
+    fh2 = SCC.SdnInstallForward1(javaByteArray2(remotehwswitch.properties['DPID']),
                            1,
                            BigInteger.ZERO,
                            str(remotehwport_tocore),
@@ -632,7 +709,7 @@ def swconnect(localpop, remotepop, mac, gri, meter):
 
     # Set up forwarding for broadcast traffic to the new local pop
     # Install inbound flow on hwswitch from GRI to swswitch
-    fh3 = SCC.SdnInstallForward1(javaByteArray(hwswitch.props['dpid']),
+    fh3 = SCC.SdnInstallForward1(javaByteArray2(hwswitch.properties['DPID']),
                            1,
                            BigInteger.ZERO,
                            str(hwport_tocore),
@@ -651,7 +728,7 @@ def swconnect(localpop, remotepop, mac, gri, meter):
         return None
 
     # Install outbound flow on remotehwswitch from remoteswswitch to GRI
-    fh4 = SCC.SdnInstallForward1(javaByteArray(remotehwswitch.props['dpid']),
+    fh4 = SCC.SdnInstallForward1(javaByteArray2(remotehwswitch.properties['DPID']),
                            1,
                            BigInteger.ZERO,
                            str(remotehwport_tosw), # remotehw port facing remote software switch
@@ -693,6 +770,13 @@ def javaByteArray(a):
         b[i] = struct.unpack('b', struct.pack('B', a[i]))[0]
     return b
 
+def javaByteArray2(s):
+    """
+    Make a Java array of bytes from a string of hex digits.
+    """
+    a = array.array('B', binascii.unhexlify(s))
+    return javaByteArray(a)
+
 def print_syntax():
     print
     print "hostctl <cmd> <cmds options>"
@@ -708,14 +792,7 @@ def print_syntax():
     print "\trem-user <host-name> user <user-name>: remove user from a host."
     print
 
-# Retrieve topology
-if not 'topo' in globals() or topo == None:
-    topo = TestbedTopology()
-    globals()['topo'] = topo
-
-
 if __name__ == '__main__':
-    global topo
     argv = sys.argv
 
     cmd = argv[1]

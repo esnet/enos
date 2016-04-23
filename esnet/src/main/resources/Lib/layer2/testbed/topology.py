@@ -128,7 +128,9 @@ class TestbedTopology (GenericTopologyProvider):
 def linkednode(link,host,port=None):
     """
     Retrieve the host/port connected to provide host/port
-    :param host:
+    :param link:
+    :param host: name of host (string)
+    :param port: optional (string)
     :return:
     """
     (srcNode,srcPort,dstNode,dstPort,vlan) = parselink(link)
