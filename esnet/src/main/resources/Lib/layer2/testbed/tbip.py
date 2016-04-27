@@ -28,8 +28,9 @@ PROPERTIES = 'properties'
 
 DNSNAME = 'dnsname'
 NETMASK = 'netmask'
-RESOURCETYPE = 'type'
+HOSTTYPE = 'host-type'
 RESOURCEOWNER = 'owner'
+RESOURCETYPE = 'type'
 OPERATING_SYSTEM = 'operating_system'
 PROJECTID = 'projectID'
 DESCRIPTION = 'description'
@@ -40,8 +41,7 @@ IPV4_THIRD = 'ipv4_third_octet'
 IPV4_FOURTH = 'ipv4_fourth_octet'
 IPV4_INT = 'ipv4_int'
 
-DBQ_LESSER = '$lt'
-DBQ_GREATER = '$gte'
+IPRESOURCETYPE = 'ip'
 
 RETRY_ATTEMPTS = 3
 
@@ -50,8 +50,10 @@ RETRY_ATTEMPTS = 3
 class IPManagement(object):
     """ IPManagement class provides the API to allocate and deallocate IPs"""
 
-    IPCONTAINER = 'ControlPlaneAddressing'
+    IPCONTAINER = 'IPAddress'
     IPBASE = 256
+    DBQ_LESSER = '$lt'
+    DBQ_GREATER = '$gte'
 
     @staticmethod
     def get_ipcontainer():
@@ -157,8 +159,6 @@ class IPManagement(object):
         ipaddress = IPManagement.join_ip(ipoctet)
         return ipaddress
 
-
-
     @staticmethod
     def get_available_ip(lowip, highip):
         """ This method gets available ip address in the specified address"""
@@ -212,8 +212,9 @@ def register_ip(dnsname, owner, pid, resourcetype, osname, description, ipaddres
 
     ipresource = Resource(ipaddress)
     ipresource.properties[DNSNAME] = dnsname
+    ipresource.properties[RESOURCETYPE] = IPRESOURCETYPE
     ipresource.properties[RESOURCEOWNER] = owner
-    ipresource.properties[RESOURCETYPE] = resourcetype
+    ipresource.properties[HOSTTYPE] = resourcetype
     ipresource.properties[OPERATING_SYSTEM] = osname
     ipresource.properties[PROJECTID] = pid
     ipresource.properties[DESCRIPTION] = description
@@ -306,7 +307,7 @@ def print_help():
     print "\t\tRegisters IP resource"
     print "\tdelete <ip> "
     print "\t\tDeletes IP resource"
-    print "\tget <lowip> <highip> "
+    print "\tgetip <lowip> <highip> "
     print "\t\tGet next available IP in the range"
     print "\tallocate <dnsname>  <owner> <projectid> <type> <os> <description> \
 <lowip> <highip> <netmask>"
