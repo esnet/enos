@@ -238,6 +238,53 @@ def createcorelinks(containername,popsname,vlanbase=defaultvlanbase,maxiter=defa
         printLink(links,link)
         printLink(links,rlink)
 
+def loadcorelinks(containername, popsname, filename):
+    pops = Container.getContainer(popsname)
+    core = createtopo(containername)
+
+    with open(filename, "r") as ins:
+        for line in ins:
+            (srcnodename, srcport, srcvlan, dstnodename, dstport, dstvlan) = line.strip('\n').split(':')
+            if (srcvlan != dstvlan):
+                print "error:  VLAN mismatch: ", srcvlan, "!=", dstvlan
+                return
+            vlan = srcvlan
+
+            coresrcnode = core.loadResource(srcnodename)
+            if coresrcnode == None:
+                # Does not exist yet, create it
+                coresrcnode = addnode(core.getResourceName(), srcnodename)
+                popssrcnode = pops.loadResource(srcnodename)
+                # popssrcnode should have properties["Role"] = "CoreRouter"
+                coresrcnode.properties[Pop] = popssrcnode.properties[Pop]
+                coresrcnode.setParentResourceAnchor(pops.getResourceAnchor(popssrcnode))
+                core.saveResource(coresrcnode)
+
+            coredstnode = core.loadResource(dstnodename)
+            if coredstnode == None:
+                # Does not exist yet, create it
+                coredstnode = addnode(core.getResourceName(), dstnodename)
+                popsdstnode = pops.loadResource(dstnodename)
+                # popsdstnode should have properties["Role"] = "CoreRouter"
+                coredstnode.properties[Pop] = popsdstnode.properties[Pop]
+                coredstnode.setParentResourceAnchor(pops.getResourceAnchor(popsdstnode))
+                core.saveResource(coredstnode)
+
+            # The input file is assumed to consist of unidirectional links, so we only
+            # create one link per entry here.
+            link = addlink(topology= core.getResourceName(),
+                           linkname= coresrcnode.properties[Pop] + "--" + coredstnode.properties[Pop],
+                           srcnodename= coresrcnode.getResourceName(),
+                           srcportname= srcport,
+                           dstnodename= coredstnode.getResourceName(),
+                           dstportname= dstport,
+                           srcvlan= srcvlan,
+                           dstvlan= dstvlan)
+
+            if link == None:
+                print "cannot create " + srcnodename + " to " + dstnodename
+            printLink(core,link)
+
 def print_syntax():
     print "ESnet Testbed Utility"
     print "tbctl <cmd> <cmds options>"
@@ -250,6 +297,8 @@ def print_syntax():
     print "\tcreate-pops <container name> inv <container name>"
     print "\tcreate-corelinks <container name> pops <container name> vlan <base vlan> [max <max. vlan iteration>]"
     print "\t\tcreates the links between POP's."
+    print "\tload-corelinks <container name> pops <container name> file <filename>"
+    print "\t\tcreate core links between POPs from the output of create-corelinks"
     print "\tgetpath <container> src <src node> dst <dst node>"
 
 if __name__ == '__main__':
@@ -277,3 +326,11 @@ if __name__ == '__main__':
             vlanbase = int(argv[6])
             maxiter = int(argv[8])
         createcorelinks(topology,pops,vlanbase,maxiter)
+    elif cmd == "load-corelinks":
+        topology = argv[2]
+        pops = argv[4]
+        filename = argv[6]
+        loadcorelinks(topology, pops, filename)
+    else:
+        print "unknown command"
+        print_syntax()
