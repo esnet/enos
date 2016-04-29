@@ -24,7 +24,7 @@ from layer2.testbed.topoctl import SrcPortKey,DstPortKey,NodeKey,VlanKey,toPortN
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns,poptopology,getPopRouter,testbedPops,defaultvlanbase,defaultvlaniter
 
-from net.es.netshell.api import Container,Link,Resource
+from net.es.netshell.api import Container,FileUtils,Link,Resource
 
 HwSwitch = "HwSwitch"
 SwSwitch = "SwSwitch"
@@ -241,8 +241,9 @@ def createcorelinks(containername,popsname,vlanbase=defaultvlanbase,maxiter=defa
 def loadcorelinks(containername, popsname, filename):
     pops = Container.getContainer(popsname)
     core = createtopo(containername)
+    filepath = FileUtils.toRealPath(filename).toString()
 
-    with open(filename, "r") as ins:
+    with open(filepath, "r") as ins:
         for line in ins:
             (srcnodename, srcport, srcvlan, dstnodename, dstport, dstvlan) = line.strip('\n').split(':')
             if (srcvlan != dstvlan):
@@ -256,7 +257,7 @@ def loadcorelinks(containername, popsname, filename):
                 coresrcnode = addnode(core.getResourceName(), srcnodename)
                 popssrcnode = pops.loadResource(srcnodename)
                 # popssrcnode should have properties["Role"] = "CoreRouter"
-                coresrcnode.properties[Pop] = popssrcnode.properties[Pop]
+                copyswitchprops(coresrcnode, pops, srcnodename)
                 coresrcnode.setParentResourceAnchor(pops.getResourceAnchor(popssrcnode))
                 core.saveResource(coresrcnode)
 
@@ -266,7 +267,7 @@ def loadcorelinks(containername, popsname, filename):
                 coredstnode = addnode(core.getResourceName(), dstnodename)
                 popsdstnode = pops.loadResource(dstnodename)
                 # popsdstnode should have properties["Role"] = "CoreRouter"
-                coredstnode.properties[Pop] = popsdstnode.properties[Pop]
+                copyswitchprops(coredstnode, pops, dstnodename)
                 coredstnode.setParentResourceAnchor(pops.getResourceAnchor(popsdstnode))
                 core.saveResource(coredstnode)
 
