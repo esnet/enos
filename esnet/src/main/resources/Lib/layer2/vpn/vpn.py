@@ -20,7 +20,8 @@ import binascii
 import logging,random
 from java.lang import Thread
 from layer2.common.mac import MACAddress
-from layer2.testbed.oscars import getgri,getcoregris,getgrinode
+# from layer2.testbed.oscars import getgri,getcoregris,getgrinode
+from layer2.testbed.vc import getvcnode
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns
 from layer2.vpn.mat import MAT
@@ -49,30 +50,6 @@ sites = {
     'denv' : {'name':"denv",'pop':'DENV','hwport':'2'},
     'star' : {'name':"star",'pop':'STAR','hwport':'8'}
 }
-
-def interconnect(site1,site2):
-    """
-    Given two sites, return a GRI to be used for VPN traffic between them.
-    Assumes that the first applicable GRI is the one to be used.
-    :param site1:
-    :param site2:
-    :return:
-    """
-    pop1 = site1['pop']
-    pop2 = site2['pop']
-    return interconnectpops(pop1,pop2)
-
-def interconnectpops(pop1,pop2):
-    """
-    Given two POPs, return a GRI to be used to VPN traffic between them.
-    Assumes that the first applicable GRI is the one to be used.
-    :param pop1: Name of POP
-    :param pop2: Name of POP
-    :return:
-    """
-    (x,gri) = getcoregris(pop1.upper(),pop2.upper()).items()[0]
-    return gri
-
 
 if not 'VPNlock' in globals():
     VPNlock = threading.Lock()
@@ -188,6 +165,8 @@ class VPNService(Resource):
             # We should accept a topology name as an argument
             self.properties['topology'] = "tbpops"
             self.topology = Container.getContainer(self.properties['topology'])
+            self.properties['coretopology'] = "tbcore"
+            self.coretopology = Container.getContainer(self.properties['coretopology'])
             self.saveService()
         else:
             self.loadService()
@@ -216,6 +195,7 @@ class VPNService(Resource):
         mapResource (obj=self,resource=stored)
         self.container = Container.getContainer("MultiPointVPNService")
         self.topology = Container.getContainer(self.properties['topology'])
+        self.coretopology = Container.getContainer(self.properties['coretopology'])
         self.vpns = eval(self.properties['vpns'])
         cache = globals()['vpns']
         cacheIndex = globals()['vpnIndex']
@@ -298,6 +278,29 @@ class VPN(Resource):
         self.hostsites = eval (self.properties['hostsites'])
         self.mat = MAT.deserialize(self.properties['mat'])
 
+    def interconnect(self, site1,site2): # XXX core topo!
+        """
+        Given two sites, return a GRI to be used for VPN traffic between them.
+        Assumes that the first applicable GRI is the one to be used.
+        :param site1:
+        :param site2:
+        :return: Link (Resource)
+        """
+        pop1 = site1['pop']
+        pop2 = site2['pop']
+        return self.interconnectpops(pop1,pop2)
+
+    def interconnectpops(self, pop1,pop2): # XXX core topo!
+        """
+        Given two POPs, return a GRI to be used to VPN traffic between them.
+        Assumes that the first applicable GRI is the one to be used.
+        :param pop1: Name of POP
+        :param pop2: Name of POP
+        :return: Link (Resource)
+        """
+        vc = vpnService.coretopology.loadResource(pop1.lower() + "--" + pop2.lower())
+        return vc
+
     def makeentryfanoutflows(self, localpop, hostmac, hostvlan, hostsite):
         # Create entry fanout flow on the software switch.  This flow fans out traffic
         # from the host/site to other hosts/sites on the same POP, as well as to all the
@@ -322,10 +325,10 @@ class VPN(Resource):
         # Locate other POPs
         for (otherpopname, otherpop) in self.pops.items():
             if otherpopname != localpop.resourceName:
-                gri = interconnectpops(localpop.resourceName, otherpopname)
+                vc = self.interconnectpops(localpop.resourceName, otherpopname)
                 core = Container.fromAnchor(localpop.properties['CoreRouter'])
                 coreresname = core.resourceName
-                (corename, coredom, coreport, corevlan) = getgrinode(gri, coreresname)
+                (corename, coredom, coreport, corevlan) = getvcnode(vc, coreresname)
                 fwd = SdnControllerClientL2Forward()
                 fwd.outPort = "0" # to be filled in by connectentryfanout
                 fwd.vlan = int(corevlan)
@@ -377,8 +380,8 @@ class VPN(Resource):
             if VPNMAT:
                 broadcastmac_mat = self.generateBroadcastMAC()
             for (remotepopname, remotepop) in self.pops.items():
-                gri = interconnectpops(pop.resourceName.upper(), remotepop.resourceName.upper())
-                fhs = swconnect(pop, remotepop, broadcastmac_mat, gri, self.meter)
+                vc = self.interconnectpops(pop.resourceName.upper(), remotepop.resourceName.upper())
+                fhs = swconnect(pop, remotepop, broadcastmac_mat, vc, self.meter)
                 self.popflows[remotepop.resourceName].extend(fhs)
                 fhlist.extend(fhs)
 
@@ -475,10 +478,10 @@ class VPN(Resource):
         for (srcpopname, srcpop) in self.pops.items():
             if srcpopname != localpopname:
                 # Get the VLAN coming from the core for this source POP
-                gri = interconnectpops(localpopname.upper(), srcpopname.upper())
+                vc = self.interconnectpops(localpopname.upper(), srcpopname.upper())
                 core = Container.fromAnchor(localpop.properties['CoreRouter'])
                 coreresname = core.resourceName
-                (corename, coredom, coreport, corevlan) = getgrinode(gri, coreresname)
+                (corename, coredom, coreport, corevlan) = getvcnode(vc, coreresname)
 
                 # If we already made an exit fanout flow for this source POP, delete it
                 if srcpopname in exitfanoutflows:
@@ -596,7 +599,7 @@ class VPN(Resource):
 
                 remotesite = sites[remotesitename]
 
-                gri = interconnect(hostsite, remotesite)
+                vc = self.interconnect(hostsite, remotesite)
                 remotevlan = self.vpnsitevlans[remotesite['name']]
                 remotepop = self.pops[remotesite['pop'].lower()]
 
@@ -613,7 +616,7 @@ class VPN(Resource):
                                     sitepop= localpop,
                                     remotesiteport= remotesite['hwport'],
                                     remotesitevlan= remotevlan,
-                                    gri= gri,
+                                    vc= vc,
                                     meter= self.meter,
                                     host_rewritemac= host_mat)
                 if fhs != None:
@@ -626,7 +629,7 @@ class VPN(Resource):
                                     sitepop= remotepop,
                                     remotesiteport= hostsite['hwport'],
                                     remotesitevlan= vlan,
-                                    gri= gri,
+                                    vc= vc,
                                     meter= self.meter,
                                     host_rewritemac= remotehost_mat)
                 if fhs != None:

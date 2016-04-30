@@ -25,7 +25,8 @@ from java.math import BigInteger
 
 from net.es.netshell.api import Container
 
-from layer2.testbed.oscars import getgri,getgrinode,displaygri,griendpoints
+# from layer2.testbed.oscars import getgri,getgrinode,displaygri,griendpoints
+from layer2.testbed.vc import vcendpoints, getvcnode
 
 import sys
 if "debugNoController" in dir(sys) and sys.debugNoController:
@@ -171,7 +172,7 @@ def connectremoteplanemac(remotesw,
                           remotehost_vlan,
                           remotehwport_tocore,
                           corevlan,
-                          gri,
+                          vc,
                           meter=3,
                           host_rewritemac = None):
     """
@@ -183,7 +184,7 @@ def connectremoteplanemac(remotesw,
     if host_rewritemac != None:
         translated_hostmac = host_rewritemac
 
-    baseid = hostmac + ":"+str(hostvlan)+"-"+gri.getName()
+    baseid = hostmac + ":" + str(hostvlan) + "-" + vc.getResourceName()
     flowid = baseid + "from-remote-host"
 
     fh = SCC.SdnInstallForward1(javaByteArray2(remotesw.properties['DPID']),
@@ -207,14 +208,14 @@ def connectdataplanemac(hostmac,
                         tohostport,
                         tocoreport,
                         tocorevlan,
-                        gri,
+                        vc,
                         meter=3,
                         host_rewritemac = None):
     """
     Set up forwarding entries on the switches local to a host.
     Returns a FlowHandle.
     """
-    baseid = hostmac +":"+str(hostvlan)+"-"+gri.getName()
+    baseid = hostmac + ":" + str(hostvlan) + "-" + vc.getResourceName()
     translated_hostmac = hostmac
     if host_rewritemac != None:
         translated_hostmac = host_rewritemac
@@ -269,7 +270,7 @@ def connectmac(localpop,
                remotesiteport,
                remotesitevlan,
                hostmac,
-               gri,
+               vc,
                meter=3,
                host_rewritemac = None):
     """
@@ -283,17 +284,17 @@ def connectmac(localpop,
     :param remotesitevlan:  VLAN tag
     :param remotesiteport:  remote hardware switch port for site attachment
     :param hostmac:         local host MAC address (string)
-    :param gri:
+    :param vc:
     :param meter:
     :param host_rewritemac: translated local host MAC address
     :return: List of FlowHandles
     """
     core = Container.fromAnchor(localpop.properties['CoreRouter'])
     corename = core.resourceName
-    (corename,coredom,coreport,corevlan) = getgrinode(gri,corename)
+    (corename,coredom,coreport,corevlan) = getvcnode(vc,corename)
     remotecore = Container.fromAnchor(remotepop.properties['CoreRouter'])
     remotecorename = remotecore.resourceName
-    (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecorename)
+    (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getvcnode(vc,remotecorename)
 
     # Find hwswitch/port - core/port
     topology = Container.getContainer(localpop.properties['HwSwitch']['containerName'])
@@ -313,7 +314,7 @@ def connectmac(localpop,
                               tohostport= hwport_tosite,
                               tocoreport= hwport_tocore,
                               tocorevlan= corevlan,
-                              gri= gri,
+                              vc= vc,
                               meter= meter,
                               host_rewritemac= host_rewritemac)
     if fh1 == None:
@@ -329,7 +330,7 @@ def connectmac(localpop,
                                 remotehost_vlan= remotesitevlan,
                                 remotehwport_tocore= remotehwport_tocore,
                                 corevlan= corevlan,
-                                gri= gri,
+                                vc= vc,
                                 meter= meter,
                                 host_rewritemac= host_rewritemac)
     if fh2 == None:
@@ -553,7 +554,7 @@ def connectgrimac(topology,
                   sitepop,
                   remotesiteport,
                   remotesitevlan,
-                  gri,
+                  vc,
                   meter=3,
                   host_rewritemac=None):
     """
@@ -566,13 +567,13 @@ def connectgrimac(topology,
     :param sitepop:         POP object
     :param remotesiteport:  port on remote hardware switch facing remote site
     :param remotesitevlan:  VLAN to site
-    :param gri:
+    :param vc:
     :param meter:           meter
     :param host_rewritemac: Translated MAC address (string)
     :return: List of FlowHandles or None
     """
     # Get both endpoints of the GRI
-    (e1,e2) = griendpoints(gri)
+    (e1,e2) = vcendpoints(vc)
     core1 = topology.loadResource(e1[1])
     if 'Role' not in core1.properties.keys() or core1.properties['Role'] != 'CoreRouter' or 'Pop' not in core1.properties.keys():
         print core1.resourceName, "is not a core router"
@@ -590,7 +591,7 @@ def connectgrimac(topology,
     elif sitepop.resourceName == pop2name:
         remotepopname = pop1name
     if remotepopname == None:
-        print "gri", gri, "does not provide connectivity for", hostmac, "from", remotepop.resourceName, "to", sitepop.resourceName
+        print "vc", vc, "does not provide connectivity for", hostmac, "from", remotepop.resourceName, "to", sitepop.resourceName
         return None
 
     remotepop = topology.loadResource(remotepopname)
@@ -605,26 +606,32 @@ def connectgrimac(topology,
                      remotesiteport= remotesiteport,
                      remotesitevlan= remotesitevlan,
                      hostmac= hostmac,
-                     gri= gri,
+                     vc= vc,
                      meter = meter,
                      host_rewritemac= host_rewritemac)
     return res
 
-def swconnect(localpop, remotepop, mac, gri, meter):
+def swconnect(localpop, remotepop, mac, vc, meter):
     """ Set up two-way connectivity between ports on the software switches for a given MAC
     :param localpop: POP object (Resource)
     :param remotepop: POP object (Resource)
     :param mac:
-    :param gri
+    :param vc
     :param meter:
     :return: List of FlowHandles
     """
+    print "swconnect entry with vc", vc.resourceName
     core = Container.fromAnchor(localpop.properties['CoreRouter'])
     corename = core.resourceName
-    (corename,coredom,coreport,corevlan) = getgrinode(gri,corename)
+    print "corename", corename
+    print getvcnode(vc, corename)
+    (corename,coredom,coreport,corevlan) = getvcnode(vc, corename)
     remotecore = Container.fromAnchor(remotepop.properties['CoreRouter'])
     remotecorename = remotecore.resourceName
-    (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getgrinode(gri,remotecorename)
+    print "remotecorename", remotecorename
+    (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getvcnode(vc, remotecorename)
+
+    print corename, "<->", remotecorename
 
     hwswitch = Container.fromAnchor(localpop.properties['HwSwitch'])
     hwswitchname = hwswitch.resourceName
