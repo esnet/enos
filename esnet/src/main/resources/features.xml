@@ -23,6 +23,7 @@
     <feature name="enos-esnet" version="1.0.0-SNAPSHOT" description="ESnet ENOS ESnet Bundle">
         <bundle>mvn:com.sun.jersey/jersey-core/1.17</bundle>
         <bundle>mvn:com.sun.jersey/jersey-client/1.17</bundle>
+        <bundle>mvn:commons-io/commons-io/2.4</bundle>
         <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.oro</bundle>
         <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.json-lib</bundle>
         <bundle>mvn:org.codehaus.jettison/jettison/1.1</bundle>
