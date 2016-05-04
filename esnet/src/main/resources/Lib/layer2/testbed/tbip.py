@@ -91,12 +91,8 @@ class IPManagement(object):
         if ipaddress is None:
             raise TypeError('ipaddress is null')
 
-        ipresource = container.loadResource(ipaddress)
-        if ipresource is None:
-            raise ValueError('Attempting to delete a nonexistent IP resource')
-        else:
-            container.deleteResource(ipresource)
-            return ipresource
+        ipresource = container.deleteResource(ipaddress)
+        return ipresource
 
     @staticmethod
     def ip_to_number(ipaddress):
@@ -173,8 +169,8 @@ class IPManagement(object):
         highipnumber = IPManagement.ip_to_number(highip)
 
         rangequery = {}
-        rangequery[DBQ_LESSER] = highipnumber
-        rangequery[DBQ_GREATER] = lowipnumber
+        rangequery[IPManagement.DBQ_LESSER] = highipnumber
+        rangequery[IPManagement.DBQ_GREATER] = lowipnumber
 
         query = {}
         key = PROPERTIES+"."+IPV4_INT
@@ -250,17 +246,13 @@ def delete_ip(ipaddress):
         return
 
     try:
-        res = IPManagement.delete_ip(ipaddress)
-        if res is None:
-            print 'ERROR: Failed to delete IP resource'
-        else:
-            print 'Deleted IP resource: %s' %(ipaddress)
-    except ValueError:
-        print 'ERROR: Attempting to delete nonexistent IP resource'
-        return
+        IPManagement.delete_ip(ipaddress)
+        print 'Deleted IP resource: %s' %(ipaddress)
     except TypeError:
         print 'ERROR: ipresource is null'
         return
+    except Exception:
+        print 'ERROR: Exception caught while deleting IP resource: %s' %(ipaddress) 
 
 
 def allocate_ip(dnsname, owner, pid, resourcetype, osname, description, lowip, highip, netmask):
