@@ -112,12 +112,12 @@ cern=["cern",'cern-272-tb-of-1',"cern-272-cr5","cern-272-ovs",cernlinks]
 atlalinks = [
     ["atla-cr5","10/1/9","atla-tb-of-1","21"],
     ["atla-cr5","10/1/10","atla-tb-of-1","22"],
-    ["atla-cr5","10/1/10","atla-tb-of-1","23"],
-    ["atla-cr5","10/1/11","atla-tb-of-1","24"],
+    ["atla-cr5","10/1/11","atla-tb-of-1","23"],
+    ["atla-cr5","10/1/12","atla-tb-of-1","24"],
     ["atla-ovs","eth10","atla-tb-of-1","1"],
-    ["atla-ovs","eth11","atla-tb-of-1","2"],
-    ["atla-ovs","eth12","atla-tb-of-1","3"],
-    ["atla-ovs","eth13","atla-tb-of-1","4"]
+    ["atla-tbn-1","eth11","atla-tb-of-1","2"],
+    ["atla-tbn-1","eth12","atla-tb-of-1","3"],
+    ["atla-tbn-1","eth13","atla-tb-of-1","4"]
 ]
 atla=["atla",'atla-tb-of-1',"atla-cr5","atla-ovs",atlalinks]
 
@@ -132,12 +132,12 @@ starlinks = [
     ["star-cr5","10/1/11","star-tb-of-1","23"],
     ["star-cr5","10/1/12","star-tb-of-1","24"],
     ["star-ovs","eth10","star-tb-of-1","1"],
-    ["star-ovs","eth11","star-tb-of-1","2"],
-    ["star-ovs","eth12","star-tb-of-1","3"],
-    ["star-ovs","eth13","star-tb-of-1","4"],
-    ["star-ovs","eth14","star-tb-of-1","5"],
-    ["star-ovs","eth15","star-tb-of-1","6"],
-    ["star-ovs","eth16","star-tb-of-1","7"],
+    ["star-tbn-4","eth11","star-tb-of-1","2"],
+    ["star-tbn-4","eth12","star-tb-of-1","3"],
+    ["star-tbn-4","eth13","star-tb-of-1","4"],
+    ["star-tbn-4","eth14","star-tb-of-1","5"],
+    ["star-tbn-4","eth15","star-tb-of-1","6"],
+    ["star-tbn-4","eth16","star-tb-of-1","7"],
     ["star-tbn-4","eth17","star-tb-of-1","8"]
 ]
 
