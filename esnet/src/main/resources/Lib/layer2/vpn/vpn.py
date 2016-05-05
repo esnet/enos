@@ -47,8 +47,9 @@ sites = {
     'cern' : {'name':"cern",'pop':'CERN','hwport':'5'},
 
     'aofa' : {'name':"aofa",'pop':'AOFA','hwport':'2'},
+    'atla' : {'name':"atla",'pop':'ATLA','hwport':'2'},
     'denv' : {'name':"denv",'pop':'DENV','hwport':'2'},
-    'star' : {'name':"star",'pop':'STAR','hwport':'8'}
+    'star' : {'name':"star",'pop':'STAR','hwport':'2'}
 }
 
 if not 'VPNlock' in globals():
