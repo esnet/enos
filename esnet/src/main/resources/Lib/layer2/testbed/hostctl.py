@@ -629,6 +629,7 @@ def swconnect(localpop, remotepop, mac, vc, meter):
     remotecore = Container.fromAnchor(remotepop.properties['CoreRouter'])
     remotecorename = remotecore.resourceName
     print "remotecorename", remotecorename
+    print getvcnode(vc, remotecorename)
     (remotecorename,remotecoredom,remotecoreport,remotecorevlan) = getvcnode(vc, remotecorename)
 
     print corename, "<->", remotecorename
@@ -647,8 +648,10 @@ def swconnect(localpop, remotepop, mac, vc, meter):
 
     # Find hwswitch/port - core/port
     hwport_tocore = getgriport(topology, hwswitch, core, coreport)
+    print "hwport_tocore", hwport_tocore
     # Find remotehwswitch/port - remotecore/port
     remotehwport_tocore = getgriport(topology, remotehwswitch, remotecore, remotecoreport)
+    print "remotehwport_tocore", remotehwport_tocore
 
     links = getlinks2(topology, hwswitchname, swswitchname)
     if links == None or len(links) == 0:
@@ -662,6 +665,7 @@ def swconnect(localpop, remotepop, mac, vc, meter):
             hwswlink = l
             hwport_tosw = port
             break
+    print "hwport_tosw", hwport_tosw
 
     remotelinks = getlinks2(topology, remotehwswitchname, remoteswswitchname)
     if remotelinks == None or len(remotelinks) == 0:
@@ -675,6 +679,7 @@ def swconnect(localpop, remotepop, mac, vc, meter):
             remotehwswlink = l
             remotehwport_tosw = port
             break
+    print "remotehwport_tosw", remotehwport_tosw
 
     # Find the ports on hwswitch and remotehwswitch that go to the corresponding software switches
 

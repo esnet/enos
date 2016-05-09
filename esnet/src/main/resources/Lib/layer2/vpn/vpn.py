@@ -101,7 +101,7 @@ class VpnCallback(SdnControllerClientCallback):
 
         # Now find the port
         if inPort not in switch.properties['Ports'].keys():
-            self.logger.error("Can't find port " + inPort + " on switch " + switch.name)
+            self.logger.error("Can't find port " + inPort + " on switch " + switch.resourceName)
             return
         port = Container.fromAnchor(switch.properties['Ports'][inPort])
 
