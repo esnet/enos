@@ -20,7 +20,6 @@ import binascii
 import logging,random
 from java.lang import Thread
 from layer2.common.mac import MACAddress
-# from layer2.testbed.oscars import getgri,getcoregris,getgrinode
 from layer2.testbed.vc import getvcnode
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.builder import tbns

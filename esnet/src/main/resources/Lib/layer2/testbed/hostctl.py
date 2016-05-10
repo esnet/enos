@@ -25,7 +25,6 @@ from java.math import BigInteger
 
 from net.es.netshell.api import Container
 
-# from layer2.testbed.oscars import getgri,getgrinode,displaygri,griendpoints
 from layer2.testbed.vc import vcendpoints, getvcnode
 
 import sys
