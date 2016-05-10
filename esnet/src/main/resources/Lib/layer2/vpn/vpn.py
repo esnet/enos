@@ -163,12 +163,7 @@ class VPNService(Resource):
         if self.container == None:
             # First time the service is running initialize it.
             self.create()
-            # We should accept a topology name as an argument
-            self.properties['topology'] = "tbpops"
-            self.topology = Container.getContainer(self.properties['topology'])
-            self.properties['coretopology'] = "tbcore"
-            self.coretopology = Container.getContainer(self.properties['coretopology'])
-            self.saveService()
+            # We need to get topology container names from the user via the settopos command.
         else:
             self.loadService()
 
@@ -178,6 +173,13 @@ class VPNService(Resource):
         Container.createContainer("MultiPointVPNService")
         self.container = Container.getContainer("MultiPointVPNService")
         self.vpns = []
+
+    def settopos(self, popstoponame, coretoponame):
+        self.properties['topology'] = popstoponame
+        self.topology = Container.getContainer(self.properties['topology'])
+        self.properties['coretopology'] = coretoponame
+        self.coretopology = Container.getContainer(self.properties['coretopology'])
+        self.saveService()
 
     def saveService(self):
         cache = globals()['vpns']
@@ -687,6 +689,7 @@ def usage():
     print "vpn kill <vpn name>"
     print "vpn shutdown"
     print "vpn logging <file>"
+    print "vpn settopos <popstopo> <coretopo>"
     print "vpn load $conf"
     print "vpn <vpn name> execute"
     print "vpn <vpn name> save $conf"
@@ -905,6 +908,10 @@ def main():
             logname = sys.argv[2]
             logging.basicConfig(format='%(asctime)s %(levelname)8s %(message)s', filename=logname, filemode='a', level=logging.INFO)
             logging.info("test")
+        elif command == 'settopos':
+            popstoponame = sys.argv[2]
+            coretoponame = sys.argv[3]
+            vpnService.settopos(popstoponame, coretoponame)
         elif command == 'listvpns':
             print "%20s" % ("VPN")
             for vpn in vpns:
