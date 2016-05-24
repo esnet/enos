@@ -21,12 +21,14 @@
 import threading
 
 from net.es.netshell.api import Container,Resource, ResourceTypes
+from layer2.testbed.topoctl import toPortResourceName
 
 Inventory = "inventory"
 AllocatedResources ="allocatedUseResources"
 Slices = "slices"
 SliceOwner = "sliceOwner"
 SliceId = "sliceId"
+AllocatedVlans = "allocatedVlans"
 
 if not 'multiplexerSlices' in globals():
     globals()['multiplexerSlices'] = {}
@@ -126,8 +128,9 @@ def showSlice(id):
 def getSlices():
     return globals()['multiplexerSlices']
 
+
 def print_syntax():
-    print "MP-VPN Multiplex Utility"
+    print "MP-VPN Multiplexer Utility"
     print "slicectl <cmd> <cmds options>"
     print " Commands are:"
     print "\thelp"
@@ -136,9 +139,6 @@ def print_syntax():
     print "\tslicectl delete-slice < slice id>"
     print "\tslicectl list-slices [owner <usr name>]"
     print "\tslicectl show-slice <slice id>"
-    print "\tslicectl add-port <slice id> switch <switch name> port <port name> [vlan <VLAN>]"
-    print "\tslicectl del-port <slice id> switch <switch name> port <port name> [vlan <VLAN>"
-    print "\tslicectl list-ports <slice id> [switch <switch name>]"
 
 
 

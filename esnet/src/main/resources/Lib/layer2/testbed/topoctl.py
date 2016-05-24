@@ -34,7 +34,7 @@ DstPortKey="DstPort"
 VlanKey="VLAN"
 
 def toPortResourceName(node,port,vlan):
-    return node + "--" + port + "--" + str(vlan)
+    return str(node) + "--" + str(port) + "--" + str(vlan)
 
 def toPortName(port):
     return port.split("--")[1]
