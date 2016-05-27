@@ -31,25 +31,96 @@ HOST = 'host'
 OWNER = 'owner'
 PROJECT = 'project'
 
+DBQ_LESSER = '$lt'
+DBQ_GREATER = '$gte'
+PROPERTIES = 'properties'
+
+def getid():
+    """ Returns the next available id """
+    rangequery = {}
+    rangequery[DBQ_LESSER] = ID_MAX
+    rangequery[DBQ_GREATER] = ID_MIN
+
+    query = {}
+    key = PROPERTIES+"."+RESOURCEID
+    query[key] = rangequery
+    container = Container.getContainer(ID_CONTAINER)
+    idresources = container.loadResources(query)
+
+    idbitmap = [0 for i in range(ID_MAX+1)]
+
+    for idresource in idresources:
+        idbitmap[idresource.properties[RESOURCEID]] = 1
+
+    for i in range(ID_MAX+1):
+        print idbitmap[i]
+        if idbitmap[i] == 0:
+            return i
+
+    raise ValueError('All ids have been allocated')
+
 def register(hostid, host, owner, pid):
-	""" This method creates the ID resource from the given arguments and registers it in persistent storage """
-	
-	hid = int(hostid)
-	if (hid<ID_MIN or hid>ID_MAX):
-		raise ValueError('ID out of range')
+    """ This method creates the ID resource from the given arguments and registers it in persistent storage """
+    
+    hid = int(hostid)
+    if (hid<ID_MIN or hid>ID_MAX):
+        raise ValueError('ID out of range')
 
-	idresource = Resource(hostid)
-	idresource.properties[HOST] = host
-	idresource.properties[PROJECT] = pid
-	idresource.properties[OWNER] = owner
-	idresource.properties[RESOURCEID] = hid
+    idresource = Resource(hostid)
+    idresource.properties[HOST] = host
+    idresource.properties[PROJECT] = pid
+    idresource.properties[OWNER] = owner
+    idresource.properties[RESOURCEID] = hid
+    print hid
+    container = Container.getContainer(ID_CONTAINER)
+    idexists = container.loadResource(hostid)
+    print idexists
+    if idexists == None:
+        container.saveResource(idresource)
+    else:
+        raise ValueError('ID exists. Attempting duplicate registration')
 
-	container = Container.getContainer(ID_CONTAINER)
-	idexists = container.loadResource(hostid)
-	if idexists == None:
-		container.saveResource(idresource)
-	else:
-		raise ValueError('ID exists. Attempting duplicate registration')
+def allocate(host, owner, pid):
+    """ This method creates the ID resource from the given arguments and registers it in persistent storage """
+    
+    hid = getid()
+    if (hid<ID_MIN or hid>ID_MAX):
+        raise ValueError('Error allocating ID')
+
+    register(str(hid), host, owner, pid)
+    return hid
+
+def remove(hostid):
+    """ This method removes the ID resource from persistent storage"""
+    
+    hid = int(hostid)
+    if (hid<ID_MIN or hid>ID_MAX):
+        raise ValueError('ID out of range')
+
+    if exists(hostid):
+        container = Container.getContainer(ID_CONTAINER)
+        container.deleteResource(hostid)
+        if exists(hostid):
+            raise ValueError("Error deleting resource")
+    else:
+        raise ValueError("Id resource does not exist")
+
+
+def exists(hostid):
+    """ This method checks if the ID resource exists in persistent storage"""
+    
+    hid = int(hostid)
+    if (hid<ID_MIN or hid>ID_MAX):
+        raise ValueError('ID out of range')
+
+    container = Container.getContainer(ID_CONTAINER)
+    idexists = container.loadResource(hostid)
+
+    if idexists != None:
+        return True
+    else:
+        return False
+
 
 def print_help():
     "Help message for id management utility"
@@ -61,6 +132,11 @@ def print_help():
     print "\tregister"
     print "\t\tregister id <id> host <hostname> owner <owner> project <pid>"
     print "\t\tRegisters id in database"
+    print "\tnext"
+    print "\t\tDisplays the next available id"
+    print "\tremove"
+    print "\t\tremove <id>"
+    print "\t\tRemoves the id" 
 
 
 if __name__ == '__main__':
@@ -69,6 +145,7 @@ if __name__ == '__main__':
     if len(argv) == 1:
         print_help()
         sys.exit()
+
     cmd = argv[1]
     if cmd == "help":
         print_help()
@@ -77,41 +154,92 @@ if __name__ == '__main__':
             print "ERROR: Argument mismatch"
             print_help()
         else:
-			if argv[2] == 'id':
-				try:
-					int(argv[3])
-				except:
-					print "ERROR: ID must be integer"
-				hostid = argv[3]
-			else:
-				print "ERROR: Argument mismatch"
-				print_help()
-				sys.exit()
+            if argv[2] == 'id':
+                try:
+                    int(argv[3])
+                except:
+                    print "ERROR: ID must be integer"
+                hostid = argv[3]
+            else:
+                print "ERROR: Argument mismatch"
+                print_help()
+                sys.exit()
 
-			if argv[4] == 'host':
-				host = argv[5]
-			else:
-				print "ERROR: Argument mismatch"
-				print_help()
-				sys.exit()
+            if argv[4] == 'host':
+                host = argv[5]
+            else:
+                print "ERROR: Argument mismatch"
+                print_help()
+                sys.exit()
 
-			if argv[6] == 'owner':
-				owner = argv[7]
-			else:
-				print "ERROR: Argument mismatch"
-				print_help()
-				sys.exit()
+            if argv[6] == 'owner':
+                owner = argv[7]
+            else:
+                print "ERROR: Argument mismatch"
+                print_help()
+                sys.exit()
 
-			if argv[8] == 'project':
-				pid = argv[9]
-			else:
-				print "ERROR: Argument mismatch"
-				print_help()
-				sys.exit()
+            if argv[8] == 'project':
+                pid = argv[9]
+            else:
+                print "ERROR: Argument mismatch"
+                print_help()
+                sys.exit()
 
-			try:
-				register(hostid,host,owner,pid)
-				print "ID:"+hostid+" registered"
-			except ValueError as e:
-				print e
+            try:
+                register(hostid,host,owner,pid)
+                print "ID:"+hostid+" registered"
+            except ValueError as e:
+                print e
+    elif cmd == 'next':
+        try:
+            idresource = getid()
+            print idresource
+        except ValueError:
+            print "ERROR: All values have been allocated"
+    elif cmd == 'remove':
+        if (len(argv)) != 3:
+            print "ERROR: Argument mismatch"
+            print_help()
+        else:
+            hostid = argv[2]
+            try:
+                remove(hostid)
+                print "ID: "+hostid+" Deleted"
+            except ValueError as e:
+                print "Error deleting id resource"
+    elif cmd == 'allocate':
+        if (len(argv)) != 8:
+            print "ERROR: Argument mismatch"
+            print_help()
+        else:
+            if argv[2] == 'host':
+                host = argv[3]
+            else:
+                print "ERROR: Argument mismatch"
+                print_help()
+                sys.exit()
+
+            if argv[4] == 'owner':
+                owner = argv[5]
+            else:
+                print "ERROR: Argument mismatch"
+                print_help()
+                sys.exit()
+
+            if argv[6] == 'project':
+                pid = argv[7]
+            else:
+                print "ERROR: Argument mismatch"
+                print_help()
+                sys.exit()
+            try:
+                hostid = allocate(host,owner,pid)
+                print "Allocated ID:"+str(hostid)+" registered"
+            except ValueError as e:
+                print e
+
+    else:
+        print_help()
+        sys.exit()
 
