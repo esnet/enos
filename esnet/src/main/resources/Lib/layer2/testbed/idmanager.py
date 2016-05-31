@@ -23,13 +23,13 @@
 from net.es.netshell.api import Resource, Container
 
 ID_MAX = 255
-ID_MIN = 0
+ID_MIN = 2
 
 ID_CONTAINER='id'
-RESOURCEID = 'id'
-HOST = 'host'
-OWNER = 'owner'
-PROJECT = 'project'
+IDRESOURCE_RESOURCEID = 'id'
+IDRESOURCE_HOST = 'host'
+IDRESOURCE_OWNER = 'owner'
+IDRESOURCE_PROJECT = 'project'
 
 DBQ_LESSER = '$lt'
 DBQ_GREATER = '$gte'
@@ -42,18 +42,25 @@ def getid():
     rangequery[DBQ_GREATER] = ID_MIN
 
     query = {}
-    key = PROPERTIES+"."+RESOURCEID
+    key = PROPERTIES+"."+IDRESOURCE_RESOURCEID
+
     query[key] = rangequery
     container = Container.getContainer(ID_CONTAINER)
     idresources = container.loadResources(query)
 
+    ##0, 1 and 2 are reserved ids;
     idbitmap = [0 for i in range(ID_MAX+1)]
+    if (len(idbitmap)>0):
+        idbitmap[0]=1
+    if (len(idbitmap)>1):
+        idbitmap[1]=1
+    if (len(idbitmap)>2):
+        idbitmap[2]=1
 
     for idresource in idresources:
-        idbitmap[idresource.properties[RESOURCEID]] = 1
+        idbitmap[idresource.properties[IDRESOURCE_RESOURCEID]] = 1
 
     for i in range(ID_MAX+1):
-        print idbitmap[i]
         if idbitmap[i] == 0:
             return i
 
@@ -67,14 +74,12 @@ def register(hostid, host, owner, pid):
         raise ValueError('ID out of range')
 
     idresource = Resource(hostid)
-    idresource.properties[HOST] = host
-    idresource.properties[PROJECT] = pid
-    idresource.properties[OWNER] = owner
-    idresource.properties[RESOURCEID] = hid
-    print hid
+    idresource.properties[IDRESOURCE_HOST] = host
+    idresource.properties[IDRESOURCE_PROJECT] = pid
+    idresource.properties[IDRESOURCE_OWNER] = owner
+    idresource.properties[IDRESOURCE_RESOURCEID] = hid
     container = Container.getContainer(ID_CONTAINER)
     idexists = container.loadResource(hostid)
-    print idexists
     if idexists == None:
         container.saveResource(idresource)
     else:

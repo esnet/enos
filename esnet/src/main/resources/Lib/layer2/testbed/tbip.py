@@ -1,4 +1,4 @@
-#/usr/bin/python
+ #/usr/bin/python
 #
 # ESnet Network Operating System (ENos) Copyright (c) 2015, The Regents
 # of the University of California, through Lawrence Berkeley National
@@ -26,20 +26,20 @@ from net.es.netshell.api import Resource, Container
 
 PROPERTIES = 'properties'
 
-DNSNAME = 'dnsname'
-NETMASK = 'netmask'
-HOSTTYPE = 'host-type'
-RESOURCEOWNER = 'owner'
-RESOURCETYPE = 'type'
-OPERATING_SYSTEM = 'operating_system'
-PROJECTID = 'projectID'
-DESCRIPTION = 'description'
-IPV4ADDRESS = 'ipv4address'
-IPV4_FIRST = 'ipv4_first_octet'
-IPV4_SECOND = 'ipv4_second_octet'
-IPV4_THIRD = 'ipv4_third_octet'
-IPV4_FOURTH = 'ipv4_fourth_octet'
-IPV4_INT = 'ipv4_int'
+IPRESOURCE_DNSNAME = 'dnsname'
+IPRESOURCE_NETMASK = 'netmask'
+IPRESOURCE_HOSTTYPE = 'host-type'
+IPRESOURCE_RESOURCEOWNER = 'owner'
+IPRESOURCE_RESOURCETYPE = 'type'
+IPRESOURCE_OPERATING_SYSTEM = 'operating_system'
+IPRESOURCE_PROJECTID = 'projectID'
+IPRESOURCE_DESCRIPTION = 'description'
+IPRESOURCE_IPV4ADDRESS = 'ipv4address'
+IPRESOURCE_IPV4_FIRST = 'ipv4_first_octet'
+IPRESOURCE_IPV4_SECOND = 'ipv4_second_octet'
+IPRESOURCE_IPV4_THIRD = 'ipv4_third_octet'
+IPRESOURCE_IPV4_FOURTH = 'ipv4_fourth_octet'
+IPRESOURCE_IPV4_INT = 'ipv4_int'
 
 IPRESOURCETYPE = 'ip'
 
@@ -207,24 +207,24 @@ def register_ip(dnsname, owner, pid, resourcetype, osname, description, ipaddres
         return
 
     ipresource = Resource(ipaddress)
-    ipresource.properties[DNSNAME] = dnsname
-    ipresource.properties[RESOURCETYPE] = IPRESOURCETYPE
-    ipresource.properties[RESOURCEOWNER] = owner
-    ipresource.properties[HOSTTYPE] = resourcetype
-    ipresource.properties[OPERATING_SYSTEM] = osname
-    ipresource.properties[PROJECTID] = pid
-    ipresource.properties[DESCRIPTION] = description
-    ipresource.properties[NETMASK] = netmask
-    ipresource.properties[IPV4ADDRESS] = ipaddress
+    ipresource.properties[IPRESOURCE_DNSNAME] = dnsname
+    ipresource.properties[IPRESOURCE_RESOURCETYPE] = IPRESOURCETYPE
+    ipresource.properties[IPRESOURCE_RESOURCEOWNER] = owner
+    ipresource.properties[IPRESOURCE_HOSTTYPE] = resourcetype
+    ipresource.properties[IPRESOURCE_OPERATING_SYSTEM] = osname
+    ipresource.properties[IPRESOURCE_PROJECTID] = pid
+    ipresource.properties[IPRESOURCE_DESCRIPTION] = description
+    ipresource.properties[IPRESOURCE_NETMASK] = netmask
+    ipresource.properties[IPRESOURCE_IPV4ADDRESS] = ipaddress
 
     ipoctets = IPManagement.split_ip(ipaddress)
-    ipresource.properties[IPV4_FIRST] = ipoctets[0]
-    ipresource.properties[IPV4_SECOND] = ipoctets[1]
-    ipresource.properties[IPV4_THIRD] = ipoctets[2]
-    ipresource.properties[IPV4_FOURTH] = ipoctets[3]
+    ipresource.properties[IPRESOURCE_IPV4_FIRST] = ipoctets[0]
+    ipresource.properties[IPRESOURCE_IPV4_SECOND] = ipoctets[1]
+    ipresource.properties[IPRESOURCE_IPV4_THIRD] = ipoctets[2]
+    ipresource.properties[IPRESOURCE_IPV4_FOURTH] = ipoctets[3]
 
     ipint = IPManagement.ip_to_number(ipaddress)
-    ipresource.properties[IPV4_INT] = ipint
+    ipresource.properties[IPRESOURCE_IPV4_INT] = ipint
 
     try:
         IPManagement.register_ip(ipresource)
