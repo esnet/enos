@@ -42,7 +42,7 @@ import threading
 # Site descriptors, showing attachments to pops
 sites = {
     'wash' : {'name':"wash",'pop':'WASH','hwport':'1'},
-    'amst' : {'name':"amst",'pop':'AMST','hwport':'8'},
+    'amst' : {'name':"amst",'pop':'AMST','hwport':'2'},
     'cern' : {'name':"cern",'pop':'CERN','hwport':'5'},
 
     'aofa' : {'name':"aofa",'pop':'AOFA','hwport':'2'},
