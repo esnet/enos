@@ -81,13 +81,13 @@ amstlinks = [
     ["amst-cr5","10/2/3","amst-tb-of-1","23"],
     ["amst-cr5","10/2/4","amst-tb-of-1","24"],
     ["amst-ovs","eth10","amst-tb-of-1","1"],
-    ["amst-ovs","eth11","amst-tb-of-1","2"],
-    ["amst-ovs","eth12","amst-tb-of-1","3"],
-    ["amst-ovs","eth13","amst-tb-of-1","4"],
-    ["amst-ovs","eth14","amst-tb-of-1","5"],
-    ["amst-ovs","eth15","amst-tb-of-1","6"],
-    ["amst-ovs","eth16","amst-tb-of-1","7"],
-    ["amst-tbn-1","eth17","amst-tb-of-1","8"]
+    ["amst-tbn-1","eth11","amst-tb-of-1","2"],
+    ["amst-tbn-1","eth12","amst-tb-of-1","3"],
+    ["amst-tbn-1","eth13","amst-tb-of-1","4"],
+    ["amst-tbn-1","eth16","amst-tb-of-1","5"], # Proxmox-induced interface wiring
+    ["amst-tbn-1","eth17","amst-tb-of-1","6"], # Proxmox-induced interface wiring
+    ["amst-tbn-1","eth14","amst-tb-of-1","7"], # Proxmox-induced interface wiring
+    ["amst-tbn-1","eth15","amst-tb-of-1","8"]  # Proxmox-induced interface wiring
 ]
 
 amst=["amst",'amst-tb-of-1',"amst-cr5","amst-ovs",amstlinks]
@@ -100,9 +100,9 @@ cernlinks = [
     ["cern-272-cr5","10/2/5","cern-272-tb-of-1","23"],
     ["cern-272-cr5","10/2/6","cern-272-tb-of-1","24"],
     ["cern-272-ovs","eth10","cern-272-tb-of-1","2"],    # Miswired, does not correspond to CERN-272 deployment document
-    ["cern-272-ovs","eth11","cern-272-tb-of-1","1"],    # Miswired, does not correspond to CERN-272 deployment document
-    ["cern-272-ovs","eth12","cern-272-tb-of-1","3"],
-    ["cern-272-ovs","eth13","cern-272-tb-of-1","4"],
+    ["cern-272-tbn-1","eth11","cern-272-tb-of-1","1"],    # Miswired, does not correspond to CERN-272 deployment document
+    ["cern-272-tbn-1","eth12","cern-272-tb-of-1","3"],
+    ["cern-272-tbn-1","eth13","cern-272-tb-of-1","4"],
     ["cern-272-tbn-1","eth14","cern-272-tb-of-1","5"]
 ]
 
@@ -146,13 +146,13 @@ star=["star",'star-tb-of-1',"star-cr5","star-ovs",starlinks]
 amst_tbn_1 = {
     'name': 'amst-tbn-1',
     'interfaces': [ {'name': 'eth10','mac':'90:e2:ba:89:e4:a8','props':{'data':False}}, \
-                    {'name': 'eth11','mac':'90:e2:ba:89:e4:a9','props':{'data':False}}, \
+                    {'name': 'eth11','mac':'90:e2:ba:89:e4:a9','props':{'data':True}}, \
                     {'name': 'eth12','mac':'90:e2:ba:89:e5:10','props':{'data':False}}, \
                     {'name': 'eth13','mac':'90:e2:ba:89:e5:11','props':{'data':False}}, \
-                    {'name': 'eth14','mac':'00:02:c9:34:f8:00','props':{'data':False}}, \
-                    {'name': 'eth15','mac':'00:02:c9:34:f8:01','props':{'data':False}}, \
-                    {'name': 'eth16','mac':'90:e2:ba:89:e5:24','props':{'data':False}}, \
-                    {'name': 'eth17','mac':'90:e2:ba:89:e5:25','props':{'data':True}} ],
+                    {'name': 'eth16','mac':'00:02:c9:34:f8:00','props':{'data':False}}, \
+                    {'name': 'eth17','mac':'00:02:c9:34:f8:01','props':{'data':False}}, \
+                    {'name': 'eth14','mac':'90:e2:ba:89:e5:24','props':{'data':False}}, \
+                    {'name': 'eth15','mac':'90:e2:ba:89:e5:25','props':{'data':False}} ],
     'pop':"amst"
 }
 
