@@ -50,7 +50,7 @@ RETRY_ATTEMPTS = 3
 class IPManagement(object):
     """ IPManagement class provides the API to allocate and deallocate IPs"""
 
-    IPCONTAINER = 'IPAddress'
+    IPCONTAINER = 'ipaddress'
     IPBASE = 256
     DBQ_LESSER = '$lt'
     DBQ_GREATER = '$gte'

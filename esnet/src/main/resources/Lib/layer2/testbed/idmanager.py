@@ -23,7 +23,7 @@
 from net.es.netshell.api import Resource, Container
 
 ID_MAX = 255
-ID_MIN = 2
+ID_MIN = 0
 
 ID_CONTAINER='id'
 IDRESOURCE_RESOURCEID = 'id'
