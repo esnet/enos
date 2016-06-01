@@ -28,8 +28,9 @@ def print_help():
     print "\thelp"
     print "\t\tPrints this help."
     print "\tcp <file>"
-    print "\t\tCSV file location. parses file, creates host resources and populates db"
-
+    print "\t\tCSV file location. parses control plane ip file, creates host resources and populates db"
+    print "\tdp <file>"
+    print "\t\tCSV file location. parses data plane ip file, creates host resources and populates db"
 
 HOST_IP = "ipaddress"
 HOST_NETMASK = 24
