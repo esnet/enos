@@ -19,7 +19,7 @@
 
 from layer2.testbed.topology import TestbedTopology
 from layer2.testbed.dpid import encodeDPID, Vendors, Roles, encodeDPID, decodeDPID
-from layer2.common.api import Switch, Container
+from net.es.netshell.api import Switch, Container
 
 import subprocess
 import threading
@@ -27,6 +27,7 @@ import threading
 if not 'ovsCtlLock' in globals():
     ovsCtlLock = threading.Lock()
     globals()['ovsCtlLock'] = ovsCtlLock
+
 CONFIGFILE="/etc/network/interfaces"
 CONTAINER_NAME="ovsctl"
 
@@ -132,12 +133,14 @@ def mergeConfig (interfaces,config=None):
     return writeLines
 
 def parseOvsExtra(line):
+    entries = []
     patches = line.split("ovs_extra ")[1].split("add-port ")
     for patch in patches:
         if len(patch):
             continue
         entry = patch.split(" -- ")[0].split("-")
-        return entry
+        entries.append(entry[0],entry[1],entry[2])
+    return entries
 
 def parseConfig(config=None):
     if config == None:
@@ -169,16 +172,20 @@ def parseConfig(config=None):
     f.close()
     return interfaces
 
-def newInterface(name,mtu=9000):
+def newInterface(name,mtu=9000,ctrl=None,dpid=None):
     interface = []
     interface.append("auto " + name)
     interface.append("iface " + name + " inet manual")
     interface.append("ovs_type OVSBridge")
     interface.append("mtu " + str(mtu))
+    if ctrl != None:
+
+    if dpid != None:
+        interface.appemd("")
     return interface
 
 class UserSwitch(Switch):
-    def __init__(self, name, owner=None,domain=None, props={}):
+    def __init__(self, name, owner=None,domain=None):
         if domain != None:
             super(UserSwitch, self).__init__(name,domain=domain,props=props)
         else:
@@ -222,21 +229,34 @@ def exists(name,config=None):
     return name in interfaces
 
 
-def localCreate(name, dpid=None, config=None):
+def localCreate(name, ctrl=None,dpid=None, config=None):
     if exists(name):
         return(None,"Switch's name already exist")
     res = ovsctl(['add-br',name])
     if not res:
         return (None,"Cannot create OVS swtch")
-    if dpid == None:
-        dpid = newDPID(name)
-    # set DPID
-    res = ovsctl(['set','Bridge',name,"other-config:datapath-id="+dpid])
     switch = UserSwitch(name=name)
-    if not res:
-        return (switch,"Cannot set DPID")
-    switch.props['dpid'] = dpid
-    interface = newInterface(name=name)
+    if ctrl != None:
+        if dpid == None:
+            dpid = newDPID(name)
+        # set openflow
+        res = ovsctl(['set-fail-mode',name,'secure'])
+        if not res:
+            return (switch,"Cannot set set-fail-mode")
+        # set DPID
+        res = ovsctl(['set','bridge',name,"other-config:datapath-id="+dpid])
+        if not res:
+            return (switch,"Cannot set DPID")
+        switch.properties['dpid'] = dpid
+        # set controller
+        if not ':' in ctrl:
+            ctrl += ":6633"
+        ctrl = "tcp:" + ctrl
+        res = ovsctl(['set-controller',name,ctrl])
+        if not res:
+            return (switch,"Cannot set controller")
+        switch.properties['controller'] = ctrl
+    interface = newInterface(name=name,ctrl=ctrl,dpid=dpid)
     addConfig(interfaces={name:interface},config=config)
     container = Container.getContainer(getContinerName())
     container.saveResource(switch)
@@ -254,6 +274,9 @@ def localDelete(name,config=None):
     container.deleteResource(name)
     return(True,None)
 
+def addlink (src,dst):
+
+
 def print_syntax():
     print
     print "Testbed OVS Utility."
@@ -262,12 +285,10 @@ def print_syntax():
     print "\n\thelp: prints this help."
     print "\n\tshow-switch <switch-name> | all> [grep <string>] Displays a switch by its name or all switches."
     print "\n\t\tAn optional string to match can be provided."
-    print "\n\tcreate <switch-name> [pop <pop-name>] Creates a switch in a SDN POP"
-    print "\n\tdelete <switch-name> delete switc [pop <pop-name>]"
-    print "\n\tlink <switch name> switch <dest switch> [pop <pop-name>]"
-    print "\n\tunlink <switch name> switch <dest switch> [pop <pop-name>]"
-    print "\n\tset-ctrl <switch-name> controller <ip> [port <controller port>] [pop <pop-name>]"
-    print "\n\tunset-of <switch-name> [pop <pop-name>]"
+    print "\n\tcreate <switch-name> [ctrl <host | host:port> [dpid <dpid>]] Creates a switch in a SDN POP"
+    print "\n\tdelete <switch-name> delete switch"
+    print "\n\tadd-link <src switch name>  <dest switch>"
+    print "\n\tdel-link <src switch name>  <dest switch>"
 
 # Retrieve topology
 if not 'topo' in globals() or topo == None:
@@ -306,3 +327,11 @@ if __name__ == '__main__':
                 print "failed:",msg
             else:
                 print "switch is deleted"
+    elif cmd == "add-link":
+        src = sys.argv[2]
+        dst = sys.argv[3]
+        (ok,msg) = addlink(src=src,dst=dst)
+        if not ok:
+            print "failed:",msg
+        else:
+            print "switches haves been linked"

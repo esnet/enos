@@ -19,19 +19,19 @@
 #
 
 
-from net.es.netshell.api import Container,Node,Port,Link,Resource
+from net.es.netshell.api import Container,Node,Port,Link,Resource,PropertiesKeys
 
-PortKey="Port"
-PortsKey="Ports"
-LinkKey="Links"
-LinksKey="Links"
-NodeKey="Node"
-NodesKey="Nodes"
-HostKey="Host"
-HostsKey="Host"
-SrcPortKey="SrcPort"
-DstPortKey="DstPort"
-VlanKey="VLAN"
+PortKey=PropertiesKeys.PortKey
+PortsKey=PropertiesKeys.PortsKey
+LinkKey=PropertiesKeys.LinkKey
+LinksKey=PropertiesKeys.LinksKey
+NodeKey=PropertiesKeys.NodeKey
+NodesKey=PropertiesKeys.NodesKey
+HostKey=PropertiesKeys.HostKey
+HostsKey=PropertiesKeys.HostsKey
+SrcPortKey=PropertiesKeys.SrcPortKey
+DstPortKey=PropertiesKeys.DstPortKey
+VlanKey=PropertiesKeys.VlanKey
 
 def toPortResourceName(node,port,vlan):
     return str(node) + "--" + str(port) + "--" + str(vlan)
