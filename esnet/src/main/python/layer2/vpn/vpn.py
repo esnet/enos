@@ -79,7 +79,7 @@ if not 'VPNlock' in globals():
     globals()['VPNlock'] = VPNlock
 
 if not 'VPNMAT' in globals():
-    VPNMAT = False
+    VPNMAT = True
     globals()['VPNMAT'] = VPNMAT
 
 def newVid():
