@@ -27,6 +27,7 @@ from layer2.vpn.mat import MAT
 from layer2.common.utils import mapResource
 from net.es.netshell.api import Resource,Container,ResourceAnchor
 from net.es.netshell.boot import BootStrap
+from net.es.enos.mpvpn import MultiPointVPNService
 
 import sys
 from threading import Thread
@@ -161,7 +162,7 @@ class VpnCallback(SdnControllerClientCallback):
             self.logger.error("Adding host failed")
         return
 
-class VPNService(Container):
+class VPNService(Container,MultiPointVPNService):
     def __init__(self):
         Resource.__init__(self,"MultiPointVPNService")
         self.loadService()
@@ -526,6 +527,7 @@ class VPN(Resource):
         return str(self.mat.translate(mac))
     def generateBroadcastMAC(self):
         return str(self.mat.translate("FF:FF:FF:FF:FF:FF"))
+
     def deletefhs(self, fhs):
         for f in fhs:
             if f.isValid():
