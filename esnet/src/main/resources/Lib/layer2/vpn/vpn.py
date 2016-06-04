@@ -27,13 +27,19 @@ from layer2.vpn.mat import MAT
 from layer2.common.utils import mapResource
 from net.es.netshell.api import Resource,Container,ResourceAnchor
 from net.es.netshell.boot import BootStrap
-from net.es.netshell.controller.intf import EthernetFrame
 
 import sys
-if "debugNoController" in dir(sys) and sys.debugNoController:
-    from layer2.testbed.hostctl import SdnControllerClientL2Forward, SdnControllerClientCallback
-else:
+from threading import Thread
+import time
+
+try:
+    from net.es.netshell.controller.intf import EthernetFrame
     from net.es.netshell.controller.client import SdnControllerClient, SdnControllerClientL2Forward, SdnControllerClientCallback
+    sys.debugNoController = False
+except:
+    print "WARNING: controller is not loaded."
+    sys.debugNoController = True
+    from layer2.testbed.hostctl import SdnControllerClient, SdnControllerClientL2Forward, SdnControllerClientCallback
 
 from layer2.testbed.hostctl import connectgrimac,getdatapaths,setmeter,swconnect,connecthostbroadcast,deleteforward,connectentryfanoutmac,connectexitfanout,setcallback,clearcallback
 
@@ -134,7 +140,7 @@ class VpnCallback(SdnControllerClientCallback):
         # XXX Note we can't do any port-based matching because all of the traffic from the
         # hardware switch to the software switch shows up on the same port on the software
         # switch, which is the one generating the PACKET_IN message.
-        for v in globals()['vpns']:
+        for (x,v) in globals()['vpnIndex'].items():
             for (sitename,site) in v.vpnsites.items():
                 if site['pop'].lower() == switchpopname and int(v.vpnsitevlans[sitename]) == frame.getVid():
                     vpn = v
@@ -155,23 +161,12 @@ class VpnCallback(SdnControllerClientCallback):
             self.logger.error("Adding host failed")
         return
 
-class VPNService(Resource):
+class VPNService(Container):
     def __init__(self):
-        Resource.__init__(self,"ServicePersistentState","net.es.netshell.api.Resource")
-        self.container = Container.getContainer("MultiPointVPNService")
-        if self.container == None:
-            # First time the service is running initialize it.
-            self.create()
-            # We need to get topology container names from the user via the settopos command.
-        else:
-            self.loadService()
-
-
-    def create(self):
-        # Creates the VPN service container
-        Container.createContainer("MultiPointVPNService")
-        self.container = Container.getContainer("MultiPointVPNService")
-        self.vpns = []
+        Resource.__init__(self,"MultiPointVPNService")
+        self.loadService()
+        self.saveThread = Thread(target=self.autosave)
+        self.saveThread.start()
 
     def settopos(self, popstoponame, coretoponame):
         self.properties['topology'] = popstoponame
@@ -180,47 +175,32 @@ class VPNService(Resource):
         self.coretopology = Container.getContainer(self.properties['coretopology'])
         self.saveService()
 
+    def autosave(self):
+        while True:
+            self.saveService()
+            for (x,vpn) in vpnIndex.items():
+                vpn.saveVPN()
+            time.sleep(60)
+
     def saveService(self):
-        cache = globals()['vpns']
-        for vpn in cache:
-            vpn.saveVPN()
-            if not vpn.getResourceName() in self.vpns:
-                self.vpns.append(vpn.getResourceName())
-        self.properties['vpns'] = str(self.vpns)
         try:
-            self.save(self.container)
+            self.save()
         except:
             print "Failed to save VPN Service"
 
     def loadService(self):
-        stored = self.container.loadResource(self.getResourceName())
+        stored = Container.getContainer(self.getResourceName())
         mapResource (obj=self,resource=stored)
-        self.container = Container.getContainer("MultiPointVPNService")
-        self.topology = Container.getContainer(self.properties['topology'])
-        self.coretopology = Container.getContainer(self.properties['coretopology'])
-        self.vpns = eval(self.properties['vpns'])
-        cache = globals()['vpns']
-        cacheIndex = globals()['vpnIndex']
-        for name in self.vpns:
-            if not name in cacheIndex:
-                stored = self.loadVPN(name)
-                vpn = VPN(stored.getResourceName())
-                mapResource(obj=vpn,resource=stored)
-                cache.append(vpn)
-                cacheIndex[name] = vpn
-                globals()['vpnIndexById'][vpn.vid] = vpn
-
-    def saveVPN(self,vpn):
-        if not vpn.name in self.vpns:
-            self.vpns.append(vpn.name)
-        if vpn.name == "ServicePersistentState":
-            # a vpn cannot have the same name as the VPNService resource name.
-            raise ValueError("VPN instances cannot this reserved name.")
-        self.container.saveResource(vpn)
-
-    def loadVPN(self,vpnName):
-        return self.container.loadResource(vpnName)
-
+        if 'topology' in self.properties:
+            self.topology = Container.getContainer(self.properties['topology'])
+        if 'coretopology' in self.properties:
+            self.coretopology = Container.getContainer(self.properties['coretopology'])
+        vpns = self.loadResources({"resourceType":"VPN"})
+        for v in vpns:
+            vpn = VPN(v.getResourceName())
+            mapResource(obj=vpn,resource=v)
+            vpnIndex[v.getResourceName()] = vpn
+            globals()['vpnIndexById'][vpn.vid] = vpn
 
 class VPN(Resource):
     def __init__(self,name):
@@ -243,6 +223,7 @@ class VPN(Resource):
 
         self.logger = logging.getLogger("VPN")
         self.logger.setLevel(logging.INFO)
+        self.setResourceType("VPN")
 
     def saveVPN(self):
         self.properties['vid'] = self. vid
@@ -258,10 +239,10 @@ class VPN(Resource):
         self.properties['entryfanoutflows'] = str(self.entryfanoutflows)
         self.properties['exitfanoutflows'] = str(self.exitfanoutflows)
         self.properties['hostsites'] = str(self.hostsites)
-        globals()['vpnService'].saveVPN(self)
+        vpnService.saveResource(self)
 
     def loadVPN(self):
-        stored = self.container.loadResource(self.getResourceName())
+        stored = self.loadResource(self.getResourceName())
         mapFromJavaObject(pyobj=self,jobj=stored)
 
         topo = globals()['topo']
@@ -690,7 +671,6 @@ def usage():
     print "vpn logging <file>"
     print "vpn settopos <popstopo> <coretopo>"
     print "vpn load $conf"
-    print "vpn <vpn name> execute"
     print "vpn <vpn name> save $conf"
     print "vpn <vpn name> getprio"
     print "vpn <vpn name> setprio"
@@ -738,26 +718,11 @@ def tomac(s):
             print "%s is an invalid MAC address" % s
             sys.exit(1)
     return mac
-def get(l, d, index):
-    """
-    :param l: a list of objects
-    :param d: a dict of objects
-    :param index: str; could be number or name
-    """
-    try:
-        return l[int(index)]
-    except:
-        pass # not found
-    try:
-        return d[index]
-    except:
-        print "%s not found" % index
-        sys.exit(1)
-def tovpn(s):
-    return get(vpns, vpnIndex, s)
-def topop2(s):
+
+def topop(s):
     p = vpnService.topology.loadResource(s)
     return p
+
 def tosite(s):
         if s in sites:
             return sites[s]
@@ -767,11 +732,9 @@ def tohost(s):
     return tbns[s]
 
 def addVpn(vpn):
-    vpns.append(vpn)
     vpnIndex[vpn.name] = vpn
     globals()['vpnIndexById'][vpn.vid] = vpn
-
-
+    vpnService.saveResource(vpn)
 
 def create(vpnname):
     if vpnname in vpnIndex:
@@ -787,8 +750,8 @@ def delete(vpnname):
         return
     vpn = vpnIndex[vpnname]
     vpnIndex.pop(vpn.name)
-    vpns.remove(vpn)
     globals()['vpnIndexById'].pop(vpn.vid)
+    vpnService.deleteResource(vpn)
     print "VPN %s removed successfully." % (vpn.name)
 
 def kill(vpnname):
@@ -803,9 +766,6 @@ def kill(vpnname):
     for p in vpn.pops.values():
         delpop(vpn, p)
     delete(vpnname)
-
-def execute(vpn):
-    return
 
 def addpop(vpn, pop):
     if not vpn.addpop(pop):
@@ -913,26 +873,24 @@ def main():
             vpnService.settopos(popstoponame, coretoponame)
         elif command == 'listvpns':
             print "%20s" % ("VPN")
-            for vpn in vpns:
-                print "%20s" % vpn.name
+            for name in vpnIndex:
+                print "%20s" % name
         else:
-            vpn = get(vpns, vpnIndex, sys.argv[1])
+            vpn = VPN(sys.argv[1])
             command = sys.argv[2].lower()
-            if command == 'execute':
-                execute(vpn)
-            elif command == 'getprio':
+            if command == 'getprio':
                 prio = vpn.getpriority()
                 print prio
             elif command == 'setprio':
                 vpn.setpriority(sys.argv[3])
             elif command == 'addpop':
-                pop = topop2(sys.argv[3])
+                pop = topop(sys.argv[3])
                 if pop == None:
                     print "unknown SDN POP"
                     return
                 addpop(vpn, pop)
             elif command == 'delpop':
-                pop = topop2(sys.argv[3])
+                pop = topop(sys.argv[3])
                 if pop == None:
                     print "unknown SDN POP"
                     return
@@ -1036,9 +994,6 @@ if 'vpnIndex' not in globals() or vpnIndex == None:
 if 'vpnIndexById' not in globals() or vpnIndexById == None:
     vpnIndexById = {}
     globals()['vpnIndexById'] = vpnIndexById
-if 'vpns' not in globals() or vpns == None:
-    vpns = []
-    globals()['vpns'] = vpns
 
 if __name__ == '__main__':
     if not 'topo' in globals() or topo == None:
@@ -1047,26 +1002,24 @@ if __name__ == '__main__':
     if 'vpnIndex' not in globals() or vpnIndex == None:
         vpnIndex = {}
         globals()['vpnIndex'] = vpnIndex
-    if 'vpns' not in globals() or vpns == None:
-        vpns = []
-        globals()['vpns'] = vpns
 
     if 'vpnService' not in globals():
         vpnService = VPNService()
         globals()['vpnService'] = vpnService
 
     # Start callback if we don't have one already
-    if 'SCC' not in globals() or SCC == None:
-        SCC = SdnControllerClient()
-        globals()['SCC'] = SCC
-        t = Thread(SCC)
-        globals()['t'] = t
-        t.start()
-    if 'VPNcallback' not in globals() or VPNcallback == None:
-        VPNcallback = VpnCallback("MP-VPN Service", vpnService)
-        setcallback(VPNcallback)
-        globals()['VPNcallback'] = VPNcallback
-        SCC.setCallback(VPNcallback)
-        print "VPNcallback set"
+    if not sys.debugNoController:
+        if 'SCC' not in globals() or SCC == None:
+            SCC = SdnControllerClient()
+            globals()['SCC'] = SCC
+            t = Thread(SCC)
+            globals()['t'] = t
+            t.start()
+        if 'VPNcallback' not in globals() or VPNcallback == None:
+            VPNcallback = VpnCallback("MP-VPN Service", vpnService)
+            setcallback(VPNcallback)
+            globals()['VPNcallback'] = VPNcallback
+            SCC.setCallback(VPNcallback)
+            print "VPNcallback set"
 
     main()
