@@ -203,6 +203,108 @@ class VPNService(Container,MultiPointVPNService):
             vpnIndex[v.getResourceName()] = vpn
             globals()['vpnIndexById'][vpn.vid] = vpn
 
+    def getSite(self,s):
+        global sites
+        if s in sites:
+            return sites[s]
+        else:
+            return None
+
+    def getHost(self,s):
+        return tbns[s]
+
+    def addVpn(self,vpn):
+        vpnIndex[vpn.name] = vpn
+        globals()['vpnIndexById'][vpn.vid] = vpn
+        self.saveResource(vpn)
+
+    def createVPN(self,vpnname):
+        if vpnname in vpnIndex:
+            return None
+        vpn = VPN(vpnname)
+        self.addVpn(vpn)
+        return vpn
+
+    def deleteVPN(self,vpnname):
+        if not vpnname in vpnIndex:
+            print "vpn name %s not found" % vpnname
+            return False
+        vpn = vpnIndex[vpnname]
+        vpnIndex.pop(vpn.name)
+        globals()['vpnIndexById'].pop(vpn.vid)
+        self.deleteResource(vpn)
+        print "VPN %s removed successfully." % (vpn.name)
+        return True
+
+    def kill(self,vpnname):
+        if not vpnname in vpnIndex:
+            print "vpn name %s not found" % vpnname
+            return
+        vpn = vpnIndex[vpnname]
+        for h in vpn.hostsites.keys():
+            self.delhostbymac(vpn, h)
+        for s in vpn.vpnsites.values():
+            self.delsite(vpn, s)
+        for p in vpn.pops.values():
+            self.delpop(vpn, p)
+        self.delete(vpnname)
+
+    def addPOP(self,vpn, pop):
+        if not vpn.addpop(pop):
+            return False
+        return True
+
+    def deletePOP(self,vpn, pop):
+        if not vpn.delpop(pop):
+            return False
+        return True
+
+    def addSite(self, vpn, site, vlan):
+        if not vpn.addsite(site, vlan):
+            # possible issues: duplicated site
+            return False
+        return True
+
+    def deleteSite(self, vpn, site):
+        if not vpn.delsite(site):
+            return False
+        return True
+
+    def addhostbymac(self, vpn, site, mac):
+        if not vpn.addhostbymac(site, mac):
+            print "Error while adding host."
+            return
+        print "Host %s has been added into VPN %s successfully at site %s" % (mac, vpn.name, site['name'])
+
+    def delhostbymac(self,vpn, mac):
+        if not vpn.delhostbymac(mac):
+            print "Error while deleting host."
+            return
+
+    def tapsite(self, vpn, site):
+        print "not implemented"
+
+    def untapsite(self, vpn, site):
+        print "not implemented"
+
+    def taphost(self,vpn, host):
+        print "not implemented"
+
+    def untaphost(self,vpn, host):
+        print "not implemented"
+
+    def tapmac(self,vpn, mac):
+        print "not implemented"
+
+    def untapmac(self,vpn, mac):
+        print "not implemented"
+
+    def settimeout(self,vpn, timeout):
+        if timeout < 0:
+            print "invalid timeout"
+            return
+        print "not implemented"
+
 class VPN(Resource):
     def __init__(self,name):
         Resource.__init__(self,name,"net.es.netshell.api.Resource")
@@ -696,139 +798,6 @@ def usage():
     print "vpn mat [<on|off>] Displays the MAC Address Translation feature, turn it on or off."
     print "Note: <vpn name> should not be any keyword such as create, delete, kill, or load"
 
-def toint(s):
-    try:
-        return int(s)
-    except:
-        print "%s is an invalid integer" % s
-        sys.exit(1)
-def tobool(s):
-    return s.lower() in ('yes', 'true', '1', 't')
-def tofloat(s):
-    try:
-        return float(s)
-    except:
-        print "%s is an invalid value" % s
-        sys.exit(1)
-def tomac(s):
-    try:
-        mac = MACAddress(int(s))
-    except:
-        try:
-            mac = MACAddress(s)
-        except:
-            print "%s is an invalid MAC address" % s
-            sys.exit(1)
-    return mac
-
-def topop(s):
-    p = vpnService.topology.loadResource(s)
-    return p
-
-def tosite(s):
-        if s in sites:
-            return sites[s]
-        else:
-            return None
-def tohost(s):
-    return tbns[s]
-
-def addVpn(vpn):
-    vpnIndex[vpn.name] = vpn
-    globals()['vpnIndexById'][vpn.vid] = vpn
-    vpnService.saveResource(vpn)
-
-def create(vpnname):
-    if vpnname in vpnIndex:
-        print "vpn %r exists already" % vpnname
-        return
-    vpn = VPN(vpnname)
-    addVpn(vpn)
-    print "VPN %s is created successfully." % vpn.name
-
-def delete(vpnname):
-    if not vpnname in vpnIndex:
-        print "vpn name %s not found" % vpnname
-        return
-    vpn = vpnIndex[vpnname]
-    vpnIndex.pop(vpn.name)
-    globals()['vpnIndexById'].pop(vpn.vid)
-    vpnService.deleteResource(vpn)
-    print "VPN %s removed successfully." % (vpn.name)
-
-def kill(vpnname):
-    if not vpnname in vpnIndex:
-        print "vpn name %s not found" % vpnname
-        return
-    vpn = vpnIndex[vpnname]
-    for h in vpn.hostsites.keys():
-        delhostbymac(vpn, h)
-    for s in vpn.vpnsites.values():
-        delsite(vpn, s)
-    for p in vpn.pops.values():
-        delpop(vpn, p)
-    delete(vpnname)
-
-def addpop(vpn, pop):
-    if not vpn.addpop(pop):
-        print "Error while adding pop."
-        return
-    print "POP %s has been added into VPN %s successfully." % (pop.resourceName, vpn.name)
-
-def delpop(vpn, pop):
-    if not vpn.delpop(pop):
-        print "Error while deleting pop."
-        return
-    print "POP %s has been removed from VPN %s successfully." % (pop.resourceName, vpn.name)
-
-def addsite(vpn, site, vlan):
-    if not vpn.addsite(site, vlan):
-        print "Error while adding site %s to VPN %s ." % (site['name'], vpn.name)
-        # possible issues: duplicated site
-        return
-    print "Site %s has been added into VPN %s successfully." % (site['name'], vpn.name)
-
-def delsite(vpn, site):
-    if not vpn.delsite(site):
-        print "could not delete site"
-        return
-    print "Site %s has been removed from VPN %s successfully." % (site['name'], vpn.name)
-
-def addhostbymac(vpn, site, mac):
-    if not vpn.addhostbymac(site, mac):
-        print "Error while adding host."
-        return
-
-    print "Host %s has been added into VPN %s successfully at site %s" % (mac, vpn.name, site['name'])
-
-def delhostbymac(vpn, mac):
-    if not vpn.delhostbymac(mac):
-        print "Error while deleting host."
-        return
-
-def tapsite(vpn, site):
-    print "not implemented"
-
-def untapsite(vpn, site):
-    print "not implemented"
-
-def taphost(vpn, host):
-    print "not implemented"
-
-def untaphost(vpn, host):
-    print "not implemented"
-
-def tapmac(vpn, mac):
-    print "not implemented"
-
-def untapmac(vpn, mac):
-    print "not implemented"
-
-def settimeout(vpn, timeout):
-    if timeout < 0:
-        print "invalid timeout"
-        return
-    print "not implemented"
 
 def main():
     global VPNMAT
@@ -838,17 +807,26 @@ def main():
             usage()
         elif command == 'create':
             vpnname = sys.argv[2]
-            create(vpnname)
+            vpn = vpnService.createVPN(vpnname)
+            if vpn == None:
+                print "vpn %r exists already" % vpnname
+            else:
+                print "VPN %s is created successfully." % vpn.name
+
         elif command == 'delete':
             vpnname = sys.argv[2]
-            delete(vpnname)
+            res = vpnService.deleteVPN(vpnname)
+            if res:
+                print "VPN %s removed successfully." % (vpnname)
+            else:
+                print "vpn name %s not found" % vpnname
         elif command == 'kill':
             vpnname = sys.argv[2]
-            kill(vpnname)
+            vpnService.kill(vpnname)
         elif command == 'load':
-            globals()['vpnService'].loadService()
+            vpnService.loadService()
         elif command == "save":
-            globals()['vpnService'].saveService()
+            vpnService.saveService()
         elif command == "mat":
             if 'on' in sys.argv:
                 VPNMAT = True
@@ -886,30 +864,48 @@ def main():
             elif command == 'setprio':
                 vpn.setpriority(sys.argv[3])
             elif command == 'addpop':
-                pop = topop(sys.argv[3])
+                pop = vpnService.topology.loadResource(sys.argv[3])
                 if pop == None:
                     print "unknown SDN POP"
                     return
-                addpop(vpn, pop)
+                res = vpnService.addPOP(vpn, pop)
+                if res:
+                    print "POP %s has been added into VPN %s successfully." % (pop.resourceName, vpn.name)
+                else:
+                    print "Error while adding pop."
+
             elif command == 'delpop':
-                pop = topop(sys.argv[3])
+                pop = vpnService.topology.loadResource(sys.argv[3])
                 if pop == None:
                     print "unknown SDN POP"
                     return
-                delpop(vpn, pop)
+                res = vpnService.deletePOP(vpn, pop)
+                if res:
+                    print "POP %s has been removed from VPN %s successfully." % (pop.resourceName, vpn.name)
+                else:
+                     print "Error while deleting pop."
             elif command == 'addsite':
-                site = tosite(sys.argv[3])
+                site = vpnService.getSite(sys.argv[3])
                 if site == None:
                     print "unknown site"
                     return
                 vlan = sys.argv[5]
-                addsite(vpn, site, vlan)
+                res = vpnService.addSite(vpn, site, vlan)
+                if res:
+                    print "Site %s has been added into VPN %s successfully." % (site['name'], vpn.name)
+                else:
+                    print "Error while adding site %s to VPN %s ." % (site['name'], vpn.name)
             elif command == 'delsite':
-                site = tosite(sys.argv[3])
+                site = vpnService.getSite(sys.argv[3])
                 if site == None:
                     print "unknown site"
                     return
-                delsite(vpn, site)
+                res = vpnService.deleteSite(vpn, site)
+                if res:
+                    print "Site %s has been removed from VPN %s successfully." % (site['name'], vpn.name)
+                else:
+                    print "could not delete site"
+
             elif command == 'addhostbymac':
                 sitename = sys.argv[3]
                 if sitename not in vpn.vpnsites:
@@ -917,10 +913,10 @@ def main():
                     return
                 site = vpn.vpnsites[sitename]
                 mac = sys.argv[5]
-                addhostbymac(vpn, site, mac)
+                vpnService.addhostbymac(vpn, site, mac)
             elif command == 'delhostbymac':
                 mac = sys.argv[3]
-                delhostbymac(vpn, mac)
+                vpnService.delhostbymac(vpn, mac)
             elif command == 'listhosts':
                 print "%17s  %17s  %s" % ("MAC", "Translated MAC", "Site")
                 for (hostmac, hostsite) in vpn.hostsites.items():
@@ -952,32 +948,32 @@ def main():
                         swSwitchName = pop.props['swSwitch']
                     print "%6s  %20s  %20s  %20s" % (popname, coreRouterName, hwSwitchName, swSwitchName)
             elif command == 'tapsite':
-                site = tosite(sys.argv[3])
+                site = vpnService.getSite(sys.argv[3])
                 if site == None:
                     print "unknown site"
                     return
-                tapsite(vpn, site)
+                vpnService.tapsite(vpn, site)
             elif command == 'untapsite':
-                site = tosite(sys.argv[3])
+                site = vpnService.getSite(sys.argv[3])
                 if site == None:
                     print "unknown site"
                     return
-                untapsite(vpn, site)
+                vpnService.untapsite(vpn, site)
             elif command == 'taphost':
-                host = tohost(sys.argv[3])
-                taphost(vpn, host)
+                host = vpnService.getHost(sys.argv[3])
+                vpnService.taphost(vpn, host)
             elif command == 'untaphost':
-                host = tohost(sys.argv[3])
-                untaphost(vpn, host)
+                host = vpnService.getHost(sys.argv[3])
+                vpnService.untaphost(vpn, host)
             elif command == 'tapmac':
-                mac = tomac(sys.argv[3])
-                tapmac(vpn, mac)
+                mac = MACAddress(sys.argv[3])
+                vpnService.tapmac(vpn, mac)
             elif command == 'untapmac':
-                mac = tomac(sys.argv[3])
-                untapmac(vpn, mac)
+                mac = MACAddress(sys.argv[3])
+                vpnService.untapmac(vpn, mac)
             elif command == 'settimeout':
-                timeout = tofloat(sys.argv[3])
-                settimeout(vpn, timeout)
+                timeout = float(sys.argv[3])
+                vpnService.settimeout(vpn, timeout)
             else:
                 print "unknown command"
                 usage()
