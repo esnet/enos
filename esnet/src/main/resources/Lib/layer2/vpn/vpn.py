@@ -27,7 +27,7 @@ from layer2.vpn.mat import MAT
 from layer2.common.utils import mapResource
 from net.es.netshell.api import Resource,Container,ResourceAnchor
 from net.es.netshell.boot import BootStrap
-from net.es.enos.mpvpn import MultiPointVPNService
+from net.es.enos.mpvpn import MultiPointVPNService,MultiPointVPNServiceFactory
 
 import sys
 from threading import Thread
@@ -58,21 +58,6 @@ sites = {
     'star' : {'name':"star",'pop':'star','hwport':'2'}
 }
 
-if not 'VPNlock' in globals():
-    VPNlock = threading.Lock()
-    globals()['VPNlock'] = VPNlock
-
-if not 'VPNMAT' in globals():
-    VPNMAT = True
-    globals()['VPNMAT'] = VPNMAT
-
-def newVid():
-    with globals()['VPNlock']:
-        while True:
-            v = random.randint(1,65535)
-            if not v in globals()['vpnIndexById']:
-                return v
-
 class VpnCallback(SdnControllerClientCallback):
     def __init__(self, name, vs):
         self.logger = logging.getLogger("VpnCallback")
@@ -81,13 +66,11 @@ class VpnCallback(SdnControllerClientCallback):
         self.name = name
         self.vpnService = vs
         self.switchIndex = {}
-
         self.indexSwitches()
 
     def indexSwitches(self):
         # Index all the switches by DPID so we can find them
-        topology = self.vpnService.topology
-        nodes = topology.loadResources({"resourceType" : "Node"})
+        nodes = self.vpnService.topology.loadResources({"resourceType" : "Node"})
         for n in nodes:
             if 'DPID' in n.properties.keys():
                 self.switchIndex[n.properties['DPID']] = n
@@ -141,7 +124,7 @@ class VpnCallback(SdnControllerClientCallback):
         # XXX Note we can't do any port-based matching because all of the traffic from the
         # hardware switch to the software switch shows up on the same port on the software
         # switch, which is the one generating the PACKET_IN message.
-        for (x,v) in globals()['vpnIndex'].items():
+        for (x,v) in MultiPointVPNServiceFactory.getVpnService().vpnIndex.items():
             for (sitename,site) in v.vpnsites.items():
                 if site['pop'] == switchpopname and int(v.vpnsitevlans[sitename]) == frame.getVid():
                     vpn = v
@@ -165,29 +148,57 @@ class VpnCallback(SdnControllerClientCallback):
 class VPNService(Container,MultiPointVPNService):
     def __init__(self):
         Resource.__init__(self,"MultiPointVPNService")
+        print "MultiPoint VPN Service is starting"
+        self.vpnIndex = {}
+        self.vpnIndexById = {}
+        self.topology = None
+        self.coretopology = None
+        self.lock = threading.Lock()
+        self.properties['mat'] = True # Default.
         self.loadService()
         self.saveThread = Thread(target=self.autosave)
         self.saveThread.start()
+        if self.topology != None:
+            self.setscc()
+
+    def setscc(self):
+        self.SCC = SdnControllerClient()
+        self.sccThread = Thread(target=self.SCC)
+        self.sccThread.start()
+        self.VPNcallback = VpnCallback("MP-VPN Service", self)
+        setcallback(self.VPNcallback)
+        self.SCC.setCallback(self.VPNcallback)
 
     def settopos(self, popstoponame, coretoponame):
         self.properties['topology'] = popstoponame
         self.topology = Container.getContainer(self.properties['topology'])
         self.properties['coretopology'] = coretoponame
         self.coretopology = Container.getContainer(self.properties['coretopology'])
+        # We can now set up the callback
+        self.setscc()
         self.saveService()
+
+    def shutdown(self):
+        self.saveThread.stop()
+        if self.sccThread != None:
+            self.sccThread.stop()
+            self.SCC.clearCallback()
 
     def autosave(self):
         while True:
-            self.saveService()
-            for (x,vpn) in vpnIndex.items():
-                vpn.saveVPN()
+            if not self.topology == None:
+                self.saveService()
+                for (x,vpn) in self.vpnIndex.items():
+                    vpn.saveVPN()
             time.sleep(60)
 
     def saveService(self):
         try:
+            self.properties['topology'] = self.topology.getResourceName()
+            self.properties['coretopology'] = self.coretopology
             self.save()
         except:
-            print "Failed to save VPN Service"
+            print "Failed to save VPN Service\n", sys.exc_info()[0]
 
     def loadService(self):
         stored = Container.getContainer(self.getResourceName())
@@ -200,8 +211,17 @@ class VPNService(Container,MultiPointVPNService):
         for v in vpns:
             vpn = VPN(v.getResourceName())
             vpn.loadVPN(self)
-            vpnIndex[v.getResourceName()] = vpn
-            globals()['vpnIndexById'][vpn.vid] = vpn
+            self.vpnIndex[v.getResourceName()] = vpn
+            self.vpnIndexById[vpn.vid] = vpn
+        if not 'mat' in self.properties:
+            self.properties['mat'] = True
+
+    def newVid(self):
+        with self.lock:
+            while True:
+                v = random.randint(1,65535)
+                if not v in self.vpnIndexById:
+                    return v
 
     def getSite(self,s):
         global sites
@@ -214,44 +234,39 @@ class VPNService(Container,MultiPointVPNService):
         return tbns[s]
 
     def addVpn(self,vpn):
-        vpnIndex[vpn.name] = vpn
-        globals()['vpnIndexById'][vpn.vid] = vpn
+        self.vpnIndex[vpn.name] = vpn
+        self.vpnIndexById[vpn.vid] = vpn
         self.saveResource(vpn)
 
     def createVPN(self,vpnname):
-        if vpnname in vpnIndex:
+        if vpnname in self.vpnIndex:
             return None
         vpn = VPN(vpnname)
+        self.vid = self.newVid()
         self.addVpn(vpn)
         return vpn
 
     def deleteVPN(self,vpnname):
-        if not vpnname in vpnIndex:
-            return False
-        vpn = vpnIndex[vpnname]
-        vpnIndex.pop(vpn.name)
-        globals()['vpnIndexById'].pop(vpn.vid)
-        self.deleteResource(vpn)
-        print "VPN %s removed successfully." % (vpn.name)
-        return True
-
-    def getVPN(self,vpnname):
-        if not vpnname in vpnIndex:
-            return None
-        return vpnIndex[vpnname]
-
-    def kill(self,vpnname):
-        if not vpnname in vpnIndex:
+        if not vpnname in self.vpnIndex:
             print "vpn name %s not found" % vpnname
             return
-        vpn = vpnIndex[vpnname]
+        vpn = self.vpnIndex[vpnname]
         for h in vpn.hostsites.keys():
             self.delhostbymac(vpn, h)
         for s in vpn.vpnsites.values():
             self.delsite(vpn, s)
         for p in vpn.pops.values():
             self.delpop(vpn, p)
-        self.delete(vpnname)
+        self.vpnIndex.pop(vpn.name)
+        self.vpnIndexById.pop(vpn.vid)
+        self.deleteResource(vpn)
+        print "VPN %s removed successfully." % (vpn.name)
+        return True
+
+    def getVPN(self,vpnname):
+        if not vpnname in self.vpnIndex:
+            return None
+        return self.vpnIndex[vpnname]
 
     def addPOP(self,vpn, pop):
         if not vpn.addpop(pop):
@@ -285,34 +300,11 @@ class VPNService(Container,MultiPointVPNService):
             print "Error while deleting host."
             return
 
-    def tapsite(self, vpn, site):
-        print "not implemented"
-
-    def untapsite(self, vpn, site):
-        print "not implemented"
-
-    def taphost(self,vpn, host):
-        print "not implemented"
-
-    def untaphost(self,vpn, host):
-        print "not implemented"
-
-    def tapmac(self,vpn, mac):
-        print "not implemented"
-
-    def untapmac(self,vpn, mac):
-        print "not implemented"
-
-    def settimeout(self,vpn, timeout):
-        if timeout < 0:
-            print "invalid timeout"
-            return
-        print "not implemented"
 
 class VPN(Resource):
     def __init__(self,name):
         Resource.__init__(self,name,"net.es.netshell.api.Resource")
-        self.vid = newVid()
+        self.vid = 0;
         self.name = name
         self.pops = {}              # pop name -> pop
         self.vpnsites = {}          # site name -> site
@@ -347,13 +339,12 @@ class VPN(Resource):
         self.properties['entryfanoutflows'] = str(self.entryfanoutflows)
         self.properties['exitfanoutflows'] = str(self.exitfanoutflows)
         self.properties['hostsites'] = str(self.hostsites)
-        vpnService.saveResource(self)
+        MultiPointVPNServiceFactory.getVpnService().saveResource(self)
 
     def loadVPN(self,mpvpn):
         stored = mpvpn.loadResource(self.getResourceName())
         mapResource(obj=self,resource=stored)
 
-        topo = globals()['topo']
         self.name = self.getResourceName()
         self.vid = self.properties['vid']
         self.priority = self.properties['priority']
@@ -388,7 +379,7 @@ class VPN(Resource):
         :param pop2: Name of POP
         :return: Link (Resource)
         """
-        vc = vpnService.coretopology.loadResource(pop1 + "--" + pop2)
+        vc = MultiPointVPNServiceFactory.getVpnService().coretopology.loadResource(pop1 + "--" + pop2)
         return vc
 
     def makeentryfanoutflows(self, localpop, hostmac, hostvlan, hostsite):
@@ -400,7 +391,7 @@ class VPN(Resource):
         forwards = []
 
         broadcast_mat = "FF:FF:FF:FF:FF:FF"
-        if VPNMAT:
+        if MultiPointVPNServiceFactory.getVpnService().properties['mat']:
             broadcast_mat = self.generateBroadcastMAC()
 
         # Locate all other sites on this POP.  For each of these, make a forwarding entry to it.
@@ -466,12 +457,12 @@ class VPN(Resource):
             # hardware switches.
             broadcastmac = "FF:FF:FF:FF:FF:FF"
             broadcastmac_mat = broadcastmac
-            if VPNMAT:
+            if MultiPointVPNServiceFactory.getVpnService().properties['mat']:
                 broadcastmac_mat = self.generateBroadcastMAC()
             for (remotepopname, remotepop) in self.pops.items():
-                vc = self.interconnectpops(pop.resourceName.upper(), remotepop.resourceName.upper())
+                vc = self.interconnectpops(pop.getResourceName(), remotepop.getResourceName())
                 fhs = swconnect(pop, remotepop, broadcastmac_mat, vc, self.meter)
-                self.popflows[remotepop.resourceName].extend(fhs)
+                self.popflows[remotepop.getResourceName()].extend(fhs)
                 fhlist.extend(fhs)
 
             # This POP is now added.
@@ -521,7 +512,7 @@ class VPN(Resource):
         self.siteflows[site['name']] = []
 
         broadcast_mat = "FF:FF:FF:FF:FF:FF"
-        if VPNMAT:
+        if MultiPointVPNServiceFactory.getVpnService().properties['mat']:
             broadcast_mat = self.generateBroadcastMAC()
 
         # Add flows to get broadcast traffic between the site and the software switch.
@@ -568,7 +559,7 @@ class VPN(Resource):
         for (srcpopname, srcpop) in self.pops.items():
             if srcpopname != localpopname:
                 # Get the VLAN coming from the core for this source POP
-                vc = self.interconnectpops(localpopname.upper(), srcpopname.upper())
+                vc = self.interconnectpops(localpopname, srcpopname)
                 core = Container.fromAnchor(localpop.properties['CoreRouter'])
                 coreresname = core.resourceName
                 (corename, coredom, coreport, corevlan) = getvcnode(vc, coreresname)
@@ -676,7 +667,8 @@ class VPN(Resource):
             localpop = self.pops[localpopname]
             host_mat = None
             broadcast_mat = "FF:FF:FF:FF:FF:FF"
-            if VPNMAT:
+            vpnService = MultiPointVPNServiceFactory.getVpnService();
+            if vpnService.properties['mat']:
                 host_mat = self.generateMAC2(hostmac)
             self.hostflows[hostmac] = []
 
@@ -695,7 +687,7 @@ class VPN(Resource):
                 remotepop = self.pops[remotesite['pop']]
 
                 remotehost_mat = None
-                if VPNMAT:
+                if vpnService.properties['mat']:
                     remotehost_mat =  self.generateMAC2(remotehostmac)
                 fhlist = []
 
@@ -772,39 +764,34 @@ class VPN(Resource):
 
 def usage():
     print "usage:"
-    print "vpn create <vpn name>"
-    print "vpn delete <vpn name>"
-    print "vpn kill <vpn name>"
-    print "vpn shutdown"
-    print "vpn logging <file>"
-    print "vpn settopos <popstopo> <coretopo>"
-    print "vpn load $conf"
-    print "vpn <vpn name> save $conf"
-    print "vpn <vpn name> getprio"
-    print "vpn <vpn name> setprio"
-    print "vpn <vpn name> addpop <pop name>"
-    print "vpn <vpn name> delpop <pop name>"
-    print "vpn <vpn name> addsite <site name> vlan <vlan>"
-    print "vpn <vpn name> delsite <site name>"
-    print "vpn <vpn name> addhostbymac <site name> mac <MAC>"
-    print "vpn <vpn name> delhostbymac <MAC>"
-    print "vpn <vpn name> tapsite <site name>"
-    print "vpn <vpn name> untapsite <site name>"
-    print "vpn <vpn name> taphost <host name>"
-    print "vpn <vpn name> untaphost <host name>"
-    print "vpn <vpn name> tapmac <MAC>"
-    print "vpn <vpn name> untapmac <MAC>"
-    print "vpn <vpn name> settimeout <secs>"
-    print "vpn <vpn name> visualize $conf"
-    print "vpn <vpn name> listpops"
-    print "vpn <vpn name> listsites"
-    print "vpn <vpn name> listhosts"
-    print "vpn mat [<on|off>] Displays the MAC Address Translation feature, turn it on or off."
-    print "Note: <vpn name> should not be any keyword such as create, delete, kill, or load"
+    print "\tvpn start"
+    print "\t\tStarts the service."
+    print "\tvpn shutdown"
+    print "\tvpn settopos <popstopo> <coretopo>"
+    print "\tvpn logging <file>"
+    print "\tvpn create <vpn name>"
+    print "\tvpn delete <vpn name>"
+    print "\tvpn mat [<on|off>] Displays the MAC Address Translation feature, turn it on or off."
+    print
+    print "\tvpn <vpn name> getprio"
+    print "\tvpn <vpn name> setprio"
+    print "\tvpn <vpn name> addpop <pop name>"
+    print "\tvpn <vpn name> delpop <pop name>"
+    print "\tvpn <vpn name> addsite <site name> vlan <vlan>"
+    print "\tvpn <vpn name> delsite <site name>"
+    print "\tvpn <vpn name> addhostbymac <site name> mac <MAC>"
+    print "\tvpn <vpn name> delhostbymac <MAC>"
+    print "\tvpn <vpn name> visualize $conf"
+    print "\tvpn <vpn name> listpops"
+    print "\tvpn <vpn name> listsites"
+    print "\tvpn <vpn name> listhosts"
+    print "\tNote: <vpn name> should not be any keyword such as create, delete, or load"
 
 
 def main():
-    global VPNMAT
+    vpnService = MultiPointVPNServiceFactory.getVpnService()
+    if vpnService == None:
+        print "VPN Service is not running. You can start it with the command vpn start"
     try:
         command = sys.argv[1].lower()
         if command == 'help':
@@ -824,29 +811,21 @@ def main():
                 print "VPN %s removed successfully." % (vpnname)
             else:
                 print "vpn name %s not found" % vpnname
-        elif command == 'kill':
-            vpnname = sys.argv[2]
-            vpnService.kill(vpnname)
         elif command == 'load':
             vpnService.loadService()
         elif command == "save":
             vpnService.saveService()
+        elif command == "start":
+            MultiPointVPNServiceFactory.create(None);
         elif command == "mat":
             if 'on' in sys.argv:
-                VPNMAT = True
+                vpnService.properties['mat'] = True
             if 'off' in sys.argv:
-                VPNMAT = False
+                vpnService.properties['mat'] = False
             state = {True:'on',False:'off'}
-            print "MAC Address Translation feature is",state[VPNMAT]
+            print "MAC Address Translation feature is",state[vpnService.properties['mat']]
         elif command == "shutdown":
-            if 't' in globals():
-                t.stop()
-                del globals()['t']
-            if 'VPNcallback' in globals():
-                SCC.clearCallback()
-                del globals()['VPNcallback']
-            if 'SCC' in globals():
-                del globals()['SCC']
+            vpnService.shutdown()
         elif command == "logging":
             logname = sys.argv[2]
             logging.basicConfig(format='%(asctime)s %(levelname)8s %(message)s', filename=logname, filemode='a', level=logging.INFO)
@@ -857,7 +836,7 @@ def main():
             vpnService.settopos(popstoponame, coretoponame)
         elif command == 'listvpns':
             print "%20s" % ("VPN")
-            for name in vpnIndex:
+            for name in vpnService.vpnIndex:
                 print "%20s" % name
         else:
             vpn = vpnService.getVPN(sys.argv[1])
@@ -925,7 +904,7 @@ def main():
                 print "%17s  %17s  %s" % ("MAC", "Translated MAC", "Site")
                 for (hostmac, hostsite) in vpn.hostsites.items():
                     hostmacmat = hostmac
-                    if VPNMAT:
+                    if vpnService.properties['mat']:
                         hostmacmat = vpn.generateMAC2(hostmac)
                     print "%17s  %17s  %s" % (hostmac, hostmacmat, hostsite)
             elif command == 'listsites':
@@ -951,33 +930,6 @@ def main():
                         hwSwitchName = pop.props['hwSwitch']
                         swSwitchName = pop.props['swSwitch']
                     print "%6s  %20s  %20s  %20s" % (popname, coreRouterName, hwSwitchName, swSwitchName)
-            elif command == 'tapsite':
-                site = vpnService.getSite(sys.argv[3])
-                if site == None:
-                    print "unknown site"
-                    return
-                vpnService.tapsite(vpn, site)
-            elif command == 'untapsite':
-                site = vpnService.getSite(sys.argv[3])
-                if site == None:
-                    print "unknown site"
-                    return
-                vpnService.untapsite(vpn, site)
-            elif command == 'taphost':
-                host = vpnService.getHost(sys.argv[3])
-                vpnService.taphost(vpn, host)
-            elif command == 'untaphost':
-                host = vpnService.getHost(sys.argv[3])
-                vpnService.untaphost(vpn, host)
-            elif command == 'tapmac':
-                mac = MACAddress(sys.argv[3])
-                vpnService.tapmac(vpn, mac)
-            elif command == 'untapmac':
-                mac = MACAddress(sys.argv[3])
-                vpnService.untapmac(vpn, mac)
-            elif command == 'settimeout':
-                timeout = float(sys.argv[3])
-                vpnService.settimeout(vpn, timeout)
             else:
                 print "unknown command"
                 usage()
@@ -986,42 +938,5 @@ def main():
         #        usage()
         raise
 
-# Retrieve topology
-if not 'topo' in globals() or topo == None:
-    topo = TestbedTopology()
-    globals()['topo'] = topo
-if 'vpnIndex' not in globals() or vpnIndex == None:
-    vpnIndex = {}
-    globals()['vpnIndex'] = vpnIndex
-if 'vpnIndexById' not in globals() or vpnIndexById == None:
-    vpnIndexById = {}
-    globals()['vpnIndexById'] = vpnIndexById
-
 if __name__ == '__main__':
-    if not 'topo' in globals() or topo == None:
-        topo = TestbedTopology()
-        globals()['topo'] = topo
-    if 'vpnIndex' not in globals() or vpnIndex == None:
-        vpnIndex = {}
-        globals()['vpnIndex'] = vpnIndex
-
-    if 'vpnService' not in globals():
-        vpnService = VPNService()
-        globals()['vpnService'] = vpnService
-
-    # Start callback if we don't have one already
-    if not sys.debugNoController:
-        if 'SCC' not in globals() or SCC == None:
-            SCC = SdnControllerClient()
-            globals()['SCC'] = SCC
-            t = Thread(SCC)
-            globals()['t'] = t
-            t.start()
-        if 'VPNcallback' not in globals() or VPNcallback == None:
-            VPNcallback = VpnCallback("MP-VPN Service", vpnService)
-            setcallback(VPNcallback)
-            globals()['VPNcallback'] = VPNcallback
-            SCC.setCallback(VPNcallback)
-            print "VPNcallback set"
-
     main()

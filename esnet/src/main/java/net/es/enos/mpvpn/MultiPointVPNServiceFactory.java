@@ -24,31 +24,29 @@ import org.python.core.PyString;
 import org.python.util.PythonInterpreter;
 
 public class MultiPointVPNServiceFactory {
-    private PyObject pyObject;
-    private String pythonPath;
 
-    /**
-     * Create a new PythonInterpreter object, then use it to
-     * execute some python code. In this case, we want to
-     * import the python module that we will coerce.
-     * <p>
-     * Once the module is imported than we obtain a reference to
-     * it and assign the reference to a Java variable
-     */
+    static private  MultiPointVPNService vpnService = null;
 
-    public MultiPointVPNServiceFactory() {
-        PythonInterpreter interpreter = new PythonInterpreter();
-        interpreter.exec("from layer2.vpn.vpn import VPNService");
-        this.pyObject = interpreter.get("VPNService");
+    static public MultiPointVPNService getVpnService() {
+        return vpnService;
     }
 
     /**
      * The create method is responsible for performing the actual
      * coercion of the referenced python module into Java bytecode
      */
-
-    public MultiPointVPNService create(String pythonPath) {
-        PyObject obj = this.pyObject.__call__();
-        return (MultiPointVPNService) obj.__tojava__(MultiPointVPNService.class);
+    static public void create(String pythonPath) {
+        if (vpnService != null) {
+            throw new RuntimeException("MP-VPN Service has already been created.");
+        }
+        PythonInterpreter interpreter = new PythonInterpreter();
+        if (pythonPath == null) {
+            interpreter.exec("from layer2.vpn.vpn import VPNService");
+        } else {
+            interpreter.exec(pythonPath);
+        }
+        PyObject pyObject = interpreter.get("VPNService");
+        PyObject obj = pyObject.__call__();
+        vpnService = (MultiPointVPNService) obj.__tojava__(MultiPointVPNService.class);
     }
 }
