@@ -5,7 +5,6 @@
 *.war
 *.ear
 # Intellij
-*.xml
 *.iml
 .idea
 target
