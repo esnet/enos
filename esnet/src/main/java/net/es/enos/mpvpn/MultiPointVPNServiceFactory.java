@@ -49,4 +49,8 @@ public class MultiPointVPNServiceFactory {
         PyObject obj = pyObject.__call__();
         vpnService = (MultiPointVPNService) obj.__tojava__(MultiPointVPNService.class);
     }
+
+    static public void delete() {
+        vpnService = null;
+    }
 }

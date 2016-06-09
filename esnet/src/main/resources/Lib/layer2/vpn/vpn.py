@@ -80,6 +80,7 @@ class VpnCallback(SdnControllerClientCallback):
         Receive a PACKET_IN callback
         """
         # Decode the callback.  First get the switch
+        print "### PACKET IN ###"
         switch = None
         hexdpid = binascii.hexlify(dpid)
         if hexdpid in self.switchIndex.keys():
@@ -183,6 +184,7 @@ class VPNService(Container,MultiPointVPNService):
         if self.sccThread != None:
             self.sccThread.stop()
             self.SCC.clearCallback()
+        MultiPointVPNServiceFactory.delete()
 
     def autosave(self):
         while True:
@@ -195,7 +197,7 @@ class VPNService(Container,MultiPointVPNService):
     def saveService(self):
         try:
             self.properties['topology'] = self.topology.getResourceName()
-            self.properties['coretopology'] = self.coretopology
+            self.properties['coretopology'] = self.coretopology.getResourceName()
             self.save()
         except:
             print "Failed to save VPN Service\n", sys.exc_info()[0]
