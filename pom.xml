@@ -37,5 +37,6 @@
         <module>esnet</module>
         <module>perfsonar</module>
         <module>features</module>
+        <module>karaf</module>
     </modules>
  </project>

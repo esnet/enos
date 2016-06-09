@@ -23,8 +23,8 @@
         <bundle>mvn:com.sun.jersey/jersey-core/1.17</bundle>
         <bundle>mvn:com.sun.jersey/jersey-client/1.17</bundle>
         <bundle>mvn:commons-io/commons-io/2.4</bundle>
-        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.oro</bundle>
-        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.json-lib</bundle>
+        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.oro/2.0.8_6</bundle>
+        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.json-lib/2.4_1</bundle>
         <bundle>mvn:org.codehaus.jettison/jettison/1.3.7</bundle>
         <bundle>mvn:net.es.netshell/netshell-kernel/1.0.0-SNAPSHOT</bundle>
         <bundle>mvn:net.es.netshell/netshell-python/1.0.0-SNAPSHOT</bundle>
@@ -36,8 +36,8 @@
         <bundle>wrap:mvn:org.apache.httpcomponents/httpcore/4.2.5</bundle>
         <bundle>wrap:mvn:org.apache.httpcomponents/httpclient/4.2.6</bundle>
         <bundle>wrap:mvn:net.es.lookup/simple-lookup-service-client/1.1-SNAPSHOT</bundle>
-        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.oro</bundle>
-        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.json-lib</bundle>
+        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.oro/2.0.8_6</bundle>
+        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.json-lib/2.4_1</bundle>
         <!-- ActiveMQ JAr has many optional dependencies.  Which of these do we need? -->
         <bundle>wrap:mvn:org.apache.activemq/activemq-all/5.9.1</bundle>
         <bundle>mvn:net.es.enos/enos-perfsonar/1.0.0-SNAPSHOT</bundle>

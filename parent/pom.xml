@@ -46,6 +46,7 @@
         <java.version.source>1.7</java.version.source>
         <java.version.target>1.7</java.version.target>
         <netshell.version>1.0.0-SNAPSHOT</netshell.version>
+        <karaf.version>3.0.6</karaf.version>
     </properties>
 
     <scm>
