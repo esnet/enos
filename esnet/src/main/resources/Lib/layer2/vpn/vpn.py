@@ -668,7 +668,9 @@ def usage():
     print "usage:"
     print "vpn create <vpn name>"
     print "vpn delete <vpn name>"
+    print "vpn listvpns"
     print "vpn kill <vpn name>"
+    print "vpn startup"
     print "vpn shutdown"
     print "vpn logging <file>"
     print "vpn settopos <popstopo> <coretopo>"
@@ -856,9 +858,24 @@ def main():
                 VPNMAT = False
             state = {True:'on',False:'off'}
             print "MAC Address Translation feature is",state[VPNMAT]
+        elif command == "startup":
+            # Start callback if we don't have one already
+            if not sys.debugNoController:
+                if 'SCC' not in globals() or SCC == None:
+                    SCC = SdnControllerClient()
+                    globals()['SCC'] = SCC
+                    t = java.lang.Thread(SCC)
+                    globals()['t'] = t
+                    t.start()
+                if 'VPNcallback' not in globals() or VPNcallback == None:
+                    VPNcallback = VpnCallback("MP-VPN Service", vpnService)
+                    setcallback(VPNcallback)
+                    globals()['VPNcallback'] = VPNcallback
+                    SCC.setCallback(VPNcallback)
+                    print "VPNcallback set"
         elif command == "shutdown":
             if 't' in globals():
-                t.stop()
+                globals()['t'].stop()
                 del globals()['t']
             if 'VPNcallback' in globals():
                 SCC.clearCallback()
@@ -878,7 +895,7 @@ def main():
             for name in vpnIndex:
                 print "%20s" % name
         else:
-            vpn = VPN(sys.argv[1])
+            vpn = vpnIndex[sys.argv[1]]
             command = sys.argv[2].lower()
             if command == 'getprio':
                 prio = vpn.getpriority()
@@ -1008,20 +1025,5 @@ if __name__ == '__main__':
     if 'vpnService' not in globals():
         vpnService = VPNService()
         globals()['vpnService'] = vpnService
-
-    # Start callback if we don't have one already
-    if not sys.debugNoController:
-        if 'SCC' not in globals() or SCC == None:
-            SCC = SdnControllerClient()
-            globals()['SCC'] = SCC
-            t = java.lang.Thread(SCC)
-            globals()['t'] = t
-            t.start()
-        if 'VPNcallback' not in globals() or VPNcallback == None:
-            VPNcallback = VpnCallback("MP-VPN Service", vpnService)
-            setcallback(VPNcallback)
-            globals()['VPNcallback'] = VPNcallback
-            SCC.setCallback(VPNcallback)
-            print "VPNcallback set"
 
     main()
