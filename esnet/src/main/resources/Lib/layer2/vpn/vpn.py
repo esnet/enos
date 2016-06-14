@@ -18,7 +18,7 @@
 #
 import binascii
 import logging,random
-from java.lang import Thread
+import java.lang.Thread
 from layer2.common.mac import MACAddress
 from layer2.testbed.vc import getvcnode
 from layer2.testbed.topology import TestbedTopology
@@ -1014,7 +1014,7 @@ if __name__ == '__main__':
         if 'SCC' not in globals() or SCC == None:
             SCC = SdnControllerClient()
             globals()['SCC'] = SCC
-            t = Thread(SCC)
+            t = java.lang.Thread(SCC)
             globals()['t'] = t
             t.start()
         if 'VPNcallback' not in globals() or VPNcallback == None:
