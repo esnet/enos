@@ -22,14 +22,18 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>net.es</groupId>
+    <parent>
+        <groupId>net.es.enos</groupId>
+        <artifactId>enos-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../parent</relativePath>
+    </parent>
+
+    <groupId>net.es.enos</groupId>
     <artifactId>enos-perfsonar</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <name>${project.artifactId}</name>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>bundle</packaging>
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    </properties>
 
     <repositories>
         <repository>
@@ -59,12 +63,11 @@
     </pluginRepositories>
 
     <dependencies>
-
         <!-- NetShell -->
         <dependency>
-            <groupId>net.es</groupId>
+            <groupId>net.es.netshell</groupId>
             <artifactId>netshell-kernel</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>1.0.0-SNAPSHOT</version>
         </dependency>
 
         <!-- sLS -->
@@ -73,9 +76,7 @@
             <artifactId>simple-lookup-service-client</artifactId>
             <version>1.1-SNAPSHOT</version>
         </dependency>
-
     </dependencies>
-
 
     <build>
         <plugins>
@@ -88,32 +89,12 @@
                     <instructions>
                         <Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
                         <Bundle-Name>ESnet ENOS perfSONAR Bundle</Bundle-Name>
-                        <Bundle-Version>1.0-SNAPSHOT</Bundle-Version>
+                        <Bundle-Version>${project.version}</Bundle-Version>
                         <Export-Package>net.es.enos.perfsonar</Export-Package>
                         <Import-Package>*</Import-Package>
                     </instructions>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.1</version>
-                <configuration>
-                    <source>7</source>
-                    <target>7</target>
-                </configuration>
-            </plugin>
         </plugins>
-        <extensions>
-            <extension>
-                <groupId>org.apache.maven.wagon</groupId>
-                <artifactId>wagon-file</artifactId>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.wagon</groupId>
-                <artifactId>wagon-ssh</artifactId>
-            </extension>
-        </extensions>
     </build>
-
 </project>
