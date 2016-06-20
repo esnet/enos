@@ -198,16 +198,17 @@ class VPNService(Container,MultiPointVPNService):
             self.coretopology = Container.getContainer(self.properties['coretopology'])
         vpns = self.loadResources({"resourceType":"VPN"})
         for v in vpns:
-            vpn = VPN(v.getResourceName())
+            vpn = VPN(name=v.getResourceName(),vs=self)
             mapResource(obj=vpn,resource=v)
             vpnIndex[v.getResourceName()] = vpn
             globals()['vpnIndexById'][vpn.vid] = vpn
 
 class VPN(Resource):
-    def __init__(self,name):
+    def __init__(self,name,vs):
         Resource.__init__(self,name,"net.es.netshell.api.Resource")
         self.vid = newVid()
         self.name = name
+        self.vpnService = vs
         self.pops = {}              # pop name -> pop
         self.vpnsites = {}          # site name -> site
         self.vpnsitevlans = {}      # site name -> vlan tag for attachment
@@ -261,6 +262,8 @@ class VPN(Resource):
         self.entryfanoutflows = eval (self.properties['entryfanoutflows'])
         self.hostsites = eval (self.properties['hostsites'])
         self.mat = MAT.deserialize(self.properties['mat'])
+
+        self.vpnService = vpnService # global
 
     def interconnect(self, site1,site2): # XXX core topo!
         """
@@ -744,7 +747,7 @@ def create(vpnname):
     if vpnname in vpnIndex:
         print "vpn %r exists already" % vpnname
         return
-    vpn = VPN(vpnname)
+    vpn = VPN(vpnname, vpnService)
     addVpn(vpn)
     print "VPN %s is created successfully." % vpn.name
 
