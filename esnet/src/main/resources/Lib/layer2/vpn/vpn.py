@@ -66,13 +66,6 @@ if not 'VPNMAT' in globals():
     VPNMAT = True
     globals()['VPNMAT'] = VPNMAT
 
-def newVid():
-    with globals()['VPNlock']:
-        while True:
-            v = random.randint(1,65535)
-            if not v in globals()['vpnIndexById']:
-                return v
-
 class VpnCallback(SdnControllerClientCallback):
     def __init__(self, name, vs):
         self.logger = logging.getLogger("VpnCallback")
@@ -165,6 +158,8 @@ class VpnCallback(SdnControllerClientCallback):
 class VPNService(Container,MultiPointVPNService):
     def __init__(self):
         Resource.__init__(self,"MultiPointVPNService")
+        self.vpnIndexById = {} # [vpn.vid] -> vpn
+        self.vpnIndexByName = {} # [vpn.name] -> vpn
         self.loadService()
         self.saveThread = Thread(target=self.autosave)
         self.saveThread.start()
@@ -179,7 +174,7 @@ class VPNService(Container,MultiPointVPNService):
     def autosave(self):
         while True:
             self.saveService()
-            for (x,vpn) in vpnIndex.items():
+            for (x,vpn) in self.vpnIndexByName.items():
                 vpn.saveVPN()
             time.sleep(60)
 
@@ -200,15 +195,22 @@ class VPNService(Container,MultiPointVPNService):
         for v in vpns:
             vpn = VPN(name=v.getResourceName(),vs=self)
             mapResource(obj=vpn,resource=v)
-            vpnIndex[v.getResourceName()] = vpn
-            globals()['vpnIndexById'][vpn.vid] = vpn
+            self.vpnIndexByName[v.getResourceName()] = vpn
+            self.vpnIndexById[vpn.vid] = vpn
+
+    def newVid(self):
+        with globals()['VPNlock']:
+            while True:
+                v = random.randint(1,65535)
+                if not v in self.vpnIndexById:
+                    return v
 
 class VPN(Resource):
     def __init__(self,name,vs):
         Resource.__init__(self,name,"net.es.netshell.api.Resource")
-        self.vid = newVid()
-        self.name = name
         self.vpnService = vs
+        self.vid = self.vpnService.newVid()
+        self.name = name
         self.pops = {}              # pop name -> pop
         self.vpnsites = {}          # site name -> site
         self.vpnsitevlans = {}      # site name -> vlan tag for attachment
@@ -739,12 +741,12 @@ def tohost(s):
     return tbns[s]
 
 def addVpn(vpn):
-    vpnIndex[vpn.name] = vpn
-    globals()['vpnIndexById'][vpn.vid] = vpn
+    vpnService.vpnIndexByName[vpn.name] = vpn
+    vpnService.vpnIndexById[vpn.vid] = vpn
     vpnService.saveResource(vpn)
 
 def create(vpnname):
-    if vpnname in vpnIndex:
+    if vpnname in vpnService.vpnIndexByName:
         print "vpn %r exists already" % vpnname
         return
     vpn = VPN(vpnname, vpnService)
@@ -752,20 +754,20 @@ def create(vpnname):
     print "VPN %s is created successfully." % vpn.name
 
 def delete(vpnname):
-    if not vpnname in vpnIndex:
+    if not vpnname in vpnService.vpnIndexByName:
         print "vpn name %s not found" % vpnname
         return
-    vpn = vpnIndex[vpnname]
-    vpnIndex.pop(vpn.name)
-    globals()['vpnIndexById'].pop(vpn.vid)
+    vpn = vpnService.vpnIndexByName[vpnname]
+    vpnService.vpnIndexByName.pop(vpn.name)
+    vpnService.vpnIndexById.pop(vpn.vid)
     vpnService.deleteResource(vpn)
     print "VPN %s removed successfully." % (vpn.name)
 
 def kill(vpnname):
-    if not vpnname in vpnIndex:
+    if not vpnname in vpnService.vpnIndexByName:
         print "vpn name %s not found" % vpnname
         return
-    vpn = vpnIndex[vpnname]
+    vpn = vpnService.vpnIndexByName[vpnname]
     for h in vpn.hostsites.keys():
         delhostbymac(vpn, h)
     for s in vpn.vpnsites.values():
@@ -895,10 +897,10 @@ def main():
             vpnService.settopos(popstoponame, coretoponame)
         elif command == 'listvpns':
             print "%20s" % ("VPN")
-            for name in vpnIndex:
+            for name in vpnService.vpnIndexByName:
                 print "%20s" % name
         else:
-            vpn = vpnIndex[sys.argv[1]]
+            vpn = vpnService.vpnIndexByName[sys.argv[1]]
             command = sys.argv[2].lower()
             if command == 'getprio':
                 prio = vpn.getpriority()
@@ -1010,20 +1012,11 @@ def main():
 if not 'topo' in globals() or topo == None:
     topo = TestbedTopology()
     globals()['topo'] = topo
-if 'vpnIndex' not in globals() or vpnIndex == None:
-    vpnIndex = {}
-    globals()['vpnIndex'] = vpnIndex
-if 'vpnIndexById' not in globals() or vpnIndexById == None:
-    vpnIndexById = {}
-    globals()['vpnIndexById'] = vpnIndexById
 
 if __name__ == '__main__':
     if not 'topo' in globals() or topo == None:
         topo = TestbedTopology()
         globals()['topo'] = topo
-    if 'vpnIndex' not in globals() or vpnIndex == None:
-        vpnIndex = {}
-        globals()['vpnIndex'] = vpnIndex
 
     if 'vpnService' not in globals():
         vpnService = VPNService()
