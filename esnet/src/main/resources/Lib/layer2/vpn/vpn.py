@@ -124,6 +124,14 @@ class VpnCallback(SdnControllerClientCallback):
             self.logger.debug("LLDP frame ignored")
             return
 
+        # Figure out the slice/service ID.  This comes from the mapped destination address
+        # (going to be a broadcast address).  If it doesn't match our slice ID then drop.
+        # XXX need to check this, not clear if the MACAddress constructor will DTRT.
+        mac = MACAddress(frame.getDstMac())
+        if (mac.getSid() != self.vpnService.sid):
+            self.logger.debug("Destination address doesn't match, ignored")
+            return
+
         # Figure out which VPN (if any) this belongs to
         vpn = None
         vpnsite = None
@@ -134,7 +142,7 @@ class VpnCallback(SdnControllerClientCallback):
         # XXX Note we can't do any port-based matching because all of the traffic from the
         # hardware switch to the software switch shows up on the same port on the software
         # switch, which is the one generating the PACKET_IN message.
-        for (x,v) in globals()['vpnIndex'].items():
+        for (x,v) in self.vpnService.vpnIndex.items():
             for (sitename,site) in v.vpnsites.items():
                 if site['pop'].lower() == switchpopname and int(v.vpnsitevlans[sitename]) == frame.getVid():
                     vpn = v
@@ -160,6 +168,7 @@ class VPNService(Container,MultiPointVPNService):
         Resource.__init__(self,"MultiPointVPNService")
         self.vpnIndexById = {} # [vpn.vid] -> vpn
         self.vpnIndexByName = {} # [vpn.name] -> vpn
+        self.sid = 0 # slice ID (by default use 0 for non-sliced)
         self.loadService()
         self.saveThread = Thread(target=self.autosave)
         self.saveThread.start()
@@ -179,6 +188,7 @@ class VPNService(Container,MultiPointVPNService):
             time.sleep(60)
 
     def saveService(self):
+        self.properties['sid'] = self.sid
         try:
             self.save()
         except:
@@ -191,6 +201,9 @@ class VPNService(Container,MultiPointVPNService):
             self.topology = Container.getContainer(self.properties['topology'])
         if 'coretopology' in self.properties:
             self.coretopology = Container.getContainer(self.properties['coretopology'])
+        self.sid = 0
+        if 'sid' in self.properties:
+            self.sid = self.properties['sid']
         vpns = self.loadResources({"resourceType":"VPN"})
         for v in vpns:
             vpn = VPN(name=v.getResourceName(),vs=self)
@@ -223,7 +236,7 @@ class VPN(Resource):
         self.priority = "low"
         self.meter = 3
         self.lock = threading.Lock()
-        self.mat = MAT(self.vid)
+        self.mat = MAT(sid=self.vpnService.sid, vid=self.vid)
 
         self.logger = logging.getLogger("VPN")
         self.logger.setLevel(logging.INFO)
@@ -864,6 +877,9 @@ def main():
             state = {True:'on',False:'off'}
             print "MAC Address Translation feature is",state[VPNMAT]
         elif command == "startup":
+            sid = int(sys.argv[2]) # service ID
+            vpnService.sid = sid
+            vpnService.saveService()
             # Start callback if we don't have one already
             if not sys.debugNoController:
                 if 'SCC' not in globals() or SCC == None:
@@ -883,7 +899,8 @@ def main():
                 globals()['t'].stop()
                 del globals()['t']
             if 'VPNcallback' in globals():
-                SCC.clearCallback()
+                if 'SCC' in globals():
+                    globals()['SCC'].clearCallback()
                 del globals()['VPNcallback']
             if 'SCC' in globals():
                 del globals()['SCC']
