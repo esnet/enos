@@ -47,6 +47,11 @@
         <java.version.target>1.7</java.version.target>
         <netshell.version>1.0.0-SNAPSHOT</netshell.version>
         <karaf.version>3.0.6</karaf.version>
+        <swagger.version>1.5.7</swagger.version>
+        <osgi.version>5.0.0</osgi.version>
+        <webjars-swagger-ui.version>2.1.4</webjars-swagger-ui.version>
+        <slf4j.version>1.7.9</slf4j.version>
+        <log4j.version>1.2.17</log4j.version>
     </properties>
 
     <scm>
@@ -60,6 +65,26 @@
             <url>http://downloads.es.net/maven</url>
         </repository>
     </distributionManagement>
+
+    <repositories>
+        <repository>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>central</id>
+            <name>Maven Repository Switchboard</name>
+            <url>http://repo1.maven.org/maven2</url>
+        </repository>
+        <repository>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>interval:5</updatePolicy>
+            </snapshots>
+            <id>esnet</id>
+            <name>ESnet Private Maven Repository</name>
+            <url>http://downloads.es.net/maven</url>
+        </repository>
+    </repositories>
 
     <build>
         <plugins>

@@ -44,6 +44,7 @@
             <name>Maven Repository Switchboard</name>
             <url>http://repo1.maven.org/maven2</url>
         </repository>
+
         <repository>
             <snapshots>
                 <enabled>true</enabled>
@@ -53,6 +54,7 @@
             <name>ESnet Private Maven Repository</name>
             <url>http://downloads.es.net/maven</url>
         </repository>
+
         <!-- OpenDaylight releases -->
         <repository>
             <id>opendaylight-mirror</id>
@@ -66,6 +68,7 @@
                 <updatePolicy>never</updatePolicy>
             </releases>
         </repository>
+
         <!-- OpenDaylight snapshots -->
         <repository>
             <id>opendaylight-snapshot</id>
@@ -123,7 +126,7 @@
             <artifactId>org.apache.servicemix.bundles.json-lib</artifactId>
             <version>2.4_1</version>
         </dependency>
-        
+
         <dependency>
             <groupId>org.python</groupId>
             <artifactId>jython-standalone</artifactId>

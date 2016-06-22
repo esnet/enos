@@ -30,30 +30,10 @@
     </parent>
 
     <groupId>net.es.enos</groupId>
-    <artifactId>karaf</artifactId>
+    <artifactId>enos-karaf</artifactId>
     <name>${project.artifactId}</name>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>kar</packaging>
-
-    <repositories>
-        <repository>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-            <id>central</id>
-            <name>Maven Repository Switchboard</name>
-            <url>http://repo1.maven.org/maven2</url>
-        </repository>
-        <repository>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>interval:5</updatePolicy>
-            </snapshots>
-            <id>esnet</id>
-            <name>ESnet Private Maven Repository</name>
-            <url>http://downloads.es.net/maven</url>
-        </repository>
-    </repositories>
 
     <dependencies>
         <!-- Basic Karaf dependencies -->
@@ -71,6 +51,16 @@
           <classifier>features</classifier>
           <type>xml</type>
           <scope>runtime</scope>
+        </dependency>
+
+        <!-- Famework dependencies. -->
+        <dependency>
+            <groupId>com.eclipsesource.jaxrs</groupId>
+            <artifactId>features</artifactId>
+            <version>5.3.1</version>
+            <classifier>features</classifier>
+            <type>xml</type>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- NetShell -->
@@ -113,6 +103,7 @@
                 <extensions>true</extensions>
                 <configuration>
                   <descriptors>
+                    <descriptor>mvn:com.eclipsesource.jaxrs/features/5.3.1/xml/features</descriptor>
                     <descriptor>mvn:net.es.netshell/netshell-features/1.0.0-SNAPSHOT/xml/features</descriptor>
                     <descriptor>mvn:net.es.enos/enos-features/1.0.0-SNAPSHOT/xml/features</descriptor>
                   </descriptors>
@@ -123,9 +114,17 @@
                   </framework>
                   <bootFeatures>
                     <feature>standard</feature>
+                    <feature>scr</feature>
+                    <feature>http</feature>
+                    <feature>webconsole</feature>
+                    <feature>jax-rs-connector</feature>
+                    <feature>jax-rs-provider-moxy</feature>
+                    <feature>jax-rs-provider-swagger</feature>
                     <feature>netshell-kernel</feature>
                     <feature>netshell-python</feature>
+                    <feature>enos-swagger</feature>
                     <feature>enos-esnet</feature>
+                    <feature>enos-services</feature>
                   </bootFeatures>
                 </configuration>
                 <executions>
