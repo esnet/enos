@@ -195,21 +195,25 @@ class VPNService(Container,MultiPointVPNService):
             print "Failed to save VPN Service"
 
     def loadService(self):
-        stored = Container.getContainer(self.getResourceName())
-        mapResource (obj=self,resource=stored)
-        if 'topology' in self.properties:
-            self.topology = Container.getContainer(self.properties['topology'])
-        if 'coretopology' in self.properties:
-            self.coretopology = Container.getContainer(self.properties['coretopology'])
-        self.sid = 0
-        if 'sid' in self.properties:
-            self.sid = self.properties['sid']
-        vpns = self.loadResources({"resourceType":"VPN"})
-        for v in vpns:
-            vpn = VPN(name=v.getResourceName(),vs=self)
-            mapResource(obj=vpn,resource=v)
-            self.vpnIndexByName[v.getResourceName()] = vpn
-            self.vpnIndexById[vpn.vid] = vpn
+        try:
+            stored = Container.getContainer(self.getResourceName())
+            mapResource (obj=self,resource=stored)
+            if 'topology' in self.properties:
+                self.topology = Container.getContainer(self.properties['topology'])
+            if 'coretopology' in self.properties:
+                self.coretopology = Container.getContainer(self.properties['coretopology'])
+            self.sid = 0
+            if 'sid' in self.properties:
+                self.sid = int(self.properties['sid'])
+            vpns = self.loadResources({"resourceType":"VPN"})
+            for v in vpns:
+                vpn = VPN(name=v.getResourceName(),vs=self)
+                mapResource(obj=vpn,resource=v)
+                self.vpnIndexByName[v.getResourceName()] = vpn
+                self.vpnIndexById[vpn.vid] = vpn
+        except:
+            print "Cannot load MP-VPN service container"
+            return
 
     def newVid(self):
         with globals()['VPNlock']:
@@ -428,6 +432,12 @@ class VPN(Resource):
         return True
 
     def addsite(self,site,vlan):
+
+        # Make sure the pop to which the site is attached is already a part of the VPN.
+        # In theory we could implicitly add a POP whenever we add a site that needs it.
+        if site['pop'].lower() not in self.pops:
+            return False
+
         self.vpnsites[site['name']] = site
         self.vpnsitevlans[site['name']] = vlan
         self.siteflows[site['name']] = []
