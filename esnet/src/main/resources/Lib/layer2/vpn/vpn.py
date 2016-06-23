@@ -361,6 +361,10 @@ class VPN(Resource):
     def addpop(self,pop):
         rc = True
 
+        # See if we've already added the POP
+        if pop.resourceName in self.pops:
+            return False
+
         with self.lock:
 
             fhlist = [] # List of FlowHandles for this POP
@@ -432,6 +436,15 @@ class VPN(Resource):
         return True
 
     def addsite(self,site,vlan):
+
+        # If we've already added this site, don't do it again.
+        # Note this is actually not a real requirement.  In theory it should be possible
+        # to put multiple attachments to a single site, on different VLANs.  However
+        # our implementation doesn't support that at this point, primarily because
+        # we have some assumptions that each site only attaches once to a VPN.  This check
+        # here is mostly to avoid violating these assumptions and getting us in trouble.
+        if site['name'] in self.vpnsites:
+            return False
 
         # Make sure the pop to which the site is attached is already a part of the VPN.
         # In theory we could implicitly add a POP whenever we add a site that needs it.
