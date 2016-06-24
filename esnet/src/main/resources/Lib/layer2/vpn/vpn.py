@@ -134,7 +134,7 @@ class VpnCallback(SdnControllerClientCallback):
         # XXX Note we can't do any port-based matching because all of the traffic from the
         # hardware switch to the software switch shows up on the same port on the software
         # switch, which is the one generating the PACKET_IN message.
-        for (x,v) in globals()['vpnIndex'].items():
+        for (x,v) in self.vpnService.vpnIndexById.items():
             for (sitename,site) in v.vpnsites.items():
                 if site['pop'].lower() == switchpopname and int(v.vpnsitevlans[sitename]) == frame.getVid():
                     vpn = v

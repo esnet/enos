@@ -1,0 +1,22 @@
+<!--
+    Deployment blueprint describing bean injection for our simple
+    shell command.
+
+    See: https://karaf.apache.org/manual/latest-3.0.x/developers-guide/extending.html
+-->
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0">
+
+    <command-bundle xmlns="http://karaf.apache.org/xmlns/shell/v1.1.0">
+        <command>
+            <action class="net.es.enos.services.example.ExampleCommand"/>
+            <completers>
+                <ref component-id="exampleCompleter"/>
+                <null/>
+            </completers>
+        </command>
+    </command-bundle>
+
+    <bean id="exampleCompleter" class="net.es.enos.services.example.ExampleCompleter"/>
+
+</blueprint>
+
