@@ -601,7 +601,7 @@ class VPN(Resource):
                 # XXX This condition might change after we add NFV support
                 if hostsite['name'] == self.hostsites[hostmac]:
                     self.logger.info("Host " + hostmac + " already exists at site " + hostsite['name'])
-                    return False
+                    return True
                 else:
                     self.logger.info("Host " + hostmac + " moved from site " + self.hostsites[hostmac] + " to site " + hostsite['name'])
                     return False
