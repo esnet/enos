@@ -22,11 +22,12 @@
 
 from net.es.netshell.api import Resource, Container
 
-from net.es.netshell.kernel.proxmox import LXCManager
+from proxmoxer import ProxmoxAPI
 
 from layer2.testbed import idmanager, proxmoxutil
 
 import string
+import time
 
 HOST_CONTAINER = 'host'
 
@@ -45,6 +46,12 @@ PROPERTIES_AUTHREALM = 'authrealm'
 PROPERTIES_HYPERVISOR = 'hypervisor'
 PROPERTIES_PORT = 'port'
 
+PROPERTIES_CPUS = 'cpus'
+PROPERTIES_STORAGE='storage'
+PROPERTIES_MEMORY='memory'
+PROPERTIES_SWAP='swap'
+PROPERTIES_DISK='disk'
+
 CONTROLPLANE_PREFIX = '192.168.120.'
 CONTROLPLANE_NETMASK = 24
 
@@ -55,9 +62,19 @@ DATAPLANE_VLAN4020 = 4020
 DATAPLANE_PREFIX = '10.'
 DATAPLANE_NETMASK = 24
 
+CPUS = 1
+STORAGE='local'
+MEMORY=1024
+SWAP=1024
+DISK=10
+
+
 INTERFACES = "ifaces"
 IPADDRESS = "ipaddress"
 VLAN = "vlan"
+
+DEFAULT_PASSWORD = 'enos@testbed'
+
 
 def exists(hostname):
     container = Container.getContainer(HOST_CONTAINER)
@@ -80,26 +97,30 @@ def createHostTemplateWithId(host, hypervisor, owner, project, hostid, os):
         hostresource.properties[OWNER] = owner
         hostresource.properties[PROJECT] = project
         hostresource.properties[PROPERTIES_OS] = os
-
         
+        #set default lxc properties
+        hostresource.properties[PROPERTIES_CPUS] = CPUS
+        hostresource.properties[PROPERTIES_STORAGE] = STORAGE
+        hostresource.properties[PROPERTIES_MEMORY] = MEMORY
+        hostresource.properties[PROPERTIES_SWAP] = SWAP
+        hostresource.properties[PROPERTIES_DISK] = DISK
 
         #commenting out unitl lxc code is integrated
-        #ostemplate = proxmoxutil.getostemplate(os)
-        #if ostemplate is None:
-        # raise ValueError("OS Template does not exist. Please configure os template using proxmoxutil")
-        #else:
-        
-        #hostresource.properties[PROPERTIES_OSTEMPLATE] = ostemplate.properties[PROPERTIES_OSTEMPLATE]
+        ostemplate = proxmoxutil.getostemplate(os)
+        if ostemplate is None:
+        	raise ValueError("OS Template does not exist. Please configure os template using proxmoxutil")
+        else:
+        	hostresource.properties[PROPERTIES_OSTEMPLATE] = ostemplate.properties[PROPERTIES_OSTEMPLATE]
 
         hostresource.properties[INTERFACES] = []
 
         container.saveResource(hostresource)
+        
+        return hostresource
 
 
     else:
         raise ValueError("Attempting to create duplicate host")
-
-
 
 
 def createHostTemplate(host, hypervisor, owner, project, os):
@@ -115,60 +136,68 @@ def createHostTemplate(host, hypervisor, owner, project, os):
         raise ValueError("ERROR: Host template exists.")
 
 
-def __createlxc(hostresource):
+def buildlxc(host):
     """ Creates lxc in proxmox using given hostresource configuration """
+    
+    if not exists(host):
+    	raise ValueError("Host template is missing. Please create host template")
+    
+    container = Container.getContainer(HOST_CONTAINER)
+    hostresource = container.loadResource(host)
+    
+    #get proxmox user and hypervisor 
     userresource = proxmoxutil.listuser()
+    if userresource is None:
+    	raise ValueError("No proxmox user found!! Please use proxmoxutil command to update user credentials")
+    		
     user = userresource.properties[PROPERTIES_USER]
-    print user
     password = userresource.properties[PROPERTIES_PASSWORD]
-    print password
-
     authrealm = userresource.properties[PROPERTIES_AUTHREALM]
-    print authrealm
-
+    puser = user+'@'+authrealm
+    	  	
     primary = proxmoxutil.listprimary()
+    		
+    if primary is None:
+    	raise ValueError("Primary proxmox hypervisor not found!! Please use proxmoxutil command to update primary hypervisor")
+    	
     hypervisor = primary.properties[PROPERTIES_HYPERVISOR]
+    print "Authenticating "+puser +" on "+ hypervisor
+    proxmox = ProxmoxAPI(hypervisor, user=puser, password=password, verify_ssl=False)
+    node = proxmox.nodes(hostresource.properties[HYPERVISOR])
+        		
+    vmid = int(hostresource.properties[HOSTID])
+    ostemplate = str(hostresource.properties[PROPERTIES_OSTEMPLATE])
+    cpus = int(hostresource.properties[PROPERTIES_CPUS])
+    memory = int(hostresource.properties[PROPERTIES_MEMORY])
+    swap = int(hostresource.properties[PROPERTIES_SWAP])
+    storage = hostresource.properties[PROPERTIES_STORAGE]
+    disk = int(hostresource.properties[PROPERTIES_DISK])
+    	      
+    print "Building LXC with the following parameters:"
+    print "Vmid: %d" %vmid
+    print "Template: %s" %ostemplate
+    print "Cpus: %d" %cpus
+    print "Memory: %d" %memory
+    print "Swap: %d" %swap
+    print "Storage: %s" %storage
+    print "Disk: %d" %disk 
+    
+    disksize="%dG"%(disk)
 
-    lxcmanager = LXCManager.getInstance()
-    lxcmanager.setOutputStream(sys.stdout)
-    result = lxcmanager.create(hostresource, primary)
+    node.lxc.create(vmid=vmid, ostemplate=ostemplate, password=DEFAULT_PASSWORD, memory=memory, swap=swap)
+    print "Creating LXC....."
+    time.sleep(30)
+    node.lxc(vmid).resize.put(disk='rootfs', size=disksize)
+    print "LXC created"    	
+    
 
-
-
-def login():
-    """ Login method """
-    userresource = proxmoxutil.listuser()
-    user = userresource.properties[PROPERTIES_USER]
-    print "Logging in as: ",
-    print user
-    password = userresource.properties[PROPERTIES_PASSWORD]
-
-    authrealm = userresource.properties[PROPERTIES_AUTHREALM]
-    print "Auth Realm: "+authrealm
-
-    primary = proxmoxutil.listprimary()
-    hypervisor = primary.properties[PROPERTIES_HYPERVISOR]
-
-    hostresource = Resource("host")
-
-    lxcmanager = LXCManager.getInstance()
-    lxcmanager.setOutputStream(sys.stdout)
-    result = lxcmanager.login(userresource, primary)
-    if result:
-        print "Login successful"
-    else:
-        print "Login failed. Please check your credentials and try again"
-
-
-def logoff():
-    """ Logoff method """
-    lxcmanager = LXCManager.getInstance()
-    result = lxcmanager.logoff
-
-    if result:
-        print "Cleared all tokens and logged off"
-    else:
-        print "Error logging off"
+def removehost(host):
+	if exists(host):
+		container = Container.getContainer(HOST_CONTAINER)
+		container.deleteResource(host)
+		print "Removed host"
+	else:
+		print "Host not found"
 
 
 def addControlPlaneIP(host, interface):
@@ -260,15 +289,20 @@ def print_help():
     print "\t\tPrints this help."
     print "\tcreate"
     print "\t\tcreate <hostname> hypervisor <hypervisor> owner <owner> project <project> os <os> [id <id>]"
-    print "\t\tCreates container template and gets an id for the container. Supported OS: centos/debian"
+    print "\t\tCreates container template and gets an id for the container"
+    print "\t\t<hostname> hostname of the container"
+    print "\t\thypervisor <hypervisor> name of the hypervisor where the host is to be created. E.g.: star-tbn-4, 192.168.120.2"
+    print "\t\towner <owner> owner's email address"
+    print "\t\tproject <project> project-id. must be an integer"
+    print "\t\tos <os> os template to be loaded - Values: centos-7-esnet, centos-7-dtn, debian-8-esnet, debian-8-dtn"
+    print "\t\tOptional: id <id> id of the host if it was already created"
+    print "\t\tExample usage: create mycontainer hypervisor nersc-tbn-4 owner sowmya@es.net project 120 os centos-7-esnet"
+    print "\tbuildlxc"
+    print "\t\tbuildlxc <hostname>"
     print "\taddif"
     print "\t\taddif <hostname> if <if_name> <ipaddress/netmask|auto_ip> [vlan <vlan>]"
     print "\t\tAssigns ip and adds interface to host template."
     print "\t\tauto_ip is allowed only for eth0 and for dataplane IP on VLAN 4012 and 4020"
-    print "\tlogin "
-    print "logs in using user and password credential that was set using proxmoxutil"
-    print "\tlogoff "
-    print "logs off user by clearing the login tokens"
 
 if __name__ == '__main__':
     argv = sys.argv
@@ -318,16 +352,15 @@ if __name__ == '__main__':
 
             if len(argv)>11 and argv[11] == 'id':
                 hostid = argv[12]
-
             try:
                 if(len(argv)>11):
                     createHostTemplateWithId(host,hypervisor,owner,pid, hostid, os)
                     print "Host template created"
                 else:
                     createHostTemplate(host,hypervisor,owner,pid, os)
-                    print "Host template created"
+                    print "Host template created" 
             except ValueError as e:
-                print e
+                print e                
     elif cmd == 'addif':
         auto_ip = False
         if (len(argv)) < 6:
@@ -375,11 +408,13 @@ if __name__ == '__main__':
                         print inf+"\t"+host.properties[inf]
                 except ValueError as e:
                     print e
-    elif cmd == 'login':
-        login()
-
-    elif cmd == 'logoff':
-        logoff()
+    elif cmd == 'buildlxc':
+    	hostname = argv[2]
+    	buildlxc(hostname)
+    elif cmd == 'removehost':
+    	hostname = argv[2]
+    	removehost(hostname)
+    
 
     else:
         print_help()
