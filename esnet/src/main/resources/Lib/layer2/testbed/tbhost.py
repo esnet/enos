@@ -172,7 +172,10 @@ def buildlxc(host):
     swap = int(hostresource.properties[PROPERTIES_SWAP])
     storage = hostresource.properties[PROPERTIES_STORAGE]
     disk = int(hostresource.properties[PROPERTIES_DISK])
-    	      
+    
+    
+    
+        	      
     print "Building LXC with the following parameters:"
     print "Vmid: %d" %vmid
     print "Template: %s" %ostemplate
@@ -187,7 +190,12 @@ def buildlxc(host):
     node.lxc.create(vmid=vmid, ostemplate=ostemplate, password=DEFAULT_PASSWORD, memory=memory, swap=swap)
     print "Creating LXC....."
     time.sleep(30)
+    print "Resizing rootfs"
     node.lxc(vmid).resize.put(disk='rootfs', size=disksize)
+    
+    interfaces = hostresource.properties[INTERFACES]
+    for interface in interfaces:
+    	print interface
     print "LXC created"    	
     
 
@@ -234,17 +242,17 @@ def addDataPlaneIP(host, interface, vlan):
             raise ValueError("Interface is already configured")
 
         hostid = hostresource.properties[HOSTID]
-        projectid = hostresource.properties[PROJECT]
+        projectid = int(hostresource.properties[PROJECT])
         dpip=""
     
         if(vlan == DATAPLANE_VLAN4012):
             ifaceid = interface.strip(string.ascii_letters)
             interface_number = ifaceid.split(".")[0]
-
             dpip = DATAPLANE_PREFIX+str(interface_number)+"."+str(projectid)+"."+str(hostid)
         elif (vlan == DATAPLANE_VLAN4020):
             ifaceid = interface.strip(string.ascii_letters)
-            interface_number = ifaceid.split(".")[0]
+            interface_number = int(ifaceid.split(".")[0])
+            projectid += 100 #add 100 to project-id for vlan 4020
             dpip = DATAPLANE_PREFIX+str(interface_number)+"."+str(projectid)+"."+str(hostid)
 
         netmask = str(CONTROLPLANE_NETMASK)
@@ -266,7 +274,10 @@ def addIP(host, interface, ipaddress):
     container = Container.getContainer(HOST_CONTAINER)
 
     if exists(host):
+            
         hostresource = container.loadResource(host)
+        if interface in hostresource.properties:
+            raise ValueError("Interface is already configured")
         hostid = hostresource.properties[HOSTID]
         
         hostresource.properties[INTERFACES].append(interface)
@@ -338,6 +349,8 @@ if __name__ == '__main__':
 
             if argv[7] == 'project':
                 pid = argv[8]
+                if pid < 0 or pid > 255:
+                	print "Warning: Project value is greater than 255. This will lead to wrong Dataplane IP auto-generation"
             else:
                 print "ERROR: Argument mismatch"
                 print_help()
@@ -378,34 +391,36 @@ if __name__ == '__main__':
                 auto_ip = True
             else:
                 ipaddress = argv[5]
+            vlan=None
             if len(argv)==8 and argv[6] == 'vlan':
                 vlan=int(argv[7])
-
+            print interface
+            print host
             if interface == CONTROL_PLANE_INTERFACE and auto_ip:
                 try:
-                    host = addControlPlaneIP(host,interface)
+                    hostresource = addControlPlaneIP(host,interface)
                     print "Interface\tIPAddress ",
-                    print host.properties[INTERFACES]
-                    for inf in host.properties[INTERFACES]:
-                        print inf+"\t"+host.properties[inf]
+                    print hostresource.properties[INTERFACES]
+                    for inf in hostresource.properties[INTERFACES]:
+                        print inf+"\t"+hostresource.properties[inf]
                 except ValueError as e:
                     print e
             elif interface != CONTROL_PLANE_INTERFACE and vlan == DATAPLANE_VLAN4012 or vlan == DATAPLANE_VLAN4020:
                 try:
-                    host = addDataPlaneIP(host,interface,vlan)
+                    hostresource = addDataPlaneIP(host,interface,vlan)
                     print "Interface\tIPAddress ",
-                    print host.properties[INTERFACES]
-                    for inf in host.properties[INTERFACES]:
-                        print inf+"\t"+host.properties[inf]
+                    print hostresource.properties[INTERFACES]
+                    for inf in hostresource.properties[INTERFACES]:
+                        print inf+"\t"+hostresource.properties[inf]
                 except ValueError as e:
                     print e
             else:
                 try:
-                    addIP(host, interface, ipaddress)
+                    hostresource = addIP(host, interface, ipaddress)
                     print "Interface\tIPAddress ",
-                    print host.properties[INTERFACES]
-                    for inf in host.properties[INTERFACES]:
-                        print inf+"\t"+host.properties[inf]
+                    print hostresource.properties[INTERFACES]
+                    for inf in hostresource.properties[INTERFACES]:
+                        print inf+"\t"+hostresource.properties[inf]
                 except ValueError as e:
                     print e
     elif cmd == 'buildlxc':
