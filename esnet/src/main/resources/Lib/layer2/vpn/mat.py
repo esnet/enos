@@ -24,8 +24,9 @@ import threading
 class MAT(Properties):
     VERSION = 1
     reserved = 0xFF00 - 1 # Hid after this value are reserved for multicast
-    def __init__(self, vid):
+    def __init__(self, sid, vid):
         super(MAT, self).__init__(name='MAT[%d]' % vid)
+        self.props['sid'] = sid
         self.props['vid'] = vid
         self.props['hid'] = {} # [str(mac)] = hid
         self.props['mac'] = {} # [hid] = mac
@@ -41,6 +42,7 @@ class MAT(Properties):
         # Note: MAT.reserved might need to be changed if necessary
     def serialize(self):
         obj = {}
+        obj['sid'] = self.props['sid']
         obj['vid'] = self.props['vid']
         obj['hid'] = self.props['hid']
         obj['mac'] = {}
@@ -51,7 +53,7 @@ class MAT(Properties):
     @staticmethod
     def deserialize(doc):
         obj = eval(doc)
-        mat = MAT(obj['vid'])
+        mat = MAT(obj['sid'], obj['vid'])
         mat.props['hid'] = obj['hid']
         for (hid, mac) in obj['mac'].items():
             # Note: json file can only use str as key
@@ -69,6 +71,7 @@ class MAT(Properties):
                     self.props['hid'][str(mac)] = hid
                     self.props['mac'][hid] = mac
         trans_mac = MACAddress()
+        trans_mac.setSid(self.props['sid'])
         trans_mac.setVid(self.props['vid'])
         hid = self.props['hid'][str(mac)]
         trans_mac.setHid(hid)

@@ -48,10 +48,12 @@ class MACAddress(object):
             self.data[i] = struct.unpack('B', struct.pack('B', v[i]))[0]
     def isBroadcast(self):
         return self.data[0] == 0xFF and self.getHid() == 0xFFFF
-    def getVid(self):
-        return (self.data[1] << 16) + (self.data[2] << 8) + self.data[3]
+    def getSid(self):
+        return (self.data[1])
     def setSid(self,sid=0):
         self.data[1] = sid & 0xFF
+    def getVid(self):
+        return (self.data[2] << 8) + self.data[3]
     def setVid(self, vid):
         self.data[2] = (vid >> 8) & 0xFF
         self.data[3] = vid & 0xFF
@@ -63,6 +65,7 @@ class MACAddress(object):
     @staticmethod
     def createBroadcast(vid = 0xFFFFFF):
         mac = MACAddress([255]*6)
+        # XXX not clear what the vid does here?
         mac.setVid(vid)
         return mac
     def array(self):

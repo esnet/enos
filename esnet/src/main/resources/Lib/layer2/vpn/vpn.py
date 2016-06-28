@@ -124,6 +124,14 @@ class VpnCallback(SdnControllerClientCallback):
             self.logger.debug("LLDP frame ignored")
             return
 
+        # Figure out the slice/service ID.  This comes from the mapped destination address
+        # (going to be a broadcast address).  If it doesn't match our slice ID then drop.
+        # XXX need to check this, not clear if the MACAddress constructor will DTRT.
+        mac = MACAddress(frame.getDstMac())
+        if (mac.getSid() != self.vpnService.sid):
+            self.logger.debug("Destination address doesn't match, ignored")
+            return
+
         # Figure out which VPN (if any) this belongs to
         vpn = None
         vpnsite = None
@@ -160,6 +168,7 @@ class VPNService(Container,MultiPointVPNService):
         Resource.__init__(self,"MultiPointVPNService")
         self.vpnIndexById = {} # [vpn.vid] -> vpn
         self.vpnIndexByName = {} # [vpn.name] -> vpn
+        self.sid = 0 # slice ID (by default use 0 for non-sliced)
         self.loadService()
         self.saveThread = Thread(target=self.autosave)
         self.saveThread.start()
@@ -179,24 +188,32 @@ class VPNService(Container,MultiPointVPNService):
             time.sleep(60)
 
     def saveService(self):
+        self.properties['sid'] = self.sid
         try:
             self.save()
         except:
             print "Failed to save VPN Service"
 
     def loadService(self):
-        stored = Container.getContainer(self.getResourceName())
-        mapResource (obj=self,resource=stored)
-        if 'topology' in self.properties:
-            self.topology = Container.getContainer(self.properties['topology'])
-        if 'coretopology' in self.properties:
-            self.coretopology = Container.getContainer(self.properties['coretopology'])
-        vpns = self.loadResources({"resourceType":"VPN"})
-        for v in vpns:
-            vpn = VPN(name=v.getResourceName(),vs=self)
-            mapResource(obj=vpn,resource=v)
-            self.vpnIndexByName[v.getResourceName()] = vpn
-            self.vpnIndexById[vpn.vid] = vpn
+        try:
+            stored = Container.getContainer(self.getResourceName())
+            mapResource (obj=self,resource=stored)
+            if 'topology' in self.properties:
+                self.topology = Container.getContainer(self.properties['topology'])
+            if 'coretopology' in self.properties:
+                self.coretopology = Container.getContainer(self.properties['coretopology'])
+            self.sid = 0
+            if 'sid' in self.properties:
+                self.sid = int(self.properties['sid'])
+            vpns = self.loadResources({"resourceType":"VPN"})
+            for v in vpns:
+                vpn = VPN(name=v.getResourceName(),vs=self)
+                mapResource(obj=vpn,resource=v)
+                self.vpnIndexByName[v.getResourceName()] = vpn
+                self.vpnIndexById[vpn.vid] = vpn
+        except:
+            print "Cannot load MP-VPN service container"
+            return
 
     def newVid(self):
         with globals()['VPNlock']:
@@ -223,7 +240,7 @@ class VPN(Resource):
         self.priority = "low"
         self.meter = 3
         self.lock = threading.Lock()
-        self.mat = MAT(self.vid)
+        self.mat = MAT(sid=self.vpnService.sid, vid=self.vid)
 
         self.logger = logging.getLogger("VPN")
         self.logger.setLevel(logging.INFO)
@@ -344,6 +361,10 @@ class VPN(Resource):
     def addpop(self,pop):
         rc = True
 
+        # See if we've already added the POP
+        if pop.resourceName in self.pops:
+            return False
+
         with self.lock:
 
             fhlist = [] # List of FlowHandles for this POP
@@ -415,6 +436,21 @@ class VPN(Resource):
         return True
 
     def addsite(self,site,vlan):
+
+        # If we've already added this site, don't do it again.
+        # Note this is actually not a real requirement.  In theory it should be possible
+        # to put multiple attachments to a single site, on different VLANs.  However
+        # our implementation doesn't support that at this point, primarily because
+        # we have some assumptions that each site only attaches once to a VPN.  This check
+        # here is mostly to avoid violating these assumptions and getting us in trouble.
+        if site['name'] in self.vpnsites:
+            return False
+
+        # Make sure the pop to which the site is attached is already a part of the VPN.
+        # In theory we could implicitly add a POP whenever we add a site that needs it.
+        if site['pop'].lower() not in self.pops:
+            return False
+
         self.vpnsites[site['name']] = site
         self.vpnsitevlans[site['name']] = vlan
         self.siteflows[site['name']] = []
@@ -565,7 +601,7 @@ class VPN(Resource):
                 # XXX This condition might change after we add NFV support
                 if hostsite['name'] == self.hostsites[hostmac]:
                     self.logger.info("Host " + hostmac + " already exists at site " + hostsite['name'])
-                    return False
+                    return True
                 else:
                     self.logger.info("Host " + hostmac + " moved from site " + self.hostsites[hostmac] + " to site " + hostsite['name'])
                     return False
@@ -864,6 +900,9 @@ def main():
             state = {True:'on',False:'off'}
             print "MAC Address Translation feature is",state[VPNMAT]
         elif command == "startup":
+            sid = int(sys.argv[2]) # service ID
+            vpnService.sid = sid
+            vpnService.saveService()
             # Start callback if we don't have one already
             if not sys.debugNoController:
                 if 'SCC' not in globals() or SCC == None:
@@ -883,7 +922,8 @@ def main():
                 globals()['t'].stop()
                 del globals()['t']
             if 'VPNcallback' in globals():
-                SCC.clearCallback()
+                if 'SCC' in globals():
+                    globals()['SCC'].clearCallback()
                 del globals()['VPNcallback']
             if 'SCC' in globals():
                 del globals()['SCC']
