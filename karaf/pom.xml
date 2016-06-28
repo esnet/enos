@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ESnet Network Operating System (ENOS) Copyright (c) 2015, The Regents
+  of the University of California, through Lawrence Berkeley National
+  Laboratory (subject to receipt of any required approvals from the
+  U.S. Dept. of Energy).  All rights reserved.
+
+  If you have questions about your rights to use or distribute this
+  software, please contact Berkeley Lab's Innovation & Partnerships
+  Office at IPO@lbl.gov.
+
+  NOTICE.  This Software was developed under funding from the
+  U.S. Department of Energy and the U.S. Government consequently retains
+  certain rights. As such, the U.S. Government has been granted for
+  itself and others acting on its behalf a paid-up, nonexclusive,
+  irrevocable, worldwide license in the Software to reproduce,
+  distribute copies to the public, prepare derivative works, and perform
+  publicly and display publicly, and to permit other to do so.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>net.es.enos</groupId>
+        <artifactId>enos-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../parent</relativePath>
+    </parent>
+
+    <groupId>net.es.enos</groupId>
+    <artifactId>enos-karaf</artifactId>
+    <name>${project.artifactId}</name>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>kar</packaging>
+
+    <dependencies>
+        <!-- Basic Karaf dependencies -->
+        <dependency>
+          <groupId>org.apache.karaf.features</groupId>
+          <artifactId>framework</artifactId>
+          <version>${karaf.version}</version>
+          <type>kar</type>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.karaf.features</groupId>
+          <artifactId>standard</artifactId>
+          <version>${karaf.version}</version>
+          <classifier>features</classifier>
+          <type>xml</type>
+          <scope>runtime</scope>
+        </dependency>
+
+        <!-- Famework dependencies. -->
+        <dependency>
+            <groupId>com.eclipsesource.jaxrs</groupId>
+            <artifactId>features</artifactId>
+            <version>5.3.1</version>
+            <classifier>features</classifier>
+            <type>xml</type>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- NetShell -->
+        <dependency>
+            <groupId>net.es.netshell</groupId>
+            <artifactId>netshell-features</artifactId>
+            <version>${netshell.version}</version>
+            <classifier>features</classifier>
+            <type>xml</type>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ENOS -->
+        <dependency>
+            <groupId>net.es.enos</groupId>
+            <artifactId>enos-features</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+            <classifier>features</classifier>
+            <type>xml</type>
+          <scope>runtime</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+                <groupId>org.apache.karaf.tooling</groupId>
+                <artifactId>karaf-maven-plugin</artifactId>
+                <version>${karaf.version}</version>
+                <extensions>true</extensions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.karaf.tooling</groupId>
+                <artifactId>karaf-maven-plugin</artifactId>
+                <extensions>true</extensions>
+                <configuration>
+                  <descriptors>
+                    <descriptor>mvn:com.eclipsesource.jaxrs/features/5.3.1/xml/features</descriptor>
+                    <descriptor>mvn:net.es.netshell/netshell-features/1.0.0-SNAPSHOT/xml/features</descriptor>
+                    <descriptor>mvn:net.es.enos/enos-features/1.0.0-SNAPSHOT/xml/features</descriptor>
+                  </descriptors>
+                  <distribution>org.apache.karaf.features:framework</distribution>
+                  <javase>${java.version.target}</javase>
+                  <framework>
+                    <feature>framework</feature>
+                  </framework>
+                  <bootFeatures>
+                    <feature>standard</feature>
+                    <feature>scr</feature>
+                    <feature>http</feature>
+                    <feature>webconsole</feature>
+                    <feature>jax-rs-connector</feature>
+                    <feature>jax-rs-provider-moxy</feature>
+                    <feature>jax-rs-provider-swagger</feature>
+                    <feature>netshell-kernel</feature>
+                    <feature>netshell-python</feature>
+                    <feature>enos-swagger</feature>
+                    <feature>enos-esnet</feature>
+                    <feature>enos-services</feature>
+                  </bootFeatures>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>process-resources</id>
+                        <goals>
+                          <goal>install-kars</goal>
+                        </goals>
+                        <phase>process-resources</phase>
+                    </execution>
+                    <execution>
+                        <id>package</id>
+                        <goals>
+                          <goal>instance-create-archive</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-antrun-plugin</artifactId>
+              <executions>
+                  <execution>
+                      <phase>prepare-package</phase>
+                      <goals>
+                          <goal>run</goal>
+                      </goals>
+                      <configuration>
+                        <tasks>
+                          <chmod perm="755">
+                              <fileset dir="${project.build.directory}/assembly/bin">
+                                <include name="karaf" />
+                                <include name="instance" />
+                                <include name="start" />
+                                <include name="stop" />
+                                <include name="status" />
+                                <include name="client" />
+                                <include name="shell" />
+                              </fileset>
+                          </chmod>
+                        </tasks>
+                      </configuration>
+                  </execution>
+              </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

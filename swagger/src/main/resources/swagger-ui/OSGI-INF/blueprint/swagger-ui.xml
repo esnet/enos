@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0">
+
+    <service interface="org.ops4j.pax.web.extender.whiteboard.ResourceMapping">
+        <bean class="org.ops4j.pax.web.extender.whiteboard.runtime.DefaultResourceMapping">
+            <property name="alias" value="/swagger-ui" />
+            <property name="path" value="/swagger-ui" />
+        </bean>
+    </service>
+
+    <!-- Welcome Files -->
+    <bean id="welcomeFile"
+        class="org.ops4j.pax.web.extender.whiteboard.runtime.DefaultWelcomeFileMapping">
+        <property name="redirect" value="true" />
+        <property name="welcomeFiles">
+            <array>
+                    <value>index.html</value>
+            </array>
+        </property>
+    </bean>
+
+    <service id="welcomeFileService" ref="welcomeFile"
+            interface="org.ops4j.pax.web.extender.whiteboard.WelcomeFileMapping" />
+</blueprint>

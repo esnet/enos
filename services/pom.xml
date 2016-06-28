@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ESnet Network Operating System (ENOS) Copyright (c) 2015, The Regents
+  of the University of California, through Lawrence Berkeley National
+  Laboratory (subject to receipt of any required approvals from the
+  U.S. Dept. of Energy).  All rights reserved.
+
+  If you have questions about your rights to use or distribute this
+  software, please contact Berkeley Lab's Innovation & Partnerships
+  Office at IPO@lbl.gov.
+
+  NOTICE.  This Software was developed under funding from the
+  U.S. Department of Energy and the U.S. Government consequently retains
+  certain rights. As such, the U.S. Government has been granted for
+  itself and others acting on its behalf a paid-up, nonexclusive,
+  irrevocable, worldwide license in the Software to reproduce,
+  distribute copies to the public, prepare derivative works, and perform
+  publicly and display publicly, and to permit other to do so.
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>net.es.enos</groupId>
+        <artifactId>enos-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../parent</relativePath>
+    </parent>
+
+    <groupId>net.es.enos</groupId>
+    <artifactId>enos-services</artifactId>
+    <name>${project.artifactId}</name>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>bundle</packaging>
+
+    <repositories>
+        <repository>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>central</id>
+            <name>Maven Repository Switchboard</name>
+            <url>http://repo1.maven.org/maven2</url>
+        </repository>
+        <repository>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>interval:5</updatePolicy>
+            </snapshots>
+            <id>esnet</id>
+            <name>ESnet Private Maven Repository</name>
+            <url>http://downloads.es.net/maven</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- Standard OSGI runtime dependency. -->
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.core</artifactId>
+            <version>5.0.0</version>
+        </dependency>
+
+        <!-- The JAX-RS connector allowing for dynamic service discovery. -->
+        <dependency>
+            <groupId>com.eclipsesource.jaxrs</groupId>
+            <artifactId>jersey-min</artifactId>
+            <version>2.22.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.eclipsesource.jaxrs</groupId>
+            <artifactId>provider-moxy</artifactId>
+            <version>2.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.eclipsesource.jaxrs</groupId>
+            <artifactId>provider-swagger</artifactId>
+            <version>1.1.1</version>
+        </dependency>
+
+        <!-- Needed to add application specific shell commands. -->
+        <dependency>
+            <groupId>org.apache.karaf.shell</groupId>
+            <artifactId>org.apache.karaf.shell.console</artifactId>
+            <version>${karaf.version}</version>
+        </dependency>
+
+        <!-- SLF and Log4j for logging infrestructure. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jul-to-slf4j</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <version>2.5.4</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <instructions>
+                        <Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
+                        <Bundle-Name>ESnet ENOS Services Bundle</Bundle-Name>
+                        <Bundle-Version>${project.version}</Bundle-Version>
+                        <Bundle-Activator>net.es.enos.services.Activator</Bundle-Activator>
+                        <Export-Package>net.es.enos.services</Export-Package>
+                        <Import-Package>
+                            org.osgi.service.metatype,
+                            org.apache.felix.service.command,
+                            org.apache.karaf.shell.commands,
+                            org.apache.karaf.shell.console,
+                            *
+                        </Import-Package>
+                    </instructions>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>2.7</version>
+                <executions>
+                    <execution>
+                        <id>copy-features</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${basedir}/target/features</outputDirectory>
+                            <resources>
+                                <resources>
+                                    <directory>${basedir}/src/main/resources</directory>
+                                    <filtering>true</filtering>
+                                </resources>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>1.9.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-artifacts</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>attach-artifact</goal>
+                        </goals>
+                        <configuration>
+                            <artifacts>
+                                <artifact>
+                                    <file>src/main/resources/net.es.enos.enos-services.cfg</file>
+                                    <type>cfg</type>
+                                    <classifier>configuration</classifier>
+                                </artifact>
+                            </artifacts>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

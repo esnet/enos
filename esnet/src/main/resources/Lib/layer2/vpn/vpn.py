@@ -18,7 +18,7 @@
 #
 import binascii
 import logging,random
-from java.lang import Thread
+import java.lang.Thread
 from layer2.common.mac import MACAddress
 from layer2.testbed.vc import getvcnode
 from layer2.testbed.topology import TestbedTopology
@@ -115,6 +115,14 @@ class VpnCallback(SdnControllerClientCallback):
             self.logger.debug("LLDP frame ignored")
             return
 
+        # Figure out the slice/service ID.  This comes from the mapped destination address
+        # (going to be a broadcast address).  If it doesn't match our slice ID then drop.
+        # XXX need to check this, not clear if the MACAddress constructor will DTRT.
+        mac = MACAddress(frame.getDstMac())
+        if (mac.getSid() != self.vpnService.sid):
+            self.logger.debug("Destination address doesn't match, ignored")
+            return
+
         # Figure out which VPN (if any) this belongs to
         vpn = None
         vpnsite = None
@@ -125,6 +133,7 @@ class VpnCallback(SdnControllerClientCallback):
         # XXX Note we can't do any port-based matching because all of the traffic from the
         # hardware switch to the software switch shows up on the same port on the software
         # switch, which is the one generating the PACKET_IN message.
+
         for (x,v) in MultiPointVPNServiceFactory.getVpnService().vpnIndex.items():
             for (sitename,site) in v.vpnsites.items():
                 if site['pop'] == switchpopname and int(v.vpnsitevlans[sitename]) == frame.getVid():
@@ -195,6 +204,7 @@ class VPNService(Container,MultiPointVPNService):
             time.sleep(60)
 
     def saveService(self):
+        self.properties['sid'] = self.sid
         try:
             self.properties['topology'] = self.topology.getResourceName()
             self.properties['coretopology'] = self.coretopology.getResourceName()
@@ -302,9 +312,8 @@ class VPNService(Container,MultiPointVPNService):
             print "Error while deleting host."
             return
 
-
 class VPN(Resource):
-    def __init__(self,name):
+    def __init__(self,name,vs):
         Resource.__init__(self,name,"net.es.netshell.api.Resource")
         self.vid = 0;
         self.name = name
@@ -320,7 +329,7 @@ class VPN(Resource):
         self.priority = "low"
         self.meter = 3
         self.lock = threading.Lock()
-        self.mat = MAT(self.vid)
+        self.mat = MAT(sid=self.vpnService.sid, vid=self.vid)
 
         self.logger = logging.getLogger("VPN")
         self.logger.setLevel(logging.INFO)
@@ -360,6 +369,8 @@ class VPN(Resource):
         self.entryfanoutflows = eval (self.properties['entryfanoutflows'])
         self.hostsites = eval (self.properties['hostsites'])
         self.mat = MAT.deserialize(self.properties['mat'])
+
+        self.vpnService = vpnService # global
 
     def interconnect(self, site1,site2): # XXX core topo!
         """
@@ -437,6 +448,10 @@ class VPN(Resource):
 
     def addpop(self,pop):
         rc = True
+        # See if we've already added the POP
+        if pop.resourceName in self.pops:
+            return False
+
         with self.lock:
 
             fhlist = [] # List of FlowHandles for this POP
@@ -509,6 +524,21 @@ class VPN(Resource):
         return True
 
     def addsite(self,site,vlan):
+
+        # If we've already added this site, don't do it again.
+        # Note this is actually not a real requirement.  In theory it should be possible
+        # to put multiple attachments to a single site, on different VLANs.  However
+        # our implementation doesn't support that at this point, primarily because
+        # we have some assumptions that each site only attaches once to a VPN.  This check
+        # here is mostly to avoid violating these assumptions and getting us in trouble.
+        if site['name'] in self.vpnsites:
+            return False
+
+        # Make sure the pop to which the site is attached is already a part of the VPN.
+        # In theory we could implicitly add a POP whenever we add a site that needs it.
+        if site['pop'].lower() not in self.pops:
+            return False
+
         self.vpnsites[site['name']] = site
         self.vpnsitevlans[site['name']] = vlan
         self.siteflows[site['name']] = []
@@ -659,7 +689,7 @@ class VPN(Resource):
                 # XXX This condition might change after we add NFV support
                 if hostsite['name'] == self.hostsites[hostmac]:
                     self.logger.info("Host " + hostmac + " already exists at site " + hostsite['name'])
-                    return False
+                    return True
                 else:
                     self.logger.info("Host " + hostmac + " moved from site " + self.hostsites[hostmac] + " to site " + hostsite['name'])
                     return False
@@ -766,7 +796,8 @@ class VPN(Resource):
 
 def usage():
     print "usage:"
-    print "\tvpn start"
+
+    print "\tvpn startup"
     print "\t\tStarts the service."
     print "\tvpn shutdown"
     print "\tvpn settopos <popstopo> <coretopo>"
@@ -828,6 +859,34 @@ def main():
             print "MAC Address Translation feature is",state[vpnService.properties['mat']]
         elif command == "shutdown":
             vpnService.shutdown()
+        elif command == "startup":
+            sid = int(sys.argv[2]) # service ID
+            vpnService.sid = sid
+            vpnService.saveService()
+            # Start callback if we don't have one already
+            if not sys.debugNoController:
+                if 'SCC' not in globals() or SCC == None:
+                    SCC = SdnControllerClient()
+                    globals()['SCC'] = SCC
+                    t = java.lang.Thread(SCC)
+                    globals()['t'] = t
+                    t.start()
+                if 'VPNcallback' not in globals() or VPNcallback == None:
+                    VPNcallback = VpnCallback("MP-VPN Service", vpnService)
+                    setcallback(VPNcallback)
+                    globals()['VPNcallback'] = VPNcallback
+                    SCC.setCallback(VPNcallback)
+                    print "VPNcallback set"
+        elif command == "shutdown":
+            if 't' in globals():
+                globals()['t'].stop()
+                del globals()['t']
+            if 'VPNcallback' in globals():
+                if 'SCC' in globals():
+                    globals()['SCC'].clearCallback()
+                del globals()['VPNcallback']
+            if 'SCC' in globals():
+                del globals()['SCC']
         elif command == "logging":
             logname = sys.argv[2]
             logging.basicConfig(format='%(asctime)s %(levelname)8s %(message)s', filename=logname, filemode='a', level=logging.INFO)

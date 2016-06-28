@@ -216,7 +216,7 @@ def print_help():
     print "\taddostemplate"
     print "\t\taddostemplate <os> template <template>"
     print "\t\tAdds os template to database"
-    print "\tlisttemplate"
+    print "\tlistostemplates"
     print "\t\tList OS templates"
     print "\tremoveostemplate"
     print "\t\tremovehypervisor <os>"
