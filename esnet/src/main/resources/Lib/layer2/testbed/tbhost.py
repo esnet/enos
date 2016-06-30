@@ -46,7 +46,8 @@ PROPERTIES_AUTHREALM = 'authrealm'
 PROPERTIES_HYPERVISOR = 'hypervisor'
 PROPERTIES_PORT = 'port'
 
-PROPERTIES_CPUS = 'cpus'
+PROPERTIES_CPULIMIT = 'cpulimit'
+PROPERTIES_CPUUNITS = 'cpuunits'
 PROPERTIES_STORAGE='storage'
 PROPERTIES_MEMORY='memory'
 PROPERTIES_SWAP='swap'
@@ -54,6 +55,7 @@ PROPERTIES_DISK='disk'
 
 CONTROLPLANE_PREFIX = '192.168.120.'
 CONTROLPLANE_NETMASK = 24
+CONTROLPLANE_VLAN = 2
 
 CONTROL_PLANE_INTERFACE = 'eth0'
 
@@ -62,11 +64,12 @@ DATAPLANE_VLAN4020 = 4020
 DATAPLANE_PREFIX = '10.'
 DATAPLANE_NETMASK = 24
 
-CPUS = 1
+CPULIMIT = 0
+CPUUNITS=1024
 STORAGE='local'
 MEMORY=1024
 SWAP=1024
-DISK=10
+DISK=4
 
 
 INTERFACES = "ifaces"
@@ -99,7 +102,8 @@ def createHostTemplateWithId(host, hypervisor, owner, project, hostid, os):
         hostresource.properties[PROPERTIES_OS] = os
         
         #set default lxc properties
-        hostresource.properties[PROPERTIES_CPUS] = CPUS
+        hostresource.properties[PROPERTIES_CPULIMIT] = CPULIMIT
+        hostresource.properties[PROPERTIES_CPUUNITS] = CPUUNITS
         hostresource.properties[PROPERTIES_STORAGE] = STORAGE
         hostresource.properties[PROPERTIES_MEMORY] = MEMORY
         hostresource.properties[PROPERTIES_SWAP] = SWAP
@@ -164,44 +168,135 @@ def buildlxc(host):
     print "Authenticating "+puser +" on "+ hypervisor
     proxmox = ProxmoxAPI(hypervisor, user=puser, password=password, verify_ssl=False)
     node = proxmox.nodes(hostresource.properties[HYPERVISOR])
-        		
+    
+    hostname = hostresource.properties[HOSTNAME]  		
     vmid = int(hostresource.properties[HOSTID])
     ostemplate = str(hostresource.properties[PROPERTIES_OSTEMPLATE])
-    cpus = int(hostresource.properties[PROPERTIES_CPUS])
+    cpulimit = int(hostresource.properties[PROPERTIES_CPULIMIT])
+    cpuunits = int(hostresource.properties[PROPERTIES_CPUUNITS])
     memory = int(hostresource.properties[PROPERTIES_MEMORY])
     swap = int(hostresource.properties[PROPERTIES_SWAP])
     storage = hostresource.properties[PROPERTIES_STORAGE]
-    disk = int(hostresource.properties[PROPERTIES_DISK])
+    disk = int(hostresource.properties[PROPERTIES_DISK])    
+    disksize="%dG"%(disk)    
+    interfaces = hostresource.properties[INTERFACES]
     
-    
-    
-        	      
+    i=0
+    netconfig = dict()
+    for interface in interfaces:
+    	print "Configuring %s" %interface    	
+    	netconfig["net"+str(i)] = hostresource.properties[interface]
+    	i=i+1
+    	
     print "Building LXC with the following parameters:"
     print "Vmid: %d" %vmid
     print "Template: %s" %ostemplate
-    print "Cpus: %d" %cpus
+    print "Cpu Limit: %d" %cpulimit
+    print "Cpu Units: %d" %cpuunits
     print "Memory: %d" %memory
     print "Swap: %d" %swap
     print "Storage: %s" %storage
     print "Disk: %d" %disk 
     
-    disksize="%dG"%(disk)
-
-    node.lxc.create(vmid=vmid, ostemplate=ostemplate, password=DEFAULT_PASSWORD, memory=memory, swap=swap)
+    node.lxc.create(vmid=vmid, hostname=hostname, ostemplate=ostemplate, password=DEFAULT_PASSWORD, cpuunits=cpuunits, cpulimit=cpulimit, memory=memory, swap=swap, **netconfig)
     print "Creating LXC....."
     time.sleep(30)
-    print "Resizing rootfs"
+    
+    print "Resizing rootfs"	
     node.lxc(vmid).resize.put(disk='rootfs', size=disksize)
+    time.sleep(30)
+    print "LXC created"    
     
+    
+    
+def rebuildlxc(host):
+    """ Creates lxc in proxmox using given hostresource configuration """
+    
+    #check if container is running and ask user to stop it
+    if not exists(host):
+    	raise ValueError("Host template is missing. Please create host template")
+    
+    container = Container.getContainer(HOST_CONTAINER)
+    hostresource = container.loadResource(host)
+    
+    #get proxmox user and hypervisor 
+    userresource = proxmoxutil.listuser()
+    if userresource is None:
+    	raise ValueError("No proxmox user found!! Please use proxmoxutil command to update user credentials")
+    		
+    user = userresource.properties[PROPERTIES_USER]
+    password = userresource.properties[PROPERTIES_PASSWORD]
+    authrealm = userresource.properties[PROPERTIES_AUTHREALM]
+    puser = user+'@'+authrealm
+    	  	
+    primary = proxmoxutil.listprimary()
+    		
+    if primary is None:
+    	raise ValueError("Primary proxmox hypervisor not found!! Please use proxmoxutil command to update primary hypervisor")
+    	
+    hypervisor = primary.properties[PROPERTIES_HYPERVISOR]
+    print "Authenticating "+puser +" on "+ hypervisor
+    proxmox = ProxmoxAPI(hypervisor, user=puser, password=password, verify_ssl=False)
+    node = proxmox.nodes(hostresource.properties[HYPERVISOR])
+    
+    hostname = hostresource.properties[HOSTNAME]  		
+    vmid = int(hostresource.properties[HOSTID])
+    memory = int(hostresource.properties[PROPERTIES_MEMORY])
+    swap = int(hostresource.properties[PROPERTIES_SWAP])
     interfaces = hostresource.properties[INTERFACES]
-    for interface in interfaces:
-    	print interface
-    print "LXC created"    	
     
-
+    i=0
+    netconfig = dict()
+    for interface in interfaces:
+    	print "Configuring %s" %interface    	
+    	netconfig["net"+str(i)] = hostresource.properties[interface]
+    	i=i+1
+    	
+    print "Reconfiguring LXC with the following parameters:"
+    print "Vmid: %d" %vmid
+    print "Memory: %d" %memory
+    print "Swap: %d" %swap
+    
+    node.lxc(vmid).config.put(memory=memory, swap=swap, **netconfig)
+    print "Reconfiguring LXC....."
+    time.sleep(30)
+    
+def deletelxc(host):
+    """ Deletes lxc in proxmox using given hostresource configuration """
+    
+    #check if container is running and ask user to stop it
+    if not exists(host):
+    	raise ValueError("Host template is missing. Please create host template")
+    
+    container = Container.getContainer(HOST_CONTAINER)
+    hostresource = container.loadResource(host)
+        #get proxmox user and hypervisor 
+    userresource = proxmoxutil.listuser()
+    if userresource is None:
+    	raise ValueError("No proxmox user found!! Please use proxmoxutil command to update user credentials")
+    		
+    user = userresource.properties[PROPERTIES_USER]
+    password = userresource.properties[PROPERTIES_PASSWORD]
+    authrealm = userresource.properties[PROPERTIES_AUTHREALM]
+    puser = user+'@'+authrealm
+    	  	
+    primary = proxmoxutil.listprimary()
+    		
+    if primary is None:
+    	raise ValueError("Primary proxmox hypervisor not found!! Please use proxmoxutil command to update primary hypervisor")
+    	
+    hypervisor = primary.properties[PROPERTIES_HYPERVISOR]
+    print "Authenticating "+puser +" on "+ hypervisor
+    proxmox = ProxmoxAPI(hypervisor, user=puser, password=password, verify_ssl=False)
+    node = proxmox.nodes(hostresource.properties[HYPERVISOR])
+    print "Deleting container"
+    node.lxc(vmid).delete()
+    time.sleep(30)
+    
 def removehost(host):
 	if exists(host):
 		container = Container.getContainer(HOST_CONTAINER)
+		deletelxc(host)
 		container.deleteResource(host)
 		print "Removed host"
 	else:
@@ -222,11 +317,7 @@ def addControlPlaneIP(host, interface):
         netmask = str(CONTROLPLANE_NETMASK)
         cpip = CONTROLPLANE_PREFIX+cpoctet+"/"+netmask
 
-        hostresource.properties[INTERFACES].append(interface)
-        hostresource.properties[interface] = cpip
-
-        container.saveResource(hostresource)
-        return hostresource
+        return addIP(host, interface, cpip, CONTROLPLANE_VLAN)
 
     else:
         raise ValueError("Host does not exist. Please create template first")
@@ -258,18 +349,14 @@ def addDataPlaneIP(host, interface, vlan):
         netmask = str(CONTROLPLANE_NETMASK)
         dpip = dpip + "/" + netmask
 
-        hostresource.properties[INTERFACES].append(interface)
-        hostresource.properties[interface] = dpip
-
-        container.saveResource(hostresource)
-        return hostresource
+        return addIP(host, interface, dpip, vlan)
 
     else:
         raise ValueError("Host does not exist. Please create template first")
 
 
 
-def addIP(host, interface, ipaddress):
+def addIP(host, interface, ipaddress, vlan):
     """ Adds interface and ipaddress to host template"""
     container = Container.getContainer(HOST_CONTAINER)
 
@@ -280,8 +367,33 @@ def addIP(host, interface, ipaddress):
             raise ValueError("Interface is already configured")
         hostid = hostresource.properties[HOSTID]
         
+        ipconfig = 'name='+interface+',ip='+ipaddress+',tag='+str(vlan)
+        
         hostresource.properties[INTERFACES].append(interface)
-        hostresource.properties[interface] = ipaddress
+        hostresource.properties[interface] = ipconfig
+
+        container.saveResource(hostresource)
+        return hostresource
+
+    else:
+        raise ValueError("Host does not exist. Please create template first")
+        
+
+def modifyIP(host, interface, ipaddress, vlan, bridge):
+    """ Edits interface and ipaddress to host template"""
+    container = Container.getContainer(HOST_CONTAINER)
+
+    if exists(host):
+            
+        hostresource = container.loadResource(host)
+        if interface in hostresource.properties:
+            raise ValueError("Interface is already configured")
+        hostid = hostresource.properties[HOSTID]
+        
+        ipconfig = 'name='+interface+',bridge='+bridge+',ip='+ipaddress+',tag='+str(vlan)
+        
+        hostresource.properties[INTERFACES].append(interface)
+        hostresource.properties[interface] = ipconfig
 
         container.saveResource(hostresource)
         return hostresource
@@ -289,7 +401,67 @@ def addIP(host, interface, ipaddress):
     else:
         raise ValueError("Host does not exist. Please create template first")
 
+def addbr(host, interface, bridge):
+    """ Adds bridge to host template"""
+    container = Container.getContainer(HOST_CONTAINER)
 
+    if exists(host):
+            
+        hostresource = container.loadResource(host)
+        if interface in hostresource.properties:
+        	ipconfig = hostresource.properties[interface]
+        	ipconfig += ",bridge="+bridge
+        	hostresource.properties[interface] = ipconfig
+		    container.saveResource(hostresource)
+        	return hostresource
+        else:
+        	raise ValueError("Interface does not exist. Please create interface first")
+
+    else:
+        raise ValueError("Host does not exist. Please create template first")
+        
+
+def addstorage(host, size):
+    """ Adds storage to host template"""
+    container = Container.getContainer(HOST_CONTAINER)
+
+    if exists(host):
+            
+        hostresource = container.loadResource(host)
+        hostresource.properties[PROPERTIES_DISK] = size
+		container.saveResource(hostresource)
+        return hostresource
+
+    else:
+        raise ValueError("Host does not exist. Please create template first")
+        
+def addcpu(host, cpuunits, cpulimit):
+    """ Adds storage to host template"""
+    container = Container.getContainer(HOST_CONTAINER)
+
+    if exists(host):
+            
+        hostresource = container.loadResource(host)
+        hostresource.properties[PROPERTIES_CPUUNITS] = cpuunits
+        hostresource.properties[PROPERTIES_CPULIMIT] = cpulimit
+		container.saveResource(hostresource)
+        return hostresource
+
+    else:
+        raise ValueError("Host does not exist. Please create template first")
+        
+def addmemory(host, memory, swap):
+    """ Adds memory to host template"""
+    container = Container.getContainer(HOST_CONTAINER)
+
+    if exists(host):         
+        hostresource = container.loadResource(host)
+        hostresource.properties[PROPERTIES_MEMORY] = memory
+        hostresource.properties[PROPERTIES_SWAP] = swap
+		container.saveResource(hostresource)
+        return hostresource
+    else:
+        raise ValueError("Host does not exist. Please create template first")
 
 def print_help():
     "Help message for tbhost utility"
@@ -314,6 +486,12 @@ def print_help():
     print "\t\taddif <hostname> if <if_name> <ipaddress/netmask|auto_ip> [vlan <vlan>]"
     print "\t\tAssigns ip and adds interface to host template."
     print "\t\tauto_ip is allowed only for eth0 and for dataplane IP on VLAN 4012 and 4020"
+    print "\taddbr"
+    print "\t\taddbr <hostname> if <if_name> br <bridge>"
+    print "\t\tAssigns bridge to interface and saves to host template."
+    print "\modify"
+    print "\t\tmodify <hostname> memory <memory> swap <swap>"
+    print "\t\tModify memory and swap."
 
 if __name__ == '__main__':
     argv = sys.argv
@@ -334,7 +512,6 @@ if __name__ == '__main__':
             if argv[3] == 'hypervisor':
                 hypervisor = argv[4]
             else:
-
                 print "ERROR: Argument mismatch"
                 print_help()
                 sys.exit()
@@ -348,8 +525,9 @@ if __name__ == '__main__':
                 sys.exit()
 
             if argv[7] == 'project':
-                pid = argv[8]
-                if pid < 0 or pid > 255:
+                pid = int(argv[8])
+                print pid
+                if pid > 255:
                 	print "Warning: Project value is greater than 255. This will lead to wrong Dataplane IP auto-generation"
             else:
                 print "ERROR: Argument mismatch"
@@ -394,8 +572,6 @@ if __name__ == '__main__':
             vlan=None
             if len(argv)==8 and argv[6] == 'vlan':
                 vlan=int(argv[7])
-            print interface
-            print host
             if interface == CONTROL_PLANE_INTERFACE and auto_ip:
                 try:
                     hostresource = addControlPlaneIP(host,interface)
@@ -416,21 +592,79 @@ if __name__ == '__main__':
                     print e
             else:
                 try:
-                    hostresource = addIP(host, interface, ipaddress)
+                    hostresource = addIP(host, interface, ipaddress, vlan)
                     print "Interface\tIPAddress ",
                     print hostresource.properties[INTERFACES]
                     for inf in hostresource.properties[INTERFACES]:
                         print inf+"\t"+hostresource.properties[inf]
                 except ValueError as e:
                     print e
+    elif cmd == 'addbr':
+    	if (len(argv)) < 6:
+            print "ERROR: Argument mismatch"
+            print_help()
+        else:
+            host = argv[2]
+    	if argv[3] == 'if':
+        	interface = argv[4]
+        if argv[5] == 'br':
+        	interface = argv[6] 
+        else:
+        	print "Bridge name missing"      	
+    elif cmd == 'modify':
+    	if (len(argv)) < 6:
+            print "ERROR: Argument mismatch"
+            print_help()
+        else:
+            host = argv[2]
+    	if argv[3] == 'memory':
+        	memory = argv[4]
+        	if argv[5] == 'swap':
+        		swap = argv[6]
+        		addmemory(host,memory,swap) 
+    	if argv[3] == 'if':
+        	interface = argv[4]
+        	if argv[5] == 'ip':
+        		ip = argv[6]
+        	if argv[7] == 'vlan':
+        		vlan = argv[8]
+        	if argv[9] == 'br':
+        		br = argv[10]
+        		modifyIP(host,interface,ip,vlan,br)       
+     elif cmd == 'addcpu':
+    	if (len(argv)) < 6:
+            print "ERROR: Argument mismatch"
+            print_help()
+        else:
+            host = argv[2]
+    	if argv[3] == 'cpulimit':
+        	cpulimit = int(argv[4])
+        	if argv[5] == 'cpuunits':
+        		cpuunits = int(argv[6])
+    elif cmd == 'addstorage':
+    	if (len(argv)) < 6:
+            print "ERROR: Argument mismatch"
+            print_help()
+        else:
+            host = argv[2]
+    	if argv[3] == 'size':
+        	disk = int(argv[4])
+        	if(disk>10):
+        		addstorage(host,disk)
+        	else:
+        		print "Please set disk value > 10"      		
     elif cmd == 'buildlxc':
     	hostname = argv[2]
     	buildlxc(hostname)
+    elif cmd == 'rebuildlxc':
+    	hostname = argv[2]
+    	rebuildlxc(hostname)
+    elif cmd == 'deletelxc':
+    	hostname = argv[2]
+    	deletelxc(hostname)
     elif cmd == 'removehost':
     	hostname = argv[2]
     	removehost(hostname)
-    
-
     else:
         print_help()
 
