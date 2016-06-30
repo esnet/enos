@@ -18,7 +18,7 @@
 #
 import binascii
 import logging,random
-from ijava.lang import Thread as JavaThread
+from java.lang import Thread as JavaThread
 from layer2.common.mac import MACAddress
 from layer2.testbed.vc import getvcnode
 from layer2.testbed.topology import TestbedTopology
