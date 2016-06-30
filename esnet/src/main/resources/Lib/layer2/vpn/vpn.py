@@ -801,20 +801,6 @@ def startup():
     sid = int(sys.argv[2]) # service ID
     vpnService.sid = sid
     vpnService.saveService()
-    # Start callback if we don't have one already
-    if not sys.debugNoController:
-        if 'SCC' not in globals() or SCC == None:
-            SCC = SdnControllerClient()
-            globals()['SCC'] = SCC
-            t = java.lang.Thread(SCC)
-            globals()['t'] = t
-            t.start()
-        if 'VPNcallback' not in globals() or VPNcallback == None:
-            VPNcallback = VpnCallback("MP-VPN Service", vpnService)
-            setcallback(VPNcallback)
-            globals()['VPNcallback'] = VPNcallback
-            SCC.setCallback(VPNcallback)
-            print "VPNcallback set"
 
 def usage():
     print "usage:"
@@ -847,14 +833,13 @@ def main():
     vpnService = MultiPointVPNServiceFactory.getVpnService()
 
     try:
-        if vpnService == None:
-            print "Starting service"
-            startup()
-            vpnService = MultiPointVPNServiceFactory.getVpnService()
-
         command = sys.argv[1].lower()
         if command == 'help':
             usage()
+        elif vpnService == None and command != "startup" and command != "settopos":
+            print "failed: VPNSerice is not running."
+            return
+
         elif command == 'create':
             vpnname = sys.argv[2]
             vpn = vpnService.createVPN(vpnname)
