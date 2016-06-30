@@ -205,9 +205,11 @@ class VPNService(Container,MultiPointVPNService):
 
     def saveService(self):
         self.properties['sid'] = self.sid
-        try:
+        if self.topology != None:
             self.properties['topology'] = self.topology.getResourceName()
+        if self.coretopology != None:
             self.properties['coretopology'] = self.coretopology.getResourceName()
+        try:
             self.save()
         except:
             print "Failed to save VPN Service\n", sys.exc_info()[0]
@@ -315,7 +317,7 @@ class VPNService(Container,MultiPointVPNService):
 class VPN(Resource):
     def __init__(self,name,vs):
         Resource.__init__(self,name,"net.es.netshell.api.Resource")
-        self.vs = vs
+        self.vpnService = vs
         self.vid = 0
         self.name = name
         self.pops = {}              # pop name -> pop
@@ -794,17 +796,18 @@ class VPN(Resource):
     def getpriority(self):
         return self.priority
 
-def startup():
+def createService(sid):
     MultiPointVPNServiceFactory.create(None)
     vpnService = MultiPointVPNServiceFactory.getVpnService()
-
-    sid = int(sys.argv[2]) # service ID
     vpnService.sid = sid
     vpnService.saveService()
+    return vpnService
 
 def usage():
     print "usage:"
 
+    print "\tvpn init <instance id>"
+    print "\t\tInits the VPN service. instance id is an integer that must be unique."
     print "\tvpn startup"
     print "\t\tStarts the service."
     print "\tvpn shutdown"
@@ -836,11 +839,17 @@ def main():
         command = sys.argv[1].lower()
         if command == 'help':
             usage()
-        elif vpnService == None and command != "startup" and command != "settopos":
-            print "failed: VPNSerice is not running."
             return
 
-        elif command == 'create':
+        if command == "startup":
+            if vpnService == None:
+                print "failed: the VPN service has not been created yet."
+                return
+        elif command == "init":
+                vpnService = createService(int(sys.argv[2]))
+                return
+
+        if command == 'create':
             vpnname = sys.argv[2]
             vpn = vpnService.createVPN(vpnname)
             if vpn == None:
@@ -867,16 +876,6 @@ def main():
             print "MAC Address Translation feature is",state[vpnService.properties['mat']]
         elif command == "shutdown":
             vpnService.shutdown()
-        elif command == "shutdown":
-            if 't' in globals():
-                globals()['t'].stop()
-                del globals()['t']
-            if 'VPNcallback' in globals():
-                if 'SCC' in globals():
-                    globals()['SCC'].clearCallback()
-                del globals()['VPNcallback']
-            if 'SCC' in globals():
-                del globals()['SCC']
         elif command == "logging":
             logname = sys.argv[2]
             logging.basicConfig(format='%(asctime)s %(levelname)8s %(message)s', filename=logname, filemode='a', level=logging.INFO)
