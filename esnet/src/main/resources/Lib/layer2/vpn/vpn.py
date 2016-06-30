@@ -253,7 +253,7 @@ class VPNService(Container,MultiPointVPNService):
     def createVPN(self,vpnname):
         if vpnname in self.vpnIndex:
             return None
-        vpn = VPN(vpnname)
+        vpn = VPN(vpnname,vs=self)
         self.vid = self.newVid()
         self.addVpn(vpn)
         return vpn
@@ -315,7 +315,8 @@ class VPNService(Container,MultiPointVPNService):
 class VPN(Resource):
     def __init__(self,name,vs):
         Resource.__init__(self,name,"net.es.netshell.api.Resource")
-        self.vid = 0;
+        self.vs = vs
+        self.vid = 0
         self.name = name
         self.pops = {}              # pop name -> pop
         self.vpnsites = {}          # site name -> site
@@ -793,6 +794,27 @@ class VPN(Resource):
     def getpriority(self):
         return self.priority
 
+def startup():
+    MultiPointVPNServiceFactory.create(None)
+    vpnService = MultiPointVPNServiceFactory.getVpnService()
+
+    sid = int(sys.argv[2]) # service ID
+    vpnService.sid = sid
+    vpnService.saveService()
+    # Start callback if we don't have one already
+    if not sys.debugNoController:
+        if 'SCC' not in globals() or SCC == None:
+            SCC = SdnControllerClient()
+            globals()['SCC'] = SCC
+            t = java.lang.Thread(SCC)
+            globals()['t'] = t
+            t.start()
+        if 'VPNcallback' not in globals() or VPNcallback == None:
+            VPNcallback = VpnCallback("MP-VPN Service", vpnService)
+            setcallback(VPNcallback)
+            globals()['VPNcallback'] = VPNcallback
+            SCC.setCallback(VPNcallback)
+            print "VPNcallback set"
 
 def usage():
     print "usage:"
@@ -823,9 +845,13 @@ def usage():
 
 def main():
     vpnService = MultiPointVPNServiceFactory.getVpnService()
-    if vpnService == None:
-        print "VPN Service is not running. You can start it with the command vpn start"
+
     try:
+        if vpnService == None:
+            print "Starting service"
+            startup()
+            vpnService = MultiPointVPNServiceFactory.getVpnService()
+
         command = sys.argv[1].lower()
         if command == 'help':
             usage()
@@ -836,7 +862,6 @@ def main():
                 print "vpn %r exists already" % vpnname
             else:
                 print "VPN %s is created successfully." % vpn.name
-
         elif command == 'delete':
             vpnname = sys.argv[2]
             res = vpnService.deleteVPN(vpnname)
@@ -848,8 +873,6 @@ def main():
             vpnService.loadService()
         elif command == "save":
             vpnService.saveService()
-        elif command == "start":
-            MultiPointVPNServiceFactory.create(None);
         elif command == "mat":
             if 'on' in sys.argv:
                 vpnService.properties['mat'] = True
@@ -859,24 +882,6 @@ def main():
             print "MAC Address Translation feature is",state[vpnService.properties['mat']]
         elif command == "shutdown":
             vpnService.shutdown()
-        elif command == "startup":
-            sid = int(sys.argv[2]) # service ID
-            vpnService.sid = sid
-            vpnService.saveService()
-            # Start callback if we don't have one already
-            if not sys.debugNoController:
-                if 'SCC' not in globals() or SCC == None:
-                    SCC = SdnControllerClient()
-                    globals()['SCC'] = SCC
-                    t = java.lang.Thread(SCC)
-                    globals()['t'] = t
-                    t.start()
-                if 'VPNcallback' not in globals() or VPNcallback == None:
-                    VPNcallback = VpnCallback("MP-VPN Service", vpnService)
-                    setcallback(VPNcallback)
-                    globals()['VPNcallback'] = VPNcallback
-                    SCC.setCallback(VPNcallback)
-                    print "VPNcallback set"
         elif command == "shutdown":
             if 't' in globals():
                 globals()['t'].stop()
