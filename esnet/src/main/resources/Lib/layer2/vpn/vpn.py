@@ -18,7 +18,7 @@
 #
 import binascii
 import logging,random
-import java.lang.Thread
+from ijava.lang import Thread as JavaThread
 from layer2.common.mac import MACAddress
 from layer2.testbed.vc import getvcnode
 from layer2.testbed.topology import TestbedTopology
@@ -173,7 +173,7 @@ class VPNService(Container,MultiPointVPNService):
 
     def setscc(self):
         self.SCC = SdnControllerClient()
-        self.sccThread = Thread(target=self.SCC)
+        self.sccThread = JavaThread(target=self.SCC)
         self.sccThread.start()
         self.VPNcallback = VpnCallback("MP-VPN Service", self)
         setcallback(self.VPNcallback)
