@@ -80,7 +80,6 @@ class VpnCallback(SdnControllerClientCallback):
         Receive a PACKET_IN callback
         """
         # Decode the callback.  First get the switch
-        print "### PACKET IN ###"
         switch = None
         hexdpid = binascii.hexlify(dpid)
         if hexdpid in self.switchIndex.keys():
@@ -173,7 +172,7 @@ class VPNService(Container,MultiPointVPNService):
 
     def setscc(self):
         self.SCC = SdnControllerClient()
-        self.sccThread = JavaThread(target=self.SCC)
+        self.sccThread = JavaThread(self.SCC)
         self.sccThread.start()
         self.VPNcallback = VpnCallback("MP-VPN Service", self)
         setcallback(self.VPNcallback)
