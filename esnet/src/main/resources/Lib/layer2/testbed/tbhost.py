@@ -117,11 +117,8 @@ def createHostTemplateWithId(host, hypervisor, owner, project, hostid, os):
         	hostresource.properties[PROPERTIES_OSTEMPLATE] = ostemplate.properties[PROPERTIES_OSTEMPLATE]
 
         hostresource.properties[INTERFACES] = []
-
-        container.saveResource(hostresource)
-        
+        container.saveResource(hostresource)        
         return hostresource
-
 
     else:
         raise ValueError("Attempting to create duplicate host")
@@ -287,10 +284,81 @@ def deletelxc(host):
     	
     hypervisor = primary.properties[PROPERTIES_HYPERVISOR]
     print "Authenticating "+puser +" on "+ hypervisor
+    vmid = int(hostresource.properties[HOSTID])
+    
     proxmox = ProxmoxAPI(hypervisor, user=puser, password=password, verify_ssl=False)
     node = proxmox.nodes(hostresource.properties[HYPERVISOR])
     print "Deleting container"
+    
     node.lxc(vmid).delete()
+    time.sleep(30)
+    
+def startlxc(host):
+    """ Start lxc in proxmox using given hostresource configuration """
+    
+    #check if container is running and ask user to stop it
+    if not exists(host):
+    	raise ValueError("Host template is missing. Please create host template")
+    
+    container = Container.getContainer(HOST_CONTAINER)
+    hostresource = container.loadResource(host)
+        #get proxmox user and hypervisor 
+    userresource = proxmoxutil.listuser()
+    if userresource is None:
+    	raise ValueError("No proxmox user found!! Please use proxmoxutil command to update user credentials")
+    		
+    user = userresource.properties[PROPERTIES_USER]
+    password = userresource.properties[PROPERTIES_PASSWORD]
+    authrealm = userresource.properties[PROPERTIES_AUTHREALM]
+    puser = user+'@'+authrealm
+    	  	
+    primary = proxmoxutil.listprimary()
+    		
+    if primary is None:
+    	raise ValueError("Primary proxmox hypervisor not found!! Please use proxmoxutil command to update primary hypervisor")
+    	
+    hypervisor = primary.properties[PROPERTIES_HYPERVISOR]
+    print "Authenticating "+puser +" on "+ hypervisor
+  
+    proxmox = ProxmoxAPI(hypervisor, user=puser, password=password, verify_ssl=False)
+    node = proxmox.nodes(hostresource.properties[HYPERVISOR])
+    vmid = int(hostresource.properties[HOSTID])
+    print "Starting  container"
+    node.lxc(vmid).status.start.post()
+    time.sleep(30)
+    
+def stoplxc(host):
+    """ Stop lxc in proxmox using given hostresource configuration """
+    
+    #check if container is running and ask user to stop it
+    if not exists(host):
+    	raise ValueError("Host template is missing. Please create host template")
+    
+    container = Container.getContainer(HOST_CONTAINER)
+    hostresource = container.loadResource(host)
+        #get proxmox user and hypervisor 
+    userresource = proxmoxutil.listuser()
+    if userresource is None:
+    	raise ValueError("No proxmox user found!! Please use proxmoxutil command to update user credentials")
+    		
+    user = userresource.properties[PROPERTIES_USER]
+    password = userresource.properties[PROPERTIES_PASSWORD]
+    authrealm = userresource.properties[PROPERTIES_AUTHREALM]
+    puser = user+'@'+authrealm
+    	  	
+    primary = proxmoxutil.listprimary()
+    		
+    if primary is None:
+    	raise ValueError("Primary proxmox hypervisor not found!! Please use proxmoxutil command to update primary hypervisor")
+    	
+    hypervisor = primary.properties[PROPERTIES_HYPERVISOR]
+    print "Authenticating "+puser +" on "+ hypervisor
+  
+    proxmox = ProxmoxAPI(hypervisor, user=puser, password=password, verify_ssl=False)
+    node = proxmox.nodes(hostresource.properties[HYPERVISOR])
+    vmid = int(hostresource.properties[HOSTID])
+    print "Stopping  container"
+    node.lxc(vmid).status.stop.post()
     time.sleep(30)
     
 def removehost(host):
@@ -446,7 +514,6 @@ def addcpu(host, cpuunits, cpulimit):
         hostresource.properties[PROPERTIES_CPULIMIT] = cpulimit
 		container.saveResource(hostresource)
         return hostresource
-
     else:
         raise ValueError("Host does not exist. Please create template first")
         
@@ -480,8 +547,6 @@ def print_help():
     print "\t\tos <os> os template to be loaded - Values: centos-7-esnet, centos-7-dtn, debian-8-esnet, debian-8-dtn"
     print "\t\tOptional: id <id> id of the host if it was already created"
     print "\t\tExample usage: create mycontainer hypervisor nersc-tbn-4 owner sowmya@es.net project 120 os centos-7-esnet"
-    print "\tbuildlxc"
-    print "\t\tbuildlxc <hostname>"
     print "\taddif"
     print "\t\taddif <hostname> if <if_name> <ipaddress/netmask|auto_ip> [vlan <vlan>]"
     print "\t\tAssigns ip and adds interface to host template."
@@ -492,6 +557,31 @@ def print_help():
     print "\modify"
     print "\t\tmodify <hostname> memory <memory> swap <swap>"
     print "\t\tModify memory and swap."
+    print "\modify"
+    print "\t\tmodify <hostname> if <interface> ip <ipaddress/netmask> vlan <vlan> br <bridge>"
+    print "\t\tModify interface."
+    print "\addcpu"
+    print "\t\taddcpu <hostname> cpuunits <cpuunits> cpulimit <cpulimit>"
+    print "\t\tAdd cpu parameters. This method can be run only on a new container." 
+    print "\addstorage"
+    print "\t\taddstorage <hostname> size <disksize> "
+    print "\t\tAdd storage parameters. This method can be run only on a new container." 
+    print "\tbuildlxc"
+    print "\t\tbuildlxc <hostname>"
+    print "\t\tCreates container in proxmox"
+    print "\trebuildlxc"
+    print "\t\trebuildlxc <hostname>"
+    print "\t\tCan reconfigure lxc. (Memory and interface only)>"
+    print "\tstartlxc"
+    print "\t\tstartlxc <hostname>"
+    print "\t\tStarts LXC"
+    print "\tstoplxc"
+    print "\t\tstoplxc <hostname>"
+    print "\t\tStops LXC"
+    print "\tremovehost"
+    print "\t\tremovehost <hostname>"
+    print "\t\tDeletes LXC and removes entry from database"
+
 
 if __name__ == '__main__':
     argv = sys.argv
@@ -662,6 +752,12 @@ if __name__ == '__main__':
     elif cmd == 'deletelxc':
     	hostname = argv[2]
     	deletelxc(hostname)
+    elif cmd == 'startlxc':
+    	hostname = argv[2]
+    	startlxc(hostname)
+    elif cmd == 'stoplxc':
+    	hostname = argv[2]
+    	stoplxc(hostname)
     elif cmd == 'removehost':
     	hostname = argv[2]
     	removehost(hostname)
