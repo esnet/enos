@@ -18,6 +18,10 @@
  */
 package net.es.enos.mpvpn;
 
+import net.es.netshell.api.Resource;
+
+import java.util.Map;
+
 /**
  * Interface defining the MultiPoint VPN service.
  *
@@ -29,7 +33,19 @@ public interface MultiPointVPNService {
 
     public MultiPointVPN createVPN(String name);
 
-    public void deleteVPN(String name);
+    public boolean deleteVPN(String name);
 
     public MultiPointVPN getVPN(String name);
+
+    public Map<String,Object> getSite(String name);
+
+    public boolean addSite(MultiPointVPN vpn,Map<String,Object> site,String vlan);
+
+    public boolean deleteSite(MultiPointVPN vpn,Map<String,Object> site);
+
+    public Map<String,Object> getHost(String name);
+
+    public boolean addPOP(MultiPointVPN vpn,Resource pop);
+
+    public boolean removePOP(MultiPointVPN vpn,Resource pop);
 }
