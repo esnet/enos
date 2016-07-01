@@ -52,6 +52,14 @@ if "debugNoController" in dir(sys) and sys.debugNoController:
         def setCallback(*args):
             pass
 
+        def __call__(self):
+            self.run()
+
+        def run(self):
+            import time
+            while True:
+                time.sleep(10000)
+
 
     from net.es.netshell.api import PersistentObject
     class SdnControllerClientL2Forward (PersistentObject):
