@@ -167,12 +167,10 @@ class VPNService(Container,MultiPointVPNService):
         self.loadService()
         self.saveThread = Thread(target=self.autosave)
         self.saveThread.start()
-        if self.topology != None:
-            self.setscc()
 
     def setscc(self):
         self.SCC = SdnControllerClient()
-        self.sccThread = JavaThread(self.SCC)
+        self.sccThread = JavaThread(self.SCC,"SdnControllerClient")
         self.sccThread.start()
         self.VPNcallback = VpnCallback("MP-VPN Service", self)
         setcallback(self.VPNcallback)
@@ -218,6 +216,8 @@ class VPNService(Container,MultiPointVPNService):
         mapResource (obj=self,resource=stored)
         if 'topology' in self.properties:
             self.topology = Container.getContainer(self.properties['topology'])
+            if self.topology != None:
+                self.setscc()
         if 'coretopology' in self.properties:
             self.coretopology = Container.getContainer(self.properties['coretopology'])
         if 'sid' in self.properties:
@@ -351,10 +351,13 @@ class VPN(Resource):
         #self.properties['pops'] = tmp
         self.properties['vpnsites'] = str(self.vpnsites)
         self.properties['vpnsitevlans'] = str(self.vpnsitevlans)
+        self.properties['popflows'] = {}
+        for (name,flow) in self.popflows.items():
+            self.properties['popflow'][name] = flow.saveToJSON()
         self.properties['entryfanoutflows'] = str(self.entryfanoutflows)
         self.properties['exitfanoutflows'] = str(self.exitfanoutflows)
         self.properties['hostsites'] = str(self.hostsites)
-        MultiPointVPNServiceFactory.getVpnService().saveResource(self)
+        self.vpnService.saveResource(self)
 
     def loadVPN(self,mpvpn):
         stored = mpvpn.loadResource(self.getResourceName())
@@ -369,12 +372,15 @@ class VPN(Resource):
             self.pops[n] = mpvpn.topology.loadResource(n)
         self.vpnsites = eval (self.properties['vpnsites'])
         self.vpnsitevlans = eval (self.properties['vpnsitevlans'])
+        if 'popflows' in self.properties:
+            for (name,flow) in self.properties['popflows'].items():
+                self.popflows[name] = mpvpn.SCC.handleFromJSON(flow)
         self.exitfanoutflows = eval (self.properties['exitfanoutflows'])
         self.entryfanoutflows = eval (self.properties['entryfanoutflows'])
         self.hostsites = eval (self.properties['hostsites'])
         self.mat = MAT.deserialize(self.properties['mat'])
 
-        self.vpnService = vpnService # global
+        self.vpnService = mpvpn
 
     def interconnect(self, site1,site2): # XXX core topo!
         """
