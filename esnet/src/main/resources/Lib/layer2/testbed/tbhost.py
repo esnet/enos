@@ -110,13 +110,17 @@ def createHostTemplateWithId(host, hypervisor, owner, project, hostid, os):
         hostresource.properties[PROPERTIES_DISK] = DISK
 
         #commenting out unitl lxc code is integrated
-        ostemplate = proxmoxutil.getostemplate(os)
-        if ostemplate is None:
-        	raise ValueError("OS Template does not exist. Please configure os template using proxmoxutil")
+        if os and os != "unknown":
+        	ostemplate = proxmoxutil.getostemplate(os)
+        	if ostemplate is None:
+        		raise ValueError("OS Template does not exist. Please configure os template using proxmoxutil")
+        	else:
+        		hostresource.properties[PROPERTIES_OSTEMPLATE] = ostemplate.properties[PROPERTIES_OSTEMPLATE]
         else:
-        	hostresource.properties[PROPERTIES_OSTEMPLATE] = ostemplate.properties[PROPERTIES_OSTEMPLATE]
+        	hostresource.properties[PROPERTIES_OSTEMPLATE] = "unknown"
 
         hostresource.properties[INTERFACES] = []
+        print "Creating host template for %s with id %s" %(host, str(hostid))
         container.saveResource(hostresource)        
         return hostresource
 
@@ -480,7 +484,7 @@ def addbr(host, interface, bridge):
         	ipconfig = hostresource.properties[interface]
         	ipconfig += ",bridge="+bridge
         	hostresource.properties[interface] = ipconfig
-		    container.saveResource(hostresource)
+        	container.saveResource(hostresource)
         	return hostresource
         else:
         	raise ValueError("Interface does not exist. Please create interface first")
@@ -492,14 +496,11 @@ def addbr(host, interface, bridge):
 def addstorage(host, size):
     """ Adds storage to host template"""
     container = Container.getContainer(HOST_CONTAINER)
-
     if exists(host):
-            
-        hostresource = container.loadResource(host)
-        hostresource.properties[PROPERTIES_DISK] = size
-		container.saveResource(hostresource)
-        return hostresource
-
+    	hostresource = container.loadResource(host)
+    	hostresource.properties[PROPERTIES_DISK] = size
+    	container.saveResource(hostresource)
+    	return hostresource
     else:
         raise ValueError("Host does not exist. Please create template first")
         
@@ -512,7 +513,7 @@ def addcpu(host, cpuunits, cpulimit):
         hostresource = container.loadResource(host)
         hostresource.properties[PROPERTIES_CPUUNITS] = cpuunits
         hostresource.properties[PROPERTIES_CPULIMIT] = cpulimit
-		container.saveResource(hostresource)
+        container.saveResource(hostresource)
         return hostresource
     else:
         raise ValueError("Host does not exist. Please create template first")
@@ -525,7 +526,7 @@ def addmemory(host, memory, swap):
         hostresource = container.loadResource(host)
         hostresource.properties[PROPERTIES_MEMORY] = memory
         hostresource.properties[PROPERTIES_SWAP] = swap
-		container.saveResource(hostresource)
+        container.saveResource(hostresource)
         return hostresource
     else:
         raise ValueError("Host does not exist. Please create template first")
@@ -554,16 +555,16 @@ def print_help():
     print "\taddbr"
     print "\t\taddbr <hostname> if <if_name> br <bridge>"
     print "\t\tAssigns bridge to interface and saves to host template."
-    print "\modify"
+    print "\tmodify"
     print "\t\tmodify <hostname> memory <memory> swap <swap>"
     print "\t\tModify memory and swap."
-    print "\modify"
+    print "\tmodify"
     print "\t\tmodify <hostname> if <interface> ip <ipaddress/netmask> vlan <vlan> br <bridge>"
     print "\t\tModify interface."
-    print "\addcpu"
+    print "\taddcpu"
     print "\t\taddcpu <hostname> cpuunits <cpuunits> cpulimit <cpulimit>"
     print "\t\tAdd cpu parameters. This method can be run only on a new container." 
-    print "\addstorage"
+    print "\taddstorage"
     print "\t\taddstorage <hostname> size <disksize> "
     print "\t\tAdd storage parameters. This method can be run only on a new container." 
     print "\tbuildlxc"
@@ -579,6 +580,9 @@ def print_help():
     print "\t\tstoplxc <hostname>"
     print "\t\tStops LXC"
     print "\tremovehost"
+    print "\t\tremovehost <hostname>"
+    print "\t\tDeletes LXC and removes entry from database"
+    print "\tlist"
     print "\t\tremovehost <hostname>"
     print "\t\tDeletes LXC and removes entry from database"
 
@@ -616,7 +620,6 @@ if __name__ == '__main__':
 
             if argv[7] == 'project':
                 pid = int(argv[8])
-                print pid
                 if pid > 255:
                 	print "Warning: Project value is greater than 255. This will lead to wrong Dataplane IP auto-generation"
             else:
@@ -707,42 +710,57 @@ if __name__ == '__main__':
             print_help()
         else:
             host = argv[2]
-    	if argv[3] == 'memory':
-        	memory = argv[4]
-        	if argv[5] == 'swap':
-        		swap = argv[6]
-        		addmemory(host,memory,swap) 
-    	if argv[3] == 'if':
-        	interface = argv[4]
-        	if argv[5] == 'ip':
-        		ip = argv[6]
-        	if argv[7] == 'vlan':
-        		vlan = argv[8]
-        	if argv[9] == 'br':
-        		br = argv[10]
-        		modifyIP(host,interface,ip,vlan,br)       
-     elif cmd == 'addcpu':
+            if argv[3] == 'memory':
+    	    	memory = argv[4]
+    	    	if argv[5] == 'swap':
+        			swap = argv[6]
+        			addmemory(host,memory,swap)
+        			print "Added memory: %s, swap: %s for %s" %(memory, swap, host)
+    	    	else:
+    	    		print_help()
+    	    		sys.exit(1)
+    	    elif argv[3] == 'if':
+        		interface = argv[4]
+        		if argv[5] == 'ip':
+        			ip = argv[6]
+        		if argv[7] == 'vlan':
+        			vlan = argv[8]
+        		if argv[9] == 'br':
+        			br = argv[10]
+        			modifyIP(host,interface,ip,vlan,br)       
+    elif cmd == 'addcpu':
     	if (len(argv)) < 6:
             print "ERROR: Argument mismatch"
             print_help()
         else:
             host = argv[2]
-    	if argv[3] == 'cpulimit':
+            if argv[3] != 'cpulimit':
+            	print_help()
+            	sys.exit(1)
+            	
         	cpulimit = int(argv[4])
-        	if argv[5] == 'cpuunits':
-        		cpuunits = int(argv[6])
+        	
+        	if argv[5] != 'cpuunits':
+        		print_help()
+        		sys.exit(1)
+        	
+        	cpuunits = int(argv[6])
+        	addcpu(host, cpuunits, cpulimit)
+        	print "Added cpuunits: %s, cpulimit: %s, for %s" %(cpuunits, cpulimit, host)
+
     elif cmd == 'addstorage':
-    	if (len(argv)) < 6:
+    	if (len(argv)) < 5:
             print "ERROR: Argument mismatch"
             print_help()
         else:
             host = argv[2]
-    	if argv[3] == 'size':
-        	disk = int(argv[4])
-        	if(disk>10):
-        		addstorage(host,disk)
-        	else:
-        		print "Please set disk value > 10"      		
+            if argv[3] == 'size':
+        		disk = int(argv[4])
+        		if(disk>10):
+        			addstorage(host,disk)
+        			print "Added storage: %sG for %s" %(disk, host)
+        		else:
+        			print "Please set disk value > 10"      		
     elif cmd == 'buildlxc':
     	hostname = argv[2]
     	buildlxc(hostname)

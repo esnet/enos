@@ -41,6 +41,8 @@ HOST_DESCRIPTION=""
 
 HOST_CP_INTERFACE = "eth0"
 
+HOST_CP_VLAN = 2
+
 if __name__ == '__main__':
     argv = sys.argv
 
@@ -77,7 +79,7 @@ if __name__ == '__main__':
 
     		tbhost.createHostTemplateWithId(hostname, HOST_HYPERVISOR, owner, HOST_PROJECT, hostid, HOST_OS)
 
-    		tbhost.addIP(hostname, HOST_CP_INTERFACE, ipaddress)
+    		tbhost.addIP(hostname, HOST_CP_INTERFACE, ipaddress, HOST_CP_VLAN)
 
     elif cmd == 'dp':
     	filelocation = argv[2]
@@ -92,6 +94,7 @@ if __name__ == '__main__':
     		interface = fields[2].strip()
     		ipaddress = fields[3].strip()
     		hosttype="Container"
+    		vlan = fields[4].strip()
     		project = fields[5].strip()
     		owner = fields[6].strip()
     		if(hostname == 'Host'):
@@ -102,7 +105,7 @@ if __name__ == '__main__':
     		print hosttype
     		print project
     		tbip.register_ip(hostname, owner, HOST_PROJECT, hosttype, HOST_OS, description, ipaddress, HOST_NETMASK)
-    		tbhost.addIP(hostname, interface, ipaddress)
+    		tbhost.addIP(hostname, interface, ipaddress,vlan)
 
 
 
