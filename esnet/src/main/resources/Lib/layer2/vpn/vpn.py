@@ -220,9 +220,11 @@ class VPNService(Container,MultiPointVPNService):
             self.topology = Container.getContainer(self.properties['topology'])
         if 'coretopology' in self.properties:
             self.coretopology = Container.getContainer(self.properties['coretopology'])
+        if 'sid' in self.properties:
+            self.sid = self.properties['sid']
         vpns = self.loadResources({"resourceType":"VPN"})
         for v in vpns:
-            vpn = VPN(v.getResourceName())
+            vpn = VPN(v.getResourceName(),vs=self)
             vpn.loadVPN(self)
             self.vpnIndex[v.getResourceName()] = vpn
             self.vpnIndexById[vpn.vid] = vpn
@@ -807,7 +809,7 @@ def usage():
 
     print "\tvpn init <instance id>"
     print "\t\tInits the VPN service. instance id is an integer that must be unique."
-    print "\tvpn startup"
+    print "\tvpn start"
     print "\t\tStarts the service."
     print "\tvpn shutdown"
     print "\tvpn settopos <popstopo> <coretopo>"
@@ -840,10 +842,18 @@ def main():
             usage()
             return
 
-        if command == "startup":
-            if vpnService == None:
-                print "failed: the VPN service has not been created yet."
+        if command == "start":
+            if vpnService != None:
+                print "Service is already running."
                 return
+            print "Starting service."
+            MultiPointVPNServiceFactory.create(None)
+            vpn = MultiPointVPNServiceFactory.getVpnService()
+            if vpn == None:
+                print "failed"
+                return
+            print "started"
+            return
         elif command == "init":
                 vpnService = createService(int(sys.argv[2]))
                 return
