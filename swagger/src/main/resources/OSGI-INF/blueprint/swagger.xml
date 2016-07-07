@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   ESnet Network Operating System (ENOS) Copyright (c) 2016, The Regents
+   of the University of California, through Lawrence Berkeley National
+   Laboratory (subject to receipt of any required approvals from the
+   U.S. Dept. of Energy).  All rights reserved.
+
+   If you have questions about your rights to use or distribute this
+   software, please contact Berkeley Lab's Innovation & Partnerships
+   Office at IPO@lbl.gov.
+
+   NOTICE.  This Software was developed under funding from the
+   U.S. Department of Energy and the U.S. Government consequently retains
+   certain rights. As such, the U.S. Government has been granted for
+   itself and others acting on its behalf a paid-up, nonexclusive,
+   irrevocable, worldwide license in the Software to reproduce,
+   distribute copies to the public, prepare derivative works, and perform
+   publicly and display publicly, and to permit other to do so.
+-->
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+    xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.1.0"
+    xmlns:ext="http://aries.apache.org/blueprint/xmlns/blueprint-ext/v1.0.0">
+
+    <cm:property-placeholder persistent-id="net.es.enos.swagger.config" update-strategy="reload" >
+        <cm:default-properties>
+                <cm:property name="basePath" value="/services"/>
+                <cm:property name="title" value="ENOS Services API"/>
+                <cm:property name="description" value="This API provides access to programmable ENOS features."/>
+                <cm:property name="version" value="1.0"/>
+                <cm:property name="termsOfService" value="ESnet Network Operating System (ENOS) Copyright (c) 2016, The Regents of the University of California, through Lawrence Berkeley National Laboratory (subject to receipt of any required approvals from the U.S. Dept. of Energy).  All rights reserved."/>
+                <cm:property name="contactName" value="ENOS Development Team"/>
+                <cm:property name="contactURL" value="https://github.com/esnet/enos"/>
+                <cm:property name="contactEmail" value="enos@es.net"/>
+                <cm:property name="licenseName" value="Lawrence Berkeley National Labs BSD variant license"/>
+                <cm:property name="licenseURL" value="https://spdx.org/licenses/BSD-3-Clause-LBNL.html"/>
+        </cm:default-properties>
+    </cm:property-placeholder>
+
+    <bean id="net.es.enos.swagger.config" class="net.es.enos.swagger.Configuration"
+            init-method="refresh" scope="singleton">
+        <property name="basePath" value="${basePath}" />
+        <property name="title" value="${title}" />
+        <property name="description" value="${description}" />
+        <property name="version" value="${version}" />
+        <property name="termsOfService" value="${termsOfService}" />
+        <property name="contactName" value="${contactName}" />
+        <property name="contactURL" value="${contactURL}" />
+        <property name="contactEmail" value="${contactEmail}" />
+        <property name="licenseName" value="${licenseName}" />
+        <property name="licenseURL" value="${licenseURL}" />
+    </bean>
+</blueprint>
+

@@ -22,13 +22,14 @@
 
     <repository>mvn:net.es.netshell/netshell-features/1.0.0-SNAPSHOT/xml/features</repository>
 
-    <feature name="enos-esnet" version="1.0.0-SNAPSHOT" description="ESnet ENOS ESnet Bundle">
+    <feature name="enos-esnet" version="1.0.0-SNAPSHOT" description="ESnet ENOS ESnet Bundle" install="auto">
         <bundle>mvn:com.sun.jersey/jersey-core/1.17</bundle>
         <bundle>mvn:com.sun.jersey/jersey-client/1.17</bundle>
         <bundle>mvn:commons-io/commons-io/2.4</bundle>
         <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.oro/2.0.8_6</bundle>
         <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.json-lib/2.4_1</bundle>
         <bundle>mvn:org.codehaus.jettison/jettison/1.3.7</bundle>
+        <feature version="${karaf.version}">scr</feature>
         <feature version="1.0.0-SNAPSHOT">netshell-kernel</feature>
         <feature version="1.0.0-SNAPSHOT">netshell-python</feature>
         <bundle>mvn:net.es.enos/enos-esnet/1.0.0-SNAPSHOT</bundle>
@@ -50,14 +51,15 @@
 
     <feature name="enos-swagger" version="1.0.0-SNAPSHOT"
              description="ESnet ENOS Swagger Bundle" install="auto">
-        <configfile finalname="/etc/com.eclipsesource.jaxrs.swagger.config.cfg">mvn:${project.groupId}/enos-swagger/${project.version}/cfg/configuration</configfile>
+        <configfile finalname="/etc/net.es.enos.swagger.config.cfg">mvn:${project.groupId}/enos-swagger/${project.version}/cfg/configuration</configfile>
+        <feature version="${karaf.version}">scr</feature>
         <feature version="${karaf.version}">http-whiteboard</feature>
         <bundle>mvn:net.es.enos/enos-swagger/1.0.0-SNAPSHOT</bundle>
     </feature>
 
     <feature name="enos-services" version="1.0.0-SNAPSHOT"
              description="ESnet ENOS Services Bundle" install="auto">
-        <configfile finalname="/etc/net.es.enos.enos-services.cfg">mvn:${project.groupId}/enos-services/${project.version}/cfg/configuration</configfile>
+        <configfile finalname="/etc/net.es.enos.services.config.cfg">mvn:${project.groupId}/enos-services/${project.version}/cfg/configuration</configfile>
         <feature version="${karaf.version}">scr</feature>
         <feature version="${karaf.version}">http</feature>
         <feature>jax-rs-connector</feature>

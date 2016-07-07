@@ -23,7 +23,7 @@
 from net.es.netshell.api import Resource, Container
 
 ID_MAX = 255
-ID_MIN = 0
+ID_MIN = 100
 
 ID_CONTAINER='id'
 IDRESOURCE_RESOURCEID = 'id'
@@ -60,7 +60,7 @@ def getid():
     for idresource in idresources:
         idbitmap[idresource.properties[IDRESOURCE_RESOURCEID]] = 1
 
-    for i in range(ID_MAX+1):
+    for i in range(ID_MIN,ID_MAX+1):
         if idbitmap[i] == 0:
             return i
 
@@ -99,14 +99,10 @@ def remove(hostid):
     """ This method removes the ID resource from persistent storage"""
     
     hid = int(hostid)
-    if (hid<ID_MIN or hid>ID_MAX):
-        raise ValueError('ID out of range')
 
     if exists(hostid):
         container = Container.getContainer(ID_CONTAINER)
         container.deleteResource(hostid)
-        if exists(hostid):
-            raise ValueError("Error deleting resource")
     else:
         raise ValueError("Id resource does not exist")
 
@@ -115,9 +111,6 @@ def exists(hostid):
     """ This method checks if the ID resource exists in persistent storage"""
     
     hid = int(hostid)
-    if (hid<ID_MIN or hid>ID_MAX):
-        raise ValueError('ID out of range')
-
     container = Container.getContainer(ID_CONTAINER)
     idexists = container.loadResource(hostid)
 

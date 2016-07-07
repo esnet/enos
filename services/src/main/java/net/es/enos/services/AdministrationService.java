@@ -17,25 +17,16 @@
  * publicly and display publicly, and to permit other to do so.
  *
  */
-package net.es.enos.services.example;
+package net.es.enos.services;
+
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 
 /**
- * A simple resource for the example service.
+ * The ENOS Administration service interface definition.
  */
-public class ExampleResource {
-    private String message;
-
-    /**
-     * @return the message
-     */
-    public String getMessage() {
-        return message;
-    }
-
-    /**
-     * @param message the message to set
-     */
-    public void setMessage(String message) {
-        this.message = message;
-    }
+public interface AdministrationService {
+    public Response getVersions(@Context UriInfo uriInfo);
+    public Response getVersion(String id, @Context UriInfo uriInfo);
 }

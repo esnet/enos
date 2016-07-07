@@ -17,12 +17,18 @@
  * publicly and display publicly, and to permit other to do so.
  *
  */
-package net.es.enos.services.example;
+package net.es.enos.services;
 
+import java.util.Collection;
+import net.es.netshell.services.BundleVersionResource;
+import net.es.netshell.services.BundleVersionService;
 import org.apache.karaf.shell.commands.Argument;
 import org.apache.karaf.shell.commands.Command;
 import org.apache.karaf.shell.console.OsgiCommandSupport;
+import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An example karaf shell command using a defined JAX-RS service.
@@ -30,26 +36,31 @@ import org.osgi.framework.ServiceReference;
  * See: https://karaf.apache.org/manual/latest-3.0.x/developers-guide/extending.html
  */
 
-@Command(scope = "test", name = "hello", description="Says hello")
-public class ExampleCommand extends OsgiCommandSupport {
+@Command(scope = "enos", name = "details", description="List detailed bundle and version information for specified bundle ID.")
+public class DetailsCommand extends OsgiCommandSupport {
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    @Argument(index = 0, name = "name",
-            description = "The name that sends the greet.",
+    @Argument(index = 0, name = "ID",
+            description = "Bundle idenitifer to retrieve details.",
             required = true, multiValued = false)
-    String name = null;
+    String id = null;
 
     @Override
     protected Object doExecute() throws Exception {
-        // Lookup the example service reference.
-        ServiceReference ref = getBundleContext().getServiceReference(ExampleService.class.getName());
-        ExampleService exampleService =(ExampleService) bundleContext.getService(ref);
+        id = id.trim();
 
-        if (exampleService != null) {
-            ExampleResource sayHello = exampleService.sayHello(name);
-            System.out.println(sayHello.getMessage());
-        }
-        else {
-            System.err.println("ExampleCommand: could not lookup service!");
+        try {
+            Collection<ServiceReference<BundleVersionService>> serviceReferences = getBundleContext().getServiceReferences(BundleVersionService.class, null);
+            for (ServiceReference<BundleVersionService> serviceRef : serviceReferences) {
+                BundleVersionService service = getBundleContext().getService(serviceRef);
+                BundleVersionResource version = service.getVersion();
+                if (version.getId().equalsIgnoreCase(id)) {
+                    System.out.println(version.toString());
+                }
+            }
+        } catch (InvalidSyntaxException ex) {
+            logger.error("Could not get OSGI service references", ex);
+            System.err.println("Error: Could not get OSGI service reference.");
         }
 
         ungetServices();

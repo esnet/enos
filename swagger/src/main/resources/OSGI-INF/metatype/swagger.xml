@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   ESnet Network Operating System (ENOS) Copyright (c) 2016, The Regents
+   of the University of California, through Lawrence Berkeley National
+   Laboratory (subject to receipt of any required approvals from the
+   U.S. Dept. of Energy).  All rights reserved.
+
+   If you have questions about your rights to use or distribute this
+   software, please contact Berkeley Lab's Innovation & Partnerships
+   Office at IPO@lbl.gov.
+
+   NOTICE.  This Software was developed under funding from the
+   U.S. Department of Energy and the U.S. Government consequently retains
+   certain rights. As such, the U.S. Government has been granted for
+   itself and others acting on its behalf a paid-up, nonexclusive,
+   irrevocable, worldwide license in the Software to reproduce,
+   distribute copies to the public, prepare derivative works, and perform
+   publicly and display publicly, and to permit other to do so.
+-->
+<MetaData xmlns="http://www.osgi.org/xmlns/metatype/v1.1.0">
+    <OCD name="ESnet :: ENOS :: Swagger :: Configuration" id="net.es.enos.swagger.config" description="ENOS Swagger Configuration">
+        <AD name="Base Path" id="basePath" type="String" description="The root URI for publishing swagger services.  Must be set to same value as the publisher root.  Defaults to /services" default="/services" />
+        <AD name="Host" id="host" type="String" description="Host and port of the swagger services.  Example: localhost:8181" />
+        <AD name="API Title" id="title" type="String" description="The title of the API" />
+        <AD name="API Description" id="description" type="String" description="The description of the API" />
+        <AD name="API Version" id="version" type="String" description="The version of the API" />
+        <AD name="API Terms Of Service" id="termsOfService" type="String" description="The terms of service of the API" />
+        <AD name="API Contact Name" id="contactName" type="String" description="The contact name of the API" />
+        <AD name="API Contact URL" id="contactURL" type="String" description="The contact URL of the API" />
+        <AD name="API Contact Email" id="contactEmail" type="String" description="The contact email of the API" />
+        <AD name="API License Name" id="licenseName" type="String" description="The license name of the API" />
+        <AD name="API License URL" id="licenseURL" type="String" description="The license URL of the API" />
+    </OCD>
+    <Designate pid="net.es.enos.swagger.config">
+        <Object ocdref="net.es.enos.swagger.config"/>
+    </Designate>
+</MetaData>
+

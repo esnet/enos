@@ -75,7 +75,7 @@ if __name__ == '__main__':
     		idmanager.register(hostid,hostname,owner,0)
 
     		#register control plane ip
-    		tbip.register_ip(hostname, owner, HOST_PROJECT, hosttype, HOST_OS, description, ipaddress, HOST_NETMASK)
+    		#tbip.register_ip(hostname, owner, HOST_PROJECT, hosttype, HOST_OS, description, ipaddress, HOST_NETMASK)
 
     		tbhost.createHostTemplateWithId(hostname, HOST_HYPERVISOR, owner, HOST_PROJECT, hostid, HOST_OS)
 
@@ -104,7 +104,7 @@ if __name__ == '__main__':
     		print ipaddress
     		print hosttype
     		print project
-    		tbip.register_ip(hostname, owner, HOST_PROJECT, hosttype, HOST_OS, description, ipaddress, HOST_NETMASK)
+    		#tbip.register_ip(hostname, owner, HOST_PROJECT, hosttype, HOST_OS, description, ipaddress, HOST_NETMASK)
     		tbhost.addIP(hostname, interface, ipaddress,vlan)
 
 

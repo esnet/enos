@@ -159,6 +159,7 @@ def addostemplate(os, ostemplate):
 def removeostemplate(os):
     """ This method removes the template"""
     if(os != None ):
+    	container = Container.getContainer(PROXMOX_CONTAINER)
         if(container.loadResource(os)):
             container.deleteResource(os)
         else:

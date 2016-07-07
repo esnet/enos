@@ -69,7 +69,7 @@ CPUUNITS=1024
 STORAGE='local'
 MEMORY=1024
 SWAP=1024
-DISK=4
+DISK=10
 
 
 INTERFACES = "ifaces"
@@ -296,6 +296,7 @@ def deletelxc(host):
     
     node.lxc(vmid).delete()
     time.sleep(30)
+    print "Deleted container"
     
 def startlxc(host):
     """ Start lxc in proxmox using given hostresource configuration """
@@ -330,6 +331,7 @@ def startlxc(host):
     print "Starting  container"
     node.lxc(vmid).status.start.post()
     time.sleep(30)
+    print "Started container"
     
 def stoplxc(host):
     """ Stop lxc in proxmox using given hostresource configuration """
@@ -364,11 +366,14 @@ def stoplxc(host):
     print "Stopping  container"
     node.lxc(vmid).status.stop.post()
     time.sleep(30)
+    print "Stopped  container"
     
 def removehost(host):
 	if exists(host):
 		container = Container.getContainer(HOST_CONTAINER)
-		deletelxc(host)
+		hostresource = container.loadResource(host)
+		hostid = str(hostresource.properties[HOSTID])
+		idmanager.remove(hostid)	
 		container.deleteResource(host)
 		print "Removed host"
 	else:
@@ -458,13 +463,14 @@ def modifyIP(host, interface, ipaddress, vlan, bridge):
     if exists(host):
             
         hostresource = container.loadResource(host)
-        if interface in hostresource.properties:
-            raise ValueError("Interface is already configured")
         hostid = hostresource.properties[HOSTID]
         
         ipconfig = 'name='+interface+',bridge='+bridge+',ip='+ipaddress+',tag='+str(vlan)
-        
-        hostresource.properties[INTERFACES].append(interface)
+        if interface in hostresource.properties:
+            raise ValueError("Interface is already configured")
+        else:
+        	hostresource.properties[INTERFACES].append(interface)
+               
         hostresource.properties[interface] = ipconfig
 
         container.saveResource(hostresource)
@@ -530,11 +536,25 @@ def addmemory(host, memory, swap):
         return hostresource
     else:
         raise ValueError("Host does not exist. Please create template first")
+        
+
+def listhostdetails(host):
+    """ Adds memory to host template"""
+    container = Container.getContainer(HOST_CONTAINER)
+
+    if exists(host):         
+        hostresource = container.loadResource(host)
+        print "HostProperty\t\tValue"
+        for key in hostresource.properties:
+        	print "%s\t\t%s" %(key, hostresource.properties[key])
+        return hostresource
+    else:
+        raise ValueError("Host does not exist")
 
 def print_help():
     "Help message for tbhost utility"
     print "ESnet Testbed Host Utility"
-    print "tbip <cmd> <cmds options>"
+    print "tbhost <cmd> <cmds options>"
     print " Commands are:"
     print "\thelp"
     print "\t\tPrints this help."
@@ -562,7 +582,7 @@ def print_help():
     print "\t\tmodify <hostname> if <interface> ip <ipaddress/netmask> vlan <vlan> br <bridge>"
     print "\t\tModify interface."
     print "\taddcpu"
-    print "\t\taddcpu <hostname> cpuunits <cpuunits> cpulimit <cpulimit>"
+    print "\t\taddcpu <hostname> cpulimit <cpulimit> cpuunits <cpuunits>"
     print "\t\tAdd cpu parameters. This method can be run only on a new container." 
     print "\taddstorage"
     print "\t\taddstorage <hostname> size <disksize> "
@@ -583,8 +603,8 @@ def print_help():
     print "\t\tremovehost <hostname>"
     print "\t\tDeletes LXC and removes entry from database"
     print "\tlist"
-    print "\t\tremovehost <hostname>"
-    print "\t\tDeletes LXC and removes entry from database"
+    print "\t\tlist <hostname>"
+    print "\t\tLists lxc details"
 
 
 if __name__ == '__main__':
@@ -701,7 +721,9 @@ if __name__ == '__main__':
     	if argv[3] == 'if':
         	interface = argv[4]
         if argv[5] == 'br':
-        	interface = argv[6] 
+        	bridge = argv[6]
+        	addbr(host, interface, bridge)
+        	print "Added interface %s to bridge %s on host %s" %(interface, bridge, host)
         else:
         	print "Bridge name missing"      	
     elif cmd == 'modify':
@@ -738,15 +760,13 @@ if __name__ == '__main__':
             	print_help()
             	sys.exit(1)
             	
-        	cpulimit = int(argv[4])
-        	
-        	if argv[5] != 'cpuunits':
+            cpulimit = int(argv[4])
+            if argv[5] != 'cpuunits':
         		print_help()
         		sys.exit(1)
-        	
-        	cpuunits = int(argv[6])
-        	addcpu(host, cpuunits, cpulimit)
-        	print "Added cpuunits: %s, cpulimit: %s, for %s" %(cpuunits, cpulimit, host)
+            cpuunits = int(argv[6])
+            addcpu(host, cpuunits, cpulimit)
+            print "Added cpuunits: %s, cpulimit: %s for %s" %(cpuunits, cpulimit, host)
 
     elif cmd == 'addstorage':
     	if (len(argv)) < 5:
@@ -779,6 +799,9 @@ if __name__ == '__main__':
     elif cmd == 'removehost':
     	hostname = argv[2]
     	removehost(hostname)
+    elif cmd == 'list':
+    	hostname=argv[2]
+    	listhostdetails(hostname)	
     else:
         print_help()
 

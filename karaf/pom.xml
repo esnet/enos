@@ -109,6 +109,7 @@
                   </descriptors>
                   <distribution>org.apache.karaf.features:framework</distribution>
                   <javase>${java.version.target}</javase>
+                  <ignoreDependencyFlag>true</ignoreDependencyFlag>
                   <framework>
                     <feature>framework</feature>
                   </framework>
