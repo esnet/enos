@@ -352,8 +352,10 @@ class VPN(Resource):
         self.properties['vpnsites'] = str(self.vpnsites)
         self.properties['vpnsitevlans'] = str(self.vpnsitevlans)
         self.properties['popflows'] = {}
-        for (name,flow) in self.popflows.items():
-            self.properties['popflow'][name] = flow.saveToJSON()
+        for (pop,flows) in self.popflows.items():
+            self.properties['popflow'][pop] = []
+            for flow in flows:
+                self.properties['popflow'][pop].extend(flow.saveToJSON())
         self.properties['entryfanoutflows'] = str(self.entryfanoutflows)
         self.properties['exitfanoutflows'] = str(self.exitfanoutflows)
         self.properties['hostsites'] = str(self.hostsites)
@@ -373,8 +375,10 @@ class VPN(Resource):
         self.vpnsites = eval (self.properties['vpnsites'])
         self.vpnsitevlans = eval (self.properties['vpnsitevlans'])
         if 'popflows' in self.properties:
-            for (name,flow) in self.properties['popflows'].items():
-                self.popflows[name] = mpvpn.SCC.handleFromJSON(flow)
+            for (pop,flows) in self.properties['popflows'].items():
+                self.popflows[pop] = []
+                for flow in flows:
+                    self.popflows[pop].extend(mpvpn.SCC.handleFromJSON(flow))
         self.exitfanoutflows = eval (self.properties['exitfanoutflows'])
         self.entryfanoutflows = eval (self.properties['entryfanoutflows'])
         self.hostsites = eval (self.properties['hostsites'])
