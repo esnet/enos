@@ -32,6 +32,11 @@
         <maven>3.1.1</maven>
     </prerequisites>
 
+    <organization>
+        <name>Energy Sciences Network</name>
+        <url>https://www.es.net/network-r-and-d/sdn/esnet-network-operating-system-enos</url>
+    </organization>
+
     <licenses>
         <license>
             <name>Lawrence Berkeley National Labs BSD variant license</name>
@@ -52,6 +57,8 @@
         <webjars-swagger-ui.version>2.1.4</webjars-swagger-ui.version>
         <slf4j.version>1.7.9</slf4j.version>
         <log4j.version>1.2.17</log4j.version>
+        <maven.bundle.version>2.5.3</maven.bundle.version>
+        <git.commit.version>2.2.1</git.commit.version>
     </properties>
 
     <scm>
@@ -74,6 +81,18 @@
             <id>central</id>
             <name>Maven Repository Switchboard</name>
             <url>http://repo1.maven.org/maven2</url>
+        </repository>
+        <!-- ServiceMix repo (for region) -->
+        <repository>
+            <id>servicemix</id>
+            <name>Apache ServiceMix Repository</name>
+            <url>http://svn.apache.org/repos/asf/servicemix/m2-repo</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
         </repository>
         <repository>
             <snapshots>

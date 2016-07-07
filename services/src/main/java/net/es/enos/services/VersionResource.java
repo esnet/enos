@@ -17,32 +17,32 @@
  * publicly and display publicly, and to permit other to do so.
  *
  */
-package net.es.enos.services.example;
+package net.es.enos.services;
 
-import java.util.List;
-import org.apache.karaf.shell.console.Completer;
-import org.apache.karaf.shell.console.completer.StringsCompleter;
+import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import net.es.netshell.services.BundleVersionResource;
 
 /**
- * A very simple karaf command completer.
- *
- * See: https://karaf.apache.org/manual/latest-3.0.x/developers-guide/extending.html
+ * A simple resource for the example service.
  */
-public class ExampleCompleter implements Completer {
+public class VersionResource {
+    private final Map<String, BundleVersionResource> bundles = new ConcurrentHashMap<>();
 
-    /**
-     * @param buffer the beginning string typed by the user
-     * @param cursor the position of the cursor
-     * @param candidates the list of completions proposed to the user
-     * @return
-     */
-    @Override
-    public int complete(String buffer, int cursor, List candidates) {
-        StringsCompleter delegate = new StringsCompleter();
-        delegate.getStrings().add("world!");
-        delegate.getStrings().add("Chin!");
-        delegate.getStrings().add("Inder");
-        return delegate.complete(buffer, cursor, candidates);
+    public Map<String, BundleVersionResource> getMap() {
+        return bundles;
     }
 
+    public Collection<BundleVersionResource> values() {
+        return bundles.values();
+    }
+
+    public BundleVersionResource put(String key, BundleVersionResource resource) {
+        return bundles.put(key, resource);
+    }
+
+    public BundleVersionResource get(String key) {
+        return bundles.get(key);
+    }
 }

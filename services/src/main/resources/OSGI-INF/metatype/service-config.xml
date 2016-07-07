@@ -17,30 +17,12 @@
    distribute copies to the public, prepare derivative works, and perform
    publicly and display publicly, and to permit other to do so.
 -->
-
-<!--
-    Deployment blueprint describing bean injection for our simple
-    shell command.
-
-    See: https://karaf.apache.org/manual/latest-3.0.x/developers-guide/extending.html
--->
-<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0">
-    <command-bundle xmlns="http://karaf.apache.org/xmlns/shell/v1.1.0">
-        <command>
-            <action class="net.es.enos.services.ListCommand"/>
-        </command>
-    </command-bundle>
-
-    <command-bundle xmlns="http://karaf.apache.org/xmlns/shell/v1.1.0">
-        <command>
-            <action class="net.es.enos.services.DetailsCommand"/>
-            <completers>
-                <ref component-id="detailsCompleter"/>
-                <null/>
-            </completers>
-        </command>
-    </command-bundle>
-
-    <bean id="detailsCompleter" class="net.es.enos.services.DetailsCompleter"/>
-</blueprint>
+<MetaData xmlns="http://www.osgi.org/xmlns/metatype/v1.1.0">
+    <OCD name="ESnet :: ENOS :: Services :: Configuration" id="ocd" description="ENOS Services Configuration">
+        <AD name="URI Transform" id="uriTransform" type="String" required="false" description="Use this a URI transform for service href fields.  The form of the string is '( fromURI | toURI )', where both from and to URI must be valid URL prefixes."/>
+    </OCD>
+    <Designate pid="net.es.enos.services.config">
+        <Object ocdref="ocd"/>
+    </Designate>
+</MetaData>
 

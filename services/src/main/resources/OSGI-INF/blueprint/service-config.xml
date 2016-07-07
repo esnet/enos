@@ -17,30 +17,18 @@
    distribute copies to the public, prepare derivative works, and perform
    publicly and display publicly, and to permit other to do so.
 -->
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+    xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.1.0"
+    xmlns:ext="http://aries.apache.org/blueprint/xmlns/blueprint-ext/v1.0.0">
 
-<!--
-    Deployment blueprint describing bean injection for our simple
-    shell command.
+    <cm:property-placeholder persistent-id="net.es.enos.services.config" update-strategy="reload" >
+        <cm:default-properties>
+                <cm:property name="uriTransform" value="( http://localhost:8181 | http://localhost:8181 )"/>
+        </cm:default-properties>
+    </cm:property-placeholder>
 
-    See: https://karaf.apache.org/manual/latest-3.0.x/developers-guide/extending.html
--->
-<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0">
-    <command-bundle xmlns="http://karaf.apache.org/xmlns/shell/v1.1.0">
-        <command>
-            <action class="net.es.enos.services.ListCommand"/>
-        </command>
-    </command-bundle>
-
-    <command-bundle xmlns="http://karaf.apache.org/xmlns/shell/v1.1.0">
-        <command>
-            <action class="net.es.enos.services.DetailsCommand"/>
-            <completers>
-                <ref component-id="detailsCompleter"/>
-                <null/>
-            </completers>
-        </command>
-    </command-bundle>
-
-    <bean id="detailsCompleter" class="net.es.enos.services.DetailsCompleter"/>
+    <bean id="net.es.enos.services.config" class="net.es.enos.services.Configuration"
+            init-method="refresh" scope="singleton">
+        <property name="uriTransform" value="${uriTransform}" />
+    </bean>
 </blueprint>
-
