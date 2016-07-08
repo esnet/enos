@@ -22,6 +22,7 @@ import array
 import jarray
 import binascii
 from java.math import BigInteger
+from java.lang import Runnable
 
 from net.es.netshell.api import Container
 
@@ -29,14 +30,18 @@ from layer2.testbed.vc import vcendpoints, getvcnode
 
 import sys
 if "debugNoController" in dir(sys) and sys.debugNoController:
+    from net.es.netshell.api import Resource
+
     class X:
         value = None
         def __init__(self,*args):
-            value = args
+            self.value = args
         def __repr__(self):
-            return str(self.value);
+            return str(self.value)
+        def saveToJSON(self):
+            return self.value
 
-    class Z:
+    class Z(Runnable):
         something=True
         def SdnInstallMeter(*args):
             print "Stub InstallMeter",args[1:]
@@ -51,6 +56,9 @@ if "debugNoController" in dir(sys) and sys.debugNoController:
             print "Stub DeleteForward",args[1:]
         def setCallback(*args):
             pass
+        def handleFromJSON(self,x):
+            ret = X(Resource('test'))
+            return ret
 
         def __call__(self):
             self.run()
@@ -115,10 +123,14 @@ def getlinks2(topology, node1, node2):
     :param node2: (string)
     :return: list of node objects (resources)
     """
+    print "### 1 ",topology
     allLinks = topology.loadResources({"resourceType":"Link"})
+    print "### 2"
     links = []
     for l in allLinks:
+        print "### 3"
         (dstNode,dstPort) = linkednode2(l,node1)
+        print "### 4"
         if (dstNode,dstPort) == (None, None):
             continue
         (dstNode,dstPort) = linkednode2(l,node2)

@@ -353,9 +353,9 @@ class VPN(Resource):
         self.properties['vpnsitevlans'] = str(self.vpnsitevlans)
         self.properties['popflows'] = {}
         for (pop,flows) in self.popflows.items():
-            self.properties['popflow'][pop] = []
+            self.properties['popflows'][pop] = []
             for flow in flows:
-                self.properties['popflow'][pop].extend(flow.saveToJSON())
+                self.properties['popflows'][pop].extend(flow.saveToJSON())
         self.properties['entryfanoutflows'] = str(self.entryfanoutflows)
         self.properties['exitfanoutflows'] = str(self.exitfanoutflows)
         self.properties['hostsites'] = str(self.hostsites)
@@ -512,6 +512,7 @@ class VPN(Resource):
 
             # print "addpop ending with pop flow handles", self.popflows[pop.name]
 
+        self.saveVPN()
         return rc
 
     def delpop(self,pop):

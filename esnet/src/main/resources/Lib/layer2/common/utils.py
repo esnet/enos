@@ -25,12 +25,10 @@ import threading
 import inspect
 
 
-from net.es.netshell.api import Resource
-
 """
 This method is used to implement a singleton. In order to make a singleton class:
 
-from common.utils import singleton
+from layer2.common.utils import singleton
 
 @singleton
 class singletonClass:
