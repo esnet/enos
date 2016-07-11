@@ -123,6 +123,7 @@
                     <feature>jax-rs-provider-swagger</feature>
                     <feature>netshell-kernel</feature>
                     <feature>netshell-python</feature>
+                    <feature>netshell-controller</feature>
                     <feature>enos-swagger</feature>
                     <feature>enos-esnet</feature>
                     <feature>enos-services</feature>
