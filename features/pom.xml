@@ -146,6 +146,19 @@
         <!-- The JAX-RS connector allowing for dynamic service discovery. -->
         <dependency>
             <groupId>com.eclipsesource.jaxrs</groupId>
+            <artifactId>features</artifactId>
+            <version>5.3.1</version>
+            <type>pom</type>
+        </dependency>
+
+        <dependency>
+            <groupId>com.eclipsesource.jaxrs</groupId>
+            <artifactId>publisher</artifactId>
+            <version>5.3.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.eclipsesource.jaxrs</groupId>
             <artifactId>jersey-min</artifactId>
             <version>2.22.2</version>
         </dependency>
@@ -156,12 +169,6 @@
             <version>2.2</version>
         </dependency>
 
-        <!-- <dependency>
-            <groupId>com.eclipsesource.jaxrs</groupId>
-            <artifactId>swagger-all</artifactId>
-            <version>1.5.7</version>
-        </dependency>
--->
         <dependency>
             <groupId>com.eclipsesource.jaxrs</groupId>
             <artifactId>provider-swagger</artifactId>
