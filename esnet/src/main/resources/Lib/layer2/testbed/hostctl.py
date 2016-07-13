@@ -123,14 +123,10 @@ def getlinks2(topology, node1, node2):
     :param node2: (string)
     :return: list of node objects (resources)
     """
-    print "### 1 ",topology
     allLinks = topology.loadResources({"resourceType":"Link"})
-    print "### 2"
     links = []
     for l in allLinks:
-        print "### 3"
         (dstNode,dstPort) = linkednode2(l,node1)
-        print "### 4"
         if (dstNode,dstPort) == (None, None):
             continue
         (dstNode,dstPort) = linkednode2(l,node2)
