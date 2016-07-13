@@ -78,4 +78,3 @@ public class ListCommand extends OsgiCommandSupport {
         return null;
     }
 }
-

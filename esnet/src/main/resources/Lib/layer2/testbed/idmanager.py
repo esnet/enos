@@ -23,9 +23,9 @@
 from net.es.netshell.api import Resource, Container
 
 ID_MAX = 255
-ID_MIN = 100
+ID_MIN = 0
 
-ID_CONTAINER='id'
+ID_CONTAINER='TestbedHostIds'
 IDRESOURCE_RESOURCEID = 'id'
 IDRESOURCE_HOST = 'host'
 IDRESOURCE_OWNER = 'owner'
@@ -48,30 +48,21 @@ def getid():
     container = Container.getContainer(ID_CONTAINER)
     idresources = container.loadResources(query)
 
-    ##0, 1 and 2 are reserved ids;
-    idbitmap = [0 for i in range(ID_MAX+1)]
-    if (len(idbitmap)>0):
-        idbitmap[0]=1
-    if (len(idbitmap)>1):
-        idbitmap[1]=1
-    if (len(idbitmap)>2):
-        idbitmap[2]=1
+    # ProxMox requires id to be 100 or above.
+    idbitmap = [True if i < 100 else False for i in range(ID_MAX+1)]
 
     for idresource in idresources:
-        idbitmap[idresource.properties[IDRESOURCE_RESOURCEID]] = 1
+        idbitmap[idresource.properties[IDRESOURCE_RESOURCEID]] = True
 
     for i in range(ID_MIN,ID_MAX+1):
-        if idbitmap[i] == 0:
+        if not idbitmap[i]:
             return i
 
     raise ValueError('All ids have been allocated')
 
 def register(hostid, host, owner, pid):
     """ This method creates the ID resource from the given arguments and registers it in persistent storage """
-    
     hid = int(hostid)
-    if (hid<ID_MIN or hid>ID_MAX):
-        raise ValueError('ID out of range')
 
     idresource = Resource(hostid)
     idresource.properties[IDRESOURCE_HOST] = host

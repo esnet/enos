@@ -84,15 +84,9 @@
         </repository>
         <!-- ServiceMix repo (for region) -->
         <repository>
-            <id>servicemix</id>
-            <name>Apache ServiceMix Repository</name>
-            <url>http://svn.apache.org/repos/asf/servicemix/m2-repo</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
+          <id>servicemix</id>
+          <name>ServiceMix Repo for Karaf</name>
+          <url>http://svn.apache.org/repos/asf/servicemix/m2-repo</url>
         </repository>
         <repository>
             <snapshots>
