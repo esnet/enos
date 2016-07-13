@@ -29,7 +29,7 @@ from layer2.testbed import idmanager, proxmoxutil
 import string
 import time
 
-HOST_CONTAINER = 'host'
+HOST_CONTAINER = 'TestbedHosts'
 
 HOSTNAME = 'host'
 HOSTID = 'id'
@@ -89,9 +89,7 @@ def exists(hostname):
 def createHostTemplateWithId(host, hypervisor, owner, project, hostid, os):
     """ Creates template for host that already has id and stores in persistent storage """
     container = Container.getContainer(HOST_CONTAINER)
-
     if not exists(host):
-
         #Create host resource and save
         hostresource = Resource(host)
         hostresource.properties[HOSTNAME] = host
@@ -111,14 +109,13 @@ def createHostTemplateWithId(host, hypervisor, owner, project, hostid, os):
 
         #commenting out unitl lxc code is integrated
         if os and os != "unknown":
-        	ostemplate = proxmoxutil.getostemplate(os)
-        	if ostemplate is None:
-        		raise ValueError("OS Template does not exist. Please configure os template using proxmoxutil")
-        	else:
-        		hostresource.properties[PROPERTIES_OSTEMPLATE] = ostemplate.properties[PROPERTIES_OSTEMPLATE]
+            ostemplate = proxmoxutil.getostemplate(os)
+            if ostemplate is None:
+                raise ValueError("OS Template does not exist. Please configure os template using proxmoxutil")
+            else:
+                hostresource.properties[PROPERTIES_OSTEMPLATE] = ostemplate.properties[PROPERTIES_OSTEMPLATE]
         else:
-        	hostresource.properties[PROPERTIES_OSTEMPLATE] = "unknown"
-
+            hostresource.properties[PROPERTIES_OSTEMPLATE] = "unknown"
         hostresource.properties[INTERFACES] = []
         print "Creating host template for %s with id %s" %(host, str(hostid))
         container.saveResource(hostresource)        
