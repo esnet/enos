@@ -355,7 +355,7 @@ class VPN(Resource):
         for (pop,flows) in self.popflows.items():
             self.properties['popflows'][pop] = []
             for flow in flows:
-                self.properties['popflows'][pop].extend(flow.saveToJSON())
+                self.properties['popflows'][pop].append(flow.saveToJSON())
         self.properties['entryfanoutflows'] = str(self.entryfanoutflows)
         self.properties['exitfanoutflows'] = str(self.exitfanoutflows)
         self.properties['hostsites'] = str(self.hostsites)
@@ -378,7 +378,7 @@ class VPN(Resource):
             for (pop,flows) in self.properties['popflows'].items():
                 self.popflows[pop] = []
                 for flow in flows:
-                    self.popflows[pop].extend(mpvpn.SCC.handleFromJSON(flow))
+                    self.popflows[pop].append(mpvpn.SCC.handleFromJSON(flow))
         self.exitfanoutflows = eval (self.properties['exitfanoutflows'])
         self.entryfanoutflows = eval (self.properties['entryfanoutflows'])
         self.hostsites = eval (self.properties['hostsites'])
@@ -465,9 +465,7 @@ class VPN(Resource):
         # See if we've already added the POP
         if pop.resourceName in self.pops:
             return False
-
         with self.lock:
-
             fhlist = [] # List of FlowHandles for this POP
 
             # We need to make sure that meter(s) are set correctly on the switches in the POP.
