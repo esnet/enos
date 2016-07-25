@@ -763,7 +763,6 @@ def swconnect(localpop, remotepop, mac, vc, meter):
         SCC.deleteforward(fh3)
         return None
 
-    # Return something
     return (fh1, fh2, fh3, fh4)
 
 def deleteforward(fh):

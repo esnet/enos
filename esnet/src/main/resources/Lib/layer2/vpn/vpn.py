@@ -352,9 +352,13 @@ class VPN(Resource):
         self.properties['vpnsites'] = str(self.vpnsites)
         self.properties['vpnsitevlans'] = str(self.vpnsitevlans)
         self.properties['popflows'] = {}
+        print "### SAVE POPFLOWS ###",self.popflows
         for (pop,flows) in self.popflows.items():
-            self.properties['popflows'][pop] = []
+            if not pop in self.popflows:
+                self.properties['popflows'][pop] = []
             for flow in flows:
+                if not pop in self.properties['popflows']:
+                    self.properties['popflows'][pop] = []
                 self.properties['popflows'][pop].append(flow.saveToJSON())
         self.properties['entryfanoutflows'] = str(self.entryfanoutflows)
         self.properties['exitfanoutflows'] = str(self.exitfanoutflows)
@@ -362,9 +366,10 @@ class VPN(Resource):
         self.vpnService.saveResource(self)
 
     def loadVPN(self,mpvpn):
+        print "### LOAD ", self.getResourceName(), id(self)
         stored = mpvpn.loadResource(self.getResourceName())
         mapResource(obj=self,resource=stored)
-
+        print "###",self.properties
         self.name = self.getResourceName()
         self.vid = self.properties['vid']
         self.priority = self.properties['priority']
@@ -374,10 +379,15 @@ class VPN(Resource):
             self.pops[n] = mpvpn.topology.loadResource(n)
         self.vpnsites = eval (self.properties['vpnsites'])
         self.vpnsitevlans = eval (self.properties['vpnsitevlans'])
+        print "### 1"
         if 'popflows' in self.properties:
+            print "### 2"
             for (pop,flows) in self.properties['popflows'].items():
-                self.popflows[pop] = []
+                print "### 3"
+                if not pop in self.popflows:
+                    self.popflows[pop] = []
                 for flow in flows:
+                    print "\n### LOAD flow",mpvpn.SCC.handleFromJSON(flow),"###",flow,"\n"
                     self.popflows[pop].append(mpvpn.SCC.handleFromJSON(flow))
         self.exitfanoutflows = eval (self.properties['exitfanoutflows'])
         self.entryfanoutflows = eval (self.properties['entryfanoutflows'])
@@ -385,6 +395,8 @@ class VPN(Resource):
         self.mat = MAT.deserialize(self.properties['mat'])
 
         self.vpnService = mpvpn
+        print "### LOAD DONE", self.getResourceName() , self.properties
+        self.vpnService.saveResource(self)
 
     def interconnect(self, site1,site2): # XXX core topo!
         """

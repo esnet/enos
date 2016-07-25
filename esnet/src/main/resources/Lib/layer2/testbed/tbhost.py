@@ -156,6 +156,7 @@ def buildlxc(host):
     password = userresource.properties[PROPERTIES_PASSWORD]
     authrealm = userresource.properties[PROPERTIES_AUTHREALM]
     puser = user+'@'+authrealm
+    puser = user+"@pve"
     	  	
     primary = proxmoxutil.listprimary()
     		
@@ -433,9 +434,9 @@ def addDataPlaneIP(host, interface, vlan):
 def addIP(host, interface, ipaddress, vlan):
     """ Adds interface and ipaddress to host template"""
     container = Container.getContainer(HOST_CONTAINER)
-
+    print "###",1
     if exists(host):
-            
+        print "###",2
         hostresource = container.loadResource(host)
         if interface in hostresource.properties:
             raise ValueError("Interface is already configured")
@@ -447,9 +448,11 @@ def addIP(host, interface, ipaddress, vlan):
         hostresource.properties[interface] = ipconfig
 
         container.saveResource(hostresource)
+        print "###",3,hostresource.properties
         return hostresource
 
     else:
+        print "###",4
         raise ValueError("Host does not exist. Please create template first")
         
 
